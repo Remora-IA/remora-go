@@ -1,4 +1,4 @@
-# Processree
+# Framework Echo
 
 CLI en Go para guiar reuniones de descubrimiento de procesos y construir un árbol validado por respuestas reales.
 
@@ -17,7 +17,7 @@ Los nodos también pueden tener `perceptions`: notas internas sobre comportamien
 ## Uso
 
 ```bash
-./processtree init --project-id "registro-marcas" --client "Gamma" --date "2026-04-23"
+./framework-echo init --project-id "registro-marcas" --client "Gamma" --date "2026-04-23"
 
 ./processtree add-axiom --title "Libreta desordenada" --evidence "El cliente dice que demora recordando qué info va con qué"
 ./processtree add-perception ax_001 --note "El cliente llama 'desastre' a la libreta: hay dolor emocional además de desorden operativo"
