@@ -58,6 +58,8 @@ func main() {
 		cmdSelectOpportunity()
 	case "selected-opportunities":
 		cmdSelectedOpportunities()
+	case "readiness":
+		cmdReadiness()
 	case "edit":
 		cmdEdit()
 	case "help":
@@ -131,6 +133,7 @@ COMANDOS:
 
   select-opportunity <op_id>        Marca una oportunidad validada como elegida para Alfa
   selected-opportunities            Lista oportunidades elegidas para compilar por defecto
+  readiness                         Evalúa si Echo tiene suficiente información para pasar a Alfa
 
   edit <node_id>                    Edita título y/o evidencia de un nodo existente
     --title <título>                Nuevo título (opcional)
@@ -648,6 +651,26 @@ func cmdSelectedOpportunities() {
 	fmt.Println("Opportunities seleccionadas:")
 	for _, node := range selected {
 		fmt.Printf("  [%s] %s\n", node.ID, node.Title)
+	}
+}
+
+func cmdReadiness() {
+	t := loadTree()
+	report := t.AssessAlfaReadiness()
+
+	fmt.Printf("ready_for_alfa: %t\n", report.ReadyForAlfa)
+	fmt.Printf("recommended_action: %s\n", report.RecommendedAction)
+	if report.NextQuestion != "" {
+		fmt.Printf("next_question: %s\n", report.NextQuestion)
+	}
+	fmt.Println()
+	fmt.Println("checks:")
+	for _, check := range report.Checks {
+		status := "FAIL"
+		if check.Passed {
+			status = "OK"
+		}
+		fmt.Printf("  [%s] %s - %s\n", status, check.ID, check.Details)
 	}
 }
 

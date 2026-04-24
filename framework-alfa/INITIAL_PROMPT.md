@@ -33,6 +33,7 @@ ls -la temp || true
 ../framework-echo/frameworkecho status
 ../framework-echo/frameworkecho show-tree
 ../framework-echo/frameworkecho selected-opportunities
+../framework-echo/frameworkecho readiness
 ```
 
 Luego revisa, si necesitas contexto:
@@ -68,6 +69,8 @@ Si compilas, genera un spec nuevo desde ese archivo. Si hay duda de coincidencia
 Si Echo no tiene OPPORTUNITIES validadas, no compiles como si estuviera listo. Devuelve una instrucción clara para Echo:
 
 > Echo aún no tiene oportunidades validadas. Debe confirmar pain real, tarea repetitiva y oportunidad candidata antes de Alfa.
+
+Si `../framework-echo/frameworkecho readiness` no devuelve `ready_for_alfa: true`, no trates el árbol como listo. Usa `recommended_action` y `next_question` como retorno principal hacia Echo, salvo que el usuario pida explícitamente compilar un draft.
 
 Si Echo tiene oportunidades seleccionadas, compila por defecto esas. Si no tiene seleccionadas, el CLI compila todas las validadas por compatibilidad, pero debes avisar el riesgo:
 
@@ -106,11 +109,13 @@ Alfa debe:
 - devolver `open_questions` para Echo;
 - generar reglas verificables, variables críticas y path crítico cuando sea posible.
 - verificar que Echo haya capturado cómo los datos actuales llegan a la automatización.
+- verificar que cualquier hábito manual requerido haya sido validado como viable.
 
 Alfa no debe:
 
 - inventar ponderaciones, fórmulas, columnas o reglas;
 - inventar una fuente de datos o integración;
+- asumir que el usuario mantendrá planillas, formularios o registros manuales si Echo no validó ese hábito;
 - asumir Excel, WhatsApp, CRM, APIs o scraping si Echo no lo validó;
 - convertir "dashboard", "IA" o "reporte" en especificación suficiente;
 - tratar artefactos viejos como actuales;
@@ -132,6 +137,24 @@ Preguntas buenas para devolver a Echo:
 
 No marques `export_ready=true` si la automatización depende de datos que no tienen camino de entrada confirmado.
 
+## Viabilidad Operacional
+
+No basta con que exista un input técnicamente posible. Si la solución depende de que una persona capture, registre, complete o mantenga información manualmente, Echo debe haber confirmado:
+
+- en qué momento real lo hará;
+- qué información mínima registrará;
+- cuánto esfuerzo tolera;
+- que ese hábito no rompe su forma actual de trabajar.
+
+Preguntas buenas para devolver a Echo:
+
+- ¿En qué momento real registraría esta información el usuario?
+- ¿Qué mínimo de datos necesita guardar para que el seguimiento funcione?
+- ¿Ese registro tomaría segundos o minutos?
+- ¿El usuario confirmó que ese esfuerzo sí lo haría de verdad?
+
+No marques `export_ready=true` si la automatización requiere disciplina nueva no validada.
+
 ## Criterio De Listo Para Bravo
 
 Solo está listo si:
@@ -143,5 +166,6 @@ Solo está listo si:
 - cada variable crítica puede trazarse;
 - el output esperado está claro.
 - el input y su transporte desde la operación actual están claros.
+- si hay captura manual, el momento y costo operativo están validados.
 
 Si `export_ready=false`, tu respuesta principal debe ser la lista de preguntas que Echo debe hacer.

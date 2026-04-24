@@ -304,6 +304,136 @@ func TestCompileAllowsConfirmedDataTransport(t *testing.T) {
 	}
 }
 
+func TestCompileBlocksManualCaptureWithoutOperationalViability(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_001"},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "Los leads llegan por correo diario y se contactan por WhatsApp",
+				Evidence: []string{"El correo contiene nombre y contacto; WhatsApp es el canal de conversación"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "El seguimiento depende de memoria y relectura de chats",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Contactar leads y hacer seguimiento por WhatsApp",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "Comete errores al retomar y deja leads de lado",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:               "op_001",
+				Layer:            4,
+				Type:             TypeOpportunity,
+				Title:            "Captura manual de interés, productos y compromisos para retomar conversaciones",
+				Evidence:         []string{"El usuario necesita guardar interés, productos de interés y compromisos pendientes"},
+				Status:           StatusValidated,
+				ParentID:         "pn_001",
+				ValidationAnswer: "sí, eso serviría",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.ExportReady {
+		t.Fatal("expected export_ready=false when manual capture has no operational viability")
+	}
+	if !hasOpenQuestionReason(spec, "hábito operativo") {
+		t.Fatalf("expected operational viability open question, got %#v", spec.OpenQuestions)
+	}
+}
+
+func TestCompileAllowsManualCaptureWithOperationalViability(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_001"},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "Los leads llegan por correo diario y se contactan por WhatsApp",
+				Evidence: []string{"El correo contiene nombre y contacto; WhatsApp es el canal de conversación"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "El seguimiento depende de memoria y relectura de chats",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Contactar leads y hacer seguimiento por WhatsApp",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "Comete errores al retomar y deja leads de lado",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:    "op_001",
+				Layer: 4,
+				Type:  TypeOpportunity,
+				Title: "Captura rápida de interés, productos y compromisos para retomar conversaciones",
+				Evidence: []string{
+					"El usuario puede registrar apenas corta la llamada",
+					"El esfuerzo aceptado es rápido, en segundos, con pocos campos",
+				},
+				Status:           StatusValidated,
+				ParentID:         "pn_001",
+				ValidationAnswer: "sí, eso serviría si es rápido",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !spec.ExportReady {
+		t.Fatalf("expected export_ready=true, got open questions: %#v", spec.OpenQuestions)
+	}
+}
+
 func writeEchoTree(t *testing.T, path string, tree EchoTree) {
 	t.Helper()
 	data, err := json.Marshal(tree)

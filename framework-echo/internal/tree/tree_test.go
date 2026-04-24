@@ -60,3 +60,129 @@ func TestSelectOpportunityRequiresValidatedOpportunity(t *testing.T) {
 		t.Fatalf("unexpected selected opportunities: %#v", tm.SelectedOpportunityIDs)
 	}
 }
+
+func TestAssessReadinessBlocksManualCaptureWithoutViability(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Captura manual de interés, productos y compromisos", []string{
+		"El usuario necesita guardar interés, productos y compromisos",
+	})
+	tm.SelectedOpportunityIDs = []string{"op_001"}
+
+	report := tm.AssessAlfaReadiness()
+	if report.ReadyForAlfa {
+		t.Fatal("expected readiness to block manual capture without viability")
+	}
+	if !hasReadinessCheck(report, "manual_capture_viability", false) {
+		t.Fatalf("expected failed manual_capture_viability check: %#v", report.Checks)
+	}
+	if report.RecommendedAction != RecommendedAskNext {
+		t.Fatalf("unexpected action: %s", report.RecommendedAction)
+	}
+}
+
+func TestAssessReadinessAllowsValidatedManualCapture(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Captura rápida de interés, productos y compromisos", []string{
+		"El usuario puede registrar apenas corta la llamada",
+		"El esfuerzo aceptado es rápido, en segundos, con pocos campos",
+	})
+	tm.SelectedOpportunityIDs = []string{"op_001"}
+
+	report := tm.AssessAlfaReadiness()
+	if !report.ReadyForAlfa {
+		t.Fatalf("expected ready for alfa, got %#v", report)
+	}
+	if report.RecommendedAction != RecommendedPassToAlfa {
+		t.Fatalf("unexpected action: %s", report.RecommendedAction)
+	}
+}
+
+func TestAssessReadinessRecommendsMinimumHypothesisAfterUnknown(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Captura manual de interés, productos y compromisos", []string{
+		"El usuario necesita guardar interés, productos y compromisos",
+	})
+	tm.QALog = []QALogEntry{
+		{
+			Question: "¿Opciones rápidas o nota corta?",
+			Answer:   "No tengo idea la verdad",
+			Purpose:  "refinar fricción operativa",
+		},
+	}
+
+	report := tm.AssessAlfaReadiness()
+	if report.ReadyForAlfa {
+		t.Fatal("expected not ready until opportunity is selected and viability is resolved")
+	}
+	if report.RecommendedAction != RecommendedValidateMinimumHypothesis {
+		t.Fatalf("expected validate minimum hypothesis, got %s", report.RecommendedAction)
+	}
+	if report.NextQuestion == "" {
+		t.Fatal("expected concrete next question")
+	}
+}
+
+func readinessLeadNodes(opTitle string, opEvidence []string) map[string]*Node {
+	return map[string]*Node{
+		"ax_001": {
+			ID:       "ax_001",
+			Type:     TypeAxiom,
+			Layer:    0,
+			Title:    "Los leads llegan por correo diario y se contactan por WhatsApp",
+			Evidence: []string{"El correo contiene nombre y contacto; WhatsApp es el canal de conversación"},
+			Status:   StatusValidated,
+		},
+		"th_001": {
+			ID:       "th_001",
+			Type:     TypeTheory,
+			Layer:    1,
+			Title:    "El seguimiento depende de memoria y relectura de chats",
+			Status:   StatusValidated,
+			ParentID: "ax_001",
+		},
+		"tk_001": {
+			ID:       "tk_001",
+			Type:     TypeTask,
+			Layer:    2,
+			Title:    "Contactar leads y hacer seguimiento por WhatsApp",
+			Status:   StatusValidated,
+			ParentID: "th_001",
+		},
+		"pn_001": {
+			ID:       "pn_001",
+			Type:     TypePain,
+			Layer:    3,
+			Title:    "Comete errores al retomar y deja leads de lado",
+			Status:   StatusValidated,
+			ParentID: "tk_001",
+		},
+		"op_001": {
+			ID:               "op_001",
+			Type:             TypeOpportunity,
+			Layer:            4,
+			Title:            opTitle,
+			Evidence:         opEvidence,
+			Status:           StatusValidated,
+			ParentID:         "pn_001",
+			ValidationAnswer: "sí, eso serviría",
+		},
+	}
+}
+
+func hasReadinessCheck(report ReadinessReport, id string, passed bool) bool {
+	for _, check := range report.Checks {
+		if check.ID == id && check.Passed == passed {
+			return true
+		}
+	}
+	return false
+}
