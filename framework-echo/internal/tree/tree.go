@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// ProcessTree es la estructura raíz del árbol de conocimiento
-type ProcessTree struct {
+// FrameworkEcho es la estructura raíz del árbol de conocimiento
+type FrameworkEcho struct {
 	ProjectID       string           `json:"project_id"`
 	ClientName      string           `json:"client_name"`
 	DateStarted     string           `json:"date_started"`
@@ -20,8 +20,8 @@ type ProcessTree struct {
 }
 
 // LoadOrCreate carga el árbol desde un archivo o crea uno nuevo
-func LoadOrCreate(filePath string) (*ProcessTree, error) {
-	tree := &ProcessTree{
+func LoadOrCreate(filePath string) (*FrameworkEcho, error) {
+	tree := &FrameworkEcho{
 		FilePath: filePath,
 	}
 
@@ -53,7 +53,7 @@ func LoadOrCreate(filePath string) (*ProcessTree, error) {
 }
 
 // Save guarda el árbol al archivo JSON
-func (t *ProcessTree) Save() error {
+func (t *FrameworkEcho) Save() error {
 	data, err := json.MarshalIndent(t, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error serializando JSON: %w", err)
@@ -67,7 +67,7 @@ func (t *ProcessTree) Save() error {
 }
 
 // Init inicializa un proyecto nuevo
-func (t *ProcessTree) Init(projectID, clientName, date string) error {
+func (t *FrameworkEcho) Init(projectID, clientName, date string) error {
 	t.ProjectID = projectID
 	t.ClientName = clientName
 	t.DateStarted = date
@@ -78,7 +78,7 @@ func (t *ProcessTree) Init(projectID, clientName, date string) error {
 }
 
 // nextSeqNum calcula el siguiente número de secuencia para un tipo de nodo
-func (t *ProcessTree) nextSeqNum(nodeType string) int {
+func (t *FrameworkEcho) nextSeqNum(nodeType string) int {
 	prefix := prefixMap[nodeType]
 	max := 0
 	for id := range t.Nodes {
@@ -95,7 +95,7 @@ func (t *ProcessTree) nextSeqNum(nodeType string) int {
 }
 
 // CountValidatedInLayer cuenta cuántos nodos validados hay en una capa
-func (t *ProcessTree) CountValidatedInLayer(layer int) int {
+func (t *FrameworkEcho) CountValidatedInLayer(layer int) int {
 	count := 0
 	for _, node := range t.Nodes {
 		if node.Layer == layer && node.Status == StatusValidated {
@@ -106,7 +106,7 @@ func (t *ProcessTree) CountValidatedInLayer(layer int) int {
 }
 
 // countInLayer cuenta cuántos nodos hay en total en una capa
-func (t *ProcessTree) countInLayer(layer int) int {
+func (t *FrameworkEcho) countInLayer(layer int) int {
 	count := 0
 	for _, node := range t.Nodes {
 		if node.Layer == layer {
@@ -117,7 +117,7 @@ func (t *ProcessTree) countInLayer(layer int) int {
 }
 
 // AddNode agrega un nodo al árbol con todas las validaciones
-func (t *ProcessTree) AddNode(nodeType string, title string, evidence []string, parentID string) (*Node, error) {
+func (t *FrameworkEcho) AddNode(nodeType string, title string, evidence []string, parentID string) (*Node, error) {
 	targetLayer, ok := layerMap[nodeType]
 	if !ok {
 		return nil, fmt.Errorf("tipo de nodo inválido: %s", nodeType)
@@ -197,7 +197,7 @@ func (t *ProcessTree) AddNode(nodeType string, title string, evidence []string, 
 }
 
 // ValidateNode valida un nodo con la respuesta del cliente
-func (t *ProcessTree) ValidateNode(nodeID string, answer string) error {
+func (t *FrameworkEcho) ValidateNode(nodeID string, answer string) error {
 	node, exists := t.Nodes[nodeID]
 	if !exists {
 		return fmt.Errorf("nodo '%s' no existe", nodeID)
@@ -213,7 +213,7 @@ func (t *ProcessTree) ValidateNode(nodeID string, answer string) error {
 }
 
 // RejectNode rechaza un nodo
-func (t *ProcessTree) RejectNode(nodeID string, reason string) error {
+func (t *FrameworkEcho) RejectNode(nodeID string, reason string) error {
 	node, exists := t.Nodes[nodeID]
 	if !exists {
 		return fmt.Errorf("nodo '%s' no existe", nodeID)
@@ -225,7 +225,7 @@ func (t *ProcessTree) RejectNode(nodeID string, reason string) error {
 }
 
 // UpdateConfidence actualiza la confianza de un nodo manualmente
-func (t *ProcessTree) UpdateConfidence(nodeID string, confidence int) error {
+func (t *FrameworkEcho) UpdateConfidence(nodeID string, confidence int) error {
 	node, exists := t.Nodes[nodeID]
 	if !exists {
 		return fmt.Errorf("nodo '%s' no existe", nodeID)
@@ -241,7 +241,7 @@ func (t *ProcessTree) UpdateConfidence(nodeID string, confidence int) error {
 }
 
 // AddPerception agrega una nota interna de percepción a un nodo.
-func (t *ProcessTree) AddPerception(nodeID string, perception string) error {
+func (t *FrameworkEcho) AddPerception(nodeID string, perception string) error {
 	node, exists := t.Nodes[nodeID]
 	if !exists {
 		return fmt.Errorf("nodo '%s' no existe", nodeID)
@@ -257,7 +257,7 @@ func (t *ProcessTree) AddPerception(nodeID string, perception string) error {
 }
 
 // GetPendingQuestions retorna todas las preguntas pendientes organizadas por nodo
-func (t *ProcessTree) GetPendingQuestions() []PendingQuestion {
+func (t *FrameworkEcho) GetPendingQuestions() []PendingQuestion {
 	var questions []PendingQuestion
 
 	for _, node := range t.Nodes {
@@ -295,7 +295,7 @@ type PendingQuestion struct {
 }
 
 // GetStats retorna estadísticas del árbol
-func (t *ProcessTree) GetStats() TreeStats {
+func (t *FrameworkEcho) GetStats() TreeStats {
 	stats := TreeStats{
 		ByLayer: make(map[int]LayerStats),
 	}
@@ -333,11 +333,11 @@ type LayerStats struct {
 }
 
 // ShowTree imprime el árbol de forma visual
-func (t *ProcessTree) ShowTree() string {
+func (t *FrameworkEcho) ShowTree() string {
 	var sb strings.Builder
 
 	sb.WriteString(fmt.Sprintf("╔══════════════════════════════════════════════════════════╗\n"))
-	sb.WriteString(fmt.Sprintf("║  ProcessTree: %s\n", t.ProjectID))
+	sb.WriteString(fmt.Sprintf("║  FrameworkEcho: %s\n", t.ProjectID))
 	sb.WriteString(fmt.Sprintf("║  Cliente: %s | Inicio: %s\n", t.ClientName, t.DateStarted))
 	sb.WriteString(fmt.Sprintf("╚══════════════════════════════════════════════════════════╝\n\n"))
 
@@ -421,7 +421,7 @@ func (t *ProcessTree) ShowTree() string {
 }
 
 // getNodesInLayer retorna nodos de una capa, ordenados por ID
-func (t *ProcessTree) getNodesInLayer(layer int) []*Node {
+func (t *FrameworkEcho) getNodesInLayer(layer int) []*Node {
 	var nodes []*Node
 	for _, node := range t.Nodes {
 		if node.Layer == layer {

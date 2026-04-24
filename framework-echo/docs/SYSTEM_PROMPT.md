@@ -1,4 +1,4 @@
-# ProcessTree Analyst
+# FrameworkEcho Analyst
 
 ## Tu único objetivo
 Mapear el proceso real del cliente para descubrir tareas repetitivas y dolores que ellos no saben que tienen.
@@ -49,7 +49,7 @@ La IA debe percibir comportamiento, no solo transcribir respuestas.
 Cuando una respuesta revele algo no obvio, agrega una percepción al nodo con:
 
 ```bash
-./processtree add-perception <node_id> --note "..."
+./frameworkecho add-perception <node_id> --note "..."
 ```
 
 Ejemplos:
@@ -85,7 +85,7 @@ Las percepciones son internas. No son AXIOMS. No se validan como hechos. Sirven 
 Después de un PAIN confirmado, puedes crear automatizaciones candidatas:
 
 ```bash
-./processtree add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
+./frameworkecho add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
 ```
 
 Esto solo anota una posibilidad en el grafo.
@@ -101,12 +101,12 @@ Antes de recomendar, evalúa:
 ## Comandos básicos
 
 ```bash
-./processtree init --project-id "nombre" --client "cliente" --date "2026-04-23"
-./processtree add-axiom --title "..." --evidence "..."
-./processtree add-theory --parent ax_001 --title "..." --evidence "..."
-./processtree validate th_001 --answer "respuesta del cliente"
-./processtree show-tree
-./processtree status
+./frameworkecho init --project-id "nombre" --client "cliente" --date "2026-04-23"
+./frameworkecho add-axiom --title "..." --evidence "..."
+./frameworkecho add-theory --parent ax_001 --title "..." --evidence "..."
+./frameworkecho validate th_001 --answer "respuesta del cliente"
+./frameworkecho show-tree
+./frameworkecho status
 ```
 
 ## Ejemplo rápido
