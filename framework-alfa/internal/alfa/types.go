@@ -1,10 +1,11 @@
 package alfa
 
 type EchoTree struct {
-	ProjectID   string           `json:"project_id"`
-	ClientName  string           `json:"client_name"`
-	DateStarted string           `json:"date_started"`
-	Nodes       map[string]*Node `json:"nodes"`
+	ProjectID              string           `json:"project_id"`
+	ClientName             string           `json:"client_name"`
+	DateStarted            string           `json:"date_started"`
+	SelectedOpportunityIDs []string         `json:"selected_opportunity_ids,omitempty"`
+	Nodes                  map[string]*Node `json:"nodes"`
 }
 
 type Node struct {

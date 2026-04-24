@@ -6,17 +6,32 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 // FrameworkEcho es la estructura raíz del árbol de conocimiento
 type FrameworkEcho struct {
-	ProjectID       string           `json:"project_id"`
-	ClientName      string           `json:"client_name"`
-	DateStarted     string           `json:"date_started"`
-	CurrentMaxLayer int              `json:"current_max_layer"`
-	FocusNodes      []string         `json:"focus_nodes"`
-	Nodes           map[string]*Node `json:"nodes"`
-	FilePath        string           `json:"-"`
+	ProjectID              string           `json:"project_id"`
+	ClientName             string           `json:"client_name"`
+	DateStarted            string           `json:"date_started"`
+	CurrentMaxLayer        int              `json:"current_max_layer"`
+	FocusNodes             []string         `json:"focus_nodes"`
+	SelectedOpportunityIDs []string         `json:"selected_opportunity_ids,omitempty"`
+	Config                 Config           `json:"config"`
+	QALog                  []QALogEntry     `json:"qa_log,omitempty"`
+	Nodes                  map[string]*Node `json:"nodes"`
+	FilePath               string           `json:"-"`
+}
+
+type Config struct {
+	QALogEnabled bool `json:"qa_log_enabled"`
+}
+
+type QALogEntry struct {
+	Question  string `json:"question"`
+	Answer    string `json:"answer"`
+	Purpose   string `json:"purpose,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 // LoadOrCreate carga el árbol desde un archivo o crea uno nuevo
@@ -34,6 +49,9 @@ func LoadOrCreate(filePath string) (*FrameworkEcho, error) {
 			tree.DateStarted = ""
 			tree.CurrentMaxLayer = 0
 			tree.FocusNodes = []string{}
+			tree.SelectedOpportunityIDs = []string{}
+			tree.Config = Config{}
+			tree.QALog = []QALogEntry{}
 			tree.Nodes = make(map[string]*Node)
 			return tree, nil
 		}
@@ -46,6 +64,15 @@ func LoadOrCreate(filePath string) (*FrameworkEcho, error) {
 
 	if tree.Nodes == nil {
 		tree.Nodes = make(map[string]*Node)
+	}
+	if tree.FocusNodes == nil {
+		tree.FocusNodes = []string{}
+	}
+	if tree.SelectedOpportunityIDs == nil {
+		tree.SelectedOpportunityIDs = []string{}
+	}
+	if tree.QALog == nil {
+		tree.QALog = []QALogEntry{}
 	}
 
 	tree.FilePath = filePath
@@ -73,6 +100,9 @@ func (t *FrameworkEcho) Init(projectID, clientName, date string) error {
 	t.DateStarted = date
 	t.CurrentMaxLayer = 0
 	t.FocusNodes = []string{}
+	t.SelectedOpportunityIDs = []string{}
+	t.Config = Config{}
+	t.QALog = []QALogEntry{}
 	t.Nodes = make(map[string]*Node)
 	return t.Save()
 }
@@ -254,6 +284,72 @@ func (t *FrameworkEcho) AddPerception(nodeID string, perception string) error {
 	node.AddPerception(perception)
 
 	return t.Save()
+}
+
+func (t *FrameworkEcho) SetQALogEnabled(enabled bool) error {
+	t.Config.QALogEnabled = enabled
+	return t.Save()
+}
+
+func (t *FrameworkEcho) AddQALog(question, answer, purpose string) error {
+	question = strings.TrimSpace(question)
+	answer = strings.TrimSpace(answer)
+	purpose = strings.TrimSpace(purpose)
+
+	if !t.Config.QALogEnabled {
+		return fmt.Errorf("qa log está desactivado; actívalo con: frameworkecho config --qa-log on")
+	}
+	if question == "" {
+		return fmt.Errorf("question no puede estar vacía")
+	}
+	if answer == "" {
+		return fmt.Errorf("answer no puede estar vacía")
+	}
+
+	t.QALog = append(t.QALog, QALogEntry{
+		Question:  question,
+		Answer:    answer,
+		Purpose:   purpose,
+		CreatedAt: timeNowRFC3339(),
+	})
+
+	return t.Save()
+}
+
+func (t *FrameworkEcho) SelectOpportunity(nodeID string) error {
+	node, exists := t.Nodes[nodeID]
+	if !exists {
+		return fmt.Errorf("nodo '%s' no existe", nodeID)
+	}
+	if node.Type != TypeOpportunity {
+		return fmt.Errorf("nodo '%s' es %s, no OPPORTUNITY", nodeID, node.Type)
+	}
+	if node.Status != StatusValidated {
+		return fmt.Errorf("opportunity '%s' debe estar validada antes de seleccionarse", nodeID)
+	}
+	for _, selected := range t.SelectedOpportunityIDs {
+		if selected == nodeID {
+			return nil
+		}
+	}
+	t.SelectedOpportunityIDs = append(t.SelectedOpportunityIDs, nodeID)
+	sort.Strings(t.SelectedOpportunityIDs)
+	return t.Save()
+}
+
+func (t *FrameworkEcho) SelectedOpportunities() []*Node {
+	var nodes []*Node
+	for _, id := range t.SelectedOpportunityIDs {
+		node, exists := t.Nodes[id]
+		if exists && node.Type == TypeOpportunity {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
+}
+
+func timeNowRFC3339() string {
+	return time.Now().UTC().Format(time.RFC3339)
 }
 
 // GetPendingQuestions retorna todas las preguntas pendientes organizadas por nodo
