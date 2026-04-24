@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"framework-bravo/frameworkbravo"
+	frameworkbravo "framework-bravo/flowguard"
 )
 
 type Producto struct {
@@ -19,7 +19,7 @@ type Producto struct {
 
 type ItemCarrito struct {
 	ProductoID string
-	Cantidad  int
+	Cantidad   int
 }
 
 type Cupon struct {
@@ -45,11 +45,11 @@ type ResumenPedido struct {
 }
 
 var catalogoProductos = map[string]*Producto{
-	"LAPTOP-01": {ID: "LAPTOP-01", Nombre: "Laptop Pro 15", Precio: 1200.00, Stock: 10, Categoria: "electronica"},
-	"MOUSE-01":  {ID: "MOUSE-01", Nombre: "Mouse Inalámbrico", Precio: 25.00, Stock: 150, Categoria: "electronica"},
+	"LAPTOP-01":   {ID: "LAPTOP-01", Nombre: "Laptop Pro 15", Precio: 1200.00, Stock: 10, Categoria: "electronica"},
+	"MOUSE-01":    {ID: "MOUSE-01", Nombre: "Mouse Inalámbrico", Precio: 25.00, Stock: 150, Categoria: "electronica"},
 	"CAMISETA-01": {ID: "CAMISETA-01", Nombre: "Camiseta Algodón", Precio: 19.99, Stock: 500, Categoria: "ropa"},
-	"LIBRO-01":  {ID: "LIBRO-01", Nombre: "Clean Code", Precio: 35.00, Stock: 45, Categoria: "libros"},
-	"HDMI-01":   {ID: "HDMI-01", Nombre: "Cable HDMI 2m", Precio: 12.50, Stock: 300, Categoria: "electronica"},
+	"LIBRO-01":    {ID: "LIBRO-01", Nombre: "Clean Code", Precio: 35.00, Stock: 45, Categoria: "libros"},
+	"HDMI-01":     {ID: "HDMI-01", Nombre: "Cable HDMI 2m", Precio: 12.50, Stock: 300, Categoria: "electronica"},
 }
 
 var costoEnvioPorPais = map[string]float64{
@@ -80,8 +80,8 @@ Después calculamos impuesto sobre el precio ya con descuento.
 Finalmente sumamos todo para obtener el total y actualizamos el stock del producto correcto, no del que esté en la posición del mapa.
 
 Los puntos críticos son: que el descuento por categoría funcione, que no se aplique doble descuento, que el envío gratis respete la regla del cupón, y que el stock se descuente del producto real pedido y no de uno aleatorio del mapa.`).
-		SetIntent("Procesar pedidos respetando estrictamente las reglas de cupones por categoría, " +
-			"política de envío según uso de cupón, y actualización correcta de inventario. " +
+		SetIntent("Procesar pedidos respetando estrictamente las reglas de cupones por categoría, "+
+			"política de envío según uso de cupón, y actualización correcta de inventario. "+
 			"Evitar errores silenciosos en descuentos y stock es prioridad máxima.").
 		AddRule("Descuento por categoría",
 			"El cupón TECH15 solo debe aplicarse a productos de categoría 'electronica'",
@@ -116,7 +116,7 @@ Los puntos críticos son: que el descuento por categoría funcione, que no se ap
 			{ProductoID: "LIBRO-01", Cantidad: 1},
 			{ProductoID: "HDMI-01", Cantidad: 2},
 		},
-		Cupon: &Cupon{Codigo: "TECH15", Porcentaje: 15.0, Categoria: "electronica"},
+		Cupon:         &Cupon{Codigo: "TECH15", Porcentaje: 15.0, Categoria: "electronica"},
 		DireccionPais: "MX",
 	}
 

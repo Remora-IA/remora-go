@@ -50,6 +50,16 @@ func main() {
 		cmdAddQuestion()
 	case "add-perception":
 		cmdAddPerception()
+	case "config":
+		cmdConfig()
+	case "log-qa":
+		cmdLogQA()
+	case "select-opportunity":
+		cmdSelectOpportunity()
+	case "selected-opportunities":
+		cmdSelectedOpportunities()
+	case "edit":
+		cmdEdit()
 	case "help":
 		printUsage()
 	default:
@@ -111,10 +121,25 @@ COMANDOS:
   add-perception <node_id>          Agrega una nota interna de percepción a un nodo
     --note <nota>                   Lectura interna: comportamiento, contradicción o fricción latente
 
+  config                            Configura opciones del proyecto
+    --qa-log <on|off>               Activa o desactiva la bitácora opcional de preguntas/respuestas
+
+  log-qa                            Registra una pregunta/respuesta del chat cuando qa-log está activo
+    --question <pregunta>           Pregunta realizada
+    --answer <respuesta>            Respuesta del usuario/cliente
+    --purpose <propósito>           Por qué se hizo la pregunta (opcional)
+
+  select-opportunity <op_id>        Marca una oportunidad validada como elegida para Alfa
+  selected-opportunities            Lista oportunidades elegidas para compilar por defecto
+
+  edit <node_id>                    Edita título y/o evidencia de un nodo existente
+    --title <título>                Nuevo título (opcional)
+    --evidence <evidencia>          Nueva evidencia (opcional, puede repetir)
+
   show-tree                         Muestra el árbol visual completo
   next-questions                    Muestra preguntas pendientes para el cliente
   status                            Muestra estadísticas del árbol
-  reset                             Elimina todos los nodos (mantiene proyecto)
+  reset                             Elimina el proyecto completo (archivo JSON)
   help                              Muestra esta ayuda`)
 }
 
@@ -435,26 +460,18 @@ func cmdNextQuestions() {
 }
 
 func cmdReset() {
-	flags := parseFlags(os.Args[2:])
-	_ = flags // --force sería para confirmar sin preguntar
-
 	t := loadTree()
 
 	// Contar nodos existentes
 	count := len(t.Nodes)
 
-	// Limpiar nodos
-	t.Nodes = make(map[string]*tree.Node)
-	t.CurrentMaxLayer = 0
-	t.FocusNodes = []string{}
-
-	if err := t.Save(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error guardando: %v\n", err)
+	// Eliminar archivo del proyecto
+	if err := os.Remove(defaultFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error eliminando archivo: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("✓ Reset completo: %d nodos eliminados\n", count)
-	fmt.Printf("  Proyecto '%s' intacto, listo para nueva sesión\n", t.ProjectID)
+	fmt.Printf("✓ Proyecto eliminado: %d nodos borrados, archivo '%s' eliminado\n", count, defaultFile)
 }
 
 func cmdStatus() {
@@ -547,6 +564,137 @@ func cmdAddPerception() {
 
 	fmt.Printf("✓ Percepción agregada a %s\n", nodeID)
 	fmt.Printf("  → %s\n", note)
+}
+
+func cmdConfig() {
+	flags := parseFlags(os.Args[2:])
+	qaLog := getFlag(flags, "qa-log")
+
+	if qaLog == "" {
+		t := loadTree()
+		status := "off"
+		if t.Config.QALogEnabled {
+			status = "on"
+		}
+		fmt.Printf("qa-log: %s\n", status)
+		return
+	}
+
+	var enabled bool
+	switch strings.ToLower(qaLog) {
+	case "on", "true", "1", "yes":
+		enabled = true
+	case "off", "false", "0", "no":
+		enabled = false
+	default:
+		fmt.Fprintf(os.Stderr, "Error: --qa-log debe ser on u off\n")
+		os.Exit(1)
+	}
+
+	t := loadTree()
+	if err := t.SetQALogEnabled(enabled); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	status := "off"
+	if enabled {
+		status = "on"
+	}
+	fmt.Printf("✓ qa-log: %s\n", status)
+}
+
+func cmdLogQA() {
+	flags := parseFlags(os.Args[2:])
+	question := requireFlag(flags, "question")
+	answer := requireFlag(flags, "answer")
+	purpose := getFlag(flags, "purpose")
+
+	t := loadTree()
+	if err := t.AddQALog(question, answer, purpose); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ QA registrado (%d total)\n", len(t.QALog))
+}
+
+func cmdSelectOpportunity() {
+	if len(os.Args) < 3 {
+		fmt.Fprintf(os.Stderr, "Error: debes especificar el op_id\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho select-opportunity <op_id>\n")
+		os.Exit(1)
+	}
+
+	opID := os.Args[2]
+	t := loadTree()
+	if err := t.SelectOpportunity(opID); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Opportunity seleccionada: %s\n", opID)
+}
+
+func cmdSelectedOpportunities() {
+	t := loadTree()
+	selected := t.SelectedOpportunities()
+	if len(selected) == 0 {
+		fmt.Println("No hay opportunities seleccionadas.")
+		fmt.Println("Selecciona una con: frameworkecho select-opportunity <op_id>")
+		return
+	}
+
+	fmt.Println("Opportunities seleccionadas:")
+	for _, node := range selected {
+		fmt.Printf("  [%s] %s\n", node.ID, node.Title)
+	}
+}
+
+func cmdEdit() {
+	if len(os.Args) < 3 {
+		fmt.Fprintf(os.Stderr, "Error: debes especificar el node_id\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho edit <node_id> --title \"nuevo título\" --evidence \"evidencia\"\n")
+		os.Exit(1)
+	}
+
+	nodeID := os.Args[2]
+	flags := parseFlags(os.Args[3:])
+	newTitle := getFlag(flags, "title")
+	newEvidence := getFlags(flags, "evidence")
+
+	if newTitle == "" && len(newEvidence) == 0 {
+		fmt.Fprintf(os.Stderr, "Error: necesitas --title y/o --evidence\n")
+		os.Exit(1)
+	}
+
+	t := loadTree()
+	node, exists := t.Nodes[nodeID]
+	if !exists {
+		fmt.Fprintf(os.Stderr, "Error: nodo '%s' no existe\n", nodeID)
+		os.Exit(1)
+	}
+
+	if newTitle != "" {
+		fmt.Printf("  Título: '%s' → '%s'\n", node.Title, newTitle)
+		node.Title = newTitle
+	}
+
+	if len(newEvidence) > 0 {
+		if len(node.Evidence) > 0 {
+			fmt.Printf("  Evidencia: %d → %d elementos\n", len(node.Evidence), len(newEvidence))
+		} else {
+			fmt.Printf("  Evidencia: 0 → %d elementos\n", len(newEvidence))
+		}
+		node.Evidence = newEvidence
+	}
+
+	if err := t.Save(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error guardando: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Nodo %s editado\n", nodeID)
 }
 
 func printQuickStats(t *tree.FrameworkEcho) {

@@ -25,6 +25,12 @@ Si falta informacion, Alfa no inventa. Devuelve `open_questions` para que Echo p
 
 ## Comandos
 
+Para iniciar una IA operadora de Alfa, entrégale primero:
+
+```text
+INITIAL_PROMPT.md
+```
+
 ```bash
 go build -o frameworkalfa ./cmd/frameworkalfa
 

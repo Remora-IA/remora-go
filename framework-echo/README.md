@@ -16,8 +16,14 @@ Los nodos también pueden tener `perceptions`: notas internas sobre comportamien
 
 ## Uso
 
+Para iniciar una IA operadora de Echo, entrégale primero:
+
+```text
+INITIAL_PROMPT.md
+```
+
 ```bash
-./framework-echo init --project-id "registro-marcas" --client "Gamma" --date "2026-04-23"
+./frameworkecho init --project-id "registro-marcas" --client "Gamma" --date "2026-04-23"
 
 ./frameworkecho add-axiom --title "Libreta desordenada" --evidence "El cliente dice que demora recordando qué info va con qué"
 ./frameworkecho add-perception ax_001 --note "El cliente llama 'desastre' a la libreta: hay dolor emocional además de desorden operativo"
@@ -32,6 +38,10 @@ Los nodos también pueden tener `perceptions`: notas internas sobre comportamien
 ./frameworkecho validate pn_001 --answer "Sí, ese es el problema"
 
 ./frameworkecho add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Candidata para resolver búsqueda en libreta"
+./frameworkecho select-opportunity op_001
+
+./frameworkecho config --qa-log on
+./frameworkecho log-qa --question "¿Dónde buscas esa información hoy?" --answer "En una libreta" --purpose "Confirmar fuente actual"
 
 ./frameworkecho show-tree
 ./frameworkecho status

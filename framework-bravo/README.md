@@ -11,6 +11,12 @@ La comparación, el diagnóstico y las preguntas faltantes las hace la IA. Frame
 
 ## Qué es
 
+Para iniciar una IA operadora de Bravo, entrégale primero:
+
+```text
+INITIAL_PROMPT.md
+```
+
 - Una capa de instrumentación para capturar el flujo real del programa.
 - Un formato para expresar el flujo ideal, reglas de negocio, variables críticas y path crítico.
 - Un empaquetador de artefactos para que una IA compare ideal vs real con suficiente contexto.

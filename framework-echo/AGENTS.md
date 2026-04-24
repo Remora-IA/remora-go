@@ -21,17 +21,17 @@ Luego sigues sugiriendo preguntas una por una según la respuesta.
 ## Comandos
 
 ```bash
-./framework-echo init --project-id "nombre" --client "cliente" --date "2026-04-23"
-./framework-echo add-axiom --title "..." --evidence "..."
-./framework-echo add-theory --parent ax_001 --title "..." --evidence "..."
-./framework-echo add-task --parent th_001 --title "..." --evidence "..."
-./framework-echo add-pain --parent tk_001 --title "..." --evidence "..."
-./framework-echo add-opportunity --parent pn_001 --title "..." --evidence "..."
-./framework-echo add-perception ax_001 --note "..."
-./framework-echo validate th_001 --answer "respuesta del cliente"
-./framework-echo show-tree
-./framework-echo status
-./framework-echo next-questions
+./frameworkecho init --project-id "nombre" --client "cliente" --date "2026-04-23"
+./frameworkecho add-axiom --title "..." --evidence "..."
+./frameworkecho add-theory --parent ax_001 --title "..." --evidence "..."
+./frameworkecho add-task --parent th_001 --title "..." --evidence "..."
+./frameworkecho add-pain --parent tk_001 --title "..." --evidence "..."
+./frameworkecho add-opportunity --parent pn_001 --title "..." --evidence "..."
+./frameworkecho add-perception ax_001 --note "..."
+./frameworkecho validate th_001 --answer "respuesta del cliente"
+./frameworkecho show-tree
+./frameworkecho status
+./frameworkecho next-questions
 ```
 
 ## Preguntas típicas para reuniones
@@ -80,7 +80,7 @@ Las percepciones NO son hechos del cliente. Son notas internas para guiar la sig
 Después de tener PAINS confirmados, puedes crear OPPORTUNITY:
 
 ```bash
-./framework-echo add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
+./frameworkecho add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
 ```
 
 OPPORTUNITY significa "automatización candidata anotada en el grafo".

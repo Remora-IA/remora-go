@@ -103,3 +103,79 @@ func TestExportBravoIncludesOpenQuestionsAsRules(t *testing.T) {
 		t.Fatalf("unexpected rule name: %s", flow.Rules[0].Name)
 	}
 }
+
+func TestCompileUsesSelectedOpportunitiesByDefault(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_002"},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:     "ax_001",
+				Layer:  0,
+				Type:   TypeAxiom,
+				Title:  "Proceso confirmado",
+				Status: StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "Hay una tarea repetitiva",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Preparar reporte",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "Reporte toma tiempo",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:       "op_001",
+				Layer:    4,
+				Type:     TypeOpportunity,
+				Title:    "Dashboard operativo",
+				Status:   StatusValidated,
+				ParentID: "pn_001",
+			},
+			"op_002": {
+				ID:       "op_002",
+				Layer:    4,
+				Type:     TypeOpportunity,
+				Title:    "Resumen semanal",
+				Status:   StatusValidated,
+				ParentID: "pn_001",
+			},
+		},
+	}
+	data, err := json.Marshal(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(treePath, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.SelectedOpportunities) != 1 {
+		t.Fatalf("expected 1 selected opportunity, got %d", len(spec.SelectedOpportunities))
+	}
+	if spec.SelectedOpportunities[0].ID != "op_002" {
+		t.Fatalf("expected op_002, got %s", spec.SelectedOpportunities[0].ID)
+	}
+}

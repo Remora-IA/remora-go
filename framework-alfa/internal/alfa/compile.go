@@ -130,6 +130,25 @@ func selectOpportunities(tree *EchoTree, requested string) ([]*Node, error) {
 		return []*Node{node}, nil
 	}
 
+	if len(tree.SelectedOpportunityIDs) > 0 {
+		var selected []*Node
+		for _, id := range tree.SelectedOpportunityIDs {
+			node, ok := tree.Nodes[id]
+			if !ok {
+				return nil, fmt.Errorf("selected opportunity %q not found", id)
+			}
+			if node.Type != TypeOpportunity {
+				return nil, fmt.Errorf("selected node %q is %s, not OPPORTUNITY", id, node.Type)
+			}
+			if node.Status != StatusValidated {
+				return nil, fmt.Errorf("selected opportunity %q must be validated before compile", id)
+			}
+			selected = append(selected, node)
+		}
+		sort.Slice(selected, func(i, j int) bool { return selected[i].ID < selected[j].ID })
+		return selected, nil
+	}
+
 	var nodes []*Node
 	for _, node := range tree.Nodes {
 		if node.Type == TypeOpportunity && node.Status == StatusValidated {
