@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -178,4 +179,147 @@ func TestCompileUsesSelectedOpportunitiesByDefault(t *testing.T) {
 	if spec.SelectedOpportunities[0].ID != "op_002" {
 		t.Fatalf("expected op_002, got %s", spec.SelectedOpportunities[0].ID)
 	}
+}
+
+func TestCompileBlocksWhenDataTransportIsMissing(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_001"},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "Los prospectos viven en WhatsApp y en la cabeza del usuario",
+				Evidence: []string{"No existe registro estructurado"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "El seguimiento informal genera pérdida de contexto",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Contactar prospectos por WhatsApp",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "Abrir WhatsApp muchas veces al día",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:       "op_001",
+				Layer:    4,
+				Type:     TypeOpportunity,
+				Title:    "Vista unificada de prospectos",
+				Status:   StatusValidated,
+				ParentID: "pn_001",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.ExportReady {
+		t.Fatal("expected export_ready=false when data transport is missing")
+	}
+	if !hasOpenQuestionReason(spec, "datos actuales") {
+		t.Fatalf("expected data transport open question, got %#v", spec.OpenQuestions)
+	}
+}
+
+func TestCompileAllowsConfirmedDataTransport(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_001"},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "La lista de prospectos se puede exportar como CSV completo",
+				Evidence: []string{"El usuario confirma que ya puede entregar un archivo CSV completo con los prospectos"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "El seguimiento informal genera pérdida de contexto",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Contactar prospectos",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "Seguimiento se acumula",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:       "op_001",
+				Layer:    4,
+				Type:     TypeOpportunity,
+				Title:    "Vista unificada de prospectos",
+				Status:   StatusValidated,
+				ParentID: "pn_001",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !spec.ExportReady {
+		t.Fatalf("expected export_ready=true, got open questions: %#v", spec.OpenQuestions)
+	}
+}
+
+func writeEchoTree(t *testing.T, path string, tree EchoTree) {
+	t.Helper()
+	data, err := json.Marshal(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func hasOpenQuestionReason(spec *AlfaSpec, needle string) bool {
+	for _, q := range spec.OpenQuestions {
+		if strings.Contains(q.Reason, needle) {
+			return true
+		}
+	}
+	return false
 }
