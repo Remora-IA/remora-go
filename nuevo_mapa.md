@@ -357,6 +357,15 @@ Si el cliente no aprueba, Bravo no sigue construyendo a ciegas. El rechazo se tr
 - datos difíciles de obtener -> Echo aclara transporte de datos;
 - oportunidad incorrecta -> Echo revisa otra oportunidad validada o descubre una nueva.
 
+Si Bravo usa datos de ejemplo, el resultado es solo un prototipo no validado. No debe declarar `pain_resolved=true` como conclusión de negocio hasta que el cliente valide la salida. Estados separados:
+
+```text
+prototipo_ejecuta=true
+trace_verificable=true
+cliente_aprueba_prototipo=true|false
+pain_resolved=true solo con validación suficiente
+```
+
 ### Regla Local-First Para Automatizaciones
 
 Por ahora, las automatizaciones de Bravo deberían ser local-first.

@@ -441,8 +441,47 @@ func buildOpenQuestions(tree *EchoTree, spec *AlfaSpec) []OpenQuestion {
 			"flujo operativo posterior al dashboard",
 		)
 	}
+	if needsDataTransport(spec) && !hasDataTransportConfirmed(text) {
+		next(
+			"No está confirmado cómo entran los datos actuales a la automatización.",
+			"¿Dónde vive hoy la información necesaria y cuál es el camino mínimo realista para llevarla a la automatización sin copiarla uno por uno?",
+			"input verificable para Bravo y primera versión local-first",
+		)
+	}
 
 	return questions
+}
+
+func needsDataTransport(spec *AlfaSpec) bool {
+	return len(spec.SelectedOpportunities) > 0
+}
+
+func hasDataTransportConfirmed(text string) bool {
+	if !containsAny(text,
+		"import",
+		"export",
+		"archivo completo",
+		"csv",
+		"xlsx",
+		"excel completo",
+		"subir",
+		"cargar archivo",
+		"entregar archivo",
+		"base de datos",
+		"sqlite",
+		"api",
+		"integración",
+		"integracion",
+		"formulario",
+	) {
+		return false
+	}
+
+	if containsAny(text, "uno por uno", "manualmente uno por uno", "copiar uno a uno") {
+		return false
+	}
+
+	return true
 }
 
 func hasValidatedDescendant(tree *EchoTree, nodeID string) bool {

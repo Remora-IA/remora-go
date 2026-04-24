@@ -83,6 +83,8 @@ El prototipo debe demostrar la idea con la menor superficie posible:
 - flujo ejecutable desde terminal;
 - suficiente instrumentación para ver si respeta el IdealFlow.
 
+Si usas datos de ejemplo, etiqueta el resultado como prototipo no validado. No declares `pain_resolved=true` como conclusión de negocio hasta que el cliente vea la salida y apruebe que la idea le sirve. Con datos de ejemplo solo puedes verificar que el flujo técnico corre y que el trace es interpretable.
+
 Después del prototipo, debe haber una decisión explícita:
 
 ```text
@@ -162,3 +164,10 @@ Un resultado Bravo es bueno si una IA puede mirar el trace y responder:
 > El sistema ejecutó el flujo ideal esperado, o ejecutó otro flujo.
 
 Si no puede responder eso, falta instrumentación, faltan variables críticas o el IdealFlow de Alfa no estaba listo.
+
+No confundas estos estados:
+
+- `prototipo_ejecuta=true`: el código corre y genera salida.
+- `trace_verificable=true`: la ejecución queda bien instrumentada.
+- `cliente_aprueba_prototipo=true`: el cliente confirma que la idea/output le sirve.
+- `pain_resolved=true`: solo corresponde después de validar con datos o flujo suficientemente real.
