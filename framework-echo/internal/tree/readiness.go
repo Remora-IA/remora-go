@@ -1,0 +1,252 @@
+package tree
+
+import (
+	"fmt"
+	"strings"
+)
+
+const (
+	RecommendedAskNext                   = "ask_next_missing_fact"
+	RecommendedValidateMinimumHypothesis = "validate_minimum_hypothesis"
+	RecommendedSelectOpportunity         = "select_opportunity"
+	RecommendedPassToAlfa                = "pass_to_alfa"
+)
+
+type ReadinessReport struct {
+	ReadyForAlfa      bool             `json:"ready_for_alfa"`
+	RecommendedAction string           `json:"recommended_action"`
+	NextQuestion      string           `json:"next_question,omitempty"`
+	Checks            []ReadinessCheck `json:"checks"`
+}
+
+type ReadinessCheck struct {
+	ID      string `json:"id"`
+	Passed  bool   `json:"passed"`
+	Details string `json:"details"`
+}
+
+func (t *FrameworkEcho) AssessAlfaReadiness() ReadinessReport {
+	text := strings.ToLower(t.readinessText())
+
+	hasTask := t.hasValidatedNode(TypeTask)
+	hasPain := t.hasValidatedNode(TypePain)
+	hasValidatedOpportunity := t.hasValidatedNode(TypeOpportunity)
+	hasSelectedOpportunity := len(t.SelectedOpportunities()) > 0
+	hasTransport := hasReadinessDataTransport(text)
+	requiresManualCapture := needsReadinessManualCapture(text)
+	hasManualViability := !requiresManualCapture || hasReadinessManualViability(text)
+	hasMinimumInput := hasReadinessMinimumInput(text)
+	hasUnknownFatigue := t.hasUnknownAnswer()
+
+	checks := []ReadinessCheck{
+		{ID: "task_confirmed", Passed: hasTask, Details: "Existe al menos una TASK validada."},
+		{ID: "pain_confirmed", Passed: hasPain, Details: "Existe al menos un PAIN validado."},
+		{ID: "opportunity_validated", Passed: hasValidatedOpportunity, Details: "Existe al menos una OPPORTUNITY validada."},
+		{ID: "opportunity_selected", Passed: hasSelectedOpportunity, Details: "Existe al menos una OPPORTUNITY seleccionada para Alfa."},
+		{ID: "data_transport_confirmed", Passed: hasTransport, Details: "Echo registró dónde viven los datos y un camino de entrada usable."},
+		{ID: "manual_capture_viability", Passed: hasManualViability, Details: "Si hay captura manual, Echo validó momento real y esfuerzo tolerado."},
+	}
+
+	ready := hasTask && hasPain && hasValidatedOpportunity && hasSelectedOpportunity && hasTransport && hasManualViability
+	action := RecommendedAskNext
+	question := ""
+
+	switch {
+	case ready:
+		action = RecommendedPassToAlfa
+	case hasTask && hasPain && hasValidatedOpportunity && hasMinimumInput && hasUnknownFatigue:
+		action = RecommendedValidateMinimumHypothesis
+		question = t.minimumHypothesisQuestion()
+	case hasTask && hasPain && hasValidatedOpportunity && !hasSelectedOpportunity:
+		action = RecommendedSelectOpportunity
+		question = "Selecciona la OPPORTUNITY validada que se quiere trabajar con Alfa."
+	case !hasTask:
+		question = "¿Cuál es la tarea repetitiva concreta que ocurre en este proceso?"
+	case !hasPain:
+		question = "¿Qué impacto concreto tiene esa tarea cuando sale mal, se atrasa o depende de memoria?"
+	case !hasValidatedOpportunity:
+		question = "Con ese dolor confirmado, ¿esta oportunidad candidata sí resolvería el problema real o no calza?"
+	case !hasTransport:
+		question = "¿Dónde vive hoy la información necesaria y cuál es el camino mínimo realista para llevarla a la automatización?"
+	case !hasManualViability:
+		question = "Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta?"
+	default:
+		question = "Falta aclarar el hueco operativo que impide compilar la oportunidad sin inventar."
+	}
+
+	return ReadinessReport{
+		ReadyForAlfa:      ready,
+		RecommendedAction: action,
+		NextQuestion:      question,
+		Checks:            checks,
+	}
+}
+
+func (t *FrameworkEcho) hasValidatedNode(nodeType string) bool {
+	for _, node := range t.Nodes {
+		if node.Type == nodeType && node.Status == StatusValidated {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *FrameworkEcho) readinessText() string {
+	var b strings.Builder
+	for _, node := range t.Nodes {
+		b.WriteString(" ")
+		b.WriteString(node.Title)
+		b.WriteString(" ")
+		b.WriteString(strings.Join(node.Evidence, " "))
+		b.WriteString(" ")
+		b.WriteString(node.ValidationAnswer)
+		b.WriteString(" ")
+		b.WriteString(strings.Join(node.Perceptions, " "))
+	}
+	for _, entry := range t.QALog {
+		b.WriteString(" ")
+		b.WriteString(entry.Question)
+		b.WriteString(" ")
+		b.WriteString(entry.Answer)
+		b.WriteString(" ")
+		b.WriteString(entry.Purpose)
+	}
+	return b.String()
+}
+
+func (t *FrameworkEcho) hasUnknownAnswer() bool {
+	count := 0
+	for _, entry := range t.QALog {
+		answer := strings.ToLower(entry.Answer)
+		if containsReadinessAny(answer, "no sé", "no se", "no tengo idea", "ni idea", "no sabría", "no sabria") {
+			count++
+		}
+	}
+	if count > 0 {
+		return true
+	}
+	for _, node := range t.Nodes {
+		answer := strings.ToLower(node.ValidationAnswer)
+		if containsReadinessAny(answer, "no sé", "no se", "no tengo idea", "ni idea", "no sabría", "no sabria") {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *FrameworkEcho) minimumHypothesisQuestion() string {
+	selected := t.SelectedOpportunities()
+	if len(selected) > 0 {
+		return fmt.Sprintf("Para cerrar: ¿la oportunidad '%s' sí serviría como primera versión mínima, o qué parte no calza?", selected[0].Title)
+	}
+	for _, node := range t.Nodes {
+		if node.Type == TypeOpportunity && node.Status == StatusValidated {
+			return fmt.Sprintf("Para cerrar: ¿la oportunidad '%s' sí serviría como primera versión mínima, o qué parte no calza?", node.Title)
+		}
+	}
+	return "Para cerrar: con el dolor y el input mínimo ya claros, ¿esta primera versión mínima sí serviría o qué parte no calza?"
+}
+
+func hasReadinessDataTransport(text string) bool {
+	if !containsReadinessAny(text,
+		"import",
+		"export",
+		"archivo completo",
+		"csv",
+		"xlsx",
+		"excel completo",
+		"subir",
+		"cargar archivo",
+		"entregar archivo",
+		"base de datos",
+		"sqlite",
+		"api",
+		"integración",
+		"integracion",
+		"formulario",
+		"captur",
+		"correo diario",
+		"whatsapp",
+	) {
+		return false
+	}
+	if containsReadinessAny(text, "uno por uno", "manualmente uno por uno", "copiar uno a uno") {
+		return false
+	}
+	return true
+}
+
+func needsReadinessManualCapture(text string) bool {
+	return containsReadinessAny(text,
+		"registr",
+		"captur",
+		"carga manual",
+		"manual",
+		"formulario",
+		"completar",
+		"llenar",
+		"anotar",
+		"guardar",
+		"nota corta",
+	)
+}
+
+func hasReadinessManualViability(text string) bool {
+	hasMoment := containsReadinessAny(text,
+		"apenas corto",
+		"apenas corta",
+		"apenas termina",
+		"después de cada llamada",
+		"despues de cada llamada",
+		"después de hablar",
+		"despues de hablar",
+		"al terminar",
+		"al final de la llamada",
+		"momento de captura",
+		"en el momento",
+		"durante la llamada",
+	)
+	hasTolerance := containsReadinessAny(text,
+		"rápido",
+		"rapido",
+		"segundos",
+		"10-20 segundos",
+		"nota corta",
+		"opciones rápidas",
+		"opciones rapidas",
+		"mínimo",
+		"minimo",
+		"no rompe",
+		"sin fricción",
+		"sin friccion",
+		"pocos campos",
+		"carga mínima",
+		"carga minima",
+	)
+	return hasMoment && hasTolerance
+}
+
+func hasReadinessMinimumInput(text string) bool {
+	return containsReadinessAny(text,
+		"mínimo",
+		"minimo",
+		"interés",
+		"interes",
+		"productos",
+		"compromisos",
+		"último contacto",
+		"ultimo contacto",
+		"siguiente acción",
+		"siguiente accion",
+		"estado",
+	)
+}
+
+func containsReadinessAny(text string, needles ...string) bool {
+	for _, needle := range needles {
+		if strings.Contains(text, needle) {
+			return true
+		}
+	}
+	return false
+}

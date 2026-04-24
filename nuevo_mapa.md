@@ -92,6 +92,55 @@ dónde vive hoy la información
 
 Echo no debe asumir Excel, WhatsApp, CRM, correo, API ni scraping. Debe preguntarlo.
 
+Si no existe fuente estructurada, Echo debe descubrir por qué no existe antes de proponer carga manual. "No hay planilla" puede significar fricción, pereza, baja habilidad con Excel, computador poco confiable, operación basada en WhatsApp, información en la memoria de una persona o falta real de fuente.
+
+Si una oportunidad depende de que el usuario registre datos, Echo debe confirmar:
+
+```text
+momento real de captura
++ mínimo dato útil
++ esfuerzo tolerado
++ señal de que el hábito no rompe su flujo actual
+= captura manual viable
+```
+
+Echo no debe extraer diseño detallado del usuario. Debe extraer verdad operativa suficiente. Si el usuario responde "no sé" en una rama donde ya existen pain, impacto, input mínimo y restricción crítica, Echo debe dejar de profundizar y validar una hipótesis mínima concreta.
+
+Regla anti-entrevista-infinita:
+
+```text
+pain confirmado
++ tarea repetitiva
++ impacto real
++ oportunidad aceptada
++ transporte o momento de captura
++ restricción de fricción
+= cerrar discovery y pasar a Alfa
+```
+
+Esta regla no debe depender solo del prompt. Echo debe exponer un semáforo mecánico:
+
+```bash
+./frameworkecho readiness
+```
+
+Salida esperada:
+
+```text
+ready_for_alfa: true|false
+recommended_action: ask_next_missing_fact|validate_minimum_hypothesis|select_opportunity|pass_to_alfa
+next_question: ...
+checks:
+  task_confirmed
+  pain_confirmed
+  opportunity_validated
+  opportunity_selected
+  data_transport_confirmed
+  manual_capture_viability
+```
+
+La IA operadora razona con el usuario, pero no decide sola si seguir cavando o cerrar discovery. Debe consultar este comando y usar su recomendación como riel operativo.
+
 ### Implementado: Log Opcional De Preguntas Y Respuestas
 
 Sería valioso que Echo tenga una configuración para anotar exactamente las preguntas realizadas y las respuestas del usuario.
@@ -218,6 +267,8 @@ Alfa debe:
 Alfa no debe inventar reglas de negocio.
 
 Tampoco debe inventar fuentes de datos ni integraciones. Si Echo no confirmó cómo entran los datos a la automatización, Alfa debe marcar `export_ready=false` y devolver preguntas a Echo.
+
+Alfa tampoco debe asumir viabilidad operacional. Si la automatización requiere captura, registro, formulario, planilla o cualquier hábito manual nuevo, Echo debe haber confirmado cuándo se hará y cuánto esfuerzo tolera el usuario. Si no, Alfa debe marcar `export_ready=false`.
 
 Ejemplo:
 

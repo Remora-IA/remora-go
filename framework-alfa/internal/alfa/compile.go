@@ -448,6 +448,13 @@ func buildOpenQuestions(tree *EchoTree, spec *AlfaSpec) []OpenQuestion {
 			"input verificable para Bravo y primera versión local-first",
 		)
 	}
+	if needsOperationalViability(spec) && !hasOperationalViabilityConfirmed(text) {
+		next(
+			"No está confirmado que el usuario tolere el hábito operativo que requiere la automatización.",
+			"Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta sin romper su flujo?",
+			"evitar que Bravo construya una solución que obligue al usuario a adaptarse a un hábito no validado",
+		)
+	}
 
 	return questions
 }
@@ -473,6 +480,7 @@ func hasDataTransportConfirmed(text string) bool {
 		"integración",
 		"integracion",
 		"formulario",
+		"captur",
 	) {
 		return false
 	}
@@ -482,6 +490,57 @@ func hasDataTransportConfirmed(text string) bool {
 	}
 
 	return true
+}
+
+func needsOperationalViability(spec *AlfaSpec) bool {
+	text := strings.ToLower(joinSpecText(spec))
+	return containsAny(text,
+		"registr",
+		"captur",
+		"carga manual",
+		"manual",
+		"formulario",
+		"completar",
+		"llenar",
+		"anotar",
+		"guardar",
+		"nota corta",
+	)
+}
+
+func hasOperationalViabilityConfirmed(text string) bool {
+	hasMoment := containsAny(text,
+		"apenas corto",
+		"apenas corta",
+		"apenas termina",
+		"después de cada llamada",
+		"despues de cada llamada",
+		"después de hablar",
+		"despues de hablar",
+		"al terminar",
+		"al final de la llamada",
+		"momento de captura",
+		"en el momento",
+		"durante la llamada",
+	)
+	hasTolerance := containsAny(text,
+		"rápido",
+		"rapido",
+		"segundos",
+		"10-20 segundos",
+		"nota corta",
+		"opciones rápidas",
+		"opciones rapidas",
+		"mínimo",
+		"minimo",
+		"no rompe",
+		"sin fricción",
+		"sin friccion",
+		"pocos campos",
+		"carga mínima",
+		"carga minima",
+	)
+	return hasMoment && hasTolerance
 }
 
 func hasValidatedDescendant(tree *EchoTree, nodeID string) bool {

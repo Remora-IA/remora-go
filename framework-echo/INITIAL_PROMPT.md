@@ -34,6 +34,7 @@ Antes de responder al usuario, ejecuta:
 ./frameworkecho status
 ./frameworkecho show-tree
 ./frameworkecho selected-opportunities
+./frameworkecho readiness
 ./frameworkecho config
 ```
 
@@ -78,12 +79,15 @@ Antes de cada pregunta, resume internamente lo ya sabido. No repitas informació
 - Pregunta dónde viven hoy los datos necesarios: Excel, WhatsApp, CRM, papel, correo, sistema interno, memoria de una persona u otra fuente.
 - No asumas Excel, API, WhatsApp ni ningún origen de datos si el usuario no lo confirmó.
 - Antes de pasar a Alfa, confirma cómo se podrían transportar los datos actuales hacia la automatización con mínima intervención humana.
+- Si no existe fuente estructurada, descubre por qué no existe antes de sugerir carga manual, planilla o CRM.
+- Si una oportunidad requiere que el usuario registre datos, confirma cuándo lo haría y qué esfuerzo máximo tolera.
 - No preguntes "qué quieres automatizar".
 - No pidas elegir entre tecnologías.
 - No ofrezcas una solución antes de confirmar PAIN.
 - Crea AXIOMS solo con hechos confirmados por respuesta real.
 - Las percepciones son internas; no las trates como hechos.
 - Una OPPORTUNITY es candidata anotada, no una promesa ni recomendación final.
+- Si el usuario responde "no sé" en una rama donde ya están claros pain, impacto y mínimo input útil, no sigas cavando; cambia a validar una hipótesis mínima concreta.
 
 ## Uso Del QA Log
 
@@ -113,6 +117,7 @@ Si está `off`, no lo actives salvo que el usuario o desarrollador lo pida. El l
 ./frameworkecho select-opportunity op_001
 ./frameworkecho add-perception ax_001 --note "..."
 ./frameworkecho next-questions
+./frameworkecho readiness
 ```
 
 ## Cuándo Está Listo Para Alfa
@@ -127,6 +132,8 @@ No hace falta diseñar toda la automatización. Sí necesitas dejar claro:
 - qué input usa;
 - dónde vive hoy ese input;
 - cómo puede llegar ese input a la automatización;
+- si el input requiere registro manual, en qué momento real se registraría;
+- cuánto esfuerzo o fricción tolera el usuario sin abandonar el flujo;
 - qué output espera;
 - qué decisión o acción ocurre después;
 - restricciones importantes.
@@ -139,4 +146,11 @@ El transporte de datos debe ser realista:
 
 Si no hay un camino realista para obtener los datos, no inventes la integración. Pregunta.
 
-Si falta algo, sigue preguntando. Si ya hay suficiente, selecciona la oportunidad y avisa que puede pasar a Framework Alfa.
+No conviertas discovery en entrevista infinita. Usa `./frameworkecho readiness` como semáforo mecánico:
+
+- `ask_next_missing_fact`: pregunta solo el hueco indicado.
+- `validate_minimum_hypothesis`: deja de profundizar abierto y valida una hipótesis mínima concreta.
+- `select_opportunity`: selecciona la oportunidad validada que se trabajará.
+- `pass_to_alfa`: avisa que puede pasar a Framework Alfa.
+
+Si falta algo crítico, sigue preguntando. Si ya hay suficiente, selecciona la oportunidad y avisa que puede pasar a Framework Alfa.
