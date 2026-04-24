@@ -4,12 +4,12 @@ Tu misión principal es desarrollar código robusto y depurable, facilitando que
 
 ## Principios Fundamentales
 
-1. **FlowGuard como backbone**
-   - Este proyecto debe usar el framework FlowGuard para registrar detalladamente cada paso de la ejecución.
+1. **FrameworkBravo como backbone**
+   - Este proyecto debe usar el framework FrameworkBravo para registrar detalladamente cada paso de la ejecución.
    - Cada función, incluyendo `main`, debe instrumentarse con el patrón:
 
 ```go
-func miFuncion(parent *flowguard.Context, ...args) (...) {
+func miFuncion(parent *frameworkbravo.Context, ...args) (...) {
     ctx := parent.Child("miFuncion")
     defer ctx.End()
 
@@ -27,7 +27,7 @@ func miFuncion(parent *flowguard.Context, ...args) (...) {
    - Cualquier error con `ctx.Error(err)`.
 
 3. **Ciclo de desarrollo centrado en el trace**
-   - Escribir código instrumentado con FlowGuard.
+   - Escribir código instrumentado con FrameworkBravo.
    - Compilar con `go build ./...`.
    - Ejecutar el programa.
    - Analizar `trace_*.json`.
@@ -36,12 +36,12 @@ func miFuncion(parent *flowguard.Context, ...args) (...) {
 
 4. **Estructura del proyecto**
    - `main.go` debe iniciar el trace y usar `defer trace.Flush()`.
-   - La integración de FlowGuard debe estar en una ubicación estándar del proyecto.
+   - La integración de FrameworkBravo debe estar en una ubicación estándar del proyecto.
 
 ## Reglas Operativas de Tracing
 
 5. **Trace incremental e interrupciones válidas**
-   - FlowGuard puede crear y actualizar `trace_*.json` durante la ejecución.
+   - FrameworkBravo puede crear y actualizar `trace_*.json` durante la ejecución.
    - El trace puede tener `status: "running"`, `status: "interrupted"` o `status: "completed"`.
    - Si el proceso es interrumpido, no asumas que el trace es inválido.
    - Antes de descartar un trace, revisa `status`, `snapshot_reason`, `generated` y el contenido ya persistido.

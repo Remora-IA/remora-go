@@ -1,4 +1,4 @@
-package flowguard
+package frameworkbravo
 
 import (
 	"encoding/json"
@@ -109,10 +109,10 @@ func (i *IdealFlow) Save(baseDir string) error {
 	// Generar markdown legible
 	mdPath := filepath.Join(tempDir, "IDEAL_FLOW.md")
 	if err := i.generateMarkdownToFile(mdPath); err != nil {
-		fmt.Printf("[FLOWGUARD] Warning: no se pudo generar IDEAL_FLOW.md: %v\n", err)
+		fmt.Printf("[FRAMEWORKBRAVO] Warning: no se pudo generar IDEAL_FLOW.md: %v\n", err)
 	}
 
-	fmt.Printf("[FLOWGUARD] IdealFlow guardado → %s\n", jsonPath)
+	fmt.Printf("[FRAMEWORKBRAVO] IdealFlow guardado → %s\n", jsonPath)
 	return nil
 }
 
@@ -185,7 +185,7 @@ func LoadIdealFlow() (*IdealFlow, error) {
 		return nil, err
 	}
 
-	fmt.Printf("[FLOWGUARD] IdealFlow cargado (%d reglas, %d vars críticas) → %s\n",
+	fmt.Printf("[FRAMEWORKBRAVO] IdealFlow cargado (%d reglas, %d vars críticas) → %s\n",
 		len(flow.Rules), len(flow.CriticalVars), path)
 	return &flow, nil
 }

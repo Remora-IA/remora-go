@@ -1,4 +1,4 @@
-package flowguard
+package frameworkbravo
 
 // Span representa un segmento de ejecución (función o bloque).
 type Span struct {
