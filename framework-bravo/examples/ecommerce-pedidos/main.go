@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"flowguard-framework/flowguard"
+	"framework-bravo/frameworkbravo"
 )
 
 type Producto struct {
@@ -61,7 +61,7 @@ var impuestoPorPais = map[string]float64{
 }
 
 func main() {
-	trace := flowguard.NewTrace("EcommercePedidos")
+	trace := frameworkbravo.NewTrace("EcommercePedidos")
 	defer trace.Flush()
 
 	ctx := trace.Start()
@@ -71,7 +71,7 @@ func main() {
 	ctx.Var("ambiente", "produccion")
 	ctx.Var("total_productos_catalogo", len(catalogoProductos))
 
-	ideal := flowguard.NewIdealFlow("Procesamiento de pedido con reglas de descuento, envío y stock").
+	ideal := frameworkbravo.NewIdealFlow("Procesamiento de pedido con reglas de descuento, envío y stock").
 		SetVerbalization(`El flujo ideal es el siguiente:
 Primero validamos que todos los items del carrito existan y tengan stock suficiente. Si alguno falla, lo rechazamos y seguimos con los demás.
 Una vez tenemos el subtotal, si hay cupón, aplicamos el descuento solo sobre los productos de la categoría que corresponde (en este caso electrónica).
@@ -138,10 +138,10 @@ Los puntos críticos son: que el descuento por categoría funcione, que no se ap
 	fmt.Printf("Impuesto:    $%.2f\n", resumen.Impuesto)
 	fmt.Printf("TOTAL:       $%.2f\n", resumen.Total)
 
-	flowguard.PrintVerificationInstructions()
+	frameworkbravo.PrintVerificationInstructions()
 }
 
-func procesarPedido(parent *flowguard.Context, pedido Pedido) ResumenPedido {
+func procesarPedido(parent *frameworkbravo.Context, pedido Pedido) ResumenPedido {
 	ctx := parent.Child("procesarPedido")
 	defer ctx.End()
 
@@ -173,7 +173,7 @@ func procesarPedido(parent *flowguard.Context, pedido Pedido) ResumenPedido {
 	}
 }
 
-func calcularSubtotal(parent *flowguard.Context, items []ItemCarrito) (float64, int) {
+func calcularSubtotal(parent *frameworkbravo.Context, items []ItemCarrito) (float64, int) {
 	ctx := parent.Child("calcularSubtotal")
 	defer ctx.End()
 
@@ -195,7 +195,7 @@ func calcularSubtotal(parent *flowguard.Context, items []ItemCarrito) (float64, 
 	return subtotal, itemsValidos
 }
 
-func procesarItem(parent *flowguard.Context, item ItemCarrito) float64 {
+func procesarItem(parent *frameworkbravo.Context, item ItemCarrito) float64 {
 	ctx := parent.Child("procesarItem")
 	defer ctx.End()
 
@@ -225,7 +225,7 @@ func procesarItem(parent *flowguard.Context, item ItemCarrito) float64 {
 	return lineTotal
 }
 
-func aplicarCupon(parent *flowguard.Context, items []ItemCarrito, cupon *Cupon, subtotal float64) (float64, float64) {
+func aplicarCupon(parent *frameworkbravo.Context, items []ItemCarrito, cupon *Cupon, subtotal float64) (float64, float64) {
 	ctx := parent.Child("aplicarCupon")
 	defer ctx.End()
 
@@ -257,7 +257,7 @@ func aplicarCupon(parent *flowguard.Context, items []ItemCarrito, cupon *Cupon, 
 	return descuentoTotal, precioConDescuento
 }
 
-func calcularDescuentoPorCategoria(parent *flowguard.Context, items []ItemCarrito, cupon *Cupon) float64 {
+func calcularDescuentoPorCategoria(parent *frameworkbravo.Context, items []ItemCarrito, cupon *Cupon) float64 {
 	ctx := parent.Child("calcularDescuentoPorCategoria")
 	defer ctx.End()
 
@@ -294,7 +294,7 @@ func calcularDescuentoPorCategoria(parent *flowguard.Context, items []ItemCarrit
 	return descuento
 }
 
-func calcularEnvio(parent *flowguard.Context, precioConDescuento float64, pais string, descuento float64) (float64, bool) {
+func calcularEnvio(parent *frameworkbravo.Context, precioConDescuento float64, pais string, descuento float64) (float64, bool) {
 	ctx := parent.Child("calcularEnvio")
 	defer ctx.End()
 
@@ -338,7 +338,7 @@ func calcularEnvio(parent *flowguard.Context, precioConDescuento float64, pais s
 	return costoFinal, envioGratis
 }
 
-func calcularImpuesto(parent *flowguard.Context, precioConDescuento float64, pais string) float64 {
+func calcularImpuesto(parent *frameworkbravo.Context, precioConDescuento float64, pais string) float64 {
 	ctx := parent.Child("calcularImpuesto")
 	defer ctx.End()
 
@@ -362,7 +362,7 @@ func calcularImpuesto(parent *flowguard.Context, precioConDescuento float64, pai
 	return impuesto
 }
 
-func calcularTotal(parent *flowguard.Context, precioConDescuento float64, costoEnvio float64, impuesto float64) float64 {
+func calcularTotal(parent *frameworkbravo.Context, precioConDescuento float64, costoEnvio float64, impuesto float64) float64 {
 	ctx := parent.Child("calcularTotal")
 	defer ctx.End()
 
@@ -379,7 +379,7 @@ func calcularTotal(parent *flowguard.Context, precioConDescuento float64, costoE
 	return total
 }
 
-func actualizarStock(parent *flowguard.Context, items []ItemCarrito) {
+func actualizarStock(parent *frameworkbravo.Context, items []ItemCarrito) {
 	ctx := parent.Child("actualizarStock")
 	defer ctx.End()
 

@@ -2,11 +2,11 @@
 
 ## Objetivo
 
-Dado un trace JSON generado por FlowGuard para un proyecto cualquiera, determina si el trace contiene suficiente información para diagnosticar de forma fiable problemas de contenido y de flujo lógico, sin requerir pruebas adicionales.
+Dado un trace JSON generado por FrameworkBravo para un proyecto cualquiera, determina si el trace contiene suficiente información para diagnosticar de forma fiable problemas de contenido y de flujo lógico, sin requerir pruebas adicionales.
 
 ## Entrada
 
-- `trace_json`: cadena con el JSON completo generado por FlowGuard.
+- `trace_json`: cadena con el JSON completo generado por FrameworkBravo.
 - `descripción_opcional`: breve descripción del flujo objetivo del proyecto.
 - `ideal_flow_json_opcional`: JSON que describe el flujo ideal esperado para este proyecto. Puede omitirse si no existe.
 

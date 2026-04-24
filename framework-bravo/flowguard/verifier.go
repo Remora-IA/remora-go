@@ -1,4 +1,4 @@
-package flowguard
+package frameworkbravo
 
 import (
 	"fmt"
@@ -36,13 +36,13 @@ type Diff struct {
 func PrintVerificationInstructions() {
 	sep := strings.Repeat("=", 80)
 	fmt.Println("\n" + sep)
-	fmt.Println("          FLOWGUARD - MODO VERIFICACIÓN")
+	fmt.Println("          FRAMEWORKBRAVO - MODO VERIFICACIÓN")
 	fmt.Println(sep)
 	fmt.Println("1. Ejecuta tu programa → se generarán trace_*.json + ideal_flow.json")
 	fmt.Println("2. Dale a tu IA agentica con terminal los siguientes 3 elementos:")
 	fmt.Println("   - El contenido completo de ideal_flow.json")
 	fmt.Println("   - El contenido completo de trace_*.json")
 	fmt.Println("   - El prompt que está en prompts/VERIFICATION_PROMPT.md")
-	fmt.Println("3. La IA hace la comparación ideal vs real; FlowGuard solo entrega los artefactos.")
+	fmt.Println("3. La IA hace la comparación ideal vs real; FrameworkBravo solo entrega los artefactos.")
 	fmt.Println(sep)
 }

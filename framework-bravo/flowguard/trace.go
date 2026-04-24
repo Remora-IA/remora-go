@@ -1,4 +1,4 @@
-package flowguard
+package frameworkbravo
 
 import (
 	"encoding/json"
@@ -55,7 +55,7 @@ func NewTrace(appName string) *Trace {
 	ideal, _ := LoadIdealFlow()
 
 	fmt.Printf("\n========================================\n")
-	fmt.Printf(" FlowGuard v5.1 — Golden Flow\n")
+	fmt.Printf(" FrameworkBravo v5.1 — Golden Flow\n")
 	fmt.Printf(" Trace: %s\n", id)
 	fmt.Printf(" App:   %s\n", appName)
 	if ideal != nil {
@@ -89,7 +89,7 @@ func (t *Trace) GetIdealFlow() *IdealFlow {
 func (t *Trace) ReloadIdealFlow() {
 	t.ideal, _ = LoadIdealFlow()
 	if t.ideal != nil {
-		fmt.Printf("[FLOWGUARD] IdealFlow recargado (%d reglas, %d vars críticas)\n",
+		fmt.Printf("[FRAMEWORKBRAVO] IdealFlow recargado (%d reglas, %d vars críticas)\n",
 			len(t.ideal.Rules), len(t.ideal.CriticalVars))
 	}
 }
@@ -161,7 +161,7 @@ func (t *Trace) ensureRuntimeLocked() {
 
 		tempDir := filepath.Join(baseDir, "temp")
 		if err := os.MkdirAll(tempDir, 0755); err != nil {
-			fmt.Printf("[FLOWGUARD] Error al crear carpeta temp: %v\n", err)
+			fmt.Printf("[FRAMEWORKBRAVO] Error al crear carpeta temp: %v\n", err)
 		} else {
 			t.filePath = filepath.Join(tempDir, fmt.Sprintf("trace_%s.json", t.id))
 		}
@@ -200,17 +200,17 @@ func (t *Trace) persistLocked(status, reason string, announce bool) error {
 
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		fmt.Printf("[FLOWGUARD] Error al generar JSON: %v\n", err)
+		fmt.Printf("[FRAMEWORKBRAVO] Error al generar JSON: %v\n", err)
 		return err
 	}
 
 	if err := os.WriteFile(t.filePath, data, 0644); err != nil {
-		fmt.Printf("[FLOWGUARD] Error al guardar trace: %v\n", err)
+		fmt.Printf("[FRAMEWORKBRAVO] Error al guardar trace: %v\n", err)
 		return err
 	}
 
 	if announce {
-		fmt.Printf("\n[FLOWGUARD] Trace %s → %s\n", status, t.filePath)
+		fmt.Printf("\n[FRAMEWORKBRAVO] Trace %s → %s\n", status, t.filePath)
 	}
 
 	return nil
@@ -297,7 +297,7 @@ func findBottlenecks(span *Span, threshold int64) []string {
 // Analyze compara el trace real contra el IdealFlow
 func (t *Trace) Analyze() {
 	fmt.Printf("\n" + strings.Repeat("=", 60) + "\n")
-	fmt.Printf(" FLOWGUARD CONTEXT READY — IDEAL + TRACE\n")
+	fmt.Printf(" FRAMEWORKBRAVO CONTEXT READY — IDEAL + TRACE\n")
 	fmt.Printf(strings.Repeat("=", 60) + "\n\n")
 
 	if t.ideal == nil {
@@ -320,7 +320,7 @@ func (t *Trace) Analyze() {
 		}
 	}
 
-	fmt.Println("\nFlowGuard no compara estas reglas por sí solo.")
+	fmt.Println("\nFrameworkBravo no compara estas reglas por sí solo.")
 	fmt.Println("Su trabajo termina al empaquetar el ideal y el trace real con suficiente contexto.")
 	fmt.Println("Usa prompts/VERIFICATION_PROMPT.md con una IA agentica para hacer la comparación.")
 }

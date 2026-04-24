@@ -1,13 +1,13 @@
-# FlowGuard v5.1 — Golden Flow
+# FrameworkBravo v5.1 — Golden Flow
 
-FlowGuard es un framework de tracing y empaquetado de contexto diseñado para trabajar junto a una IA agentica con terminal.
+FrameworkBravo es un framework de tracing y empaquetado de contexto diseñado para trabajar junto a una IA agentica con terminal.
 
 Su objetivo no es "pensar por la IA", sino darle dos recursos fundamentales para que no opere a ciegas:
 
 - el **flujo ideal** que el humano espera
 - el **flujo real** que el programa ejecutó
 
-La comparación, el diagnóstico y las preguntas faltantes las hace la IA. FlowGuard prepara el terreno para que esa comparación sea posible y barata.
+La comparación, el diagnóstico y las preguntas faltantes las hace la IA. FrameworkBravo prepara el terreno para que esa comparación sea posible y barata.
 
 ## Qué es
 
@@ -33,7 +33,7 @@ Esa decisión es intencional: meter la comparación completa dentro del framewor
 
 ## Modelo Mental Correcto
 
-FlowGuard tiene tres piezas:
+FrameworkBravo tiene tres piezas:
 
 1. **IdealFlow**
    describe cómo debería comportarse el flujo según el humano.
@@ -49,7 +49,7 @@ La simplicidad del framework está en mantener esas responsabilidades separadas.
 ### Regla 1: Crear trace en main
 
 ```go
-trace := flowguard.NewTrace("MiApp")
+trace := frameworkbravo.NewTrace("MiApp")
 defer trace.Flush()
 ctx := trace.Start()
 defer ctx.End()
@@ -58,7 +58,7 @@ defer ctx.End()
 ### Regla 2: Guardar contexto como primera línea de cada función
 
 ```go
-func miFuncion(parent *flowguard.Context) {
+func miFuncion(parent *frameworkbravo.Context) {
     ctx := parent.Child("miFuncion")
     defer ctx.End()
     // ... tu código ...
@@ -87,7 +87,7 @@ if err != nil {
 
 ## Workflow esperado con IA
 
-1. Instrumenta el código con FlowGuard.
+1. Instrumenta el código con FrameworkBravo.
 2. Declara el `IdealFlow` con reglas, verbalización, intención y variables críticas.
 3. Ejecuta el programa para generar:
    - `temp/ideal_flow.json`
@@ -96,7 +96,7 @@ if err != nil {
 4. Entrega esos artefactos a una IA agentica usando `prompts/VERIFICATION_PROMPT.md`.
 5. La IA compara ideal vs real, detecta desviaciones y pregunta contexto faltante si es necesario.
 
-FlowGuard no hace el paso 5 por sí solo. Ese es el trabajo de la IA.
+FrameworkBravo no hace el paso 5 por sí solo. Ese es el trabajo de la IA.
 
 ## Archivos temporales
 
@@ -114,7 +114,7 @@ ejemplos/
 
 ## Ejemplo completo (con bugs intencionales)
 
-El ejemplo `examples/ecommerce-pedidos/` demuestra cómo FlowGuard puede ayudarte a encontrar 3 bugs sutiles.
+El ejemplo `examples/ecommerce-pedidos/` demuestra cómo FrameworkBravo puede ayudarte a encontrar 3 bugs sutiles.
 
 ```bash
 cd examples/ecommerce-pedidos
@@ -140,7 +140,7 @@ La suite ejecuta `examples/ecommerce-pedidos` y valida que se creen:
 Define el flujo esperado al inicio del main:
 
 ```go
-ideal := flowguard.NewIdealFlow("Descripción del flujo")
+ideal := frameworkbravo.NewIdealFlow("Descripción del flujo")
 ideal.SetVerbalization("Explicación completa...")
 ideal.AddRule("Nombre", "Descripción", "Entonces...")
 ideal.AddCriticalVar("variable_importante")
@@ -161,7 +161,7 @@ Para que una IA analice el trace:
 
 Los bugs de compilación o de sintaxis suelen ser fáciles de detectar para una IA. Lo difícil son los bugs de flujo y reglas de negocio: ahí el problema no es solo el código, sino la diferencia entre lo que el usuario quería y lo que el sistema hizo.
 
-FlowGuard existe para cerrar justamente esa brecha:
+FrameworkBravo existe para cerrar justamente esa brecha:
 
 - el humano explicita el flujo ideal
 - el runtime deja evidencia del flujo real
