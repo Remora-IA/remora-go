@@ -1,4 +1,4 @@
-# Processree
+# Framework Echo
 
 Framework para guiar reuniones de descubrimiento de procesos.
 
@@ -21,17 +21,17 @@ Luego sigues sugiriendo preguntas una por una según la respuesta.
 ## Comandos
 
 ```bash
-./processtree init --project-id "nombre" --client "cliente" --date "2026-04-23"
-./processtree add-axiom --title "..." --evidence "..."
-./processtree add-theory --parent ax_001 --title "..." --evidence "..."
-./processtree add-task --parent th_001 --title "..." --evidence "..."
-./processtree add-pain --parent tk_001 --title "..." --evidence "..."
-./processtree add-opportunity --parent pn_001 --title "..." --evidence "..."
-./processtree add-perception ax_001 --note "..."
-./processtree validate th_001 --answer "respuesta del cliente"
-./processtree show-tree
-./processtree status
-./processtree next-questions
+./framework-echo init --project-id "nombre" --client "cliente" --date "2026-04-23"
+./framework-echo add-axiom --title "..." --evidence "..."
+./framework-echo add-theory --parent ax_001 --title "..." --evidence "..."
+./framework-echo add-task --parent th_001 --title "..." --evidence "..."
+./framework-echo add-pain --parent tk_001 --title "..." --evidence "..."
+./framework-echo add-opportunity --parent pn_001 --title "..." --evidence "..."
+./framework-echo add-perception ax_001 --note "..."
+./framework-echo validate th_001 --answer "respuesta del cliente"
+./framework-echo show-tree
+./framework-echo status
+./framework-echo next-questions
 ```
 
 ## Preguntas típicas para reuniones
@@ -55,7 +55,7 @@ Prioriza preguntas sobre comportamiento real:
 - "¿Qué haces cuando no tienes eso a mano?"
 - "¿Qué pasa si esa persona no responde?"
 
-Evita preguntas abstractas que obligan al cliente a diseñar la solución:
+Evita preguntas abstractas que obliguen al cliente a diseñar la solución:
 
 - "¿Qué sistema necesitas?"
 - "¿Qué automatización quieres?"
@@ -80,7 +80,7 @@ Las percepciones NO son hechos del cliente. Son notas internas para guiar la sig
 Después de tener PAINS confirmados, puedes crear OPPORTUNITY:
 
 ```bash
-./processtree add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
+./framework-echo add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
 ```
 
 OPPORTUNITY significa "automatización candidata anotada en el grafo".
