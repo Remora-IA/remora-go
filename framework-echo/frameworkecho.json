@@ -1,0 +1,335 @@
+{
+  "project_id": "project-001",
+  "client_name": "",
+  "date_started": "",
+  "current_max_layer": 4,
+  "focus_nodes": [],
+  "nodes": {
+    "ax_001": {
+      "id": "ax_001",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "No tiene equipo para análisis de cobranzas",
+      "evidence": [
+        "El cliente señala que su mayor dolor es no tener equipo para hacer análisis de cobranzas"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "created_at": "2026-04-24T03:37:29Z"
+    },
+    "ax_002": {
+      "id": "ax_002",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Necesita tres tipos de análisis de cobranza",
+      "evidence": [
+        "1) Saber qué clientes tienen más riesgo de no pagar, 2) Priorizar a quién cobrar primero, 3) Ver patrones de mora"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "perceptions": [
+        "Cliente confiesa revisión 'random' de datos. Tiene software, tiene datos, pero no hay proceso de análisis estructurado. El análisis de cobranza no existe hoy, no es que tenga un mal proceso."
+      ],
+      "created_at": "2026-04-24T03:38:14Z"
+    },
+    "ax_003": {
+      "id": "ax_003",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Decide por fecha de vencimiento",
+      "evidence": [
+        "Hoy decide a quién cobrar primero solo en base a la fecha de vencimiento"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "perceptions": [
+        "Cliente reconoce que su método es suboptimal y sabe que necesita algo más. Puede estar nombrando la solución (IA) sin haber explorado alternativas más simples.",
+        "Cliente dice que 'no se les pasa' por usar fechas, pero anteriormente reconoció que su método es suboptimal. Contradicción: si funciona, ¿por qué necesita IA? Posible dolor no verbalizado: cobran esfuerzo innecesario a clientes que pagarían igual, o descuidan clientes de alto valor."
+      ],
+      "created_at": "2026-04-24T03:41:40Z"
+    },
+    "ax_004": {
+      "id": "ax_004",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Tiene datos en 3 archivos Excel",
+      "evidence": [
+        "cobranza_1: documentos con totales y pagos, cobranza_2: cartera con saldo y antigüedad, cobranza_3: resumen por cliente"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "children_ids": [
+        "th_001",
+        "th_002",
+        "th_003"
+      ],
+      "created_at": "2026-04-24T03:46:36Z"
+    },
+    "ax_005": {
+      "id": "ax_005",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Necesita reporte diario y resumen semanal",
+      "evidence": [
+        "Quiere un reporte diario para cobradores y un resumen semanal para gestión"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "created_at": "2026-04-24T03:48:03Z"
+    },
+    "op_001": {
+      "id": "op_001",
+      "layer": 4,
+      "type": "OPPORTUNITY",
+      "title": "Dashboard de priorización diaria de cobranza",
+      "evidence": [
+        "Elimina acumulo de cartera dando al equipo una lista priorizada por riesgo en vez de por fecha de vencimiento"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "pn_001",
+      "questions_to_ask": [
+        "Para la oportunidad 'Dashboard de priorización diaria de cobranza': ¿qué dolor confirmado resuelve exactamente?",
+        "¿Qué tendría que ser cierto para que 'Dashboard de priorización diaria de cobranza' encaje en la forma actual de trabajar?",
+        "¿Qué señales indicarían que 'Dashboard de priorización diaria de cobranza' obligaría al usuario a adaptarse demasiado?"
+      ],
+      "validation_answer": "Dashboard diario de priorización resuelve el dolor de acumulo de cartera cuando no alcanzan las horas",
+      "created_at": "2026-04-24T04:04:35Z",
+      "validated_at": "2026-04-24T04:09:31Z"
+    },
+    "op_002": {
+      "id": "op_002",
+      "layer": 4,
+      "type": "OPPORTUNITY",
+      "title": "Generación automática de resumen semanal",
+      "evidence": [
+        "Resuelve dolor de visibilidad: el resumen semanal se genera sin intervención humana"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "pn_002",
+      "questions_to_ask": [
+        "Para la oportunidad 'Generación automática de resumen semanal': ¿qué dolor confirmado resuelve exactamente?",
+        "¿Qué tendría que ser cierto para que 'Generación automática de resumen semanal' encaje en la forma actual de trabajar?",
+        "¿Qué señales indicarían que 'Generación automática de resumen semanal' obligaría al usuario a adaptarse demasiado?"
+      ],
+      "validation_answer": "Resumen semanal automático resuelve dolor de no tener visibilidad del negocio",
+      "created_at": "2026-04-24T04:04:42Z",
+      "validated_at": "2026-04-24T04:09:37Z"
+    },
+    "pn_001": {
+      "id": "pn_001",
+      "layer": 3,
+      "type": "PAIN",
+      "title": "Contactos se acumulan cuando no alcanzan las horas",
+      "evidence": [
+        "Cuando no completan llamadas y WhatsApps, los deudores se presionan más tarde y se acumula la cartera"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "tk_004",
+      "children_ids": [
+        "op_001"
+      ],
+      "questions_to_ask": [
+        "Sobre el problema 'Contactos se acumulan cuando no alcanzan las horas': ¿con qué frecuencia ocurre?",
+        "¿Qué impacto concreto tiene 'Contactos se acumulan cuando no alcanzan las horas' en su trabajo diario?",
+        "¿Qué hace hoy para convivir con 'Contactos se acumulan cuando no alcanzan las horas'?",
+        "Si 'Contactos se acumulan cuando no alcanzan las horas' desapareciera mañana, ¿qué cambiaría primero?"
+      ],
+      "validation_answer": "Los contactos se acumulan cuando no alcanzan las 2.5 horas de contacto diario",
+      "created_at": "2026-04-24T03:58:30Z",
+      "validated_at": "2026-04-24T04:04:28Z"
+    },
+    "pn_002": {
+      "id": "pn_002",
+      "layer": 3,
+      "type": "PAIN",
+      "title": "Preparación manual de reportes consume 2 horas diarias",
+      "evidence": [
+        "Buscar datos, acomodar hojas y preparar reportes manuales toma 2 horas diarias"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "tk_001",
+      "children_ids": [
+        "op_002"
+      ],
+      "questions_to_ask": [
+        "Sobre el problema 'Preparación manual de reportes consume 2 horas diarias': ¿con qué frecuencia ocurre?",
+        "¿Qué impacto concreto tiene 'Preparación manual de reportes consume 2 horas diarias' en su trabajo diario?",
+        "¿Qué hace hoy para convivir con 'Preparación manual de reportes consume 2 horas diarias'?",
+        "Si 'Preparación manual de reportes consume 2 horas diarias' desapareciera mañana, ¿qué cambiaría primero?"
+      ],
+      "validation_answer": "Preparar reportes manuales consume 2 horas diarias y no se genera resumen semanal",
+      "created_at": "2026-04-24T04:02:02Z",
+      "validated_at": "2026-04-24T04:04:39Z"
+    },
+    "th_001": {
+      "id": "th_001",
+      "layer": 1,
+      "type": "THEORY",
+      "title": "La IA debe priorizar por riesgo, no solo antigüedad",
+      "evidence": [
+        "Método actual por fechas no optimiza esfuerzo ni detecta clientes de alto riesgo"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "ax_004",
+      "children_ids": [
+        "tk_001",
+        "tk_002",
+        "tk_003",
+        "tk_004"
+      ],
+      "questions_to_ask": [
+        "Respecto a 'La IA debe priorizar por riesgo, no solo antigüedad': ¿esto calza con lo que pasa realmente?",
+        "¿Qué parte de 'La IA debe priorizar por riesgo, no solo antigüedad' se repite y qué parte cambia caso a caso?",
+        "¿Qué tendría que pasar para que 'La IA debe priorizar por riesgo, no solo antigüedad' deje de ser cierto?"
+      ],
+      "validation_answer": "Sí, han cobrado mucho a un cliente que no pagaba mientras otro con más deuda pagó solo porque no lo presionaron",
+      "created_at": "2026-04-24T03:51:20Z",
+      "validated_at": "2026-04-24T03:51:48Z"
+    },
+    "th_002": {
+      "id": "th_002",
+      "layer": 1,
+      "type": "THEORY",
+      "title": "El comportamiento histórico del cliente es clave para predecir pago",
+      "evidence": [
+        "El cliente diferencia clientes que 'sí pagan' de los que 'no pagan', más allá del monto o tiempo"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "ax_004",
+      "questions_to_ask": [
+        "Respecto a 'El comportamiento histórico del cliente es clave para predecir pago': ¿esto calza con lo que pasa realmente?",
+        "¿Qué parte de 'El comportamiento histórico del cliente es clave para predecir pago' se repite y qué parte cambia caso a caso?",
+        "¿Qué tendría que pasar para que 'El comportamiento histórico del cliente es clave para predecir pago' deje de ser cierto?"
+      ],
+      "perceptions": [
+        "Cliente no tiene método formal para identificar clientes 'buenos' vs 'malos'. Confirma dolor: no hay forma de priorizar mejor, solo fechas."
+      ],
+      "validation_answer": "No tiene método formal para saber si un cliente es de los que pagan o de los que no. Solo usa intuición o nada.",
+      "created_at": "2026-04-24T03:53:44Z",
+      "validated_at": "2026-04-24T03:54:18Z"
+    },
+    "th_003": {
+      "id": "th_003",
+      "layer": 1,
+      "type": "THEORY",
+      "title": "El volumen de compra no garantiza pago rápido",
+      "evidence": [
+        "Hay clientes que compran mucho pero demoran en pagar, el volumen no predice comportamiento de pago"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "ax_004",
+      "questions_to_ask": [
+        "Respecto a 'El volumen de compra no garantiza pago rápido': ¿esto calza con lo que pasa realmente?",
+        "¿Qué parte de 'El volumen de compra no garantiza pago rápido' se repite y qué parte cambia caso a caso?",
+        "¿Qué tendría que pasar para que 'El volumen de compra no garantiza pago rápido' deje de ser cierto?"
+      ],
+      "validation_answer": "Sí, hay clientes de alto volumen que demoran en pagar",
+      "created_at": "2026-04-24T03:54:53Z",
+      "validated_at": "2026-04-24T03:54:55Z"
+    },
+    "tk_001": {
+      "id": "tk_001",
+      "layer": 2,
+      "type": "TASK",
+      "title": "Factores de riesgo: tiempo, monto, comportamiento histórico",
+      "evidence": [
+        "El tiempo que llevan debiendo, el monto y el historial de comportamiento del cliente son los factores clave"
+      ],
+      "status": "PENDING",
+      "confidence": 60,
+      "parent_id": "th_001",
+      "children_ids": [
+        "pn_002"
+      ],
+      "questions_to_ask": [
+        "Para la tarea 'Factores de riesgo: tiempo, monto, comportamiento histórico': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Factores de riesgo: tiempo, monto, comportamiento histórico'? (diario/semanal/mensual)",
+        "Cuando hace 'Factores de riesgo: tiempo, monto, comportamiento histórico', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Factores de riesgo: tiempo, monto, comportamiento histórico' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Factores de riesgo: tiempo, monto, comportamiento histórico' se retrasa o sale mal?"
+      ],
+      "perceptions": [
+        "Cliente quiere decisión automática de la IA, sin intervención humana en la priorización. Esto habla de que no confían en su propia capacidad de análisis o que el costo de decidir es alto.",
+        "El dolor no es de eficiencia, sino de visibilidad. No hacen el resumen porque no tienen quién lo haga, no porque no lo necesiten. El valor es entender el negocio, no ahorrar tiempo."
+      ],
+      "created_at": "2026-04-24T03:55:01Z"
+    },
+    "tk_002": {
+      "id": "tk_002",
+      "layer": 2,
+      "type": "TASK",
+      "title": "Contacto diario por mail, WhatsApp y llamada",
+      "evidence": [
+        "Los cobradores usan mail, WhatsApp y llamada para contactar clientes"
+      ],
+      "status": "PENDING",
+      "confidence": 60,
+      "parent_id": "th_001",
+      "questions_to_ask": [
+        "Para la tarea 'Contacto diario por mail, WhatsApp y llamada': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Contacto diario por mail, WhatsApp y llamada'? (diario/semanal/mensual)",
+        "Cuando hace 'Contacto diario por mail, WhatsApp y llamada', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Contacto diario por mail, WhatsApp y llamada' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Contacto diario por mail, WhatsApp y llamada' se retrasa o sale mal?"
+      ],
+      "created_at": "2026-04-24T03:55:49Z"
+    },
+    "tk_003": {
+      "id": "tk_003",
+      "layer": 2,
+      "type": "TASK",
+      "title": "Llamadas y WhatsApp: mayor esfuerzo, mayor conversión",
+      "evidence": [
+        "Llamadas y WhatsApp toman más tiempo pero tienen mejor tasa de respuesta que mails"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "th_001",
+      "questions_to_ask": [
+        "Para la tarea 'Llamadas y WhatsApp: mayor esfuerzo, mayor conversión': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Llamadas y WhatsApp: mayor esfuerzo, mayor conversión'? (diario/semanal/mensual)",
+        "Cuando hace 'Llamadas y WhatsApp: mayor esfuerzo, mayor conversión', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Llamadas y WhatsApp: mayor esfuerzo, mayor conversión' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Llamadas y WhatsApp: mayor esfuerzo, mayor conversión' se retrasa o sale mal?"
+      ],
+      "validation_answer": "Llamadas y WhatsApp toman 2.5 horas y tienen mejor conversión que mails",
+      "created_at": "2026-04-24T03:56:48Z",
+      "validated_at": "2026-04-24T03:58:24Z"
+    },
+    "tk_004": {
+      "id": "tk_004",
+      "layer": 2,
+      "type": "TASK",
+      "title": "Contacto diario consume 2.5 horas",
+      "evidence": [
+        "Hacer llamadas y WhatsApps toma 2.5 horas diarias del equipo de cobranza"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "th_001",
+      "children_ids": [
+        "pn_001"
+      ],
+      "questions_to_ask": [
+        "Para la tarea 'Contacto diario consume 2.5 horas': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Contacto diario consume 2.5 horas'? (diario/semanal/mensual)",
+        "Cuando hace 'Contacto diario consume 2.5 horas', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Contacto diario consume 2.5 horas' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Contacto diario consume 2.5 horas' se retrasa o sale mal?"
+      ],
+      "perceptions": [
+        "El equipo hace esfuerzo igual con todos. Pero si algunos clientes 'sí pagan' y otros 'no pagan', están malgastando tiempo en clientes que pressure innecesaria. Podría haber una oportunidad de segmentar."
+      ],
+      "validation_answer": "Sí, cuando no alcanzan las horas los contactos se acumulan y se presionan más tarde",
+      "created_at": "2026-04-24T03:57:14Z",
+      "validated_at": "2026-04-24T03:57:57Z"
+    }
+  }
+}

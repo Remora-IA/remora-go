@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/user/processree/internal/tree"
+	"github.com/user/framework-echo/internal/tree"
 )
 
-const defaultFile = "processtree.json"
+const defaultFile = "frameworkecho.json"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -60,10 +60,10 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println(`ProcessTree CLI - Árbol de Conocimiento Progresivo
+	fmt.Println(`FrameworkEcho CLI - Árbol de Conocimiento Progresivo
 
 USO:
-  processtree <comando> [opciones]
+  frameworkecho <comando> [opciones]
 
 COMANDOS:
   init                              Inicializa un nuevo proyecto
@@ -164,7 +164,7 @@ func requireFlag(flags map[string][]string, key string) string {
 	return val
 }
 
-func loadTree() *tree.ProcessTree {
+func loadTree() *tree.FrameworkEcho {
 	t, err := tree.LoadOrCreate(defaultFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error cargando árbol: %v\n", err)
@@ -338,7 +338,7 @@ func cmdAddOpportunity() {
 func cmdValidate() {
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Error: debes especificar el node_id\n")
-		fmt.Fprintf(os.Stderr, "Uso: processtree validate <node_id> --answer <respuesta>\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho validate <node_id> --answer <respuesta>\n")
 		os.Exit(1)
 	}
 
@@ -359,7 +359,7 @@ func cmdValidate() {
 func cmdReject() {
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Error: debes especificar el node_id\n")
-		fmt.Fprintf(os.Stderr, "Uso: processtree reject <node_id> --reason <razón>\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho reject <node_id> --reason <razón>\n")
 		os.Exit(1)
 	}
 
@@ -380,7 +380,7 @@ func cmdReject() {
 func cmdConfidence() {
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Error: debes especificar el node_id\n")
-		fmt.Fprintf(os.Stderr, "Uso: processtree confidence <node_id> --value <0-100>\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho confidence <node_id> --value <0-100>\n")
 		os.Exit(1)
 	}
 
@@ -414,7 +414,7 @@ func cmdNextQuestions() {
 
 	if len(questions) == 0 {
 		fmt.Println("No hay preguntas pendientes.")
-		fmt.Println("Si estás en Layer 0, crea theories con: processtree add-theory ...")
+		fmt.Println("Si estás en Layer 0, crea theories con: frameworkecho add-theory ...")
 		return
 	}
 
@@ -430,8 +430,8 @@ func cmdNextQuestions() {
 		fmt.Printf("  → %s\n", q.Question)
 	}
 
-	fmt.Printf("\nPara validar con respuesta: processtree validate <node_id> --answer \"respuesta del cliente\"\n")
-	fmt.Printf("Para rechazar: processtree reject <node_id> --reason \"razón\"\n")
+	fmt.Printf("\nPara validar con respuesta: frameworkecho validate <node_id> --answer \"respuesta del cliente\"\n")
+	fmt.Printf("Para rechazar: frameworkecho reject <node_id> --reason \"razón\"\n")
 }
 
 func cmdReset() {
@@ -501,7 +501,7 @@ func cmdStatus() {
 func cmdAddQuestion() {
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Error: debes especificar el node_id\n")
-		fmt.Fprintf(os.Stderr, "Uso: processtree add-question <node_id> --question \"pregunta\"\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho add-question <node_id> --question \"pregunta\"\n")
 		os.Exit(1)
 	}
 
@@ -531,7 +531,7 @@ func cmdAddQuestion() {
 func cmdAddPerception() {
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Error: debes especificar el node_id\n")
-		fmt.Fprintf(os.Stderr, "Uso: processtree add-perception <node_id> --note \"nota interna\"\n")
+		fmt.Fprintf(os.Stderr, "Uso: frameworkecho add-perception <node_id> --note \"nota interna\"\n")
 		os.Exit(1)
 	}
 
@@ -549,7 +549,7 @@ func cmdAddPerception() {
 	fmt.Printf("  → %s\n", note)
 }
 
-func printQuickStats(t *tree.ProcessTree) {
+func printQuickStats(t *tree.FrameworkEcho) {
 	stats := t.GetStats()
 	parts := []string{}
 	layerNames := map[int]string{0: "axioms", 1: "theories", 2: "tasks", 3: "pains", 4: "opportunities"}

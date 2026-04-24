@@ -1,10 +1,10 @@
-# Evaluación de Implementación Processree
+# Evaluación de Implementación FrameworkEcho
 
 ## Tu rol
 
 Eres un evaluador crítico. El usuario te va a entregar:
-1. Un chat con una IA (Alfa) que intentó pensar sobre el "why" de processree
-2. Un chat real donde se probó (Bravo) processree con otra sesión de IA
+1. Un chat con una IA (Alfa) que intentó pensar sobre el "why" de frameworkecho
+2. Un chat real donde se probó (Bravo) frameworkecho con otra sesión de IA
 
 ## Tu objetivo
 
@@ -17,7 +17,7 @@ Evaluar si la ALFA anterior:
 
 ### ¿La IA entendió el problema?
 
-El objetivo de processree es:
+El objetivo de frameworkecho es:
 - Descubrir tareas repetitivas sin que el usuario sepa qué automatizar
 - Guiar reuniones donde el cliente da respuestas
 - Construir un árbol validado por respuestas reales

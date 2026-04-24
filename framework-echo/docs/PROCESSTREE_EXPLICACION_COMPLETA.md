@@ -1,8 +1,8 @@
-# PROCESSTREE - Documentación para Agentes IA
+# FRAMEWORKECHO - Documentación para Agentes IA
 
 ## ¿Qué es?
 
-Processree es un framework CLI en Go para hacer **reverse engineering de procesos de negocio**. Suena técnico pero en la práctica es simple:
+FrameworkEcho es un framework CLI en Go para hacer **reverse engineering de procesos de negocio**. Suena técnico pero en la práctica es simple:
 
 **El objetivo:** Descubrir qué tareas son repetitivas y causarían valor automatizarse.
 
@@ -66,24 +66,24 @@ Después de PAINS existe una capa adicional:
 
 ```bash
 # Inicializar proyecto
-./processtree init --project-id "registro-marcas" --client "Gamma" --date "2026-04-23"
+./frameworkecho init --project-id "registro-marcas" --client "Gamma" --date "2026-04-23"
 
 # Crear nodos por capa
-./processtree add-axiom --title "No existe base de datos" --evidence "Solo correos"
-./processtree add-theory --parent ax_001 --title "Consultan seguido" --evidence "Hipotesis"
-./processtree add-task --parent th_001 --title "Consultar manualmente" --evidence "Confirmado"
-./processtree add-pain --parent tk_001 --title "Tiempo perdido" --evidence "Confirmado"
-./processtree add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Candidata para resolver búsqueda en libreta"
-./processtree add-perception ax_001 --note "El cliente dice 'no tengo idea': no puede diseñar solución, conviene preguntar por conducta actual"
+./frameworkecho add-axiom --title "No existe base de datos" --evidence "Solo correos"
+./frameworkecho add-theory --parent ax_001 --title "Consultan seguido" --evidence "Hipotesis"
+./frameworkecho add-task --parent th_001 --title "Consultar manualmente" --evidence "Confirmado"
+./frameworkecho add-pain --parent tk_001 --title "Tiempo perdido" --evidence "Confirmado"
+./frameworkecho add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Candidata para resolver búsqueda en libreta"
+./frameworkecho add-perception ax_001 --note "El cliente dice 'no tengo idea': no puede diseñar solución, conviene preguntar por conducta actual"
 
 # Validar/rechazar nodos
-./processtree validate th_001 --answer "Si, lo hacen每周"
-./processtree reject th_002 --reason "No aplica"
+./frameworkecho validate th_001 --answer "Si, lo hacen每周"
+./frameworkecho reject th_002 --reason "No aplica"
 
 # Consultar estado
-./processtree show-tree    # Ver árbol completo
-./processtree status       # Ver estadísticas
-./processtree next-questions  # Ver preguntas pendientes
+./frameworkecho show-tree    # Ver árbol completo
+./frameworkecho status       # Ver estadísticas
+./frameworkecho next-questions  # Ver preguntas pendientes
 ```
 
 ---
@@ -102,7 +102,7 @@ El agente (PI) está guiando a "Usuario" que está en una reunión con su client
 
 ### CHAT REAL: Usuario ↔ PI
 
-**Usuario:** "Usemos processree"
+**Usuario:** "Usemos frameworkecho"
 
 **PI:** "Perfecto. Para entender el proceso, podrías preguntarle: **¿Cuál es la actividad que más tiempo les toma?**"
 
@@ -236,7 +236,7 @@ Estas preguntas revelan comportamiento real. No le piden al cliente imaginar una
 Cuando una respuesta revela algo más profundo, se guarda como percepción:
 
 ```bash
-./processtree add-perception ax_021 --note "El cliente llama 'desastre' a la libreta: hay dolor emocional y desorden operativo, no solo tiempo perdido"
+./frameworkecho add-perception ax_021 --note "El cliente llama 'desastre' a la libreta: hay dolor emocional y desorden operativo, no solo tiempo perdido"
 ```
 
 Ejemplos de percepciones:
@@ -289,8 +289,8 @@ ax_005: Clientes insatisfechos
 Cuando hay PAINS validados, PI debería anotar oportunidades candidatas:
 
 ```bash
-./processtree add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
-./processtree add-opportunity --parent pn_001 --title "Plantillas protocolares" --evidence "Resolvería dificultad de formular correos formales"
+./frameworkecho add-opportunity --parent pn_001 --title "Base simple de clientes" --evidence "Resolvería búsqueda en libreta desordenada"
+./frameworkecho add-opportunity --parent pn_001 --title "Plantillas protocolares" --evidence "Resolvería dificultad de formular correos formales"
 ```
 
 Anotar no es ofrecer.
@@ -318,7 +318,7 @@ Este es el grafo que se construiría con la conversación de arriba:
 
 ```
 ═══════════════════════════════════════════════════════════════════
-                         PROCESSREE: Gamma
+                         FRAMEWORKECHO: Gamma
 ═══════════════════════════════════════════════════════════════════
 
 LAYER 0: AXIOMS ( hechos confirmados )
@@ -394,9 +394,9 @@ ESTADO: Puede crear THEORIES. Necesita validar th_001 y th_002 para avanzar.
 ## Comandos para ver el grafo
 
 ```bash
-./processtree show-tree    # Muestra el árbol completo
-./processtree status       # Muestra estadísticas
-./processtree next-questions  # Muestra preguntas pendientes
+./frameworkecho show-tree    # Muestra el árbol completo
+./frameworkecho status       # Muestra estadísticas
+./frameworkecho next-questions  # Muestra preguntas pendientes
 ```
 
 ---
@@ -432,7 +432,7 @@ REUNIÓN REAL
          ▼
 ┌─────────────────┐
 │ PI crea AXIOM   │  (guarda en JSON, no toca el JSON manualmente)
-│                 │  ./processtree add-axiom --title "..." --evidence "..."
+│                 │  ./frameworkecho add-axiom --title "..." --evidence "..."
 └────────┬────────┘
          │
          ▼
