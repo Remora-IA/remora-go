@@ -143,11 +143,11 @@ func (t *ProcessTree) AddNode(nodeType string, title string, evidence []string, 
 		if !exists {
 			return nil, fmt.Errorf("parent '%s' no existe", parentID)
 		}
+		if nodeType != TypeAxiom && parent.Status != StatusValidated {
+			return nil, fmt.Errorf("parent '%s' debe estar validado antes de crear %s", parentID, nodeType)
+		}
 		if nodeType == TypeOpportunity && parent.Type != TypePain {
 			return nil, fmt.Errorf("las opportunities deben colgar de un PAIN validado")
-		}
-		if nodeType == TypeOpportunity && parent.Status != StatusValidated {
-			return nil, fmt.Errorf("las opportunities requieren un PAIN validado como parent")
 		}
 		// El parent debe ser de una capa inferior
 		if parent.Layer >= targetLayer {
