@@ -1,0 +1,47 @@
+{
+  "trace_id": "alfa_1777060430712565000",
+  "generated": "2026-04-24T15:53:50-04:00",
+  "description": "Implementar Vista unificada de prospectos con estado, último contacto y siguiente acción para resolver dolores confirmados en Echo",
+  "verbalization": "Este IdealFlow fue generado por Framework Alfa desde un árbol Echo.\n\nIntención: Implementar Vista unificada de prospectos con estado, último contacto y siguiente acción para resolver dolores confirmados en Echo\n\nDolores confirmados:\n- Fricción por abrir y cerrar WhatsApp muchas veces al día (confirmado: Sí, confirmado: abrir y cerrar WhatsApp muchas veces al día es lo que más le molesta)\n\nFlujo ideal esperado:\n1. Cargar contexto confirmado: Cargar las fuentes, datos y restricciones confirmadas en Echo antes de tomar decisiones.\n2. Evaluar dolores confirmados: Identificar qué PAINS validados debe resolver la automatización y no optimizar problemas no confirmados.\n3. Vista unificada de prospectos con estado, último contacto y siguiente acción: Ejecutar la oportunidad validada contra el dolor confirmado, manteniendo el flujo lo más cercano posible a la operación actual.\n4. Verificar criterios de éxito: Comprobar que cada salida reduce el dolor confirmado y no obliga al usuario a adaptarse a un flujo no validado.\n\nCriterios de éxito:\n- Cada OPPORTUNITY validada genera una salida verificable.\n- Cada salida puede trazarse a un PAIN validado.\n- Las decisiones críticas quedan registradas para Bravo con variables y razones.\n- Reduce o elimina el dolor confirmado: Fricción por abrir y cerrar WhatsApp muchas veces al día\n\nPercepciones Echo que deben respetarse:\n- No hay paso post-contacto. No anota qué respondió el prospecto ni qué se acuerda. Todo queda en el chat sin estructura.\n",
+  "intent": "Implementar Vista unificada de prospectos con estado, último contacto y siguiente acción para resolver dolores confirmados en Echo",
+  "rules": [
+    {
+      "name": "Resolver solo dolores confirmados",
+      "description": "La automatización debe resolver PAINS validados en Echo y no preferencias superficiales.",
+      "then": "Cada salida debe mapear a un PAIN confirmado o quedar marcada como no justificada.",
+      "importance": 1
+    },
+    {
+      "name": "No adaptar al usuario a una solución no validada",
+      "description": "La automatización debe encajar con el trabajo actual y las percepciones de Echo.",
+      "then": "Si una decisión fuerza un cambio operativo no validado, debe registrarse como gap.",
+      "importance": 1
+    },
+    {
+      "name": "El seguimiento se hace informalmente sin sistema centralizado",
+      "description": "Sí, confirmado: usan WhatsApp, notas del celular y Excel (poco)",
+      "then": "El flujo debe respetar esta teoría validada.",
+      "importance": 1
+    },
+    {
+      "name": "Oportunidad validada: Vista unificada de prospectos con estado, último contacto y siguiente acción",
+      "description": "Sí, eso resolvería: poder ver de un vistazo quién hay que contactar sin abrir WhatsApp",
+      "when": "cuando se ejecute la automatización candidata",
+      "then": "debe producir una salida que resuelva el PAIN parent pn_001",
+      "importance": 1
+    }
+  ],
+  "critical_vars": [
+    "pain_resolved",
+    "source_data_loaded",
+    "output_generated",
+    "excel_files_loaded",
+    "contact_channel"
+  ],
+  "critical_path": [
+    "Cargar contexto confirmado",
+    "Evaluar dolores confirmados",
+    "Vista unificada de prospectos con estado, último contacto y siguiente acción",
+    "Verificar criterios de éxito"
+  ]
+}

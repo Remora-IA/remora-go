@@ -17,6 +17,7 @@ type Message struct {
 type ContentBlock struct {
 	Type      string          `json:"type"`
 	Text      string          `json:"text,omitempty"`
+	ImageURL  string          `json:"image_url,omitempty"`
 	ID        string          `json:"id,omitempty"`
 	Name      string          `json:"name,omitempty"`
 	Input     json.RawMessage `json:"input,omitempty"`
@@ -35,6 +36,62 @@ type Tool struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	InputSchema map[string]any `json:"input_schema"`
+}
+
+type GroqRequest struct {
+	Model       string        `json:"model"`
+	Messages    []GroqMessage `json:"messages"`
+	Tools       []GroqTool    `json:"tools,omitempty"`
+	MaxTokens   int           `json:"max_tokens,omitempty"`
+	Temperature float64       `json:"temperature"`
+}
+
+type GroqMessage struct {
+	Role       string         `json:"role"`
+	Content    any            `json:"content,omitempty"`
+	ToolCallID string         `json:"tool_call_id,omitempty"`
+	ToolCalls  []GroqToolCall `json:"tool_calls,omitempty"`
+}
+
+type GroqContentPart struct {
+	Type     string        `json:"type"`
+	Text     string        `json:"text,omitempty"`
+	ImageURL *GroqImageURL `json:"image_url,omitempty"`
+}
+
+type GroqImageURL struct {
+	URL string `json:"url"`
+}
+
+type GroqTool struct {
+	Type     string       `json:"type"`
+	Function GroqFunction `json:"function"`
+}
+
+type GroqFunction struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description,omitempty"`
+	Parameters  map[string]any `json:"parameters,omitempty"`
+}
+
+type GroqToolCall struct {
+	ID       string              `json:"id"`
+	Type     string              `json:"type"`
+	Function GroqToolCallPayload `json:"function"`
+}
+
+type GroqToolCallPayload struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
+}
+
+type GroqResponse struct {
+	ID      string       `json:"id"`
+	Choices []GroqChoice `json:"choices"`
+}
+
+type GroqChoice struct {
+	Message GroqMessage `json:"message"`
 }
 
 func tools() []Tool {

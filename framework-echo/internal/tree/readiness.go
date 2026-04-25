@@ -7,6 +7,7 @@ import (
 
 const (
 	RecommendedAskNext                   = "ask_next_missing_fact"
+	RecommendedConsultAlfaEarly          = "consult_alfa_early"
 	RecommendedValidateMinimumHypothesis = "validate_minimum_hypothesis"
 	RecommendedCloseDiscoveryWithRisk    = "close_discovery_with_risk"
 	RecommendedSelectOpportunity         = "select_opportunity"
@@ -73,11 +74,12 @@ func (t *FrameworkEcho) AssessAlfaReadiness() ReadinessReport {
 	case !hasPain:
 		question = "¿Qué impacto concreto tiene esa tarea cuando sale mal, se atrasa o depende de memoria?"
 	case !hasValidatedOpportunity:
-		question = "Con ese dolor confirmado, ¿esta oportunidad candidata sí resolvería el problema real o no calza?"
+		action = RecommendedConsultAlfaEarly
+		question = "Consulta Alfa antes de seguir preguntando: `cd ../framework-alfa && ./frameworkalfa compile --echo-tree ../framework-echo/frameworkecho.json --out temp/alfa_spec_draft.json --allow-draft=true`, para idear una primera automatización y devolver solo los gaps que bloquean esa iteración."
 	case !hasTransport:
-		question = "¿Dónde vive hoy la información necesaria y cuál es el camino mínimo realista para llevarla a la automatización?"
+		question = t.dataTransportQuestion(text)
 	case !hasManualViability:
-		question = "Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta?"
+		question = t.manualViabilityQuestion(text)
 	default:
 		question = "Falta aclarar el hueco operativo que impide compilar la oportunidad sin inventar."
 	}
@@ -197,6 +199,20 @@ func readinessRisks(hasTransport, hasManualViability bool) []string {
 	return risks
 }
 
+func (t *FrameworkEcho) dataTransportQuestion(text string) string {
+	if needsReadinessResourceExample(text) {
+		return "¿Tienes un ejemplo anonimizado de cómo llega esa información hoy, incluyendo captura/archivo y los mensajes o contexto alrededor?"
+	}
+	return "¿Dónde vive hoy la información necesaria y cuál es el camino mínimo realista para llevarla a la automatización?"
+}
+
+func (t *FrameworkEcho) manualViabilityQuestion(text string) string {
+	if needsReadinessContextCommitment(text) {
+		return "Para automatizar esto hay que unir el recurso con su contexto. Si hoy ese contexto no viene escrito, ¿qué mensaje corto podría agregar la persona justo después y puede comprometerse a hacerlo?"
+	}
+	return "Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta?"
+}
+
 func (t *FrameworkEcho) minimumHypothesisQuestion() string {
 	selected := t.SelectedOpportunities()
 	if len(selected) > 0 {
@@ -239,6 +255,38 @@ func hasReadinessDataTransport(text string) bool {
 	return true
 }
 
+func needsReadinessResourceExample(text string) bool {
+	return containsReadinessAny(text,
+		"captura",
+		"pantallazo",
+		"screenshot",
+		"foto",
+		"imagen",
+		"comprobante",
+		"transferencia",
+		"factura",
+		"boleta",
+		"recibo",
+	)
+}
+
+func needsReadinessContextCommitment(text string) bool {
+	return containsReadinessAny(text,
+		"transferencia",
+		"factura",
+		"comprobante",
+		"boleta",
+		"recibo",
+		"whatsapp",
+	) && !containsReadinessAny(text,
+		"contexto confirmado",
+		"mensaje corto",
+		"pago total",
+		"pago parcial",
+		"compromet",
+	)
+}
+
 func needsReadinessManualCapture(text string) bool {
 	return containsReadinessAny(text,
 		"registr",
@@ -265,9 +313,14 @@ func hasReadinessManualViability(text string) bool {
 		"despues de hablar",
 		"al terminar",
 		"al final de la llamada",
+		"después del pantallazo",
+		"despues del pantallazo",
+		"después de la captura",
+		"despues de la captura",
 		"momento de captura",
 		"en el momento",
 		"durante la llamada",
+		"puede mandar",
 	)
 	hasTolerance := containsReadinessAny(text,
 		"rápido",
@@ -275,6 +328,7 @@ func hasReadinessManualViability(text string) bool {
 		"segundos",
 		"10-20 segundos",
 		"nota corta",
+		"mensaje corto",
 		"opciones rápidas",
 		"opciones rapidas",
 		"mínimo",

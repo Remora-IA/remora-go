@@ -1,0 +1,9 @@
+Prioridad,Nombre,Empresa,Estado,Días sin contacto,Último contacto,Próximo contacto,Acción sugerida,Necesita acción,Probabilidad,Valor
+1,Martín Blanco,MegaCorp,💡 Interesado,12,12/04/2026,22/04/2026,📞 Llamar o escribir AHORA,SÍ,55%,180000.00
+2,María García,Tech Solutions SA,💡 Interesado,10,14/04/2026,25/04/2026,📞 Llamar o escribir AHORA,SÍ,70%,150000.00
+3,Laura Fernández,CorpTech,💡 Interesado,8,16/04/2026,29/04/2026,📞 Llamar o escribir AHORA,SÍ,60%,200000.00
+4,Sofia Torres,Empresas del Norte,❌ Cerrado Perdido,20,04/04/2026,-,📝 Revisar pérdida,No,0%,0.00
+5,Diego Ramírez,StartUp 2024,✅ Cerrado Ganado,15,09/04/2026,-,🎉 Celebrar cierre,No,100%,95000.00
+6,Carlos López,Innovatech,📞 Contactado,5,19/04/2026,26/04/2026,📱 Enviar mensaje breve,No,40%,85000.00
+7,Ana Martínez,Global Sales,🤝 Negociación,2,22/04/2026,24/04/2026,📅 Reagendar contacto,No,85%,320000.00
+8,Roberto Sánchez,Pymes Digital,🆕 Nuevo,1,23/04/2026,27/04/2026,⏳ Esperar hasta 27/04/2026,No,20%,45000.00

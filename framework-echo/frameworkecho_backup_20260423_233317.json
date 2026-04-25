@@ -1,0 +1,25 @@
+{
+  "project_id": "project-001",
+  "client_name": "",
+  "date_started": "",
+  "current_max_layer": 0,
+  "focus_nodes": [],
+  "nodes": {
+    "ax_001": {
+      "id": "ax_001",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Necesidad de sincronizar múltiples planillas Excel",
+      "evidence": [
+        "El cliente indica que necesita poder sincronizar todas las planillas que tiene en Excel"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "created_at": "2026-04-24T03:28:10Z"
+    }
+  }
+}     "confidence": 100,
+      "created_at": "2026-04-24T03:28:10Z"
+    }
+  }
+}

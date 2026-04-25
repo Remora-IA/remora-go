@@ -2,6 +2,8 @@
 trace_gf_*.json
 *.log
 temp/
+.env
+.env.*
 
 # OS files
 .DS_Store

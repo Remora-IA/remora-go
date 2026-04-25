@@ -67,7 +67,7 @@ No implementes como definitivo si:
 - Alfa tiene `open_questions`;
 - `export_ready=false`;
 - el flujo habla de otra empresa/proceso;
-- faltan inputs locales confirmados;
+- faltan inputs confirmados;
 - la automatización requiere APIs, credenciales o sistemas externos no confirmados.
 
 En esos casos responde con el bloqueo exacto y qué pregunta debe volver a Echo o Alfa.
@@ -102,18 +102,21 @@ Si el cliente no aprueba, Bravo no debe quedarse quieto ni seguir desarrollando 
 
 No conviertas rechazo de prototipo en fracaso. Es evidencia para reorientar el flujo.
 
-## Regla Local-First
+## Regla De Integración
 
-Prioriza automatizaciones que puedan ejecutarse localmente:
+Prioriza la forma más directa y verificable de obtener datos:
 
 - CSV/XLSX locales;
+- APIs oficiales con permisos y credenciales confirmadas;
 - SQLite;
 - scripts reproducibles;
 - reportes HTML/CSV/PDF;
 - dashboards locales;
 - cálculos y rankings deterministas.
 
-Evita depender de APIs externas, WhatsApp, email o credenciales salvo confirmación explícita.
+No evites APIs por defecto. Si una API oficial resuelve el transporte de datos y el usuario puede dar permisos, es una ruta válida.
+
+Evita automatizaciones basadas en interfaces visuales: hacer clicks, navegar pantallas, simular uso humano de WhatsApp Web, email web o un sistema interno. Eso solo puede usarse como workaround temporal si el usuario lo autoriza explícitamente y queda marcado como frágil.
 
 ## Cómo Instrumentar
 

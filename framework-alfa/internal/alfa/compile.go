@@ -39,7 +39,7 @@ func Compile(opts CompileOptions) (*AlfaSpec, error) {
 		return nil, err
 	}
 
-	opportunities, err := selectOpportunities(tree, opts.Opportunity)
+	opportunities, err := selectOpportunities(tree, opts.Opportunity, opts.AllowDraft)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func LoadSpec(path string) (*AlfaSpec, error) {
 	return &spec, nil
 }
 
-func selectOpportunities(tree *EchoTree, requested string) ([]*Node, error) {
+func selectOpportunities(tree *EchoTree, requested string, allowDraft bool) ([]*Node, error) {
 	if requested != "" {
 		node, ok := tree.Nodes[requested]
 		if !ok {
@@ -158,9 +158,47 @@ func selectOpportunities(tree *EchoTree, requested string) ([]*Node, error) {
 	}
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
 	if len(nodes) == 0 {
+		if allowDraft {
+			drafts := draftOpportunitiesFromPains(tree)
+			if len(drafts) > 0 {
+				return drafts, nil
+			}
+		}
 		return nil, fmt.Errorf("no validated opportunities found")
 	}
 	return nodes, nil
+}
+
+func draftOpportunitiesFromPains(tree *EchoTree) []*Node {
+	var pains []*Node
+	for _, node := range tree.Nodes {
+		if node.Type == TypePain && node.Status == StatusValidated {
+			pains = append(pains, node)
+		}
+	}
+	sort.Slice(pains, func(i, j int) bool { return pains[i].ID < pains[j].ID })
+
+	drafts := make([]*Node, 0, len(pains))
+	for idx, pain := range pains {
+		taskTitle := "la tarea repetitiva confirmada"
+		if task := tree.Nodes[pain.ParentID]; task != nil && task.Type == TypeTask {
+			taskTitle = task.Title
+		}
+		drafts = append(drafts, &Node{
+			ID:    fmt.Sprintf("draft_op_%03d", idx+1),
+			Layer: 4,
+			Type:  TypeOpportunity,
+			Title: "Draft temprano: automatizar " + taskTitle,
+			Evidence: []string{
+				"Generado por Alfa como primera hipótesis desde PAIN/TASK; debe volver a Echo para validar si calza.",
+				"Dolor base: " + pain.Title,
+			},
+			Status:           "DRAFT",
+			ParentID:         pain.ID,
+			ValidationAnswer: "No validado por usuario; usar solo para idear primera iteración y preguntas bloqueantes.",
+		})
+	}
+	return drafts
 }
 
 func collectLineage(tree *EchoTree, start *Node, spec *AlfaSpec, seen *seenSet) {
@@ -445,8 +483,8 @@ func buildOpenQuestions(tree *EchoTree, spec *AlfaSpec) []OpenQuestion {
 	if needsDataTransport(spec) && !hasDataTransportConfirmed(text) {
 		next(
 			"No está confirmado cómo entran los datos actuales a la automatización.",
-			"¿Dónde vive hoy la información necesaria y cuál es el camino mínimo realista para llevarla a la automatización sin copiarla uno por uno?",
-			"input verificable para Bravo y primera versión local-first",
+			dataTransportQuestionForEcho(text),
+			"input verificable para Bravo y primera versión conectable por API, archivo o recurso real",
 		)
 	}
 	if needsOperationalViability(spec) && !hasOperationalViabilityConfirmed(text) {
@@ -459,13 +497,30 @@ func buildOpenQuestions(tree *EchoTree, spec *AlfaSpec) []OpenQuestion {
 		} else {
 			next(
 				"No está confirmado que el usuario tolere el hábito operativo que requiere la automatización.",
-				"Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta sin romper su flujo?",
+				operationalViabilityQuestionForEcho(text),
 				"evitar que Bravo construya una solución que obligue al usuario a adaptarse a un hábito no validado",
 			)
 		}
 	}
 
 	return questions
+}
+
+func dataTransportQuestionForEcho(text string) string {
+	if containsAny(text, "whatsapp", "transferencia", "factura", "comprobante", "captura", "pantallazo", "foto") {
+		return "Para la primera iteración, necesito ver la estructura real: ¿puedes pedir una captura anonimizada de una transferencia/factura en WhatsApp, incluyendo los mensajes que dan contexto, y confirmar si existe API/permiso para leer ese origen o si partimos con export/archivo?"
+	}
+	if containsAny(text, "excel", "planilla", "xlsx", "csv") {
+		return "Para la primera iteración, ¿puedes pedir una plantilla o foto anonimizada del Excel/planilla actual, con encabezados visibles, y confirmar si se puede acceder por archivo exportado o API?"
+	}
+	return "¿Dónde vive hoy la información necesaria, puedes pedir un recurso real de ejemplo anonimizado, y cuál es el camino inicial para obtenerla: API confirmada, archivo exportado o carga mínima?"
+}
+
+func operationalViabilityQuestionForEcho(text string) string {
+	if containsAny(text, "whatsapp", "transferencia", "factura", "comprobante", "captura", "pantallazo") {
+		return "Alfa puede idear el cruce, pero falta el contexto que une cada dato: ¿ese contexto vive en mensajes, Excel, factura o memoria? Si no existe, ¿la persona puede comprometerse a agregar un mensaje corto después del pantallazo?"
+	}
+	return "Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario, qué dato mínimo agregaría y qué esfuerzo máximo acepta sin romper su flujo?"
 }
 
 func needsDataTransport(spec *AlfaSpec) bool {

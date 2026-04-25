@@ -9,11 +9,12 @@ La tarea general es seguir mejorando el flujo entre tres frameworks simples en G
 Construir un flujo donde una IA pueda:
 
 1. descubrir el dolor real del usuario,
-2. traducir ese dolor en un flujo ideal de automatización,
-3. implementar una automatización concreta,
-4. verificar con evidencia si el código hizo el flujo esperado.
+2. consultar temprano a Alfa para idear una primera automatización candidata,
+3. traducir esa automatización en un flujo ideal,
+4. implementar una automatización concreta,
+5. verificar con evidencia si el código hizo el flujo esperado.
 
-El fin último es crear automatizaciones útiles. No necesariamente con IA. Pueden ser scripts, cálculos locales, bases SQLite, lectura de Excel/CSV, generación de reportes, dashboards locales o procesos reproducibles desde terminal.
+El fin último es crear automatizaciones útiles rápido. No necesariamente con IA. Pueden ser scripts, cálculos locales, bases SQLite, lectura de Excel/CSV, APIs oficiales, generación de reportes, dashboards locales o procesos reproducibles desde terminal.
 
 ## Framework Echo
 
@@ -46,6 +47,9 @@ Echo responde:
 Echo debe:
 
 - hacer preguntas naturales y necesarias;
+- pedir recursos reales cuando reducen mejor la incertidumbre que una respuesta verbal;
+- formar acuerdos operativos mínimos cuando la automatización depende de contexto que hoy no existe;
+- consultar a Alfa temprano cuando ya existen tarea repetitiva y dolor real, para aterrizar una primera iteración;
 - crear `AXIOM` solo con hechos confirmados;
 - inferir `THEORY` y validarla;
 - encontrar `TASK` repetitiva;
@@ -58,6 +62,9 @@ Echo no debe:
 - preguntar "qué automatizar";
 - pedir al cliente elegir entre opciones técnicas;
 - ofrecer solución antes de confirmar pain;
+- obligar al usuario a describir de memoria algo que puede verse en una captura, archivo, factura, correo o chat de ejemplo;
+- asumir que podrá relacionar datos sin contexto cuando hoy llegan sueltos;
+- seguir preguntando indefinidamente para evitar el riesgo de construir un prototipo;
 - hacer preguntas de relleno;
 - repetir preguntas que ya fueron respondidas.
 
@@ -76,6 +83,26 @@ Pain real confirmado
 + oportunidad validada por el usuario
 + suficiente detalle para que Alfa compile o devuelva preguntas precisas
 = listo para Framework Alfa
+```
+
+Pero existe un paso anterior:
+
+```text
+tarea repetitiva confirmada
++ pain real confirmado
+= consultar Alfa temprano para draft de primera automatización
+```
+
+Ese draft no significa solución final. Significa que Alfa propone una primera iteración y devuelve gaps concretos:
+
+```text
+automatización candidata
++ fuente de datos necesaria
++ recursos reales que hay que mirar
++ contexto faltante
++ APIs/permisos/credenciales por confirmar
++ acuerdos humanos mínimos
+= preguntas de Echo mucho más precisas
 ```
 
 Echo no necesita definir toda la automatización. Eso lo hace Alfa. Echo necesita dejar claro qué duele, cuándo ocurre, a quién afecta, qué tarea lo causa, qué oportunidad fue aceptada y qué restricciones/percepciones importan.
@@ -102,6 +129,41 @@ momento real de captura
 + esfuerzo tolerado
 + señal de que el hábito no rompe su flujo actual
 = captura manual viable
+```
+
+Si la brecha de información puede cerrarse con evidencia, Echo debe pedir un recurso antes de pedir una descripción larga:
+
+```text
+ captura/pantallazo/foto/archivo/factura/chat de ejemplo
++ idealmente anonimizado o con datos sensibles tapados
++ mensajes o contexto alrededor si el recurso aislado no basta
+= estructura real entendida con menos carga para el usuario
+```
+
+Ejemplo:
+
+```text
+Mejor:
+"¿Tienes un ejemplo anonimizado de cómo llega una transferencia, incluyendo el pantallazo y los mensajes que normalmente vienen antes o después?"
+
+Peor:
+"Las capturas que llegan por WhatsApp, ¿el monto, fecha y quién paga ya se entiende de la imagen, o hay que escribirlo a mano?"
+```
+
+Si la automatización necesita contexto que hoy no existe, Echo debe convertirlo en un acuerdo explícito, no en una pregunta abstracta:
+
+```text
+dato que falta para automatizar
++ momento en que el humano lo puede agregar
++ formato mínimo tolerable
++ compromiso confirmado
+= contexto operativo viable
+```
+
+Ejemplo:
+
+```text
+"Para automatizar esto necesito unir transferencia, factura y cliente. Si hoy ese contexto no viene escrito, ¿te podrías comprometer a mandar después del pantallazo un mensaje corto tipo `Cliente X / factura Y / pago total o parcial`?"
 ```
 
 Echo no debe extraer diseño detallado del usuario. Debe extraer verdad operativa suficiente. Si el usuario responde "no sé" en una rama donde ya existen pain, impacto, input mínimo y restricción crítica, Echo debe dejar de profundizar y validar una hipótesis mínima concreta.
@@ -276,6 +338,7 @@ Alfa debe:
 
 - leer `frameworkecho.json`;
 - seleccionar una o más `OPPORTUNITY` validadas;
+- si Echo consulta temprano, generar un draft desde TASK + PAIN aunque todavía no exista OPPORTUNITY validada;
 - recorrer linaje `OPPORTUNITY -> PAIN -> TASK -> THEORY -> AXIOM`;
 - generar `alfa_spec.json`;
 - generar `ideal_flow.json` compatible con Bravo;
@@ -284,7 +347,7 @@ Alfa debe:
 
 Alfa no debe inventar reglas de negocio.
 
-Tampoco debe inventar fuentes de datos ni integraciones. Si Echo no confirmó cómo entran los datos a la automatización, Alfa debe marcar `export_ready=false` y devolver preguntas a Echo.
+Tampoco debe tratar fuentes de datos ni integraciones como confirmadas si Echo no las confirmó. Pero sí debe proponer hipótesis concretas de integración para una primera iteración, por ejemplo API de WhatsApp + API/archivo de Excel + cruce de información, y marcar qué falta confirmar.
 
 Alfa tampoco debe asumir viabilidad operacional. Si la automatización requiere captura, registro, formulario, planilla o cualquier hábito manual nuevo, Echo debe haber confirmado cuándo se hará y cuánto esfuerzo tolera el usuario. Si no, Alfa debe marcar `export_ready=false`.
 
@@ -435,15 +498,16 @@ cliente_aprueba_prototipo=true|false
 pain_resolved=true solo con validación suficiente
 ```
 
-### Regla Local-First Para Automatizaciones
+### Regla De Integraciones Para Automatizaciones
 
-Por ahora, las automatizaciones de Bravo deberían ser local-first.
+Las automatizaciones no deben limitarse a local-first.
 
-Esto significa priorizar soluciones que la IA pueda construir y ejecutar localmente con terminal, sin depender de APIs externas.
+La ruta preferida depende de la fuente real:
 
 Ejemplos válidos:
 
 - leer CSV/XLSX locales;
+- conectarse a APIs oficiales con permisos y credenciales confirmadas;
 - guardar datos en SQLite local;
 - generar reportes HTML/CSV/PDF;
 - calcular rankings, scores y métricas;
@@ -454,9 +518,9 @@ Ejemplos válidos:
 
 Evitar por ahora:
 
-- depender de APIs externas;
-- requerir credenciales;
+- requerir credenciales si el cliente no puede o no quiere entregarlas;
 - automatizar WhatsApp, email o sistemas externos si no hay acceso explícito;
+- automatizar usando interfaces visuales, clicks, navegación manual o simulación de usuario como si fuera una integración estable;
 - construir flujos que solo funcionan con integraciones no confirmadas.
 
 Si Bravo necesita un dato externo, Alfa debe generar una pregunta para Echo.
@@ -470,15 +534,21 @@ Para calcular este ranking necesito los 3 Excel actualizados diariamente.
 
 Regla:
 
-> Antes de usar APIs externas, Bravo debe intentar resolver con archivos locales, SQLite, scripts y cálculos reproducibles. Si falta un dato externo, Alfa devuelve una pregunta a Echo.
+> APIs oficiales son válidas si hay permisos, credenciales y estabilidad suficiente. Lo que debe evitarse es usar interfaces visuales con clicks/navegación como integración principal, salvo workaround temporal explícitamente aceptado.
 
 ## Flujo Completo Esperado
 
 ```text
 Echo
   descubre dolor real
-  valida oportunidad
   opcionalmente registra Q/A si qa-log está activo
+        ↓
+Alfa
+  si hay task + pain, puede compilar draft temprano
+  propone primera automatización candidata y gaps concretos
+        ↓
+Echo
+  pide recursos reales o acuerdos mínimos para cerrar esos gaps
         ↓
 Alfa
   compila árbol Echo a alfa_spec
@@ -486,7 +556,7 @@ Alfa
   si está listo, exporta IdealFlow para Bravo
         ↓
 Bravo
-  implementa automatización local-first
+  implementa automatización por archivo, API o integración confirmada
   instrumenta con trace
   compara trace real vs IdealFlow
         ↓
@@ -546,4 +616,4 @@ Si falta algo, Alfa debe devolver preguntas para Echo, no inventar.
 1. Evaluar el nuevo chat de Echo completo.
 2. Identificar preguntas repetidas y preguntas útiles.
 3. Recompilar Alfa hasta lograr `export_ready=true`.
-4. Usar Bravo para implementar automatización local-first y verificar trace vs IdealFlow.
+4. Usar Bravo para implementar automatización por archivo, API o integración confirmada y verificar trace vs IdealFlow.
