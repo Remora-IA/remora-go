@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	frameworkbravo "framework-bravo/flowguard"
+	frameworkbravo "framework-bravo/bravo"
 )
 
 type Producto struct {

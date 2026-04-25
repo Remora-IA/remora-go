@@ -120,7 +120,7 @@ Evita depender de APIs externas, WhatsApp, email o credenciales salvo confirmaci
 Usa el paquete:
 
 ```go
-frameworkbravo "framework-bravo/flowguard"
+frameworkbravo "framework-bravo/bravo"
 ```
 
 Patrón por función:
@@ -154,7 +154,7 @@ Bravo debe producir evidencia:
 - código instrumentado;
 - `temp/ideal_flow.json`;
 - `temp/IDEAL_FLOW.md`;
-- `temp/trace_*.json`;
+- `temp/paladin/trace_*.json`;
 - análisis de diferencias entre flujo ideal y trace real.
 
 ## Criterio De Éxito

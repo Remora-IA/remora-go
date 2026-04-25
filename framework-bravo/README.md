@@ -98,7 +98,7 @@ if err != nil {
 3. Ejecuta el programa para generar:
    - `temp/ideal_flow.json`
    - `temp/IDEAL_FLOW.md`
-   - `temp/trace_*.json`
+   - `temp/paladin/trace_*.json`
 4. Entrega esos artefactos a una IA agentica usando `prompts/VERIFICATION_PROMPT.md`.
 5. La IA compara ideal vs real, detecta desviaciones y pregunta contexto faltante si es necesario.
 
@@ -106,7 +106,7 @@ FrameworkBravo no hace el paso 5 por sí solo. Ese es el trabajo de la IA.
 
 ## Archivos temporales
 
-Los archivos generados (`ideal_flow.json`, `IDEAL_FLOW.md`, `trace_*.json`) se guardan en la carpeta `temp/` del directorio donde se ejecuta el programa.
+Los archivos generados (`ideal_flow.json`, `IDEAL_FLOW.md`, `paladin/trace_*.json`) se guardan en la carpeta `temp/` del directorio donde se ejecuta el programa.
 
 ```
 ejemplos/
@@ -115,7 +115,7 @@ ejemplos/
     └── temp/           # Archivos generados automáticamente
         ├── ideal_flow.json
         ├── IDEAL_FLOW.md
-        └── trace_*.json
+        └── paladin/trace_*.json
 ```
 
 ## Ejemplo completo (con bugs intencionales)
@@ -139,7 +139,7 @@ La suite ejecuta `examples/ecommerce-pedidos` y valida que se creen:
 
 - `temp/ideal_flow.json`
 - `temp/IDEAL_FLOW.md`
-- `temp/trace_*.json`
+- `temp/paladin/trace_*.json`
 
 ## IdealFlow en tus ejemplos
 
@@ -159,7 +159,7 @@ trace.ReloadIdealFlow()  // Recargar para el trace
 Para que una IA analice el trace:
 
 1. Copia el contenido de `temp/ideal_flow.json`
-2. Copia el contenido de `temp/trace_*.json` (el último)
+2. Copia el contenido de `temp/paladin/trace_*.json` (el último)
 3. Usa el prompt de verificación en `prompts/VERIFICATION_PROMPT.md`
 4. Si necesitas guiar a la IA durante desarrollo e instrumentación, usa `prompts/SYSTEM_PROMPT.md`
 
