@@ -53,6 +53,12 @@ func main() {
 func cmdStatus() {
 	state := mustLoad()
 	fmt.Println("Remora Flujo handoff")
+	if provider, model, note, err := nativeagent.RuntimeInfo(); err == nil {
+		fmt.Printf("  modelo_activo: %s / %s\n", provider, model)
+		fmt.Printf("  modelo_razon: %s\n", note)
+	} else {
+		fmt.Printf("  modelo_activo: no_configurado (%s)\n", err)
+	}
 	for _, role := range []handoff.Role{handoff.RoleEcho, handoff.RoleAlfa, handoff.RoleBravo} {
 		rs := state.Roles[role]
 		fmt.Printf("  %s: %s, on_runs=%d\n", role, rs.Status, rs.OnRuns)
@@ -387,19 +393,13 @@ func chatEcho(parent *paladin.Context, reason string) error {
 		mustSave(state)
 		ctx.Var("user_message_length", len(text))
 
-		prompt := fmt.Sprintf(`El usuario respondio:
-
-%s
-
-Continua como Echo. Actualiza el arbol con Framework Echo cuando corresponda.
-
-Si necesitas otra respuesta del usuario, haz una sola pregunta clara y ejecuta:
-go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que acabas de hacer"
-
-Si ya esta listo para Alfa, ejecuta:
-go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "discovery listo"
-`, text)
-		resp, err := promptRole(ctx, handoff.RoleEcho, prompt)
+		imagePaths, cleanedText, err := parseImageInput(text)
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			continue
+		}
+		prompt := promptForEchoReply(cleanedText, len(imagePaths))
+		resp, err := promptRoleWithImages(ctx, handoff.RoleEcho, prompt, imagePaths)
 		if err != nil {
 			return err
 		}
@@ -458,10 +458,15 @@ func runRole(parent *paladin.Context, role handoff.Role, reason string) error {
 }
 
 func promptRole(parent *paladin.Context, role handoff.Role, prompt string) (string, error) {
+	return promptRoleWithImages(parent, role, prompt, nil)
+}
+
+func promptRoleWithImages(parent *paladin.Context, role handoff.Role, prompt string, imagePaths []string) (string, error) {
 	ctx := parent.Child("promptRole")
 	defer ctx.End()
 	ctx.Var("role", role)
 	ctx.Var("prompt_length", len(prompt))
+	ctx.Var("image_count", len(imagePaths))
 
 	agent, err := nativeagent.New(nativeagent.Options{
 		CWD:          "/Users/alcless_a1234_cursor/remora-go/remora-flujo",
@@ -474,7 +479,16 @@ func promptRole(parent *paladin.Context, role handoff.Role, prompt string) (stri
 		ctx.Error(err)
 		return "", err
 	}
-	resp, err := agent.Prompt(prompt)
+	ctx.Var("llm_provider", agent.Provider())
+	ctx.Var("llm_model", agent.Model())
+	ctx.Var("llm_provider_reason", agent.ProviderNote())
+	fmt.Printf("modelo_activo: %s / %s\n", agent.Provider(), agent.Model())
+	fmt.Printf("modelo_razon: %s\n", agent.ProviderNote())
+	images := make([]nativeagent.ImageInput, 0, len(imagePaths))
+	for _, path := range imagePaths {
+		images = append(images, nativeagent.ImageInput{Path: path})
+	}
+	resp, err := agent.PromptWithImages(prompt, images)
 	if err != nil {
 		ctx.Error(err)
 		return "", err
@@ -485,6 +499,46 @@ func promptRole(parent *paladin.Context, role handoff.Role, prompt string) (stri
 		fmt.Printf("\n%s:\n%s\n", roleTitle(role), resp)
 	}
 	return resp, nil
+}
+
+func parseImageInput(text string) ([]string, string, error) {
+	fields := strings.Fields(text)
+	if len(fields) == 0 {
+		return nil, text, nil
+	}
+	command := fields[0]
+	if command != "/imagen" && command != "/image" {
+		return nil, text, nil
+	}
+	if len(fields) < 2 {
+		return nil, "", fmt.Errorf("uso: /imagen <ruta_imagen> [texto]")
+	}
+	imagePath := fields[1]
+	cleaned := strings.TrimSpace(strings.TrimPrefix(text, command))
+	cleaned = strings.TrimSpace(strings.TrimPrefix(cleaned, imagePath))
+	if cleaned == "" {
+		cleaned = "Analiza la imagen adjunta y extrae lo relevante para Framework Echo."
+	}
+	return []string{imagePath}, cleaned, nil
+}
+
+func promptForEchoReply(message string, imageCount int) string {
+	imageNote := ""
+	if imageCount > 0 {
+		imageNote = fmt.Sprintf("\nEl usuario adjunto %d imagen(es). Debes mirarlas directamente; no le pidas describir lo visible si puedes extraerlo de la imagen.\n", imageCount)
+	}
+	return fmt.Sprintf(`El usuario respondio:
+
+%s
+%s
+Continua como Echo. Actualiza el arbol con Framework Echo cuando corresponda.
+
+Si necesitas otra respuesta del usuario, haz una sola pregunta clara y ejecuta:
+go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que acabas de hacer"
+
+Si ya esta listo para Alfa, ejecuta:
+go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "discovery listo"
+`, message, imageNote)
 }
 
 func allowedTools(role handoff.Role) []string {
@@ -669,6 +723,7 @@ USO:
   go run ./cmd/flujo next
   go run ./cmd/flujo run
   go run ./cmd/flujo chat
+  En chat: /imagen <ruta_imagen> [texto]
   go run ./cmd/flujo run --once --dry-run
   go run ./cmd/flujo reply "respuesta del usuario"
   go run ./cmd/flujo done <echo|alfa|bravo> --event <evento> [--message nota]

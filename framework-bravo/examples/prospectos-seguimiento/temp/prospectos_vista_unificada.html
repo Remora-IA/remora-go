@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista Unificada de Prospectos</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; background: #f5f5f5; }
+        h1 { color: #333; }
+        .summary { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .summary span { margin-right: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        th { background: #4a90d9; color: white; padding: 12px; text-align: left; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f9f9f9; }
+        .needs-action { background: #fff3cd; }
+        .needs-action td:first-child::before { content: "⚠️ "; }
+        .closed-won { background: #d4edda; }
+        .closed-lost { background: #f8d7da; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-new { background: #cce5ff; color: #004085; }
+        .badge-contacted { background: #d1ecf1; color: #0c5460; }
+        .badge-interested { background: #d4edda; color: #155724; }
+        .badge-negotiation { background: #fff3cd; color: #856404; }
+        .badge-won { background: #28a745; color: white; }
+        .badge-lost { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>📋 Vista Unificada de Prospectos</h1>
+    <div class="summary">
+        <span><strong>Total prospectos:</strong> 8</span>
+        <span><strong>Requieren acción:</strong> 3</span>
+        <span><strong>Dolor resuelto:</strong> true</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Empresa</th>
+                <th>Estado</th>
+                <th>Días sin contacto</th>
+                <th>Último contacto</th>
+                <th>Próximo contacto</th>
+                <th>Acción sugerida</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr class="needs-action">
+                <td>1</td>
+                <td><strong>Martín Blanco</strong><br><small>PR-008</small></td>
+                <td>MegaCorp</td>
+                <td><span class="badge badge-interested">💡 Interesado</span></td>
+                <td>12</td>
+                <td>12/04/2026</td>
+                <td>22/04/2026</td>
+                <td>📞 Llamar o escribir AHORA</td>
+            </tr>
+            <tr class="needs-action">
+                <td>2</td>
+                <td><strong>María García</strong><br><small>PR-001</small></td>
+                <td>Tech Solutions SA</td>
+                <td><span class="badge badge-interested">💡 Interesado</span></td>
+                <td>10</td>
+                <td>14/04/2026</td>
+                <td>25/04/2026</td>
+                <td>📞 Llamar o escribir AHORA</td>
+            </tr>
+            <tr class="needs-action">
+                <td>3</td>
+                <td><strong>Laura Fernández</strong><br><small>PR-005</small></td>
+                <td>CorpTech</td>
+                <td><span class="badge badge-interested">💡 Interesado</span></td>
+                <td>8</td>
+                <td>16/04/2026</td>
+                <td>29/04/2026</td>
+                <td>📞 Llamar o escribir AHORA</td>
+            </tr>
+            <tr class="closed-lost">
+                <td>4</td>
+                <td><strong>Sofia Torres</strong><br><small>PR-007</small></td>
+                <td>Empresas del Norte</td>
+                <td><span class="badge badge-lost">❌ Cerrado Perdido</span></td>
+                <td>20</td>
+                <td>04/04/2026</td>
+                <td>-</td>
+                <td>📝 Revisar pérdida</td>
+            </tr>
+            <tr class="closed-won">
+                <td>5</td>
+                <td><strong>Diego Ramírez</strong><br><small>PR-006</small></td>
+                <td>StartUp 2024</td>
+                <td><span class="badge badge-won">✅ Cerrado Ganado</span></td>
+                <td>15</td>
+                <td>09/04/2026</td>
+                <td>-</td>
+                <td>🎉 Celebrar cierre</td>
+            </tr>
+            <tr class="">
+                <td>6</td>
+                <td><strong>Carlos López</strong><br><small>PR-002</small></td>
+                <td>Innovatech</td>
+                <td><span class="badge badge-contacted">📞 Contactado</span></td>
+                <td>5</td>
+                <td>19/04/2026</td>
+                <td>26/04/2026</td>
+                <td>📱 Enviar mensaje breve</td>
+            </tr>
+            <tr class="">
+                <td>7</td>
+                <td><strong>Ana Martínez</strong><br><small>PR-003</small></td>
+                <td>Global Sales</td>
+                <td><span class="badge badge-negotiation">🤝 Negociación</span></td>
+                <td>2</td>
+                <td>22/04/2026</td>
+                <td>24/04/2026</td>
+                <td>📅 Reagendar contacto</td>
+            </tr>
+            <tr class="">
+                <td>8</td>
+                <td><strong>Roberto Sánchez</strong><br><small>PR-004</small></td>
+                <td>Pymes Digital</td>
+                <td><span class="badge badge-new">🆕 Nuevo</span></td>
+                <td>1</td>
+                <td>23/04/2026</td>
+                <td>27/04/2026</td>
+                <td>⏳ Esperar hasta 27/04/2026</td>
+            </tr>
+        </tbody>
+    </table>
+    <p style="margin-top: 20px; color: #666; font-size: 12px;">
+        Generado por Framework Bravo | Vista unificada para evitar abrir WhatsApp múltiples veces
+    </p>
+</body>
+</html>

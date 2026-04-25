@@ -37,12 +37,14 @@ func cmdCompile(args []string) {
 	echoTree := fs.String("echo-tree", "", "path a frameworkecho.json")
 	opportunity := fs.String("opportunity", "", "id de OPPORTUNITY validada (opcional; si falta usa todas)")
 	out := fs.String("out", "alfa_spec.json", "path de salida para alfa_spec.json")
+	allowDraft := fs.Bool("allow-draft", false, "permite compilar un draft temprano desde PAIN/TASK aunque no haya OPPORTUNITY validada")
 	_ = fs.Parse(args)
 
 	spec, err := alfa.Compile(alfa.CompileOptions{
 		EchoTreePath: *echoTree,
 		Opportunity:  *opportunity,
 		OutputPath:   *out,
+		AllowDraft:   *allowDraft,
 	})
 	if err != nil {
 		fail(err)
@@ -131,7 +133,7 @@ func usage() {
 	fmt.Println(`Framework Alfa - compilador semántico Echo → Bravo
 
 USO:
-  frameworkalfa compile --echo-tree <frameworkecho.json> [--opportunity op_001] [--out alfa_spec.json]
+  frameworkalfa compile --echo-tree <frameworkecho.json> [--opportunity op_001] [--out alfa_spec.json] [--allow-draft=true]
   frameworkalfa export-bravo --spec <alfa_spec.json> [--out ideal_flow.json] [--allow-draft=true]
   frameworkalfa inspect --spec <alfa_spec.json>
 

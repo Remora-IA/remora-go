@@ -119,6 +119,118 @@ func TestAssessReadinessBlocksManualCaptureWithoutViability(t *testing.T) {
 	}
 }
 
+func TestAssessReadinessRecommendsEarlyAlfaAfterTaskAndPain(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = map[string]*Node{
+		"ax_001": {
+			ID:       "ax_001",
+			Type:     TypeAxiom,
+			Layer:    0,
+			Title:    "Facturas y transferencias llegan por WhatsApp",
+			Evidence: []string{"El usuario recibe capturas en grupos"},
+			Status:   StatusValidated,
+		},
+		"th_001": {
+			ID:       "th_001",
+			Type:     TypeTheory,
+			Layer:    1,
+			Title:    "El cruce manual genera errores",
+			Status:   StatusValidated,
+			ParentID: "ax_001",
+		},
+		"tk_001": {
+			ID:       "tk_001",
+			Type:     TypeTask,
+			Layer:    2,
+			Title:    "Cruzar transferencias con facturas",
+			Status:   StatusValidated,
+			ParentID: "th_001",
+		},
+		"pn_001": {
+			ID:       "pn_001",
+			Type:     TypePain,
+			Layer:    3,
+			Title:    "Pierde tiempo y no sabe qué pago corresponde a qué factura",
+			Status:   StatusValidated,
+			ParentID: "tk_001",
+		},
+	}
+
+	report := tm.AssessAlfaReadiness()
+	if report.RecommendedAction != RecommendedConsultAlfaEarly {
+		t.Fatalf("expected early alfa consultation, got %s", report.RecommendedAction)
+	}
+	if !containsReadinessAny(report.NextQuestion, "compila un draft", "primera automatización") {
+		t.Fatalf("expected early alfa instruction, got %q", report.NextQuestion)
+	}
+}
+
+func TestAssessReadinessAsksForResourceExampleWhenEvidenceCanCloseGap(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Ordenar facturas recibidas por foto", []string{
+		"Las facturas llegan como foto o pantallazo, pero falta confirmar cómo se ve el recurso real; copiarlas uno por uno no sirve",
+	})
+	tm.Nodes["ax_001"].Title = "Las facturas llegan como documentos sueltos"
+	tm.Nodes["ax_001"].Evidence = []string{"El canal y el camino de entrada todavía no están confirmados"}
+	tm.SelectedOpportunityIDs = []string{"op_001"}
+
+	report := tm.AssessAlfaReadiness()
+	if report.ReadyForAlfa {
+		t.Fatal("expected not ready before data transport is confirmed")
+	}
+	if report.RecommendedAction != RecommendedAskNext {
+		t.Fatalf("unexpected action: %s", report.RecommendedAction)
+	}
+	if !containsReadinessAny(report.NextQuestion, "ejemplo anonimizado", "mensajes o contexto") {
+		t.Fatalf("expected resource example question, got %q", report.NextQuestion)
+	}
+}
+
+func TestAssessReadinessAsksForContextCommitmentWhenWhatsappTransferNeedsManualContext(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Registrar transferencias de WhatsApp", []string{
+		"Las transferencias llegan por WhatsApp como captura y hay que relacionarlas con facturas",
+	})
+	tm.SelectedOpportunityIDs = []string{"op_001"}
+
+	report := tm.AssessAlfaReadiness()
+	if report.ReadyForAlfa {
+		t.Fatal("expected not ready before context commitment is confirmed")
+	}
+	if report.RecommendedAction != RecommendedAskNext {
+		t.Fatalf("unexpected action: %s", report.RecommendedAction)
+	}
+	if !containsReadinessAny(report.NextQuestion, "mensaje corto", "comprometerse") {
+		t.Fatalf("expected context commitment question, got %q", report.NextQuestion)
+	}
+}
+
+func TestAssessReadinessAllowsContextCommitmentAfterScreenshot(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Registrar transferencias de WhatsApp", []string{
+		"Las transferencias llegan por WhatsApp como captura",
+		"El usuario puede mandar después del pantallazo un mensaje corto con Cliente X, factura Y y pago total o parcial",
+	})
+	tm.SelectedOpportunityIDs = []string{"op_001"}
+
+	report := tm.AssessAlfaReadiness()
+	if !report.ReadyForAlfa {
+		t.Fatalf("expected ready after context commitment, got %#v", report)
+	}
+}
+
 func TestAssessReadinessAllowsValidatedManualCapture(t *testing.T) {
 	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
 	if err != nil {

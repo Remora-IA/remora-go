@@ -105,6 +105,66 @@ func TestExportBravoIncludesOpenQuestionsAsRules(t *testing.T) {
 	}
 }
 
+func TestCompileAllowDraftBuildsEarlyOpportunityFromValidatedPain(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID: "test",
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "Transferencias y facturas llegan por WhatsApp",
+				Evidence: []string{"Llegan capturas a grupos"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "El cruce manual pierde contexto",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Cruzar pagos con facturas",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "No sabe qué pago corresponde a qué factura",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath, AllowDraft: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spec.SelectedOpportunities) != 1 {
+		t.Fatalf("expected one draft opportunity, got %d", len(spec.SelectedOpportunities))
+	}
+	if !strings.HasPrefix(spec.SelectedOpportunities[0].ID, "draft_op_") {
+		t.Fatalf("expected draft opportunity, got %#v", spec.SelectedOpportunities[0])
+	}
+	if spec.ExportReady {
+		t.Fatal("expected draft compile to remain export_ready=false until Echo validates gaps")
+	}
+	if !hasOpenQuestionReason(spec, "hábito operativo") {
+		t.Fatalf("expected context/operational gap, got %#v", spec.OpenQuestions)
+	}
+}
+
 func TestCompileUsesSelectedOpportunitiesByDefault(t *testing.T) {
 	dir := t.TempDir()
 	treePath := filepath.Join(dir, "frameworkecho.json")
