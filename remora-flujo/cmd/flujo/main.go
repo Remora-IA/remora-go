@@ -118,6 +118,15 @@ func cmdDone(args []string) {
 	if err != nil {
 		fail(err)
 	}
+	if role == handoff.RoleEcho && event == handoff.EventEchoReadyForAlfa {
+		ready, question := echoReadyForAlfa(nil)
+		if !ready {
+			if strings.TrimSpace(question) == "" {
+				question = "Echo readiness indica que falta contexto antes de Alfa."
+			}
+			fail(fmt.Errorf("rechazado echo_ready_for_alfa: frameworkecho readiness=false; siguiente pregunta: %s", question))
+		}
+	}
 	state := mustLoad()
 	state.Done(role, event, *message)
 	mustSave(state)
@@ -231,19 +240,33 @@ func cmdRun(args []string) {
 }
 
 func echoReadyForAlfa(parent *paladin.Context) (bool, string) {
-	ctx := parent.Child("echoReadyForAlfa")
-	defer ctx.End()
+	var ctx *paladin.Context
+	if parent != nil {
+		ctx = parent.Child("echoReadyForAlfa")
+		defer ctx.End()
+	}
 
 	cmd := exec.Command("/bin/zsh", "-lc", "cd /Users/alcless_a1234_cursor/remora-go/framework-echo && ./frameworkecho readiness")
 	output, err := cmd.CombinedOutput()
 	text := string(output)
-	ctx.Var("readiness_output", text)
+	if ctx != nil {
+		ctx.Var("readiness_output", text)
+	}
 	if err != nil {
-		ctx.Error(err)
+		if ctx != nil {
+			ctx.Error(err)
+		}
 		return false, "No pude leer readiness de Echo"
 	}
+	ready, question := parseEchoReadiness(text)
+	if ctx != nil {
+		ctx.Decision("ready_for_alfa", fmt.Sprintf("%t", ready))
+	}
+	return ready, question
+}
+
+func parseEchoReadiness(text string) (bool, string) {
 	if strings.Contains(text, "ready_for_alfa: true") {
-		ctx.Decision("ready_for_alfa", "true")
 		return true, ""
 	}
 	question := ""
@@ -254,7 +277,6 @@ func echoReadyForAlfa(parent *paladin.Context) (bool, string) {
 			break
 		}
 	}
-	ctx.Decision("ready_for_alfa", "false")
 	return false, question
 }
 
@@ -521,7 +543,8 @@ CONTRATO ESTRICTO PARA ECHO
 - No des opciones A/B de solucion temprano. Pregunta una sola cosa sobre comportamiento actual o hueco critico.
 - Si haces una pregunta al usuario, termina ejecutando:
   cd /Users/alcless_a1234_cursor/remora-go/remora-flujo && go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta hecha"
-- Si readiness recomienda pass_to_alfa o select_opportunity y ya ejecutaste lo necesario, termina ejecutando el evento echo_ready_for_alfa.
+- Solo puedes ejecutar echo_ready_for_alfa cuando ./frameworkecho readiness diga literalmente: ready_for_alfa: true.
+- Si readiness dice ready_for_alfa: false, no pases a Alfa aunque creas tener suficiente contexto; haz la pregunta indicada por next_question.
 `
 	case handoff.RoleAlfa:
 		return `
