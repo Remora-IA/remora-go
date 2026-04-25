@@ -50,6 +50,7 @@ Echo debe:
 - pedir recursos reales cuando reducen mejor la incertidumbre que una respuesta verbal;
 - formar acuerdos operativos mínimos cuando la automatización depende de contexto que hoy no existe;
 - consultar a Alfa temprano cuando ya existen tarea repetitiva y dolor real, para aterrizar una primera iteración;
+- descubrir reglas de negocio y estructura de datos suficientes para que Alfa compile un MERE sin inventar;
 - crear `AXIOM` solo con hechos confirmados;
 - inferir `THEORY` y validarla;
 - encontrar `TASK` repetitiva;
@@ -104,6 +105,25 @@ automatización candidata
 + acuerdos humanos mínimos
 = preguntas de Echo mucho más precisas
 ```
+
+Antes de automatizar, Alfa debe poder describir:
+
+```text
+estructura actual de datos
++ reglas de negocio confirmadas
++ MERE normalizado propuesto
++ relaciones/cardinalidades claras
++ gaps explícitos si falta una regla
+= automatización que no alucina ni replica el caos
+```
+
+Ejemplo de gap crítico, solo como caso particular de una regla de cardinalidad:
+
+```text
+"¿Manejan pagos parciales o cada movimiento de dinero corresponde a una compra/factura pagada en su totalidad en ese momento?"
+```
+
+La regla general no es "pagos y facturas". La regla general es: cuando la automatización necesita relacionar elementos, Alfa debe saber si la relación es 1 a 1, 1 a muchos, muchos a muchos, parcial, temporal o con excepciones. Si no lo sabe, Echo pregunta esa regla o pide un recurso real que la muestre.
 
 Echo no necesita definir toda la automatización. Eso lo hace Alfa. Echo necesita dejar claro qué duele, cuándo ocurre, a quién afecta, qué tarea lo causa, qué oportunidad fue aceptada y qué restricciones/percepciones importan.
 
@@ -163,7 +183,7 @@ dato que falta para automatizar
 Ejemplo:
 
 ```text
-"Para automatizar esto necesito unir transferencia, factura y cliente. Si hoy ese contexto no viene escrito, ¿te podrías comprometer a mandar después del pantallazo un mensaje corto tipo `Cliente X / factura Y / pago total o parcial`?"
+"Para automatizar esto necesito unir cada recurso con el registro correcto. Si hoy ese contexto no viene escrito, ¿te podrías comprometer a agregar después un mensaje corto con la referencia mínima acordada?"
 ```
 
 Echo no debe extraer diseño detallado del usuario. Debe extraer verdad operativa suficiente. Si el usuario responde "no sé" en una rama donde ya existen pain, impacto, input mínimo y restricción crítica, Echo debe dejar de profundizar y validar una hipótesis mínima concreta.

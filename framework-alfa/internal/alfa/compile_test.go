@@ -165,6 +165,95 @@ func TestCompileAllowDraftBuildsEarlyOpportunityFromValidatedPain(t *testing.T) 
 	}
 }
 
+func TestCompileBuildsGenericDataModelAndAsksRelationshipCardinality(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_001"},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "Solicitudes y respuestas llegan por correo y mensajes",
+				Evidence: []string{"Reciben archivos y mensajes en canales distintos"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "El contexto que une cada solicitud con su respuesta se pierde",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Cruzar solicitudes con respuestas",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "No sabe qué respuesta corresponde a qué solicitud",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:       "op_001",
+				Layer:    4,
+				Type:     TypeOpportunity,
+				Title:    "Cruce automático de solicitudes y respuestas",
+				Status:   StatusValidated,
+				ParentID: "pn_001",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !hasEntity(spec.DataModel.NormalizedTarget.Entities, "relacion_normalizada") {
+		t.Fatalf("expected generic relationship entity, got %#v", spec.DataModel.NormalizedTarget.Entities)
+	}
+	if hasEntity(spec.DataModel.NormalizedTarget.Entities, "aplicacion_pago") {
+		t.Fatalf("did not expect payment-specific entity in generic model, got %#v", spec.DataModel.NormalizedTarget.Entities)
+	}
+	if !hasOpenQuestionText(spec, "1 a 1") {
+		t.Fatalf("expected generic cardinality question, got %#v", spec.OpenQuestions)
+	}
+}
+
+func TestExportBravoIncludesDataModelVerbalization(t *testing.T) {
+	spec := &AlfaSpec{
+		AutomationIntent: "Cruzar registros",
+		DataModel: DataModelSpec{
+			NormalizedTarget: DataModelState{
+				Entities: []DataEntity{
+					{Name: "entidad_negocio", Description: "Objeto principal del negocio", Fields: []string{"id", "estado"}},
+				},
+				Relationships: []DataRelationship{
+					{From: "evento_operativo", To: "entidad_negocio", Type: "many_to_one", Description: "Evento asociado al objeto principal"},
+				},
+			},
+		},
+	}
+	flow := ExportBravo(spec, time.Time{})
+	if !strings.Contains(flow.Verbalization, "MERE normalizado propuesto") {
+		t.Fatalf("expected MERE section, got %s", flow.Verbalization)
+	}
+	if !strings.Contains(flow.Verbalization, "entidad_negocio") {
+		t.Fatalf("expected entity in verbalization, got %s", flow.Verbalization)
+	}
+}
+
 func TestCompileUsesSelectedOpportunitiesByDefault(t *testing.T) {
 	dir := t.TempDir()
 	treePath := filepath.Join(dir, "frameworkecho.json")
@@ -579,6 +668,24 @@ func writeEchoTree(t *testing.T, path string, tree EchoTree) {
 func hasOpenQuestionReason(spec *AlfaSpec, needle string) bool {
 	for _, q := range spec.OpenQuestions {
 		if strings.Contains(q.Reason, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasOpenQuestionText(spec *AlfaSpec, needle string) bool {
+	for _, q := range spec.OpenQuestions {
+		if strings.Contains(q.QuestionForEcho, needle) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasEntity(entities []DataEntity, name string) bool {
+	for _, entity := range entities {
+		if entity.Name == name {
 			return true
 		}
 	}

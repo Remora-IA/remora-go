@@ -48,7 +48,7 @@ Malas preguntas:
 
 ## Pedir recursos y formar acuerdos
 
-Cuando falta entender cómo luce la información, primero intenta pedir un recurso real: captura, foto, pantallazo, factura, correo, Excel, CSV o conversación de ejemplo. Puede estar anonimizado o con datos sensibles tapados.
+Cuando falta entender cómo luce la información, primero intenta pedir un recurso real: captura, foto, pantallazo, documento, correo, Excel, CSV, sistema, formulario o conversación de ejemplo. Puede estar anonimizado o con datos sensibles tapados.
 
 No preguntes para que el cliente reconstruya de memoria lo que una muestra evidencia mejor.
 
@@ -56,8 +56,8 @@ Cuando la muestra o el proceso actual no trae contexto suficiente para automatiz
 
 Ejemplo:
 
-- Bien: "¿Tienes una captura anonimizada de una transferencia y los mensajes que normalmente la rodean?"
-- Bien, si falta contexto: "Para automatizar necesito unir transferencia, factura y cliente. ¿Te podrías comprometer a mandar después del pantallazo un mensaje corto tipo `Cliente X / factura Y / pago total o parcial`?"
+- Bien: "¿Tienes una muestra anonimizada del recurso real y los mensajes o datos que normalmente lo rodean?"
+- Bien, si falta contexto: "Para automatizar necesito unir cada recurso con el registro correcto. ¿Te podrías comprometer a agregar después un mensaje corto con la referencia mínima acordada?"
 - Mal: "¿El monto, fecha y quién paga ya se entiende de la imagen, o hay que escribirlo a mano?"
 
 ## Consultar Alfa temprano

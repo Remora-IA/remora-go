@@ -1,0 +1,117 @@
+{
+  "project_id": "project-001",
+  "client_name": "",
+  "date_started": "",
+  "current_max_layer": 4,
+  "focus_nodes": [],
+  "config": {
+    "qa_log_enabled": false
+  },
+  "nodes": {
+    "ax_001": {
+      "id": "ax_001",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Trackear gastos reales contra cotizaci\\u00f3n",
+      "evidence": [
+        "El usuario indic\\u00f3 que trackear los gastos reales contra la cotizaci\\u00f3n es lo que m\\u00e1s trabajo les da"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "children_ids": [
+        "th_001"
+      ],
+      "created_at": "2026-04-25T15:41:24Z"
+    },
+    "op_001": {
+      "id": "op_001",
+      "layer": 4,
+      "type": "OPPORTUNITY",
+      "title": "Automatizar seguimiento de gastos",
+      "evidence": [
+        "El usuario quiere reducir la incertidumbre financiera y la improvisaci\\u00f3n"
+      ],
+      "status": "PENDING",
+      "confidence": 60,
+      "parent_id": "pn_001",
+      "questions_to_ask": [
+        "Para la oportunidad 'Automatizar seguimiento de gastos': ¿qué dolor confirmado resuelve exactamente?",
+        "¿Qué tendría que ser cierto para que 'Automatizar seguimiento de gastos' encaje en la forma actual de trabajar?",
+        "¿Qué señales indicarían que 'Automatizar seguimiento de gastos' obligaría al usuario a adaptarse demasiado?"
+      ],
+      "created_at": "2026-04-25T15:59:52Z"
+    },
+    "pn_001": {
+      "id": "pn_001",
+      "layer": 3,
+      "type": "PAIN",
+      "title": "Mantener planilla actualizada",
+      "evidence": [
+        "El usuario debe llenar la planilla diariamente"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "tk_001",
+      "children_ids": [
+        "op_001"
+      ],
+      "questions_to_ask": [
+        "Sobre el problema 'Mantener planilla actualizada': ¿con qué frecuencia ocurre?",
+        "¿Qué impacto concreto tiene 'Mantener planilla actualizada' en su trabajo diario?",
+        "¿Qué hace hoy para convivir con 'Mantener planilla actualizada'?",
+        "Si 'Mantener planilla actualizada' desapareciera mañana, ¿qué cambiaría primero?"
+      ],
+      "validation_answer": "incertidumbre financiera y falta de planificaci\\u00f3n",
+      "created_at": "2026-04-25T15:58:52Z",
+      "validated_at": "2026-04-25T15:59:51Z"
+    },
+    "th_001": {
+      "id": "th_001",
+      "layer": 1,
+      "type": "THEORY",
+      "title": "Trackear gastos imprevistos de obra",
+      "evidence": [
+        "El usuario tiene una planilla de Excel con presupuesto y cotizaci\\u00f3n, y luego guarda fotos de transferencias de maestros en otra planilla para trackear gastos imprevistos"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "ax_001",
+      "children_ids": [
+        "tk_001"
+      ],
+      "questions_to_ask": [
+        "Respecto a 'Trackear gastos imprevistos de obra': ¿esto calza con lo que pasa realmente?",
+        "¿Qué parte de 'Trackear gastos imprevistos de obra' se repite y qué parte cambia caso a caso?",
+        "¿Qué tendría que pasar para que 'Trackear gastos imprevistos de obra' deje de ser cierto?"
+      ],
+      "validation_answer": "s\\u00ed",
+      "created_at": "2026-04-25T15:56:20Z",
+      "validated_at": "2026-04-25T15:57:46Z"
+    },
+    "tk_001": {
+      "id": "tk_001",
+      "layer": 2,
+      "type": "TASK",
+      "title": "Registrar gastos imprevistos",
+      "evidence": [
+        "El usuario mencion\\u00f3 que hay d\\u00edas y d\\u00edas de gastos imprevistos"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "th_001",
+      "children_ids": [
+        "pn_001"
+      ],
+      "questions_to_ask": [
+        "Para la tarea 'Registrar gastos imprevistos': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Registrar gastos imprevistos'? (diario/semanal/mensual)",
+        "Cuando hace 'Registrar gastos imprevistos', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Registrar gastos imprevistos' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Registrar gastos imprevistos' se retrasa o sale mal?"
+      ],
+      "validation_answer": "diario",
+      "created_at": "2026-04-25T15:57:48Z",
+      "validated_at": "2026-04-25T15:58:51Z"
+    }
+  }
+}
