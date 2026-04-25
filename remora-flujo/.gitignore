@@ -1,6 +1,7 @@
 # Logs y traces
 trace_gf_*.json
 *.log
+temp/
 
 # OS files
 .DS_Store
