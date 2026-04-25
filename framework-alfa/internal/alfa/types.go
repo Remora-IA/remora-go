@@ -46,11 +46,46 @@ type AlfaSpec struct {
 	Perceptions           []string          `json:"perceptions,omitempty"`
 	ConversationSignals   []SignalEntry     `json:"conversation_signals,omitempty"`
 	IdealSteps            []IdealStep       `json:"ideal_steps"`
+	DataModel             DataModelSpec     `json:"data_model"`
 	BusinessRules         []BusinessRule    `json:"business_rules"`
 	CriticalVariables     []string          `json:"critical_variables"`
 	SuccessCriteria       []string          `json:"success_criteria"`
 	EdgeCases             []string          `json:"edge_cases,omitempty"`
 	OpenQuestions         []OpenQuestion    `json:"open_questions,omitempty"`
+}
+
+type DataModelSpec struct {
+	CurrentState     DataModelState `json:"current_state"`
+	NormalizedTarget DataModelState `json:"normalized_target"`
+	BusinessRules    []BusinessRule `json:"business_rules,omitempty"`
+	OpenGaps         []DataModelGap `json:"open_gaps,omitempty"`
+}
+
+type DataModelState struct {
+	Description   string             `json:"description"`
+	Entities      []DataEntity       `json:"entities,omitempty"`
+	Relationships []DataRelationship `json:"relationships,omitempty"`
+}
+
+type DataEntity struct {
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Fields      []string `json:"fields,omitempty"`
+	Source      string   `json:"source,omitempty"`
+}
+
+type DataRelationship struct {
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
+}
+
+type DataModelGap struct {
+	ID              string `json:"id"`
+	Reason          string `json:"reason"`
+	QuestionForEcho string `json:"question_for_echo"`
+	NeededFor       string `json:"needed_for"`
 }
 
 type OpportunitySpec struct {

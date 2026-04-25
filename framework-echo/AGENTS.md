@@ -68,14 +68,14 @@ Evita preguntas abstractas que obliguen al cliente a diseñar la solución:
 
 ## Recursos Y Acuerdos
 
-Si una brecha de información se puede cerrar viendo un recurso real, pide el recurso antes de pedir explicaciones largas. Puede ser una captura, foto, pantallazo, factura, correo, Excel, CSV o chat con datos sensibles tapados.
+Si una brecha de información se puede cerrar viendo un recurso real, pide el recurso antes de pedir explicaciones largas. Puede ser una captura, foto, pantallazo, documento, correo, Excel, CSV, sistema, formulario o chat con datos sensibles tapados.
 
 Si el recurso no trae el contexto que la automatización necesita, no esperes que el cliente lo explique todo en la conversación. Propón un acuerdo mínimo y valida si la persona puede sostenerlo dentro de su flujo actual.
 
 Ejemplo:
 
-- Mejor: "¿Tienes una captura anonimizada de una transferencia y los mensajes que normalmente vienen antes o después?"
-- Luego, si falta contexto: "Para unir transferencia, factura y cliente, ¿podrías comprometerte a mandar después del pantallazo un mensaje corto tipo `Cliente X / factura Y / pago total o parcial`?"
+- Mejor: "¿Tienes una muestra anonimizada del recurso real y los mensajes o datos que normalmente vienen antes o después?"
+- Luego, si falta contexto: "Para unir cada recurso con el registro correcto, ¿podrías comprometerte a agregar después un mensaje corto con la referencia mínima acordada?"
 - Peor: "¿El monto, fecha y pagador se entiende de la imagen o hay que escribirlo a mano?"
 
 ## Loop Temprano Con Alfa

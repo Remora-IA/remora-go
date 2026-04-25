@@ -123,6 +123,7 @@ Alfa debe:
 - compilar drafts tempranos desde TASK + PAIN cuando Echo necesita salir de discovery y aterrizar una primera iteración;
 - recorrer linaje `OPPORTUNITY -> PAIN -> TASK -> THEORY -> AXIOM`;
 - generar `alfa_spec.json`;
+- generar `data_model` con estado actual, MERE normalizado propuesto, relaciones y reglas de negocio;
 - marcar `export_ready=false` si falta información;
 - devolver `open_questions` para Echo;
 - generar reglas verificables, variables críticas y path crítico cuando sea posible.
@@ -132,6 +133,7 @@ Alfa debe:
 Alfa no debe:
 
 - inventar ponderaciones, fórmulas, columnas o reglas;
+- inventar entidades, relaciones, cardinalidades ni reglas de negocio del MERE;
 - inventar una fuente de datos o integración;
 - asumir que el usuario mantendrá planillas, formularios o registros manuales si Echo no validó ese hábito;
 - asumir Excel, WhatsApp, CRM, APIs o scraping si Echo no lo validó, pero sí puede proponerlos como hipótesis de integración y pedir confirmación concreta;
@@ -157,6 +159,27 @@ Preguntas buenas para devolver a Echo:
 No marques `export_ready=true` si la automatización depende de datos que no tienen camino de entrada confirmado.
 
 APIs son válidas y deseables cuando hay permisos, credenciales y estabilidad suficiente. Lo que no debe tratarse como integración estable es operar una interfaz visual con clicks, navegación manual o simulación de usuario, salvo que el usuario lo autorice explícitamente como workaround temporal.
+
+## MERE Y Reglas De Negocio
+
+Alfa debe compilar dos vistas:
+
+- Estado actual: cómo viven hoy los datos en ese negocio concreto: recursos, archivos, sistemas, mensajes, formularios, documentos, personas, memoria informal o cualquier otra fuente confirmada.
+- MERE normalizado: entidades, campos, relaciones y reglas para ordenar esos datos sin perder evidencia ni significado.
+
+Alfa no debe usar entidades fijas de un caso anterior como si fueran universales. Debe partir de patrones genéricos (`entidad_negocio`, `evento_operativo`, `actor`, `evidencia`, `relacion_normalizada`) y solo nombrar entidades de dominio cuando Echo las haya confirmado.
+
+Si una regla afecta cardinalidad, identidad, estado, trazabilidad o cálculos, Alfa debe bloquear `export_ready` y devolver pregunta para Echo. Ejemplos no exclusivos:
+
+- si la relación entre dos elementos es 1 a 1, 1 a muchos, muchos a muchos, parcial o con excepciones;
+- qué identificador evita duplicados entre entidades relevantes;
+- qué estados o etapas existen y qué los cambia;
+- qué dato une evidencia original con el registro estructurado;
+- qué cálculo, asignación o prioridad no puede inferirse sin regla de negocio.
+
+Pregunta buena:
+
+> Cuando relacionan esos elementos, ¿la relación es siempre 1 a 1, puede ser 1 a muchos, muchos a muchos, parcial o con excepciones?
 
 ## Viabilidad Operacional
 

@@ -68,6 +68,7 @@ func Compile(opts CompileOptions) (*AlfaSpec, error) {
 
 	spec.AutomationIntent = buildIntent(spec)
 	spec.IdealSteps = buildIdealSteps(spec)
+	spec.DataModel = buildDataModelSpec(spec)
 	spec.BusinessRules = buildBusinessRules(spec)
 	spec.CriticalVariables = buildCriticalVariables(spec)
 	spec.SuccessCriteria = buildSuccessCriteria(spec)
@@ -327,8 +328,232 @@ func opportunityOutputs(op OpportunitySpec) []string {
 	}
 }
 
+func buildDataModelSpec(spec *AlfaSpec) DataModelSpec {
+	text := strings.ToLower(joinSpecText(spec))
+	model := DataModelSpec{
+		CurrentState: DataModelState{
+			Description: "Modelo observado desde Echo. Si faltan campos, relaciones o reglas, Alfa debe declararlo como gap y no normalizar inventando.",
+			Entities:    observedEntities(text),
+		},
+		NormalizedTarget: DataModelState{
+			Description: "MERE normalizado propuesto para que la automatización preserve la información original sin copiar el desorden operativo.",
+		},
+	}
+	model.NormalizedTarget.Entities = normalizedEntities(text)
+	model.NormalizedTarget.Relationships = normalizedRelationships(text)
+	model.BusinessRules = dataModelBusinessRules(text)
+	model.OpenGaps = dataModelGaps(text)
+	return model
+}
+
+func observedEntities(text string) []DataEntity {
+	var entities []DataEntity
+	if containsAny(text, "whatsapp", "captura", "pantallazo", "imagen", "foto", "comprobante", "correo", "pdf", "archivo", "papel", "mensaje") {
+		entities = append(entities, DataEntity{
+			Name:        "artefacto_actual",
+			Description: "Recurso real donde vive información hoy: mensaje, imagen, archivo, documento, correo, papel u otro soporte observado.",
+			Fields:      []string{"tipo", "origen", "fecha_recepcion", "contenido_visible", "contexto_si_existe"},
+			Source:      "Echo",
+		})
+	}
+	if containsAny(text, "excel", "planilla", "xlsx", "csv", "tabla", "sheet", "base", "sistema", "crm", "erp") {
+		entities = append(entities, DataEntity{
+			Name:        "registro_actual",
+			Description: "Estructura actual donde se registra o consulta información. Requiere muestra real para no inventar campos.",
+			Fields:      []string{"campos_actuales", "formato", "frecuencia_actualizacion", "responsable"},
+			Source:      "Echo",
+		})
+	}
+	if containsAny(text, "cliente", "proveedor", "usuario", "paciente", "alumno", "empleado", "vendedor", "operador", "responsable", "equipo", "persona") {
+		entities = append(entities, DataEntity{
+			Name:        "actor_actual",
+			Description: "Persona, organización, sistema o rol mencionado en la operación actual.",
+			Fields:      []string{"nombre_o_alias", "rol", "canal", "identificador_si_existe"},
+			Source:      "Echo",
+		})
+	}
+	if containsAny(text, "solicitud", "pedido", "orden", "caso", "ticket", "venta", "compra", "entrega", "reserva", "cita", "tarea", "proyecto", "servicio", "producto", "documento", "factura", "pago", "transferencia") {
+		entities = append(entities, DataEntity{
+			Name:        "objeto_operativo_actual",
+			Description: "Objeto, evento o caso que el negocio intenta seguir, resolver, controlar o relacionar hoy.",
+			Fields:      []string{"nombre", "fecha", "estado_si_existe", "atributos_visibles", "identificador_si_existe"},
+			Source:      "Echo",
+		})
+	}
+	return entities
+}
+
+func normalizedEntities(text string) []DataEntity {
+	entities := []DataEntity{
+		{
+			Name:        "actor",
+			Description: "Persona, organización, área o sistema que participa en el proceso con un rol definido.",
+			Fields:      []string{"id", "nombre", "tipo", "rol"},
+		},
+		{
+			Name:        "entidad_negocio",
+			Description: "Cosa principal que el negocio necesita registrar, seguir, clasificar o decidir. Alfa no debe fijar su nombre de dominio sin evidencia de Echo.",
+			Fields:      []string{"id", "tipo", "nombre_o_referencia", "estado_actual", "fecha_creacion"},
+		},
+		{
+			Name:        "evento_operativo",
+			Description: "Hecho que ocurre sobre una entidad de negocio y cambia su estado, historial, monto, prioridad, responsable o decisión.",
+			Fields:      []string{"id", "entidad_negocio_id", "tipo", "fecha", "actor_id", "detalle"},
+		},
+	}
+	if relationshipLikely(text) {
+		entities = append(entities, DataEntity{
+			Name:        "relacion_normalizada",
+			Description: "Entidad asociativa genérica para representar cruces entre dos o más elementos cuando la cardinalidad o asignación no está confirmada.",
+			Fields:      []string{"id", "origen_id", "destino_id", "tipo_relacion", "valor_o_peso_si_aplica", "criterio_confirmado"},
+		})
+	}
+	if evidenceLikely(text) {
+		entities = append(entities, DataEntity{
+			Name:        "evidencia",
+			Description: "Artefacto original que respalda un dato estructurado y permite auditar de dónde salió.",
+			Fields:      []string{"id", "tipo", "origen", "fecha_recepcion", "uri", "texto_extraido", "contexto_confirmado"},
+		})
+	}
+	if containsAny(text, "estado", "etapa", "prioridad", "aprobado", "rechazado", "pendiente", "cerrado", "historial", "seguimiento") {
+		entities = append(entities, DataEntity{
+			Name:        "estado_historial",
+			Description: "Historial de estados o etapas de una entidad de negocio cuando el proceso depende de seguimiento temporal.",
+			Fields:      []string{"id", "entidad_negocio_id", "estado", "fecha_inicio", "fecha_fin", "actor_id"},
+		})
+	}
+	return entities
+}
+
+func normalizedRelationships(text string) []DataRelationship {
+	relationships := []DataRelationship{
+		{
+			From:        "evento_operativo",
+			To:          "entidad_negocio",
+			Type:        "many_to_one_unless_echo_confirms_otherwise",
+			Description: "Un evento suele ocurrir sobre una entidad, pero Alfa debe marcar gap si el proceso permite varios elementos por evento o varios eventos por elemento.",
+		},
+		{
+			From:        "actor",
+			To:          "evento_operativo",
+			Type:        "role_based",
+			Description: "Un actor participa en un evento con un rol confirmado por Echo.",
+		},
+	}
+	if relationshipLikely(text) {
+		relationships = append(relationships, DataRelationship{
+			From:        "relacion_normalizada",
+			To:          "entidad_negocio/evento_operativo",
+			Type:        "cardinality_unconfirmed",
+			Description: "Cuando el negocio necesita cruzar, calzar o asociar elementos, la cardinalidad queda abierta hasta que Echo confirme la regla.",
+		})
+	}
+	if evidenceLikely(text) {
+		relationships = append(relationships, DataRelationship{
+			From:        "evidencia",
+			To:          "entidad_negocio/evento_operativo/relacion_normalizada",
+			Type:        "audit_link_or_unresolved",
+			Description: "La evidencia debe conservarse y vincularse al dato estructurado; si no existe contexto suficiente, la relación queda como gap.",
+		})
+	}
+	if containsAny(text, "estado", "etapa", "prioridad", "aprobado", "rechazado", "pendiente", "cerrado", "historial", "seguimiento") {
+		relationships = append(relationships, DataRelationship{
+			From:        "estado_historial",
+			To:          "entidad_negocio",
+			Type:        "many_to_one",
+			Description: "Una entidad puede tener muchos estados históricos si el proceso requiere trazabilidad temporal.",
+		})
+	}
+	return relationships
+}
+
+func dataModelBusinessRules(text string) []BusinessRule {
+	rules := []BusinessRule{
+		{
+			ID:          "data_rule_001",
+			Name:        "No inventar entidades de dominio",
+			Description: "Alfa puede proponer estructura MERE genérica, pero no debe convertirla en nombres, campos o reglas del negocio sin evidencia de Echo.",
+			Then:        "Si falta la regla, Alfa debe crear un gap para Echo en vez de fijar una cardinalidad o campo específico.",
+			Importance:  1,
+		},
+		{
+			ID:          "data_rule_002",
+			Name:        "No asumir cardinalidad",
+			Description: "Cuando el flujo relaciona elementos, Alfa no puede asumir relación 1 a 1, 1 a muchos o muchos a muchos sin confirmación.",
+			Then:        "El MERE debe usar relacion_normalizada o bloquear export_ready con una pregunta de cardinalidad.",
+			Importance:  1,
+		},
+	}
+	if evidenceLikely(text) {
+		rules = append(rules, BusinessRule{
+			ID:          "data_rule_003",
+			Name:        "Preservar evidencia original",
+			Description: "La automatización debe conservar vínculo entre dato normalizado y recurso original para evitar alucinación o pérdida de auditoría.",
+			Then:        "Cada dato extraído desde recursos no estructurados debe referenciar evidencia_id o quedar como dato no verificado.",
+			Importance:  1,
+		})
+	}
+	return rules
+}
+
+func dataModelGaps(text string) []DataModelGap {
+	var gaps []DataModelGap
+	next := func(reason, question, needed string) {
+		gaps = append(gaps, DataModelGap{
+			ID:              fmt.Sprintf("dm_gap_%03d", len(gaps)+1),
+			Reason:          reason,
+			QuestionForEcho: question,
+			NeededFor:       needed,
+		})
+	}
+	if relationshipLikely(text) && !cardinalityConfirmed(text) {
+		next(
+			"No está clara la cardinalidad entre elementos que deben relacionarse.",
+			"Cuando relacionan esos elementos, ¿la relación es siempre 1 a 1, puede ser 1 a muchos, muchos a muchos, parcial o con excepciones?",
+			"definir relaciones del MERE sin asumir reglas de negocio",
+		)
+	}
+	if identifierGapLikely(text) && !containsAny(text, "identificador", "codigo", "código", "numero unico", "número único", "rut", "uuid", "folio", "sku", "nombre y contacto", "correo contiene") {
+		next(
+			"No está claro qué identificador evita duplicados entre entidades relevantes.",
+			"¿Qué dato permite reconocer de forma única cada entidad principal: código, número, nombre exacto, correo, cuenta, folio u otro identificador?",
+			"evitar duplicados y relacionar registros de forma confiable",
+		)
+	}
+	if evidenceLikely(text) && relationshipLikely(text) && !containsAny(text, "mensaje corto", "contexto confirmado", "contexto", "referencia", "identificador") {
+		next(
+			"No está claro dónde vive el contexto que relaciona una evidencia con la entidad correcta.",
+			"Cuando llega un recurso como captura, archivo o mensaje, ¿qué dato permite saber a qué entidad o evento corresponde: texto alrededor, nombre visible, registro externo, memoria de alguien o un mensaje corto que podrían agregar?",
+			"vincular evidencia original con entidades normalizadas sin inventar relaciones",
+		)
+	}
+	return gaps
+}
+
+func evidenceLikely(text string) bool {
+	return containsAny(text, "whatsapp", "captura", "pantallazo", "imagen", "foto", "comprobante", "correo", "pdf", "archivo", "papel", "mensaje")
+}
+
+func relationshipLikely(text string) bool {
+	return containsAny(text, "cruzar", "cruce", "relacionar", "relación", "relacion", "asociar", "calzar", "conciliar", "vincular", "unir", "matching", "corresponde", "correspondencia", "comparar", "mapear")
+}
+
+func dataStructureLikely(text string) bool {
+	return containsAny(text, "dato", "registro", "tabla", "excel", "planilla", "base", "sistema", "crm", "erp", "archivo", "documento", "formulario", "seguimiento") ||
+		evidenceLikely(text) || relationshipLikely(text)
+}
+
+func identifierGapLikely(text string) bool {
+	return relationshipLikely(text) || containsAny(text, "duplicado", "duplicados", "deduplicar", "repetido", "mismo", "misma", "varios sistemas", "varias fuentes", "fuentes distintas")
+}
+
+func cardinalityConfirmed(text string) bool {
+	return containsAny(text, "1 a 1", "uno a uno", "1:1", "1 a muchos", "uno a muchos", "muchos a muchos", "n:m", "parcial", "varios", "varias", "múltiples", "multiples", "siempre uno", "solo uno")
+}
+
 func buildBusinessRules(spec *AlfaSpec) []BusinessRule {
 	var rules []BusinessRule
+	rules = append(rules, spec.DataModel.BusinessRules...)
 	rules = append(rules, BusinessRule{
 		ID:          "rule_001",
 		Name:        "Resolver solo dolores confirmados",
@@ -459,6 +684,9 @@ func buildOpenQuestions(tree *EchoTree, spec *AlfaSpec) []OpenQuestion {
 	}
 
 	text := strings.ToLower(joinSpecText(spec))
+	for _, gap := range spec.DataModel.OpenGaps {
+		next(gap.Reason, gap.QuestionForEcho, gap.NeededFor)
+	}
 	if strings.Contains(text, "riesgo") && !containsAny(text, "peso", "ponder", "formula", "fórmula") {
 		next(
 			"No está definida la fórmula o ponderación de riesgo.",

@@ -76,6 +76,37 @@ func buildVerbalization(spec *AlfaSpec) string {
 		b.WriteString(fmt.Sprintf("%d. %s: %s\n", i+1, step.Name, step.Description))
 	}
 
+	if len(spec.DataModel.NormalizedTarget.Entities) > 0 {
+		b.WriteString("\nMERE normalizado propuesto:\n")
+		for _, entity := range spec.DataModel.NormalizedTarget.Entities {
+			b.WriteString("- ")
+			b.WriteString(entity.Name)
+			if len(entity.Fields) > 0 {
+				b.WriteString(" (")
+				b.WriteString(strings.Join(entity.Fields, ", "))
+				b.WriteString(")")
+			}
+			b.WriteString(": ")
+			b.WriteString(entity.Description)
+			b.WriteString("\n")
+		}
+	}
+
+	if len(spec.DataModel.NormalizedTarget.Relationships) > 0 {
+		b.WriteString("\nRelaciones MERE:\n")
+		for _, relationship := range spec.DataModel.NormalizedTarget.Relationships {
+			b.WriteString("- ")
+			b.WriteString(relationship.From)
+			b.WriteString(" -> ")
+			b.WriteString(relationship.To)
+			b.WriteString(" [")
+			b.WriteString(relationship.Type)
+			b.WriteString("]: ")
+			b.WriteString(relationship.Description)
+			b.WriteString("\n")
+		}
+	}
+
 	if len(spec.SuccessCriteria) > 0 {
 		b.WriteString("\nCriterios de éxito:\n")
 		for _, criterion := range spec.SuccessCriteria {
