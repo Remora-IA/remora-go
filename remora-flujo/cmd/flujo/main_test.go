@@ -21,3 +21,20 @@ func TestParseEchoReadinessMissingQuestion(t *testing.T) {
 		t.Fatalf("unexpected question: %q", question)
 	}
 }
+
+func TestContainsQuestion(t *testing.T) {
+	if !containsQuestion("¿Cómo lo haces hoy?") {
+		t.Fatal("expected spanish question marks to count as question")
+	}
+	if containsQuestion("Pregunta enviada sobre comportamiento actual") {
+		t.Fatal("expected descriptive handoff message to be rejected")
+	}
+}
+
+func TestContainsNormalized(t *testing.T) {
+	response := "Echo:\nPara entender el proceso real, cuéntame: ¿cuál es la actividad?"
+	question := "¿cuál es la actividad?"
+	if !containsNormalized(response, question) {
+		t.Fatal("expected normalized containment")
+	}
+}
