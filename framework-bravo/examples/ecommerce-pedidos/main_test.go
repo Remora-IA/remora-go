@@ -39,12 +39,12 @@ func TestEcommercePedidosRunsAndWritesArtifacts(t *testing.T) {
 		}
 	}
 
-	traceFiles, err := filepath.Glob(filepath.Join(tempDir, "trace_*.json"))
+	traceFiles, err := filepath.Glob(filepath.Join(tempDir, "paladin", "trace_*.json"))
 	if err != nil {
 		t.Fatalf("glob trace files: %v", err)
 	}
 	if len(traceFiles) == 0 {
-		t.Fatalf("expected at least one trace_*.json in %s", tempDir)
+		t.Fatalf("expected at least one Paladin trace_*.json in %s", filepath.Join(tempDir, "paladin"))
 	}
 }
 
