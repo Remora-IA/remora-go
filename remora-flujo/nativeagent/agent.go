@@ -334,6 +334,36 @@ func (a *Agent) toolBash(command string) string {
 
 func (a *Agent) validateBashPolicy(command string) error {
 	lower := strings.ToLower(command)
+	if strings.Contains(lower, "go run ./cmd/flujo done ") {
+		switch a.role {
+		case "echo":
+			if !strings.Contains(lower, "go run ./cmd/flujo done echo ") {
+				return errors.New("Echo solo puede apagar/pasar mando para echo")
+			}
+		case "alfa":
+			if !strings.Contains(lower, "go run ./cmd/flujo done alfa ") {
+				return errors.New("Alfa solo puede ejecutar done alfa; para preguntar debe usar ask-echo --from alfa")
+			}
+		case "bravo":
+			if !strings.Contains(lower, "go run ./cmd/flujo done bravo ") {
+				return errors.New("Bravo solo puede ejecutar done bravo; para preguntar debe usar ask-echo --from bravo")
+			}
+		}
+	}
+	if strings.Contains(lower, "go run ./cmd/flujo ask-echo") {
+		switch a.role {
+		case "alfa":
+			if !strings.Contains(lower, "--from alfa") {
+				return errors.New("Alfa debe usar ask-echo --from alfa")
+			}
+		case "bravo":
+			if !strings.Contains(lower, "--from bravo") {
+				return errors.New("Bravo debe usar ask-echo --from bravo")
+			}
+		default:
+			return errors.New("solo Alfa o Bravo pueden usar ask-echo")
+		}
+	}
 	if a.role == "echo" && strings.Contains(lower, "./frameworkecho validate") {
 		if strings.Contains(lower, "respuesta pendiente") || strings.Contains(lower, "pending") {
 			return errors.New("Echo no puede validar con una respuesta pendiente o inventada; debe usar una respuesta real del usuario")
