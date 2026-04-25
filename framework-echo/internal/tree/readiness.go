@@ -8,6 +8,7 @@ import (
 const (
 	RecommendedAskNext                   = "ask_next_missing_fact"
 	RecommendedValidateMinimumHypothesis = "validate_minimum_hypothesis"
+	RecommendedCloseDiscoveryWithRisk    = "close_discovery_with_risk"
 	RecommendedSelectOpportunity         = "select_opportunity"
 	RecommendedPassToAlfa                = "pass_to_alfa"
 )
@@ -16,6 +17,7 @@ type ReadinessReport struct {
 	ReadyForAlfa      bool             `json:"ready_for_alfa"`
 	RecommendedAction string           `json:"recommended_action"`
 	NextQuestion      string           `json:"next_question,omitempty"`
+	Risks             []string         `json:"risks,omitempty"`
 	Checks            []ReadinessCheck `json:"checks"`
 }
 
@@ -37,6 +39,9 @@ func (t *FrameworkEcho) AssessAlfaReadiness() ReadinessReport {
 	hasManualViability := !requiresManualCapture || hasReadinessManualViability(text)
 	hasMinimumInput := hasReadinessMinimumInput(text)
 	hasUnknownFatigue := t.hasUnknownAnswer()
+	hasConversationFatigue := t.hasConversationFatigue()
+	hasCoreDiscovery := hasTask && hasPain && hasValidatedOpportunity
+	risks := readinessRisks(hasTransport, hasManualViability)
 
 	checks := []ReadinessCheck{
 		{ID: "task_confirmed", Passed: hasTask, Details: "Existe al menos una TASK validada."},
@@ -54,6 +59,9 @@ func (t *FrameworkEcho) AssessAlfaReadiness() ReadinessReport {
 	switch {
 	case ready:
 		action = RecommendedPassToAlfa
+	case hasCoreDiscovery && hasConversationFatigue:
+		action = RecommendedCloseDiscoveryWithRisk
+		question = "Cierra discovery sin más preguntas abiertas. Pasa a Alfa como draft/prototipo con los riesgos explícitos."
 	case hasTask && hasPain && hasValidatedOpportunity && hasMinimumInput && hasUnknownFatigue:
 		action = RecommendedValidateMinimumHypothesis
 		question = t.minimumHypothesisQuestion()
@@ -78,6 +86,7 @@ func (t *FrameworkEcho) AssessAlfaReadiness() ReadinessReport {
 		ReadyForAlfa:      ready,
 		RecommendedAction: action,
 		NextQuestion:      question,
+		Risks:             risks,
 		Checks:            checks,
 	}
 }
@@ -111,6 +120,12 @@ func (t *FrameworkEcho) readinessText() string {
 		b.WriteString(" ")
 		b.WriteString(entry.Purpose)
 	}
+	for _, signal := range t.Signals {
+		b.WriteString(" ")
+		b.WriteString(signal.Type)
+		b.WriteString(" ")
+		b.WriteString(signal.Note)
+	}
 	return b.String()
 }
 
@@ -132,6 +147,54 @@ func (t *FrameworkEcho) hasUnknownAnswer() bool {
 		}
 	}
 	return false
+}
+
+func (t *FrameworkEcho) hasConversationFatigue() bool {
+	for _, signal := range t.Signals {
+		if signal.Type == "fatigue" || signal.Type == "low_attention" {
+			return true
+		}
+		if containsReadinessAny(strings.ToLower(signal.Note), fatiguePhrases()...) {
+			return true
+		}
+	}
+	for _, entry := range t.QALog {
+		if containsReadinessAny(strings.ToLower(entry.Answer), fatiguePhrases()...) {
+			return true
+		}
+	}
+	for _, node := range t.Nodes {
+		if containsReadinessAny(strings.ToLower(node.ValidationAnswer), fatiguePhrases()...) {
+			return true
+		}
+	}
+	return false
+}
+
+func fatiguePhrases() []string {
+	return []string{
+		"muchas preguntas",
+		"preguntando muchas cosas",
+		"no te entiendo",
+		"no entiendo",
+		"qué se yo",
+		"que se yo",
+		"me estás preguntando mucho",
+		"me estas preguntando mucho",
+		"estoy cansado",
+		"ya te dije",
+	}
+}
+
+func readinessRisks(hasTransport, hasManualViability bool) []string {
+	var risks []string
+	if !hasTransport {
+		risks = append(risks, "data_transport_unconfirmed")
+	}
+	if !hasManualViability {
+		risks = append(risks, "manual_capture_viability_unconfirmed")
+	}
+	return risks
 }
 
 func (t *FrameworkEcho) minimumHypothesisQuestion() string {

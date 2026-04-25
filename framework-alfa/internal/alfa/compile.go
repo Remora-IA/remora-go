@@ -50,6 +50,7 @@ func Compile(opts CompileOptions) (*AlfaSpec, error) {
 		SourceTree:            opts.EchoTreePath,
 		ProjectID:             tree.ProjectID,
 		ClientName:            tree.ClientName,
+		ConversationSignals:   tree.Signals,
 		SelectedOpportunities: make([]OpportunitySpec, 0, len(opportunities)),
 	}
 
@@ -449,11 +450,19 @@ func buildOpenQuestions(tree *EchoTree, spec *AlfaSpec) []OpenQuestion {
 		)
 	}
 	if needsOperationalViability(spec) && !hasOperationalViabilityConfirmed(text) {
-		next(
-			"No está confirmado que el usuario tolere el hábito operativo que requiere la automatización.",
-			"Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta sin romper su flujo?",
-			"evitar que Bravo construya una solución que obligue al usuario a adaptarse a un hábito no validado",
-		)
+		if hasConversationFatigue(spec) {
+			next(
+				"Riesgo no resuelto: la captura manual requerida no fue validada y el usuario ya mostró fatiga conversacional.",
+				"No vuelvas a preguntar esto como una pregunta abierta al cliente. Compila solo un draft/prototipo con el riesgo manual_capture_viability_unconfirmed explícito.",
+				"prototipo para validar si el registro manual se sostiene sin fricción",
+			)
+		} else {
+			next(
+				"No está confirmado que el usuario tolere el hábito operativo que requiere la automatización.",
+				"Si esta solución requiere registrar información manualmente, ¿en qué momento real lo haría el usuario y qué esfuerzo máximo acepta sin romper su flujo?",
+				"evitar que Bravo construya una solución que obligue al usuario a adaptarse a un hábito no validado",
+			)
+		}
 	}
 
 	return questions
@@ -585,7 +594,34 @@ func joinSpecText(spec *AlfaSpec) string {
 		b.WriteString(" ")
 		b.WriteString(p)
 	}
+	for _, signal := range spec.ConversationSignals {
+		b.WriteString(" ")
+		b.WriteString(signal.Type)
+		b.WriteString(" ")
+		b.WriteString(signal.Note)
+	}
 	return b.String()
+}
+
+func hasConversationFatigue(spec *AlfaSpec) bool {
+	for _, signal := range spec.ConversationSignals {
+		signalType := strings.ToLower(signal.Type)
+		note := strings.ToLower(signal.Note)
+		if signalType == "fatigue" || signalType == "low_attention" {
+			return true
+		}
+		if containsAny(note,
+			"muchas preguntas",
+			"preguntando muchas cosas",
+			"no te entiendo",
+			"no entiendo",
+			"qué se yo",
+			"que se yo",
+		) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsAny(text string, needles ...string) bool {

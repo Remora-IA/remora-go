@@ -54,6 +54,8 @@ func main() {
 		cmdConfig()
 	case "log-qa":
 		cmdLogQA()
+	case "signal":
+		cmdSignal()
 	case "select-opportunity":
 		cmdSelectOpportunity()
 	case "selected-opportunities":
@@ -130,6 +132,10 @@ COMANDOS:
     --question <pregunta>           Pregunta realizada
     --answer <respuesta>            Respuesta del usuario/cliente
     --purpose <propósito>           Por qué se hizo la pregunta (opcional)
+
+  signal                            Registra una señal conversacional para readiness
+    --type <tipo>                   fatigue | unknown | confusion | low_attention
+    --note <nota>                   Evidencia textual breve
 
   select-opportunity <op_id>        Marca una oportunidad validada como elegida para Alfa
   selected-opportunities            Lista oportunidades elegidas para compilar por defecto
@@ -502,12 +508,7 @@ func cmdStatus() {
 	// Mostrar qué se puede hacer
 	nextLayer := t.CurrentMaxLayer + 1
 	if nextLayer <= 4 {
-		needed := 3
-		if nextLayer == 3 {
-			needed = 2
-		} else if nextLayer == 4 {
-			needed = 1
-		}
+		needed := tree.MinValidatedPreviousLayer(nextLayer)
 		have := t.CountValidatedInLayer(t.CurrentMaxLayer)
 		if have >= needed {
 			fmt.Printf("\n🔓 Layer %d desbloqueado - puedes crear nodos de tipo %s\n", nextLayer, layerNames[nextLayer])
@@ -622,6 +623,20 @@ func cmdLogQA() {
 	fmt.Printf("✓ QA registrado (%d total)\n", len(t.QALog))
 }
 
+func cmdSignal() {
+	flags := parseFlags(os.Args[2:])
+	signalType := requireFlag(flags, "type")
+	note := requireFlag(flags, "note")
+
+	t := loadTree()
+	if err := t.AddSignal(signalType, note); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("✓ Señal registrada (%d total): %s\n", len(t.Signals), strings.ToLower(signalType))
+}
+
 func cmdSelectOpportunity() {
 	if len(os.Args) < 3 {
 		fmt.Fprintf(os.Stderr, "Error: debes especificar el op_id\n")
@@ -662,6 +677,9 @@ func cmdReadiness() {
 	fmt.Printf("recommended_action: %s\n", report.RecommendedAction)
 	if report.NextQuestion != "" {
 		fmt.Printf("next_question: %s\n", report.NextQuestion)
+	}
+	if len(report.Risks) > 0 {
+		fmt.Printf("risks: %s\n", strings.Join(report.Risks, ", "))
 	}
 	fmt.Println()
 	fmt.Println("checks:")

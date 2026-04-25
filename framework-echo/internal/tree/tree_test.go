@@ -61,6 +61,42 @@ func TestSelectOpportunityRequiresValidatedOpportunity(t *testing.T) {
 	}
 }
 
+func TestLayerProgressionNeedsOnlyOneValidatedParentLayer(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ax, err := tm.AddNode(TypeAxiom, "Proceso confirmado", []string{"evidencia"}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	th, err := tm.AddNode(TypeTheory, "Hipótesis validable", []string{"evidencia"}, ax.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tm.ValidateNode(th.ID, "sí"); err != nil {
+		t.Fatal(err)
+	}
+	tk, err := tm.AddNode(TypeTask, "Tarea repetitiva", []string{"evidencia"}, th.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tm.ValidateNode(tk.ID, "sí"); err != nil {
+		t.Fatal(err)
+	}
+	pn, err := tm.AddNode(TypePain, "Dolor confirmado", []string{"evidencia"}, tk.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tm.ValidateNode(pn.ID, "sí"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tm.AddNode(TypeOpportunity, "Oportunidad candidata", []string{"evidencia"}, pn.ID); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAssessReadinessBlocksManualCaptureWithoutViability(t *testing.T) {
 	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
 	if err != nil {
@@ -131,6 +167,34 @@ func TestAssessReadinessRecommendsMinimumHypothesisAfterUnknown(t *testing.T) {
 	}
 }
 
+func TestAssessReadinessClosesDiscoveryWithRiskAfterFatigue(t *testing.T) {
+	tm, err := LoadOrCreate(filepath.Join(t.TempDir(), "frameworkecho.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tm.Nodes = readinessLeadNodes("Captura manual de interés, productos y compromisos", []string{
+		"El usuario necesita guardar interés, productos y compromisos",
+	})
+	tm.SelectedOpportunityIDs = []string{"op_001"}
+	tm.Signals = []SignalEntry{
+		{
+			Type: "fatigue",
+			Note: "El usuario dijo: estas preguntando muchas cosas",
+		},
+	}
+
+	report := tm.AssessAlfaReadiness()
+	if report.ReadyForAlfa {
+		t.Fatal("expected not ready when manual capture viability is still unconfirmed")
+	}
+	if report.RecommendedAction != RecommendedCloseDiscoveryWithRisk {
+		t.Fatalf("expected close discovery with risk, got %s", report.RecommendedAction)
+	}
+	if !hasRisk(report, "manual_capture_viability_unconfirmed") {
+		t.Fatalf("expected manual capture risk, got %#v", report.Risks)
+	}
+}
+
 func readinessLeadNodes(opTitle string, opEvidence []string) map[string]*Node {
 	return map[string]*Node{
 		"ax_001": {
@@ -181,6 +245,15 @@ func readinessLeadNodes(opTitle string, opEvidence []string) map[string]*Node {
 func hasReadinessCheck(report ReadinessReport, id string, passed bool) bool {
 	for _, check := range report.Checks {
 		if check.ID == id && check.Passed == passed {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRisk(report ReadinessReport, risk string) bool {
+	for _, item := range report.Risks {
+		if item == risk {
 			return true
 		}
 	}

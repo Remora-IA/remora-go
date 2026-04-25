@@ -369,6 +369,77 @@ func TestCompileBlocksManualCaptureWithoutOperationalViability(t *testing.T) {
 	}
 }
 
+func TestCompileTreatsMissingManualViabilityAsRiskAfterFatigue(t *testing.T) {
+	dir := t.TempDir()
+	treePath := filepath.Join(dir, "frameworkecho.json")
+	tree := EchoTree{
+		ProjectID:              "test",
+		SelectedOpportunityIDs: []string{"op_001"},
+		Signals: []SignalEntry{
+			{Type: "fatigue", Note: "El usuario dijo: estas preguntando muchas cosas"},
+		},
+		Nodes: map[string]*Node{
+			"ax_001": {
+				ID:       "ax_001",
+				Layer:    0,
+				Type:     TypeAxiom,
+				Title:    "Los proveedores responden por WhatsApp",
+				Evidence: []string{"WhatsApp es el canal actual"},
+				Status:   StatusValidated,
+			},
+			"th_001": {
+				ID:       "th_001",
+				Layer:    1,
+				Type:     TypeTheory,
+				Title:    "La falta de visibilidad retrasa cotizaciones",
+				Status:   StatusValidated,
+				ParentID: "ax_001",
+			},
+			"tk_001": {
+				ID:       "tk_001",
+				Layer:    2,
+				Type:     TypeTask,
+				Title:    "Coordinar cotizaciones por WhatsApp",
+				Status:   StatusValidated,
+				ParentID: "th_001",
+			},
+			"pn_001": {
+				ID:       "pn_001",
+				Layer:    3,
+				Type:     TypePain,
+				Title:    "Retrasos hacen ver poco profesional el servicio",
+				Status:   StatusValidated,
+				ParentID: "tk_001",
+			},
+			"op_001": {
+				ID:               "op_001",
+				Layer:            4,
+				Type:             TypeOpportunity,
+				Title:            "Dashboard con captura manual de estado de cotizaciones",
+				Evidence:         []string{"El equipo marcaría estado cuando revisa WhatsApp"},
+				Status:           StatusValidated,
+				ParentID:         "pn_001",
+				ValidationAnswer: "sí, ayudaría mucho",
+			},
+		},
+	}
+	writeEchoTree(t, treePath, tree)
+
+	spec, err := Compile(CompileOptions{EchoTreePath: treePath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spec.ExportReady {
+		t.Fatal("expected export_ready=false while manual capture viability remains unconfirmed")
+	}
+	if !hasOpenQuestionReason(spec, "Riesgo no resuelto") {
+		t.Fatalf("expected risk-oriented open question, got %#v", spec.OpenQuestions)
+	}
+	if len(spec.ConversationSignals) != 1 {
+		t.Fatalf("expected conversation signal to be preserved, got %#v", spec.ConversationSignals)
+	}
+}
+
 func TestCompileAllowsManualCaptureWithOperationalViability(t *testing.T) {
 	dir := t.TempDir()
 	treePath := filepath.Join(dir, "frameworkecho.json")

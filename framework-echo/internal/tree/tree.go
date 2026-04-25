@@ -19,6 +19,7 @@ type FrameworkEcho struct {
 	SelectedOpportunityIDs []string         `json:"selected_opportunity_ids,omitempty"`
 	Config                 Config           `json:"config"`
 	QALog                  []QALogEntry     `json:"qa_log,omitempty"`
+	Signals                []SignalEntry    `json:"signals,omitempty"`
 	Nodes                  map[string]*Node `json:"nodes"`
 	FilePath               string           `json:"-"`
 }
@@ -31,6 +32,12 @@ type QALogEntry struct {
 	Question  string `json:"question"`
 	Answer    string `json:"answer"`
 	Purpose   string `json:"purpose,omitempty"`
+	CreatedAt string `json:"created_at"`
+}
+
+type SignalEntry struct {
+	Type      string `json:"type"`
+	Note      string `json:"note"`
 	CreatedAt string `json:"created_at"`
 }
 
@@ -52,6 +59,7 @@ func LoadOrCreate(filePath string) (*FrameworkEcho, error) {
 			tree.SelectedOpportunityIDs = []string{}
 			tree.Config = Config{}
 			tree.QALog = []QALogEntry{}
+			tree.Signals = []SignalEntry{}
 			tree.Nodes = make(map[string]*Node)
 			return tree, nil
 		}
@@ -73,6 +81,9 @@ func LoadOrCreate(filePath string) (*FrameworkEcho, error) {
 	}
 	if tree.QALog == nil {
 		tree.QALog = []QALogEntry{}
+	}
+	if tree.Signals == nil {
+		tree.Signals = []SignalEntry{}
 	}
 
 	tree.FilePath = filePath
@@ -103,6 +114,7 @@ func (t *FrameworkEcho) Init(projectID, clientName, date string) error {
 	t.SelectedOpportunityIDs = []string{}
 	t.Config = Config{}
 	t.QALog = []QALogEntry{}
+	t.Signals = []SignalEntry{}
 	t.Nodes = make(map[string]*Node)
 	return t.Save()
 }
@@ -310,6 +322,31 @@ func (t *FrameworkEcho) AddQALog(question, answer, purpose string) error {
 		Question:  question,
 		Answer:    answer,
 		Purpose:   purpose,
+		CreatedAt: timeNowRFC3339(),
+	})
+
+	return t.Save()
+}
+
+func (t *FrameworkEcho) AddSignal(signalType, note string) error {
+	signalType = strings.TrimSpace(strings.ToLower(signalType))
+	note = strings.TrimSpace(note)
+
+	if signalType == "" {
+		return fmt.Errorf("type no puede estar vacío")
+	}
+	if note == "" {
+		return fmt.Errorf("note no puede estar vacía")
+	}
+	switch signalType {
+	case "fatigue", "unknown", "confusion", "low_attention":
+	default:
+		return fmt.Errorf("type inválido %q; usa fatigue, unknown, confusion o low_attention", signalType)
+	}
+
+	t.Signals = append(t.Signals, SignalEntry{
+		Type:      signalType,
+		Note:      note,
 		CreatedAt: timeNowRFC3339(),
 	})
 

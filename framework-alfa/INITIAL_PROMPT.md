@@ -70,7 +70,12 @@ Si Echo no tiene OPPORTUNITIES validadas, no compiles como si estuviera listo. D
 
 > Echo aún no tiene oportunidades validadas. Debe confirmar pain real, tarea repetitiva y oportunidad candidata antes de Alfa.
 
-Si `../framework-echo/frameworkecho readiness` no devuelve `ready_for_alfa: true`, no trates el árbol como listo. Usa `recommended_action` y `next_question` como retorno principal hacia Echo, salvo que el usuario pida explícitamente compilar un draft.
+Si `../framework-echo/frameworkecho readiness` no devuelve `ready_for_alfa: true`, no trates el árbol como listo.
+
+- Si `recommended_action` es `ask_next_missing_fact`, usa `next_question` como retorno principal hacia Echo.
+- Si `recommended_action` es `validate_minimum_hypothesis`, devuelve una hipótesis mínima para validar, no una lista larga de preguntas.
+- Si `recommended_action` es `close_discovery_with_risk`, puedes compilar un draft o prototipo conceptual, pero marca los `risks` como no resueltos y no declares listo para Bravo definitivo.
+- Si el usuario pide explícitamente compilar un draft, puedes hacerlo aunque `ready_for_alfa=false`, manteniendo `export_ready=false`.
 
 Si Echo tiene oportunidades seleccionadas, compila por defecto esas. Si no tiene seleccionadas, el CLI compila todas las validadas por compatibilidad, pero debes avisar el riesgo:
 

@@ -5,7 +5,14 @@ type EchoTree struct {
 	ClientName             string           `json:"client_name"`
 	DateStarted            string           `json:"date_started"`
 	SelectedOpportunityIDs []string         `json:"selected_opportunity_ids,omitempty"`
+	Signals                []SignalEntry    `json:"signals,omitempty"`
 	Nodes                  map[string]*Node `json:"nodes"`
+}
+
+type SignalEntry struct {
+	Type      string `json:"type"`
+	Note      string `json:"note"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 type Node struct {
@@ -37,6 +44,7 @@ type AlfaSpec struct {
 	SupportingTheories    []NodeRef         `json:"supporting_theories,omitempty"`
 	SupportingAxioms      []NodeRef         `json:"supporting_axioms,omitempty"`
 	Perceptions           []string          `json:"perceptions,omitempty"`
+	ConversationSignals   []SignalEntry     `json:"conversation_signals,omitempty"`
 	IdealSteps            []IdealStep       `json:"ideal_steps"`
 	BusinessRules         []BusinessRule    `json:"business_rules"`
 	CriticalVariables     []string          `json:"critical_variables"`
