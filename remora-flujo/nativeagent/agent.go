@@ -21,6 +21,7 @@ const apiURL = "https://api.minimax.io/anthropic/v1/messages"
 type Agent struct {
 	apiKey       string
 	model        string
+	role         string
 	cwd          string
 	sessionPath  string
 	maxTurns     int
@@ -33,6 +34,7 @@ type Agent struct {
 type Options struct {
 	APIKey       string
 	Model        string
+	Role         string
 	CWD          string
 	SessionPath  string
 	MaxTurns     int
@@ -77,6 +79,7 @@ func New(options Options) (*Agent, error) {
 	return &Agent{
 		apiKey:       apiKey,
 		model:        model,
+		role:         options.Role,
 		cwd:          cwd,
 		sessionPath:  options.SessionPath,
 		maxTurns:     maxTurns,
@@ -316,6 +319,9 @@ func (a *Agent) toolBash(command string) string {
 	if command == "" {
 		return "error: command vacio"
 	}
+	if err := a.validateBashPolicy(command); err != nil {
+		return "policy_error: " + err.Error()
+	}
 	ctxCommand := exec.Command("/bin/zsh", "-lc", command)
 	ctxCommand.Dir = a.cwd
 	output, err := ctxCommand.CombinedOutput()
@@ -324,6 +330,16 @@ func (a *Agent) toolBash(command string) string {
 		return fmt.Sprintf("exit_error: %v\n%s", err, text)
 	}
 	return text
+}
+
+func (a *Agent) validateBashPolicy(command string) error {
+	lower := strings.ToLower(command)
+	if a.role == "echo" && strings.Contains(lower, "./frameworkecho validate") {
+		if strings.Contains(lower, "respuesta pendiente") || strings.Contains(lower, "pending") {
+			return errors.New("Echo no puede validar con una respuesta pendiente o inventada; debe usar una respuesta real del usuario")
+		}
+	}
+	return nil
 }
 
 func (a *Agent) toolRead(path string) string {

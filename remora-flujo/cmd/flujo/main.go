@@ -373,6 +373,7 @@ func promptRole(parent *paladin.Context, role handoff.Role, prompt string) error
 
 	agent, err := nativeagent.New(nativeagent.Options{
 		CWD:          "/Users/alcless_a1234_cursor/remora-go/remora-flujo",
+		Role:         string(role),
 		SessionPath:  filepath.Join("temp", "sessions", string(role), "native.json"),
 		AllowedTools: allowedTools(role),
 		Trace:        ctx,

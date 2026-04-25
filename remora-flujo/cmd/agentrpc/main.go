@@ -60,6 +60,7 @@ func handle(cmd command) {
 		}
 		agent, err := nativeagent.New(nativeagent.Options{
 			CWD:          "/Users/alcless_a1234_cursor/remora-go/remora-flujo",
+			Role:         role,
 			SessionPath:  filepath.Join("temp", "rpc-sessions", role+".json"),
 			AllowedTools: allowedTools(role),
 		})
