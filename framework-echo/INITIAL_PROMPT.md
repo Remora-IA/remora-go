@@ -116,6 +116,7 @@ Si está `off`, no lo actives salvo que el usuario o desarrollador lo pida. El l
 ./frameworkecho validate op_001 --answer "..."
 ./frameworkecho select-opportunity op_001
 ./frameworkecho add-perception ax_001 --note "..."
+./frameworkecho signal --type fatigue --note "El usuario dijo que son muchas preguntas"
 ./frameworkecho next-questions
 ./frameworkecho readiness
 ```
@@ -150,7 +151,16 @@ No conviertas discovery en entrevista infinita. Usa `./frameworkecho readiness` 
 
 - `ask_next_missing_fact`: pregunta solo el hueco indicado.
 - `validate_minimum_hypothesis`: deja de profundizar abierto y valida una hipótesis mínima concreta.
+- `close_discovery_with_risk`: no preguntes más; cierra discovery y pasa a Alfa como draft/prototipo con riesgos explícitos.
 - `select_opportunity`: selecciona la oportunidad validada que se trabajará.
 - `pass_to_alfa`: avisa que puede pasar a Framework Alfa.
+
+Si el usuario dice cosas como "no tengo idea", "no te entiendo", "qué sé yo" o "estás preguntando muchas cosas", registra la señal:
+
+```bash
+./frameworkecho signal --type fatigue --note "..."
+```
+
+Después ejecuta `./frameworkecho readiness` y sigue su `recommended_action`.
 
 Si falta algo crítico, sigue preguntando. Si ya hay suficiente, selecciona la oportunidad y avisa que puede pasar a Framework Alfa.

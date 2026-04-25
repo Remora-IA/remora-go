@@ -42,10 +42,14 @@ var layerMap = map[string]int{
 // Mínimo de nodos validados en la capa anterior para poder crear en la siguiente
 var minValidatedPrevLayer = map[int]int{
 	0: 0, // Axioms no necesitan nada previo
-	1: 3, // Theories necesitan >= 3 axioms validados
-	2: 3, // Tasks necesitan >= 3 theories validadas
-	3: 2, // Pains necesitan >= 2 tasks validadas
+	1: 1, // Theories necesitan >= 1 axiom validado
+	2: 1, // Tasks necesitan >= 1 theory validada
+	3: 1, // Pains necesitan >= 1 task validada
 	4: 1, // Opportunities necesitan >= 1 pain validado
+}
+
+func MinValidatedPreviousLayer(targetLayer int) int {
+	return minValidatedPrevLayer[targetLayer]
 }
 
 // Node representa un nodo en el árbol de conocimiento

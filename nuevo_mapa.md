@@ -130,6 +130,7 @@ Salida esperada:
 ready_for_alfa: true|false
 recommended_action: ask_next_missing_fact|validate_minimum_hypothesis|select_opportunity|pass_to_alfa
 next_question: ...
+risks: ...
 checks:
   task_confirmed
   pain_confirmed
@@ -140,6 +141,23 @@ checks:
 ```
 
 La IA operadora razona con el usuario, pero no decide sola si seguir cavando o cerrar discovery. Debe consultar este comando y usar su recomendación como riel operativo.
+
+Echo también debe registrar señales conversacionales sin depender de `qa-log`:
+
+```bash
+./frameworkecho signal --type fatigue --note "El usuario dijo: estás preguntando muchas cosas"
+./frameworkecho signal --type unknown --note "El usuario dijo: no tengo idea"
+./frameworkecho signal --type confusion --note "El usuario dijo: no te entiendo"
+```
+
+Si hay core discovery suficiente y aparece fatiga, `readiness` puede devolver:
+
+```text
+recommended_action: close_discovery_with_risk
+risks: manual_capture_viability_unconfirmed
+```
+
+Eso significa: no seguir preguntando al cliente. Echo cierra discovery, Alfa compila un draft con riesgo explícito, y Bravo solo puede prototipar para validar esa hipótesis, no declarar solución definitiva.
 
 ### Implementado: Log Opcional De Preguntas Y Respuestas
 
