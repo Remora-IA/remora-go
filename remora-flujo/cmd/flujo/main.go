@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -135,6 +136,9 @@ func cmdAskEcho(args []string) {
 	if err != nil {
 		fail(err)
 	}
+	if role != handoff.RoleAlfa && role != handoff.RoleBravo {
+		fail(fmt.Errorf("ask-echo solo acepta --from alfa o --from bravo"))
+	}
 	event := handoff.EventAlfaNeedsEcho
 	if role == handoff.RoleBravo {
 		event = handoff.EventBravoNeedsEcho
@@ -190,6 +194,23 @@ func cmdRun(args []string) {
 		if *dryRun {
 			return
 		}
+		if role == handoff.RoleAlfa {
+			ready, question := echoReadyForAlfa(ctx)
+			if !ready {
+				if strings.TrimSpace(question) == "" {
+					question = "Echo readiness indica que falta contexto antes de Alfa."
+				}
+				state.Done(handoff.RoleAlfa, handoff.EventAlfaNeedsEcho, question)
+				mustSave(state)
+				ctx.Decision("redirect_alfa_to_echo", question)
+				fmt.Printf("handoff_redirect: echo (%s)\n", question)
+				if err := chatEcho(ctx, "alfa_necesita_pregunta"); err != nil {
+					ctx.Error(err)
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				}
+				return
+			}
+		}
 		if role == handoff.RoleEcho {
 			if err := chatEcho(ctx, reason); err != nil {
 				ctx.Error(err)
@@ -207,6 +228,34 @@ func cmdRun(args []string) {
 			return
 		}
 	}
+}
+
+func echoReadyForAlfa(parent *paladin.Context) (bool, string) {
+	ctx := parent.Child("echoReadyForAlfa")
+	defer ctx.End()
+
+	cmd := exec.Command("/bin/zsh", "-lc", "cd /Users/alcless_a1234_cursor/remora-go/framework-echo && ./frameworkecho readiness")
+	output, err := cmd.CombinedOutput()
+	text := string(output)
+	ctx.Var("readiness_output", text)
+	if err != nil {
+		ctx.Error(err)
+		return false, "No pude leer readiness de Echo"
+	}
+	if strings.Contains(text, "ready_for_alfa: true") {
+		ctx.Decision("ready_for_alfa", "true")
+		return true, ""
+	}
+	question := ""
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "next_question:") {
+			question = strings.TrimSpace(strings.TrimPrefix(line, "next_question:"))
+			break
+		}
+	}
+	ctx.Decision("ready_for_alfa", "false")
+	return false, question
 }
 
 func cmdChat(args []string) {

@@ -17,3 +17,19 @@ func TestEchoPolicyAllowsRealValidation(t *testing.T) {
 		t.Fatalf("expected real validation to be allowed: %v", err)
 	}
 }
+
+func TestAlfaPolicyRejectsDoneEcho(t *testing.T) {
+	agent := &Agent{role: "alfa"}
+	err := agent.validateBashPolicy(`cd /tmp && go run ./cmd/flujo done echo --event echo_waiting_user --message "x"`)
+	if err == nil {
+		t.Fatal("expected Alfa done echo to be rejected")
+	}
+}
+
+func TestAlfaPolicyAllowsAskEchoFromAlfa(t *testing.T) {
+	agent := &Agent{role: "alfa"}
+	err := agent.validateBashPolicy(`cd /tmp && go run ./cmd/flujo ask-echo --from alfa --question "x"`)
+	if err != nil {
+		t.Fatalf("expected Alfa ask-echo to be allowed: %v", err)
+	}
+}
