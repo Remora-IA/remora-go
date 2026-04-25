@@ -127,6 +127,9 @@ func cmdDone(args []string) {
 			fail(fmt.Errorf("rechazado echo_ready_for_alfa: frameworkecho readiness=false; siguiente pregunta: %s", question))
 		}
 	}
+	if role == handoff.RoleEcho && event == handoff.EventEchoWaitingUser && !containsQuestion(*message) {
+		fail(fmt.Errorf("rechazado echo_waiting_user: --message debe contener la pregunta exacta que el usuario debe responder"))
+	}
 	state := mustLoad()
 	state.Done(role, event, *message)
 	mustSave(state)
@@ -325,10 +328,10 @@ Si ya hay suficiente para Alfa, termina con:
 go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "discovery listo"
 
 Si necesitas preguntar otra cosa al usuario, haz solo una pregunta clara y termina con:
-go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta hecha"
+go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que debe responder el usuario"
 `, message)
 
-	if err := promptRole(ctx, handoff.RoleEcho, prompt); err != nil {
+	if _, err := promptRole(ctx, handoff.RoleEcho, prompt); err != nil {
 		ctx.Error(err)
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return
@@ -349,9 +352,11 @@ func chatEcho(parent *paladin.Context, reason string) error {
 	if err != nil {
 		return err
 	}
-	if err := promptRole(ctx, handoff.RoleEcho, initialPrompt); err != nil {
+	resp, err := promptRole(ctx, handoff.RoleEcho, initialPrompt)
+	if err != nil {
 		return err
 	}
+	printEchoQuestionIfMissing(resp)
 
 	reader := bufio.NewScanner(os.Stdin)
 	for {
@@ -389,15 +394,30 @@ func chatEcho(parent *paladin.Context, reason string) error {
 Continua como Echo. Actualiza el arbol con Framework Echo cuando corresponda.
 
 Si necesitas otra respuesta del usuario, haz una sola pregunta clara y ejecuta:
-go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta hecha"
+go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que acabas de hacer"
 
 Si ya esta listo para Alfa, ejecuta:
 go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "discovery listo"
 `, text)
-		if err := promptRole(ctx, handoff.RoleEcho, prompt); err != nil {
+		resp, err := promptRole(ctx, handoff.RoleEcho, prompt)
+		if err != nil {
 			return err
 		}
+		printEchoQuestionIfMissing(resp)
 	}
+}
+
+func printEchoQuestionIfMissing(response string) {
+	state := mustLoad()
+	last, ok := state.LastEvent()
+	if !ok || last.Type != handoff.EventEchoWaitingUser {
+		return
+	}
+	question := strings.TrimSpace(last.Message)
+	if !containsQuestion(question) || containsNormalized(response, question) {
+		return
+	}
+	fmt.Printf("\nEcho:\n%s\n", question)
 }
 
 func shouldLeaveEchoChat() bool {
@@ -433,10 +453,11 @@ func runRole(parent *paladin.Context, role handoff.Role, reason string) error {
 	mustSave(state)
 
 	fmt.Printf("%s pensando\n", roleTitle(role))
-	return promptRole(ctx, role, prompt)
+	_, err = promptRole(ctx, role, prompt)
+	return err
 }
 
-func promptRole(parent *paladin.Context, role handoff.Role, prompt string) error {
+func promptRole(parent *paladin.Context, role handoff.Role, prompt string) (string, error) {
 	ctx := parent.Child("promptRole")
 	defer ctx.End()
 	ctx.Var("role", role)
@@ -451,19 +472,19 @@ func promptRole(parent *paladin.Context, role handoff.Role, prompt string) error
 	})
 	if err != nil {
 		ctx.Error(err)
-		return err
+		return "", err
 	}
 	resp, err := agent.Prompt(prompt)
 	if err != nil {
 		ctx.Error(err)
-		return err
+		return "", err
 	}
 	resp = strings.TrimSpace(resp)
 	ctx.Var("response_length", len(resp))
 	if resp != "" {
 		fmt.Printf("\n%s:\n%s\n", roleTitle(role), resp)
 	}
-	return nil
+	return resp, nil
 }
 
 func allowedTools(role handoff.Role) []string {
@@ -511,7 +532,7 @@ No pases contexto de otra IA como prompt. Lee artefactos persistidos:
 
 Cuando termines, apagate con uno de estos comandos desde /Users/alcless_a1234_cursor/remora-go/remora-flujo:
 - Echo listo para Alfa: go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "resumen breve"
-- Echo espera respuesta del usuario: go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta hecha"
+- Echo espera respuesta del usuario: go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que debe responder el usuario"
 - Alfa listo para Bravo: go run ./cmd/flujo done alfa --event alfa_ready_for_bravo --message "ideal_flow listo"
 - Alfa necesita a Echo: go run ./cmd/flujo ask-echo --from alfa --question "pregunta concreta"
 - Bravo termino: go run ./cmd/flujo done bravo --event bravo_done --message "resultado listo"
@@ -542,7 +563,8 @@ CONTRATO ESTRICTO PARA ECHO
 - Antes de OPPORTUNITY debe existir pain real confirmado. Antes de pasar a Alfa debe existir transporte de datos confirmado.
 - No des opciones A/B de solucion temprano. Pregunta una sola cosa sobre comportamiento actual o hueco critico.
 - Si haces una pregunta al usuario, termina ejecutando:
-  cd /Users/alcless_a1234_cursor/remora-go/remora-flujo && go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta hecha"
+  cd /Users/alcless_a1234_cursor/remora-go/remora-flujo && go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que debe responder el usuario"
+- El --message de echo_waiting_user debe contener signos de pregunta y la pregunta completa, no una descripcion como "pregunta enviada".
 - Solo puedes ejecutar echo_ready_for_alfa cuando ./frameworkecho readiness diga literalmente: ready_for_alfa: true.
 - Si readiness dice ready_for_alfa: false, no pases a Alfa aunque creas tener suficiente contexto; haz la pregunta indicada por next_question.
 `
@@ -600,6 +622,18 @@ func roleTitle(role handoff.Role) string {
 	default:
 		return string(role)
 	}
+}
+
+func containsQuestion(text string) bool {
+	return strings.Contains(text, "?") || strings.Contains(text, "¿")
+}
+
+func containsNormalized(haystack, needle string) bool {
+	return strings.Contains(normalizeForContains(haystack), normalizeForContains(needle))
+}
+
+func normalizeForContains(text string) string {
+	return strings.Join(strings.Fields(strings.ToLower(text)), " ")
 }
 
 func removePaths(paths ...string) {
