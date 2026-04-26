@@ -1,0 +1,26 @@
+{
+  "trace_id": "pal_1777143264105402000",
+  "version": "1.0",
+  "generated": "2026-04-25T14:54:24-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 62,
+  "total_spans": 1,
+  "total_errors": 0,
+  "bottlenecks": [
+    "charlie.status (62ms)"
+  ],
+  "root": {
+    "name": "charlie.status",
+    "file": "main.go",
+    "line": 58,
+    "start_ns": 1777143264105402000,
+    "duration_ms": 62,
+    "decisions": [
+      {
+        "what": "status_obtenido",
+        "why": "version=v0.1.0, commits=1"
+      }
+    ]
+  }
+}
