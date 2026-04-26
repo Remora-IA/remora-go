@@ -1,0 +1,52 @@
+{
+  "name": "framework-charlie",
+  "description": "Version management and changelog framework for Remora",
+  "version": "0.1.0",
+  "author": "Remora-IA",
+  "conventional_commits": {
+    "enabled": true,
+    "types": [
+      "feat",
+      "fix",
+      "docs",
+      "refactor",
+      "test",
+      "chore",
+      "perf",
+      "ci",
+      "build"
+    ],
+    "breaking_change_indicators": [
+      "BREAKING CHANGE:",
+      "breaking:",
+      "!:"
+    ]
+  },
+  "semver": {
+    "enabled": true,
+    "bump_rules": {
+      "major_on_breaking": true,
+      "minor_on_feat": true,
+      "patch_on_default": true
+    }
+  },
+  "changelog": {
+    "format": "keep-a-changelog",
+    "unreleased_section": true,
+    "categories": [
+      "Added",
+      "Changed",
+      "Deprecated",
+      "Removed",
+      "Fixed",
+      "Security"
+    ]
+  },
+  "behavior": {
+    "auto_classify": true,
+    "require_approval_for_commit": true,
+    "require_approval_for_release": true,
+    "warn_on_breaking_changes": true,
+    "max_commit_message_length": 72
+  }
+}
