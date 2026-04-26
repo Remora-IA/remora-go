@@ -90,6 +90,15 @@ type GroqResponse struct {
 	Choices []GroqChoice `json:"choices"`
 }
 
+type GroqErrorResponse struct {
+	Error struct {
+		Message          string `json:"message"`
+		Type             string `json:"type"`
+		Code             string `json:"code"`
+		FailedGeneration string `json:"failed_generation"`
+	} `json:"error"`
+}
+
 type GroqChoice struct {
 	Message GroqMessage `json:"message"`
 }

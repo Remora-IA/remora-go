@@ -36,6 +36,18 @@ type Trace struct {
 	closed    bool
 }
 
+func NewTraceWithServer(appName, serverURL string) *Trace {
+	trace := NewTrace(appName)
+	if serverURL != "" {
+		SetGlobalClient(NewTraceClient(serverURL))
+	}
+	// También intentar leer PALADIN_SERVER_URL del entorno
+	if os.Getenv("PALADIN_SERVER_URL") != "" && globalTraceClient == nil {
+		SetGlobalClient(NewTraceClient(os.Getenv("PALADIN_SERVER_URL")))
+	}
+	return trace
+}
+
 func NewTrace(appName string) *Trace {
 	now := time.Now()
 	id := fmt.Sprintf("pal_%d", now.UnixNano())
@@ -83,6 +95,7 @@ func (t *Trace) Start() *Context {
 	return t.ctx
 }
 
+// Flush cierra el trace, guarda el archivo y opcionalmente envía al servidor.
 func (t *Trace) Flush() {
 	t.mu.Lock()
 	if t.closed {
@@ -100,6 +113,20 @@ func (t *Trace) Flush() {
 	}
 	if err != nil {
 		return
+	}
+
+	// Enviar al servidor si está configurado (no blocking)
+	if globalTraceClient != nil {
+		go func() {
+			traceJSON, _ := json.Marshal(TraceResult{
+				TraceID:   t.id,
+				Version:   "1.0",
+				Generated: time.Now().Format(time.RFC3339),
+				Status:    "completed",
+				Root:      t.root,
+			})
+			_ = globalTraceClient.SendTrace(t.root.Name, traceJSON)
+		}()
 	}
 }
 

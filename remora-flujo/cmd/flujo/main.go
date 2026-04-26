@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"framework-paladin/paladin"
+	"github.com/remora-go/framework-paladin/paladin"
 	"remora-flujo/handoff"
 	"remora-flujo/nativeagent"
 )
@@ -136,10 +136,45 @@ func cmdDone(args []string) {
 	if role == handoff.RoleEcho && event == handoff.EventEchoWaitingUser && !containsQuestion(*message) {
 		fail(fmt.Errorf("rechazado echo_waiting_user: --message debe contener la pregunta exacta que el usuario debe responder"))
 	}
+	// Manejar eventos de cola de preguntas
+	if event == handoff.EventEchoUserAnswered {
+		queue := mustLoadQueue()
+		if queue != nil && queue.CurrentSpeaker == handoff.SpeakerAlfa {
+			if qq, ok := queue.GetNextAlfaQuestion(); ok {
+				queue.MarkQuestionAnswered(handoff.SpeakerAlfa, qq.ID, *message)
+				mustSaveQueue(queue)
+			}
+		}
+	}
+	// Manejar evento alfa_asks_question: agregar pregunta a la cola
+	if event == handoff.EventAlfaAsksQuestion && role == handoff.RoleAlfa {
+		queue := mustLoadQueue()
+		if queue == nil {
+			queue = handoff.NewQuestionsQueue()
+		}
+		queue.SetSpeaker(handoff.SpeakerAlfa)
+		queue.AddAlfaQuestion(*message)
+		mustSaveQueue(queue)
+		fmt.Printf("[cola] Alfa agregó pregunta: %s\n", *message)
+	}
 	state := mustLoad()
 	state.Done(role, event, *message)
 	mustSave(state)
 	fmt.Printf("off %s event=%s\n", role, event)
+}
+
+func mustLoadQueue() *handoff.QuestionsQueue {
+	queue, err := handoff.LoadQuestionsQueue("")
+	if err != nil {
+		return handoff.NewQuestionsQueue()
+	}
+	return queue
+}
+
+func mustSaveQueue(queue *handoff.QuestionsQueue) {
+	if err := handoff.SaveQuestionsQueue("", queue); err != nil {
+		fail(err)
+	}
 }
 
 func cmdAskEcho(args []string) {
@@ -174,6 +209,7 @@ func cmdReset(args []string) {
 
 	_ = os.RemoveAll("temp/handoff")
 	_ = os.RemoveAll("temp/sessions")
+	_ = os.RemoveAll("temp/questions_queue.json")
 	if *all {
 		root := repoRoot()
 		removePaths(
@@ -212,31 +248,54 @@ func cmdRun(args []string) {
 		if *dryRun {
 			return
 		}
-		if role == handoff.RoleAlfa {
-			ready, question := echoReadyForAlfa(ctx)
-			if !ready {
-				if strings.TrimSpace(question) == "" {
-					question = "Echo readiness indica que falta contexto antes de Alfa."
-				}
-				state.Done(handoff.RoleAlfa, handoff.EventAlfaNeedsEcho, question)
-				mustSave(state)
-				ctx.Decision("redirect_alfa_to_echo", question)
-				fmt.Printf("handoff_redirect: echo (%s)\n", question)
-				if err := chatEcho(ctx, "alfa_necesita_pregunta"); err != nil {
-					ctx.Error(err)
-					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				}
-				return
+
+		// Manejar razones específicas de la cola de preguntas
+		switch reason {
+		case "alfa_pregunta", "respuesta_para_alfa":
+			// Alfa necesita procesar respuesta del usuario
+			if err := runRole(ctx, handoff.RoleAlfa, reason); err != nil {
+				ctx.Error(err)
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			}
+			return
+
+		case "echo_tiene_palabra", "echo_continua":
+			// Alfa cedió, Echo tiene la palabra
+			if err := chatEcho(ctx, reason); err != nil {
+				ctx.Error(err)
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			return
 		}
+
+		// Manejo de Alfa
+		if role == handoff.RoleAlfa {
+			// Inicializar cola si no existe
+			queue, err := handoff.LoadQuestionsQueue("")
+			if err != nil || queue == nil || queue.CurrentSpeaker == "" {
+				queue = handoff.NewQuestionsQueue()
+				queue.SetSpeaker(handoff.SpeakerAlfa)
+				handoff.SaveQuestionsQueue("", queue)
+				fmt.Println("[cola] Inicializada para Alfa")
+			}
+			// Ejecutar Alfa
+			if err := runRole(ctx, handoff.RoleAlfa, reason); err != nil {
+				ctx.Error(err)
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			}
+			return
+		}
+
+		// Manejo de Echo
 		if role == handoff.RoleEcho {
 			if err := chatEcho(ctx, reason); err != nil {
 				ctx.Error(err)
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-				return
 			}
 			return
 		}
+
+		// Manejo genérico para Bravo u otros
 		if err := runRole(ctx, role, reason); err != nil {
 			ctx.Error(err)
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -353,6 +412,11 @@ func chatEcho(parent *paladin.Context, reason string) error {
 	state.Start(handoff.RoleEcho, reason)
 	mustSave(state)
 	ctx.Decision("handoff_start", "echo")
+	ctx.Actor("echo", "descubre el proceso real del usuario")
+	ctx.Actor("alfa", "convierte discovery en flujo ideal verificable")
+	ctx.Goal("mantener Echo hasta que existan 2 respuestas reales o Echo declare readiness")
+	ctx.Rule("echo_to_alfa", "Alfa se activa si Echo declara readiness o si hay al menos 2 respuestas reales de usuario", nil)
+	ctx.Expect("next_actor", "echo")
 
 	initialPrompt, err := buildPrompt(handoff.RoleEcho, reason)
 	if err != nil {
@@ -366,9 +430,13 @@ func chatEcho(parent *paladin.Context, reason string) error {
 
 	reader := bufio.NewScanner(os.Stdin)
 	for {
-		if shouldLeaveEchoChat() {
-			return nil
+		if echoReadyToHandOff() {
+			ctx.Decision("handoff_echo_ready_for_alfa", "estado echo_ready_for_alfa")
+			ctx.Handoff("echo", "alfa", "Echo declaro echo_ready_for_alfa")
+			ctx.Expect("next_actor", "alfa")
+			return runRole(ctx, handoff.RoleAlfa, "echo_listo_para_alfa")
 		}
+		pendingRole, pending := pendingQuestionRole()
 
 		fmt.Print("\nTu > ")
 		if !reader.Scan() {
@@ -388,10 +456,45 @@ func chatEcho(parent *paladin.Context, reason string) error {
 			continue
 		}
 
+		if pending {
+			state := mustLoad()
+			state.Done(handoff.RoleEcho, handoff.EventEchoUserAnswered, text)
+			mustSave(state)
+			ctx.Decision("route_user_answer_to_role", string(pendingRole))
+			ctx.Handoff("user", string(pendingRole), "respuesta a pregunta pendiente")
+			ctx.Expect("next_actor", string(pendingRole))
+			if err := runRole(ctx, pendingRole, "respuesta_usuario"); err != nil {
+				return err
+			}
+			if printPendingUserQuestion(ctx) {
+				continue
+			}
+			return nil
+		}
+
 		state := mustLoad()
 		state.Start(handoff.RoleEcho, "respuesta_usuario")
 		mustSave(state)
 		ctx.Var("user_message_length", len(text))
+
+		turnCount := countUserResponses()
+		ctx.Var("turn_count", turnCount)
+		ctx.Event("user_answered_echo", "usuario respondio a Echo", map[string]any{"user_answers": turnCount})
+		ctx.Check("echo_to_alfa", "user_answers >= 2 OR echo_ready_for_alfa", fmt.Sprintf("user_answers = %d", turnCount), turnCount >= 2)
+		if turnCount >= 2 {
+			ctx.Decision("handoff_turn_count_for_alfa", fmt.Sprintf("turn_count=%d", turnCount))
+			ctx.Handoff("echo", "alfa", "2 respuestas reales de usuario")
+			ctx.Expect("next_actor", "alfa")
+			state.Done(handoff.RoleEcho, handoff.EventEchoReadyForAlfa, "turn_count_auto")
+			mustSave(state)
+			if err := runRole(ctx, handoff.RoleAlfa, "turn_count_auto"); err != nil {
+				return err
+			}
+			if printPendingUserQuestion(ctx) {
+				continue
+			}
+			return nil
+		}
 
 		imagePaths, cleanedText, err := parseImageInput(text)
 		if err != nil {
@@ -404,6 +507,48 @@ func chatEcho(parent *paladin.Context, reason string) error {
 			return err
 		}
 		printEchoQuestionIfMissing(resp)
+	}
+}
+
+func echoReadyToHandOff() bool {
+	state := mustLoad()
+	last, ok := state.LastEvent()
+	return ok && last.Type == handoff.EventEchoReadyForAlfa
+}
+
+func printPendingUserQuestion(ctx *paladin.Context) bool {
+	state := mustLoad()
+	last, ok := state.LastEvent()
+	if !ok {
+		return false
+	}
+	switch last.Type {
+	case handoff.EventAlfaNeedsEcho, handoff.EventAlfaAsksQuestion, handoff.EventBravoNeedsEcho:
+		question := strings.TrimSpace(last.Message)
+		if question == "" {
+			return false
+		}
+		ctx.Decision("pending_user_question", fmt.Sprintf("%s/%s", last.Role, last.Type))
+		fmt.Printf("\n%s:\n%s\n", roleTitle(last.Role), question)
+		return true
+	default:
+		return false
+	}
+}
+
+func pendingQuestionRole() (handoff.Role, bool) {
+	state := mustLoad()
+	last, ok := state.LastEvent()
+	if !ok {
+		return "", false
+	}
+	switch last.Type {
+	case handoff.EventAlfaNeedsEcho, handoff.EventAlfaAsksQuestion:
+		return handoff.RoleAlfa, true
+	case handoff.EventBravoNeedsEcho:
+		return handoff.RoleBravo, true
+	default:
+		return "", false
 	}
 }
 
@@ -420,6 +565,20 @@ func printEchoQuestionIfMissing(response string) {
 	fmt.Printf("\nEcho:\n%s\n", question)
 }
 
+func countUserResponses() int {
+	state, err := handoff.Load(statePath)
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, event := range state.Events {
+		if event.Role == handoff.RoleEcho && event.Type == handoff.EventStarted && event.Message == "respuesta_usuario" {
+			count++
+		}
+	}
+	return count
+}
+
 func shouldLeaveEchoChat() bool {
 	state := mustLoad()
 	last, ok := state.LastEvent()
@@ -428,7 +587,7 @@ func shouldLeaveEchoChat() bool {
 	}
 	switch last.Type {
 	case handoff.EventEchoReadyForAlfa:
-		fmt.Println("\n[handoff] Echo dejo listo el flujo para Alfa. Ejecuta: go run ./cmd/flujo run")
+		fmt.Println("\n[handoff] Echo dejó listo el flujo para Alfa. Ejecutando Alfa...")
 		return true
 	case handoff.EventAlfaReadyBravo, handoff.EventBravoDone:
 		return true
@@ -527,16 +686,16 @@ func promptForEchoReply(message string, imageCount int) string {
 	if imageCount > 0 {
 		imageNote = fmt.Sprintf("\nEl usuario adjunto %d imagen(es). Debes mirarlas directamente; no le pidas describir lo visible si puedes extraerlo de la imagen.\n", imageCount)
 	}
-	return fmt.Sprintf(`El usuario respondio:
+	return fmt.Sprintf(`El usuario respondió:
 
 %s
 %s
-Continua como Echo. Actualiza el arbol con Framework Echo cuando corresponda.
+Continúa como Echo. Actualiza el árbol con Framework Echo cuando corresponda.
 
 Si necesitas otra respuesta del usuario, haz una sola pregunta clara y ejecuta:
 go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que acabas de hacer"
 
-Si ya esta listo para Alfa, ejecuta:
+Si ya está listo para Alfa, ejecuta:
 go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "discovery listo"
 `, message, imageNote)
 }
@@ -572,29 +731,45 @@ func buildPrompt(role handoff.Role, reason string) (string, error) {
 		return "", err
 	}
 
+	// Cargar cola de preguntas para pasar contexto
+	queue, _ := handoff.LoadQuestionsQueue("")
+	queueNote := ""
+	if queue != nil {
+		if queue.CurrentSpeaker == handoff.SpeakerAlfa {
+			if qq, ok := queue.GetNextAlfaQuestion(); ok {
+				queueNote = fmt.Sprintf("\n\nCOLA: current_speaker=alfa, pregunta_pendiente=\"%s\"\n", qq.Text)
+			}
+		} else {
+			queueNote = "\n\nCOLA: current_speaker=echo\n"
+		}
+	}
+
 	tools := fmt.Sprintf(`
 
 HANDOFF 100%% CODIGO
 Ruta repo: %s
 Motivo de encendido: %s
-Evento pendiente: %s
+Evento pendiente: %s%s
 
 No pases contexto de otra IA como prompt. Lee artefactos persistidos:
 - Echo: %s
 - Alfa: %s
 - Bravo: %s
 
-Cuando termines, apagate con uno de estos comandos desde /Users/alcless_a1234_cursor/remora-go/remora-flujo:
+Cuando termines, apágate con uno de estos comandos desde /Users/alcless_a1234_cursor/remora-go/remora-flujo:
 - Echo listo para Alfa: go run ./cmd/flujo done echo --event echo_ready_for_alfa --message "resumen breve"
 - Echo espera respuesta del usuario: go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que debe responder el usuario"
+- Echo usuario respondió (para Alfa): go run ./cmd/flujo done echo --event echo_user_answered --message "resumen respuesta"
 - Alfa listo para Bravo: go run ./cmd/flujo done alfa --event alfa_ready_for_bravo --message "ideal_flow listo"
+- Alfa cede a Echo: go run ./cmd/flujo done alfa --event alfa_ceded_to_echo --message "sin más preguntas"
+- Alfa quiere hacer pregunta: go run ./cmd/flujo done alfa --event alfa_asks_question --message "tu pregunta"
 - Alfa necesita a Echo: go run ./cmd/flujo ask-echo --from alfa --question "pregunta concreta"
-- Bravo termino: go run ./cmd/flujo done bravo --event bravo_done --message "resultado listo"
+- Bravo terminó: go run ./cmd/flujo done bravo --event bravo_done --message "resultado listo"
 - Bravo necesita a Echo: go run ./cmd/flujo ask-echo --from bravo --question "pregunta concreta"
 
 Tu respuesta visible debe ser breve. El trabajo importante debe quedar en los archivos del framework correspondiente.
 %s
-`, root, reason, pendingEventMessage(),
+`, root, reason, pendingEventMessage(), queueNote,
 		filepath.Join(root, "framework-echo", "frameworkecho.json"),
 		filepath.Join(root, "framework-alfa", "temp"),
 		filepath.Join(root, "framework-bravo", "temp"),
@@ -608,33 +783,68 @@ func roleContract(role handoff.Role) string {
 	case handoff.RoleEcho:
 		return `
 CONTRATO ESTRICTO PARA ECHO
-- Tu primera accion interna siempre debe ser usar bash para ejecutar:
+
+=== MANEJO DE COLA DE PREGUNTAS ===
+Hay un archivo temp/questions_queue.json que controla quien tiene la palabra:
+- Si current_speaker = "alfa": TRANSMITE la pregunta de Alfa al usuario SIN reformularla
+- Si current_speaker = "echo": Conversa naturalmente, puedes crear nodos básicos del árbol
+
+=== TURN 1-3: ECHO NATURAL ===
+- Tu primera acción interna siempre debe ser usar bash para ejecutar:
   cd /Users/alcless_a1234_cursor/remora-go/framework-echo && ./frameworkecho status && ./frameworkecho show-tree && ./frameworkecho selected-opportunities && ./frameworkecho readiness && ./frameworkecho config
-- Usa solo el CLI ./frameworkecho para modificar el arbol. No uses write_file sobre frameworkecho.json.
-- No inventes respuestas del usuario. No ejecutes validate si el usuario no acaba de confirmar explicitamente ese punto.
-- No crees PAIN, OPPORTUNITY ni select-opportunity en la misma vuelta inicial donde el usuario solo describio un problema general.
-- Despues de una respuesta del usuario, avanza como maximo un nivel semantico real: AXIOM/THEORY/TASK/PAIN/OPPORTUNITY segun corresponda.
+- Usa solo el CLI ./frameworkecho para modificar el árbol. No uses write_file sobre frameworkecho.json.
+- No inventes respuestas del usuario. No ejecutes validate si el usuario no acaba de confirmar explícitamente ese punto.
+- No crees PAIN, OPPORTUNITY ni select-opportunity en la misma vuelta inicial donde el usuario solo describió un problema general.
+- Después de una respuesta del usuario, avanza como máximo un nivel semántico real: AXIOM/THEORY/TASK/PAIN/OPPORTUNITY según corresponda.
 - Antes de OPPORTUNITY debe existir pain real confirmado. Antes de pasar a Alfa debe existir transporte de datos confirmado.
-- No des opciones A/B de solucion temprano. Pregunta una sola cosa sobre comportamiento actual o hueco critico.
+- No des opciones A/B de solución temprano. Pregunta una sola cosa sobre comportamiento actual o hueco crítico.
 - Si haces una pregunta al usuario, termina ejecutando:
   cd /Users/alcless_a1234_cursor/remora-go/remora-flujo && go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta exacta que debe responder el usuario"
-- El --message de echo_waiting_user debe contener signos de pregunta y la pregunta completa, no una descripcion como "pregunta enviada".
+- El --message de echo_waiting_user debe contener signos de pregunta y la pregunta completa, no una descripción como "pregunta enviada".
 - Solo puedes ejecutar echo_ready_for_alfa cuando ./frameworkecho readiness diga literalmente: ready_for_alfa: true.
 - Si readiness dice ready_for_alfa: false, no pases a Alfa aunque creas tener suficiente contexto; haz la pregunta indicada por next_question.
+
+=== TURN 3+: ACTIVAR ALFA ===
+Si ya conversaste 2-3 veces con el usuario y tienes contexto inicial:
+- La cola de preguntas ya debe existir (creada por ti o por el sistema)
+- Cuando current_speaker="alfa", transmites las preguntas de Alfa
+- Cuando current_speaker="echo", puedes retomar tu flujo conversacional
 `
 	case handoff.RoleAlfa:
 		return `
-CONTRATO ESTRICTO PARA ALFA
-- Usa los CLIs de Framework Alfa. No inventes reglas de negocio.
-- Si faltan datos de Echo, usa ask-echo con una pregunta concreta.
-- No hables con el usuario directamente.
+CONTRATO ESTRICTO PARA ALFA - MODO ITERATIVO
+
+=== AL ACTIVARTE (por turn_3 o por echo_ready_for_alfa) ===
+1. Lee el árbol de Echo: ../framework-echo/frameworkecho.json
+2. Verifica/actualiza temp/questions_queue.json con current_speaker="alfa"
+3. Analiza qué información falta para el MERE
+
+=== MIENTRAS ACTIVO: SOLO 1 PREGUNTA A LA VEZ ===
+- NO hagas múltiples preguntas en una vuelta
+- Haz UNA pregunta concreta que reduzca la incertidumbre del MERE
+- Después de que el usuario responda (via Echo), analiza la respuesta
+- Decide:
+  a) ¿Necesito OTRA pregunta específica? → Ejecuta: go run ./cmd/flujo done alfa --event alfa_asks_question --message "tu pregunta"
+  b) ¿Puedo ceder a Echo temporalmente? → Ejecuta: go run ./cmd/flujo done alfa --event alfa_ceded_to_echo --message "sin más preguntas por ahora"
+  c) ¿MERE completo y listo para Bravo? → Ejecuta: go run ./cmd/flujo done alfa --event alfa_ready_for_bravo --message "ideal_flow listo"
+
+=== BUENA PREGUNTA ALFA ===
+- Una pregunta que revele entidad, relación o regla de negocio
+- Ejemplo: "¿Cómo sabe hoy cuál transferencia pertenece a qué cliente/factura?"
+- Ejemplo: "¿El monto final se calcula o viene dado?"
+- Ejemplo: "¿Qué pasa si no encuentra el rastro?"
+
+=== IMPORTANTE ===
+- No inventes MERE. Solo deduce de lo que Echo validó y lo que el usuario confirme
+- Si el árbol de Echo tiene poca info, pregunta desde cero sobre el proceso
+- Tu output en temp/alfa_spec.json debe ser un draft, puede estar incompleto
 `
 	case handoff.RoleBravo:
 		return `
 CONTRATO ESTRICTO PARA BRAVO
 - Trabaja local-first.
 - Implementa y verifica con evidencia.
-- Si falta dato semantico, usa ask-echo con una pregunta concreta.
+- Si falta dato semántico, usa ask-echo con una pregunta concreta.
 - No hables con el usuario directamente.
 `
 	default:
@@ -732,6 +942,7 @@ USO:
   go run ./cmd/agentrpc
 
 EVENTOS:
-  echo_ready_for_alfa, echo_waiting_user, alfa_ready_for_bravo,
+  echo_ready_for_alfa, echo_waiting_user, echo_user_answered,
+  alfa_ready_for_bravo, alfa_ceded_to_echo, alfa_asks_question,
   alfa_needs_echo, bravo_needs_echo, bravo_done, error`)
 }

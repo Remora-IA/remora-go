@@ -119,7 +119,7 @@ func determineTimeout(ctx *paladin.Context, req Request) int {
 	// Ajustar por prioridad
 	if req.Priority == "high" {
 		baseTimeout = int(float64(baseTimeout) * 0.5)
-		ctx.Decision("timeout reducido por prioridad", fmt.Sprintf("high priority → %.0f%% del base", 50))
+		ctx.Decision("timeout reducido por prioridad", fmt.Sprintf("high priority → %.0f%% del base", 50.0))
 	}
 	if req.Priority == "critical" {
 		baseTimeout = 500

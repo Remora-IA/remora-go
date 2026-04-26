@@ -56,6 +56,9 @@ func main() {
 	case "fix":
 		cmdFix(os.Args[2:])
 
+	case "analyze-commands", "analyze":
+		cmdAnalyzeCommands(os.Args[2:])
+
 	case "help", "-h", "--help":
 		usage()
 
@@ -105,9 +108,12 @@ func cmdCreate(args []string) {
 		Description: *description,
 		Type:        *fwType,
 		Purpose:     fmt.Sprintf("Framework %s creado para %s", *name, *role),
-		Methods:     defaultMethods(),
-		CLICommands: []string{"process", "status", "help"},
+		Methods:     defaultMethodsForType(*fwType),
 	}
+	for _, method := range spec.Methods {
+		spec.CLICommands = append(spec.CLICommands, strings.ToLower(method.Name))
+	}
+	spec.CLICommands = append(spec.CLICommands, "help")
 
 	fmt.Printf("🚀 Creando framework: %s\n", *name)
 	fmt.Printf("   Rol: %s\n", *role)
@@ -127,11 +133,33 @@ func cmdCreate(args []string) {
 
 	outputDir := filepath.Dir(result.Files[0].Path)
 	binName := strings.TrimPrefix(*name, "framework-")
+	if err := runGeneratedFrameworkTests(outputDir); err != nil {
+		ctx.Error(err)
+		fmt.Printf("\n❌ Framework creado pero no pasa tests: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("   Tests: go test ./... OK\n")
+
 	fmt.Printf("\n📦 Para compilar:\n")
 	fmt.Printf("   cd %s\n", outputDir)
 	fmt.Printf("   go build -o %s ./cmd/%s/\n", binName, *name)
 
 	trace.Flush()
+}
+
+func runGeneratedFrameworkTests(outputDir string) error {
+	gofmtCmd := exec.Command("gofmt", "-w", ".")
+	gofmtCmd.Dir = outputDir
+	if output, err := gofmtCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("gofmt fallo: %v\n%s", err, strings.TrimSpace(string(output)))
+	}
+
+	testCmd := exec.Command("go", "test", "./...")
+	testCmd.Dir = outputDir
+	if output, err := testCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("go test fallo: %v\n%s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func cmdInit(args []string) {
@@ -394,10 +422,10 @@ func registerFramework(path string, fwType string) {
 	}
 
 	entry := types.FrameworkEntry{
-		Name:        fwName,
-		Type:        types.FrameworkType(fwType),
-		Path:        path,
-		Created:     "",
+		Name:    fwName,
+		Type:    types.FrameworkType(fwType),
+		Path:    path,
+		Created: "",
 	}
 
 	registry.AddFramework(entry)
@@ -469,6 +497,168 @@ func applyAutoFixes(path string, result *review.Result) {
 	fmt.Printf("   Ejecuta './quine review --path %s' para verificar\n", path)
 }
 
+func cmdAnalyzeCommands(args []string) {
+	fs := flag.NewFlagSet("analyze-commands", flag.ExitOnError)
+	path := fs.String("path", "", "ruta del framework")
+	jsonOutput := fs.Bool("json", false, "salida en JSON")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Printf("ERROR: %v\n", err)
+		os.Exit(1)
+	}
+
+	if *path == "" {
+		*path, _ = os.Getwd()
+	}
+
+	fmt.Printf("ANALIZANDO: %s\n\n", *path)
+
+	analysis, err := types.AnalyzeCommands(*path)
+	if err != nil {
+		fmt.Printf("ERROR: %v\n", err)
+		os.Exit(1)
+	}
+
+	if *jsonOutput {
+		data, _ := json.MarshalIndent(analysis, "", "  ")
+		fmt.Println(string(data))
+		return
+	}
+
+	fmt.Printf("=== ANALISIS SEMANTICO ===\n\n")
+	fmt.Printf("Framework: %s\n", analysis.FrameworkName)
+	fmt.Printf("Tipo detectado: %s\n\n", analysis.DetectedType)
+
+	fmt.Printf("=== CATEGORIAS DETECTADAS ===\n\n")
+
+	categoryIcons := map[string]string{
+		"descubrimiento": "DC",
+		"validacion":     "VA",
+		"transformacion": "TR",
+		"generacion":     "GE",
+		"comunicacion":   "CO",
+		"estado":         "ES",
+		"registro":       "RE",
+		"modificacion":   "MO",
+	}
+
+	for catID, cat := range types.CommandTaxonomy {
+		cmds := analysis.Categories[catID]
+		if len(cmds) > 0 {
+			icon := categoryIcons[catID]
+			if icon == "" {
+				icon = "--"
+			}
+			fmt.Printf("[%s] %s:", icon, cat.Name)
+			for _, cmd := range cmds {
+				fmt.Printf(" %s", cmd)
+			}
+			fmt.Println()
+		}
+	}
+
+	if len(analysis.Unclassified) > 0 {
+		fmt.Printf("\n-- Sin categoria:")
+		for _, cmd := range analysis.Unclassified {
+			fmt.Printf(" %s", cmd)
+		}
+		fmt.Println()
+	}
+
+	fmt.Printf("\n=== COHERENCIA CON TIPO ===\n\n")
+	fmt.Printf("Categorias requeridas para %s:\n", analysis.DetectedType)
+
+	for _, req := range analysis.Required {
+		cat := types.CommandTaxonomy[req]
+		isPresent := false
+		for _, p := range analysis.Present {
+			if p == req {
+				isPresent = true
+				break
+			}
+		}
+		status := "NO"
+		if isPresent {
+			status = "OK"
+		}
+		fmt.Printf("   [%s] %s\n", status, cat.Name)
+	}
+
+	if len(analysis.Missing) > 0 {
+		fmt.Println()
+		fmt.Printf("Categorias que faltan:\n")
+		for _, miss := range analysis.Missing {
+			cat := types.CommandTaxonomy[miss]
+			fmt.Printf("   -- %s: %s\n", cat.Name, cat.Description)
+		}
+	}
+
+	fmt.Println()
+	fmt.Printf("=================================\n")
+	fmt.Printf("Score: %.0f%%\n", analysis.Score)
+
+	if analysis.IsCoherent {
+		fmt.Printf("OK: Comandos apropiados para %s\n", analysis.DetectedType)
+	} else if analysis.Score >= 50 {
+		fmt.Printf("PARCIAL: Faltan categorias importantes\n")
+	} else {
+		fmt.Printf("NO: Comandos no apropiados para el tipo\n")
+		fmt.Printf("   Revisa que comandos deberia tener %s\n", analysis.DetectedType)
+	}
+}
+
+func analyzeRulesNeedingCommands(content string) []string {
+	var issues []string
+	lower := strings.ToLower(content)
+
+	// Instrucciones que implican lógica que debería estar en código
+	rulePatterns := []struct {
+		pattern    string
+		suggestion string
+	}{
+		{"deberías verificar", "Agregar comando validate o check"},
+		{"debes verificar", "Agregar comando validate o check"},
+		{"verifica si", "Agregar comando readiness o check"},
+		{"si hay.*pero no", "El sistema debería auto-detectar esto"},
+		{"cuando.*ocurre", "Agregar comando detect o monitor"},
+	}
+
+	for _, rp := range rulePatterns {
+		if strings.Contains(lower, rp.pattern) {
+			issues = append(issues, fmt.Sprintf("'%s' → %s", rp.pattern, rp.suggestion))
+		}
+	}
+
+	return issues
+}
+
+func analyzeNarrativeIssues(content string) []string {
+	var issues []string
+	lower := strings.ToLower(content)
+
+	narrativePatterns := []string{
+		"recuerda", "recuerde",
+		"piensa", "piénsalo",
+		"deberías pensar",
+		"no olvides",
+		"ten en cuenta",
+	}
+
+	for _, pattern := range narrativePatterns {
+		count := strings.Count(lower, pattern)
+		if count > 0 {
+			issues = append(issues, fmt.Sprintf("'%s' aparece %d veces (carga cognitiva)", pattern, count))
+		}
+	}
+
+	// Verificar si hay secciones sin comandos concretos
+	if strings.Contains(lower, "cómo") && !strings.Contains(content, "./") {
+		issues = append(issues, "Se describe 'cómo' sin comandos")
+	}
+
+	return issues
+}
+
 func cmdUse(args []string) {
 	fs := flag.NewFlagSet("use", flag.ExitOnError)
 	fs.Usage = func() {}
@@ -504,7 +694,8 @@ func cmdUse(args []string) {
 
 	fmt.Printf("🚀 Abriendo sesión de pi con framework %s...\n\n", frameworkName)
 	fmt.Println("   El INITIAL_PROMPT del framework se cargará automáticamente.")
-	fmt.Println("   Escribe '/quit' para salir.\n")
+	fmt.Println("   Escribe '/quit' para salir.")
+	fmt.Println()
 
 	trace := paladin.NewTrace("use")
 	ctx := trace.Start()
@@ -522,6 +713,39 @@ func cmdUse(args []string) {
 }
 
 func defaultMethods() []quine.Method {
+	return defaultMethodsForType("generico")
+}
+
+func defaultMethodsForType(fwType string) []quine.Method {
+	if fwType == "integracion" {
+		return []quine.Method{
+			{
+				Name:        "Register",
+				Description: "Registra credenciales o configuracion requerida por la integracion",
+				Example:     "./mi-framework register --env .env",
+				Returns:     "*Result",
+			},
+			{
+				Name:        "Connect",
+				Description: "Conecta contra la API externa usando configuracion existente",
+				Example:     "./mi-framework connect",
+				Returns:     "*Result",
+			},
+			{
+				Name:        "Validate",
+				Description: "Valida credenciales, permisos y conectividad",
+				Example:     "./mi-framework validate",
+				Returns:     "*Result",
+			},
+			{
+				Name:        "Status",
+				Description: "Muestra estado de configuracion y conexion",
+				Example:     "./mi-framework status",
+				Returns:     "*Result",
+			},
+		}
+	}
+
 	return []quine.Method{
 		{
 			Name:        "Process",
@@ -545,7 +769,7 @@ func defaultMethods() []quine.Method {
 }
 
 func usage() {
-	fmt.Println(`Framework Quine - Generador y revisor de frameworks
+	fmt.Print(`Framework Quine - Generador y revisor de frameworks
 
 USO:
   quine create --name <nombre> --role "<rol>" --description "<descripción>" [--type <tipo>]
@@ -577,6 +801,10 @@ USO:
   quine fix --path <ruta> [--auto]
                   Analizar y sugerir fixes para un framework
                   - --auto: aplicar fixes automáticos cuando sea posible
+
+  quine analyze-commands --path <ruta>
+                  Analizar comandos del framework por categorías semánticas
+                  - --json: salida en formato JSON
 
   quine <nombre>
                   Atajo para quine use <nombre>
@@ -617,6 +845,46 @@ NOTAS:
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+func findMainGo(basePath string) string {
+	cmdDir := filepath.Join(basePath, "cmd")
+	entries, err := os.ReadDir(cmdDir)
+	if err != nil {
+		return ""
+	}
+
+	// Ordenar para preferir el nombre sin guiones (frameworkecho vs framework-echo)
+	var dirs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirs = append(dirs, entry.Name())
+		}
+	}
+	// Poner primero el que no tiene guiones
+	for _, dir := range dirs {
+		if !strings.Contains(dir, "-") {
+			mainPath := filepath.Join(cmdDir, dir, "main.go")
+			if _, err := os.Stat(mainPath); err == nil {
+				return mainPath
+			}
+		}
+	}
+	// Luego el resto
+	for _, dir := range dirs {
+		if strings.Contains(dir, "-") {
+			mainPath := filepath.Join(cmdDir, dir, "main.go")
+			if _, err := os.Stat(mainPath); err == nil {
+				return mainPath
+			}
+		}
+	}
+
+	return ""
+}
+
+// ============================================================================
 // HELPERS PARA AUTO-FIX
 // ============================================================================
 
@@ -651,7 +919,7 @@ func main() {
 	case "help", "-h", "--help":
 		usage()
 	default:
-		fmt.Fprintf(os.Stderr, "comando desconocido: %s\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "comando desconocido: %%s\n", os.Args[1])
 		usage()
 		os.Exit(1)
 	}
@@ -665,7 +933,7 @@ func cmdStatus() {
 func usage() {
 	fmt.Println("%s - CLI\n\nUSO:\n  %s <comando>\n\nCOMANDOS:\n  status  Muestra el estado\n  help    Muestra esta ayuda")
 }
-`, pkg, frameworkName, binName)
+`, pkg, frameworkName, frameworkName, binName, binName)
 }
 
 func generateInitialPromptBasic(frameworkName, pkgName string) string {

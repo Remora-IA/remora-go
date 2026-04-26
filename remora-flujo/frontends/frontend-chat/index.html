@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Handoff</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* ─── Tokens — Dark (default) ─── */
+    :root,
+    [data-theme="dark"] {
+      --bg:           #0c0c0d;
+      --surface:      #161618;
+      --surface2:     #1f1f21;
+      --border:       #252528;
+      --border-hover: #38383c;
+      --text:         #f0f0f0;
+      --text-muted:   #6b6b72;
+      --text-dim:     #3a3a3e;
+      --send-bg:      #f0f0f0;
+      --send-icon:    #0c0c0d;
+      --chip-hover:   #1e1e21;
+      --scroll:       #2a2a2e;
+      --toggle-bg:    #1f1f22;
+      --toggle-border:#2e2e32;
+      --toggle-icon:  #888;
+      --file-bg:      #1f1f22;
+      /* Glow: white blob on dark */
+      --glow-color:   rgba(255,255,255,0.07);
+      --glow-mid:     rgba(220,220,220,0.03);
+    }
+
+    /* ─── Tokens — Light ─── */
+    [data-theme="light"] {
+      --bg:           #f5f5f7;
+      --surface:      #ffffff;
+      --surface2:     #f0f0f2;
+      --border:       #d8d8dc;
+      --border-hover: #adadb3;
+      --text:         #1d1d1f;
+      --text-muted:   #86868b;
+      --text-dim:     #c7c7cc;
+      --send-bg:      #1d1d1f;
+      --send-icon:    #f5f5f7;
+      --chip-hover:   #ebebef;
+      --scroll:       #c7c7cc;
+      --toggle-bg:    #e8e8ec;
+      --toggle-border:#d0d0d5;
+      --toggle-icon:  #555;
+      --file-bg:      #ebebef;
+      /* Glow: dark blob on light */
+      --glow-color:   rgba(0,0,0,0.06);
+      --glow-mid:     rgba(30,30,30,0.025);
+    }
+
+    html, body {
+      height: 100%;
+      /* Apple's web font stack */
+      font-family: -apple-system, "SF Pro Display", "SF Pro Text",
+                   "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* ─── Big diffused glow blob ─── */
+    .glow {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -48%);
+      width: min(800px, 90vw);
+      height: min(600px, 70vh);
+      pointer-events: none;
+      z-index: 0;
+      border-radius: 50%;
+      background:
+        radial-gradient(ellipse 100% 100% at 50% 50%,
+          var(--glow-color) 0%,
+          var(--glow-mid)   35%,
+          transparent       70%);
+      transition: background 0.4s ease;
+      filter: blur(40px);
+    }
+
+    /* ─── Layout ─── */
+    .shell {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ─── Header ─── */
+    header {
+      padding: 22px 32px;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      flex-shrink: 0;
+    }
+
+    /* 30% bigger: 34 → 44px */
+    .logo-mark {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+    }
+
+    /* Logo rect fill adapts to theme */
+    .logo-rect { transition: fill 0.3s; }
+    [data-theme="dark"]  .logo-rect { fill: #111113; }
+    [data-theme="light"] .logo-rect { fill: #1d1d1f; }
+
+    /* Logo strokes stay white on dark, white on light (rect is dark so strokes look good) */
+
+    /* 30% bigger: 15 → 19.5px */
+    .brand {
+      font-size: 19.5px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      transition: color 0.3s;
+    }
+
+    /* ─── Main ─── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px 40px;
+      gap: 26px;
+    }
+
+    h1 {
+      font-size: clamp(1.6rem, 3.2vw, 2.1rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      text-align: center;
+      color: var(--text);
+      transition: color 0.3s;
+    }
+
+    /* ─── Input card ─── */
+    .input-card {
+      width: 100%;
+      max-width: 660px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 16px 12px;
+      transition: border-color 0.2s, background 0.3s;
+    }
+
+    .input-card:focus-within { border-color: var(--border-hover); }
+
+    .input-card textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      -webkit-font-smoothing: antialiased;
+      resize: none;
+      line-height: 1.55;
+      min-height: 56px;
+      max-height: 200px;
+      transition: color 0.3s;
+    }
+
+    .input-card textarea::placeholder { color: var(--text-dim); }
+
+    .input-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 10px;
+    }
+
+    .controls-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Model badge — read-only */
+    .model-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 11px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      user-select: none;
+      cursor: default;
+      transition: background 0.3s, border-color 0.3s, color 0.3s;
+    }
+
+    .model-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      flex-shrink: 0;
+    }
+
+    /* Attach */
+    .attach-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .attach-label:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    #file-input { display: none; }
+
+    /* File chips */
+    .file-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .file-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--file-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--text-muted);
+      transition: background 0.3s;
+    }
+
+    .file-chip button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      line-height: 1;
+      padding: 0;
+      font-size: 14px;
+      display: flex;
+    }
+
+    .file-chip button:hover { color: var(--text); }
+
+    /* Send button */
+    .send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--send-bg);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--send-icon);
+      flex-shrink: 0;
+      transition: opacity 0.15s, transform 0.1s, background 0.3s, color 0.3s;
+    }
+
+    .send-btn:hover { opacity: 0.88; }
+    .send-btn:active { transform: scale(0.94); }
+    .send-btn:disabled { opacity: 0.25; cursor: default; }
+
+    /* ─── Examples section ─── */
+    .examples-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      max-width: 660px;
+      width: 100%;
+    }
+
+    .examples-label {
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 8px 15px;
+      font-size: 13px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+      white-space: nowrap;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .chip:hover {
+      background: var(--chip-hover);
+      border-color: var(--border-hover);
+      color: var(--text);
+    }
+
+    .chip svg { flex-shrink: 0; opacity: 0.45; }
+    .chip:hover svg { opacity: 0.75; }
+
+    /* ─── Chat area ─── */
+    .chat-area {
+      display: none;
+      flex-direction: column;
+      width: 100%;
+      max-width: 660px;
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px 20px;
+      gap: 16px;
+      margin: 0 auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--scroll) transparent;
+    }
+
+    .chat-area.active { display: flex; }
+
+    .message {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      animation: fadeUp 0.2s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .message.user { flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--surface2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    .msg-bubble {
+      max-width: 80%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--text);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .typing-dots span {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      margin: 0 2px;
+      animation: blink 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; }
+      40% { opacity: 1; }
+    }
+
+    /* ─── Theme toggle — bottom left ─── */
+    .theme-toggle {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 10;
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid var(--toggle-border);
+      background: var(--toggle-bg);
+      color: var(--toggle-icon);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+      transform: scale(1.06);
+    }
+
+    .theme-toggle:active { transform: scale(0.96); }
+
+    /* Show/hide sun vs moon icon */
+    .icon-sun  { display: none; }
+    .icon-moon { display: block; }
+
+    [data-theme="light"] .icon-sun  { display: block; }
+    [data-theme="light"] .icon-moon { display: none; }
+  </style>
+</head>
+<body>
+
+<!-- Big diffused glow blob -->
+<div class="glow"></div>
+
+<div class="shell">
+
+  <!-- Header -->
+  <header>
+    <svg class="logo-mark" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect class="logo-rect" width="44" height="44" rx="11"/>
+      <path d="M8 28 C10 22 13 20 16.5 23 C18.5 25 19.5 27.5 22.5 26 C25.5 24.5 27.5 22 31 23 C32.5 23.5 34 25 35 25.5"
+            stroke="white" stroke-width="2.6" fill="none"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 33 C10.5 27 14 25 17.5 28 C19.5 30 20.5 32.5 23.5 31 C26.5 29.5 28.5 27 32 28"
+            stroke="white" stroke-width="1.9" fill="none" stroke-opacity="0.5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M12.5 17.5 C14 15 16 14.5 18.5 16 C20 17 20.5 18.5 22.5 18 C24.5 17.5 26.5 15.5 29.5 17"
+            stroke="white" stroke-width="1.6" fill="none" stroke-opacity="0.3"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span class="brand">Handoff</span>
+  </header>
+
+  <!-- Main landing -->
+  <main id="landing">
+
+    <h1 id="headline"></h1>
+
+    <div class="input-card">
+      <div class="file-chips" id="file-chips"></div>
+      <textarea
+        id="chat-input"
+        placeholder=""
+        rows="3"
+        autofocus
+      ></textarea>
+      <div class="input-footer">
+        <div class="controls-left">
+          <div class="model-badge">
+            <span class="model-dot"></span>
+            gammav1
+          </div>
+          <label class="attach-label" for="file-input" title="Adjuntar archivo">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19
+                       a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </label>
+          <input type="file" id="file-input" multiple />
+        </div>
+        <button class="send-btn" id="send-btn" title="Enviar" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2.5"
+               stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="19" x2="12" y2="5"/>
+            <polyline points="5 12 12 5 19 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Examples -->
+    <div class="examples-section">
+      <span class="examples-label" id="examples-label"></span>
+      <div class="examples" id="examples-chips"></div>
+    </div>
+
+  </main>
+
+  <!-- Chat view -->
+  <div class="chat-area" id="chat-area"></div>
+
+</div>
+
+<!-- Theme toggle — bottom left -->
+<button class="theme-toggle" id="theme-toggle" title="Cambiar tema">
+  <!-- Moon (shown in dark mode) -->
+  <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+  <!-- Sun (shown in light mode) -->
+  <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/>
+    <line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+    <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/>
+    <line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+    <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+</button>
+
+<script>
+  const textarea   = document.getElementById('chat-input');
+  const sendBtn    = document.getElementById('send-btn');
+  const fileInput  = document.getElementById('file-input');
+  const fileChips  = document.getElementById('file-chips');
+  const chatArea   = document.getElementById('chat-area');
+  const landing    = document.getElementById('landing');
+  const themeBtn   = document.getElementById('theme-toggle');
+
+  /* ── Rotating copies ── */
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+  const HEADLINES = [
+    '¿Qué parte de tu negocio quieres automatizar hoy?',
+    'Cuéntame qué está fallando. Lo resolvemos juntos.',
+    'Dime qué necesitas. Yo me encargo del resto.',
+    '¿Qué estarías haciendo si no tuvieras que hacer esto manualmente?',
+  ];
+
+  const PLACEHOLDERS = [
+    'Describe el problema o el proceso que quieres automatizar...',
+    'Ej: "Necesito hacer seguimiento a mis clientes con pagos vencidos"',
+    'Cuéntame qué proceso te está quitando tiempo...',
+  ];
+
+  const LABELS = [
+    'Algunos ejemplos de lo que puedo hacer',
+    '¿Por dónde empezamos?',
+    'Prueba con algo así',
+  ];
+
+  const CHIPS = [
+    'Hacer seguimiento automático a mis clientes',
+    'Ordenar mi proceso de cobranza',
+    'Conectar mis herramientas y automatizar alertas',
+    'Dejar de perder ventas por falta de seguimiento',
+    'Saber qué está pasando en mi negocio sin preguntar',
+  ];
+
+  const arrowSVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+  document.getElementById('headline').textContent = pick(HEADLINES);
+  textarea.placeholder = pick(PLACEHOLDERS);
+  document.getElementById('examples-label').textContent = pick(LABELS);
+
+  const chipsEl = document.getElementById('examples-chips');
+  CHIPS.forEach(text => {
+    const div = document.createElement('div');
+    div.className = 'chip';
+    div.innerHTML = text + arrowSVG;
+    div.addEventListener('click', () => useExample(div));
+    chipsEl.appendChild(div);
+  });
+
+  let attachedFiles = [];
+
+  /* ── Theme toggle ── */
+  themeBtn.addEventListener('click', () => {
+    const html = document.documentElement;
+    html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+
+  /* ── Auto-resize textarea ── */
+  textarea.addEventListener('input', () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
+    sendBtn.disabled = !textarea.value.trim() && attachedFiles.length === 0;
+  });
+
+  /* ── Enter to send ── */
+  textarea.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendBtn.disabled) send();
+    }
+  });
+
+  /* ── File attachment ── */
+  fileInput.addEventListener('change', () => {
+    Array.from(fileInput.files).forEach(f => {
+      if (!attachedFiles.find(x => x.name === f.name && x.size === f.size))
+        attachedFiles.push(f);
+    });
+    fileInput.value = '';
+    renderFileChips();
+    sendBtn.disabled = !textarea.value.trim() && attachedFiles.length === 0;
+  });
+
+  function renderFileChips() {
+    fileChips.innerHTML = '';
+    attachedFiles.forEach((f, i) => {
+      const chip = document.createElement('div');
+      chip.className = 'file-chip';
+      chip.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+          <polyline points="13 2 13 9 20 9"/>
+        </svg>
+        <span>${f.name}</span>
+        <button onclick="removeFile(${i})" title="Quitar">×</button>`;
+      fileChips.appendChild(chip);
+    });
+  }
+
+  function removeFile(i) {
+    attachedFiles.splice(i, 1);
+    renderFileChips();
+    sendBtn.disabled = !textarea.value.trim() && attachedFiles.length === 0;
+  }
+
+  /* ── Example chips ── */
+  function useExample(el) {
+    const txt = el.childNodes[0].textContent.trim();
+    textarea.value = txt;
+    textarea.dispatchEvent(new Event('input'));
+    textarea.focus();
+  }
+
+  /* ── Switch to chat view ── */
+  function switchToChat() {
+    landing.style.display = 'none';
+    chatArea.classList.add('active');
+    const inputCard = document.querySelector('.input-card');
+    const shell = document.querySelector('.shell');
+    inputCard.style.cssText = `
+      width: 100%; max-width: 660px;
+      margin: 0 auto; flex-shrink: 0;
+      position: sticky; bottom: 0;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+      border-left: none; border-right: none; border-bottom: none;
+      border-radius: 0; padding: 14px 16px 20px;
+    `;
+    shell.appendChild(inputCard);
+  }
+
+  /* ── Append message ── */
+  function appendMessage(role, text) {
+    const wrap = document.createElement('div');
+    wrap.className = `message ${role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = role === 'user' ? 'Tú' : 'H';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = text;
+
+    wrap.appendChild(avatar);
+    wrap.appendChild(bubble);
+    chatArea.appendChild(wrap);
+    chatArea.scrollTop = chatArea.scrollHeight;
+    return bubble;
+  }
+
+  /* ── Typing indicator ── */
+  function showTyping() {
+    const wrap = document.createElement('div');
+    wrap.className = 'message assistant';
+    wrap.id = 'typing-indicator';
+    wrap.innerHTML = `
+      <div class="msg-avatar">H</div>
+      <div class="msg-bubble">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>`;
+    chatArea.appendChild(wrap);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function removeTyping() {
+    const t = document.getElementById('typing-indicator');
+    if (t) t.remove();
+  }
+
+  /* ── API Configuration ── */
+  const API_BASE = 'http://localhost:8084/api/v1';
+  let currentConvId = null;
+
+  /* ── Init: create or resume conversation ── */
+  async function initConversation() {
+    try {
+      const res = await fetch(`${API_BASE}/conversations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Handoff Chat' })
+      });
+      const json = await res.json();
+      if (json.success && json.data && json.data.id) {
+        currentConvId = json.data.id;
+        console.log('Conversation created:', currentConvId);
+        // Wait a bit for Echo's initial response
+        await new Promise(r => setTimeout(r, 6000));
+        await loadMessages();
+      }
+    } catch (e) {
+      console.error('Failed to init conversation:', e);
+    }
+  }
+
+  /* ── Load messages from API ── */
+  async function loadMessages() {
+    if (!currentConvId) return;
+    try {
+      const res = await fetch(`${API_BASE}/conversations/${currentConvId}/messages`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        // Render messages that aren't already in chat
+        json.data.forEach(msg => {
+          if (msg.role === 'user' || msg.role === 'echo') {
+            // Check if already rendered
+            const existing = chatArea.querySelector(`[data-msg-id="${msg.id}"]`);
+            if (!existing) {
+              renderMessage(msg.role, msg.content, msg.id);
+            }
+          }
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load messages:', e);
+    }
+  }
+
+  /* ── Render a single message ── */
+  function renderMessage(role, text, msgId) {
+    const wrap = document.createElement('div');
+    wrap.className = `message ${role}`;
+    wrap.setAttribute('data-msg-id', msgId || 'temp-' + Date.now());
+
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = role === 'user' ? 'Tú' : 'H';
+
+    const bubble = document.createElement('div');
+    bubble.className = 'msg-bubble';
+    bubble.textContent = text;
+
+    wrap.appendChild(avatar);
+    wrap.appendChild(bubble);
+    chatArea.appendChild(wrap);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  /* ── Send message via API ── */
+  async function sendMessage(text) {
+    if (!currentConvId) {
+      await initConversation();
+    }
+    if (!currentConvId) return null;
+
+    try {
+      const res = await fetch(`${API_BASE}/conversations/${currentConvId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text })
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        return json.data;
+      }
+    } catch (e) {
+      console.error('Failed to send message:', e);
+    }
+    return null;
+  }
+
+  /* ── Send ── */
+  async function send() {
+    const text = textarea.value.trim();
+    if (!text && attachedFiles.length === 0) return;
+
+    if (!chatArea.classList.contains('active')) switchToChat();
+
+    // Show user message immediately
+    const userMsgId = 'user-' + Date.now();
+    appendMessage('user', text + (attachedFiles.length ? `\n[${attachedFiles.map(f => f.name).join(', ')}]` : ''));
+
+    textarea.value = '';
+    textarea.style.height = 'auto';
+    attachedFiles = [];
+    renderFileChips();
+    sendBtn.disabled = true;
+
+    showTyping();
+
+    try {
+      // Send to API
+      const response = await sendMessage(text);
+
+      removeTyping();
+
+      if (response && response.role === 'echo') {
+        appendMessage('echo', response.content);
+      } else if (response && response.handoff_event) {
+        console.log('Handoff event:', response.handoff_event);
+        // Reload to get all messages
+        await loadMessages();
+      }
+    } catch (e) {
+      removeTyping();
+      appendMessage('echo', 'Error de conexión. Intenta de nuevo.');
+    }
+
+    sendBtn.disabled = false;
+  }
+
+  /* ── Start conversation on load ── */
+  initConversation();
+
+  sendBtn.addEventListener('click', send);
+</script>
+</body>
+</html>

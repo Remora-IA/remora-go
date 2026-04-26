@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"framework-paladin/paladin"
+	"github.com/remora-go/framework-paladin/paladin"
 )
 
 const (
@@ -213,12 +213,14 @@ func (a *Agent) PromptWithImages(prompt string, images []ImageInput) (string, er
 		messages = append(messages, Message{Role: "assistant", Content: resp.Content})
 
 		toolResults := make([]ContentBlock, 0)
+		var turnText strings.Builder
+		terminalHandoff := false
 		textBlocks := 0
 		for _, block := range resp.Content {
 			switch block.Type {
 			case "text":
 				textBlocks++
-				visible.WriteString(block.Text)
+				turnText.WriteString(block.Text)
 			case "tool_use":
 				if ctx != nil {
 					ctx.Decision("tool_use", block.Name)
@@ -227,6 +229,12 @@ func (a *Agent) PromptWithImages(prompt string, images []ImageInput) (string, er
 				result := a.runTool(block.Name, block.Input)
 				if ctx != nil {
 					ctx.Var("tool_result_"+block.ID, truncate(result, 1000))
+				}
+				if block.Name == "bash" && successfulTerminalHandoff(block.Input, result) {
+					terminalHandoff = true
+					if ctx != nil {
+						ctx.Decision("terminal_handoff_command", bashCommandFromInput(block.Input))
+					}
 				}
 				toolResults = append(toolResults, ContentBlock{
 					Type:      "tool_result",
@@ -242,7 +250,9 @@ func (a *Agent) PromptWithImages(prompt string, images []ImageInput) (string, er
 			ctx.Var("tool_calls", len(toolResults))
 		}
 		if len(toolResults) == 0 {
-			if command := shellCommandFromTextResponse(resp.Content); command != "" && a.allowedTools["bash"] {
+			usedFallback := false
+			if command, displayText := shellCommandFromTextResponse(resp.Content); command != "" && a.allowedTools["bash"] {
+				usedFallback = true
 				toolID := fmt.Sprintf("fallback_bash_%d", turn)
 				input, _ := json.Marshal(map[string]string{"command": command})
 				messages[len(messages)-1].Content = append(messages[len(messages)-1].Content, ContentBlock{
@@ -255,14 +265,45 @@ func (a *Agent) PromptWithImages(prompt string, images []ImageInput) (string, er
 					ctx.Decision("text_command_fallback", command)
 				}
 				result := a.runTool("bash", input)
+				if ctx != nil {
+					ctx.Var("fallback_tool_result_"+toolID, truncate(result, 1000))
+				}
+				if successfulTerminalHandoff(input, result) {
+					terminalHandoff = true
+					if ctx != nil {
+						ctx.Decision("terminal_handoff_command", command)
+					}
+				}
 				toolResults = append(toolResults, ContentBlock{
 					Type:      "tool_result",
 					ToolUseID: toolID,
 					Content:   result,
 				})
+				visible.WriteString(displayText)
+			}
+			if usedFallback {
+				if ctx != nil {
+					ctx.Var("fallback_tool_calls", len(toolResults))
+				}
+				messages = append(messages, Message{Role: "user", Content: toolResults})
+				if terminalHandoff {
+					if err := a.saveMessages(messages); err != nil {
+						if ctx != nil {
+							ctx.Error(err)
+						}
+						return visible.String(), err
+					}
+					if ctx != nil {
+						ctx.Var("visible_length", visible.Len())
+						ctx.Decision("agent_done", "terminal handoff command")
+					}
+					return visible.String(), nil
+				}
+				continue
 			}
 		}
 		if len(toolResults) == 0 {
+			visible.WriteString(turnText.String())
 			if err := a.saveMessages(messages); err != nil {
 				if ctx != nil {
 					ctx.Error(err)
@@ -275,7 +316,21 @@ func (a *Agent) PromptWithImages(prompt string, images []ImageInput) (string, er
 			}
 			return visible.String(), nil
 		}
+		visible.WriteString(turnText.String())
 		messages = append(messages, Message{Role: "user", Content: toolResults})
+		if terminalHandoff {
+			if err := a.saveMessages(messages); err != nil {
+				if ctx != nil {
+					ctx.Error(err)
+				}
+				return visible.String(), err
+			}
+			if ctx != nil {
+				ctx.Var("visible_length", visible.Len())
+				ctx.Decision("agent_done", "terminal handoff command")
+			}
+			return visible.String(), nil
+		}
 	}
 
 	if err := a.saveMessages(messages); err != nil {
@@ -410,6 +465,13 @@ func (a *Agent) requestGroq(ctx *paladin.Context, messages []Message) (*Response
 		ctx.Var("response_bytes", len(respBody))
 	}
 	if statusCode < 200 || statusCode >= 300 {
+		if resp, ok := groqFailedGenerationResponse(respBody); ok {
+			if ctx != nil {
+				ctx.Decision("groq_failed_generation_recovered", "using failed_generation as text")
+				ctx.Var("response_blocks", len(resp.Content))
+			}
+			return resp, nil
+		}
 		err := fmt.Errorf("groq HTTP %d: %s", statusCode, string(respBody))
 		if ctx != nil {
 			ctx.Error(err)
@@ -431,31 +493,152 @@ func (a *Agent) requestGroq(ctx *paladin.Context, messages []Message) (*Response
 	return resp, nil
 }
 
-func shellCommandFromTextResponse(blocks []ContentBlock) string {
+func groqFailedGenerationResponse(body []byte) (*Response, bool) {
+	var out GroqErrorResponse
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, false
+	}
+	text := strings.TrimSpace(out.Error.FailedGeneration)
+	if text == "" {
+		return nil, false
+	}
+	return &Response{
+		Role: "assistant",
+		Content: []ContentBlock{{
+			Type: "text",
+			Text: text,
+		}},
+	}, true
+}
+
+func toolCommandFromText(raw string) (string, bool) {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "```") {
+		lines := strings.Split(raw, "\n")
+		if len(lines) >= 3 && strings.HasPrefix(strings.TrimSpace(lines[0]), "```") && strings.TrimSpace(lines[len(lines)-1]) == "```" {
+			raw = strings.TrimSpace(strings.Join(lines[1:len(lines)-1], "\n"))
+		}
+	}
+
+	var payload struct {
+		Name       string `json:"name"`
+		Parameters struct {
+			Command string `json:"command"`
+		} `json:"parameters"`
+		Input struct {
+			Command string `json:"command"`
+		} `json:"input"`
+		Arguments struct {
+			Command string `json:"command"`
+		} `json:"arguments"`
+	}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return "", false
+	}
+	if payload.Name != "bash" {
+		return "", false
+	}
+	command := firstNonEmpty(payload.Parameters.Command, payload.Input.Command, payload.Arguments.Command)
+	if strings.TrimSpace(command) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(command), true
+}
+
+func shellCommandFromTextResponse(blocks []ContentBlock) (string, string) {
 	var text strings.Builder
 	for _, block := range blocks {
 		if block.Type == "text" {
 			text.WriteString(block.Text)
 		}
 	}
-	command := strings.TrimSpace(text.String())
-	if command == "" {
-		return ""
+	raw := strings.TrimSpace(text.String())
+	if raw == "" {
+		return "", ""
 	}
-	if strings.HasPrefix(command, "```") {
-		lines := strings.Split(command, "\n")
-		if len(lines) >= 3 && strings.HasPrefix(strings.TrimSpace(lines[0]), "```") && strings.TrimSpace(lines[len(lines)-1]) == "```" {
-			command = strings.TrimSpace(strings.Join(lines[1:len(lines)-1], "\n"))
+	if command, ok := toolCommandFromText(raw); ok {
+		return command, ""
+	}
+
+	lines := strings.Split(raw, "\n")
+	display := make([]string, 0, len(lines))
+	commandLines := make([]string, 0, len(lines))
+	inFence := false
+	fenceIsShell := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") {
+			if !inFence {
+				inFence = true
+				lang := strings.TrimSpace(strings.TrimPrefix(trimmed, "```"))
+				fenceIsShell = lang == "" || lang == "bash" || lang == "sh" || lang == "zsh" || lang == "shell"
+			} else {
+				inFence = false
+				fenceIsShell = false
+			}
+			continue
 		}
+		if trimmed == "" {
+			display = append(display, line)
+			continue
+		}
+		if inFence && fenceIsShell {
+			commandLines = append(commandLines, trimmed)
+			continue
+		}
+		if looksLikeShellCommand(trimmed) {
+			commandLines = append(commandLines, trimmed)
+			continue
+		}
+		display = append(display, line)
 	}
-	lines := strings.Split(command, "\n")
-	if len(lines) != 1 {
+	if len(commandLines) == 0 {
+		return "", ""
+	}
+
+	command := strings.Join(commandLines, "\n")
+	displayText := strings.TrimSpace(strings.Join(display, "\n"))
+	if displayText != "" {
+		displayText += "\n"
+	}
+	return command, displayText
+}
+
+func successfulTerminalHandoff(input json.RawMessage, result string) bool {
+	command := bashCommandFromInput(input)
+	if !isTerminalHandoffCommand(command) {
+		return false
+	}
+	result = strings.TrimSpace(result)
+	return !strings.HasPrefix(result, "policy_error:") &&
+		!strings.HasPrefix(result, "exit_error:") &&
+		!strings.HasPrefix(result, "error:")
+}
+
+func bashCommandFromInput(input json.RawMessage) string {
+	var args struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal(input, &args); err != nil {
 		return ""
 	}
-	if !looksLikeShellCommand(command) {
-		return ""
+	return strings.TrimSpace(args.Command)
+}
+
+func isTerminalHandoffCommand(command string) bool {
+	lower := strings.TrimSpace(strings.ToLower(command))
+	if strings.Contains(lower, "\n") {
+		return false
 	}
-	return command
+	if strings.HasPrefix(lower, "cd ") {
+		parts := strings.Split(lower, "&&")
+		if len(parts) != 2 {
+			return false
+		}
+		lower = strings.TrimSpace(parts[1])
+	}
+	return strings.Contains(lower, "go run ./cmd/flujo done ") ||
+		strings.Contains(lower, "go run ./cmd/flujo ask-echo")
 }
 
 func looksLikeShellCommand(command string) bool {

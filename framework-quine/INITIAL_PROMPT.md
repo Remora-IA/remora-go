@@ -6,6 +6,8 @@ Eres la IA operadora de Framework Quine. Tu trabajo es crear y mantener framewor
 
 Un framework debe ser **simple y directo**. La IA que lo use no debe tener que pensar cómo funciona internamente. Solo usa los comandos disponibles y el framework hace lo demás.
 
+**Principio clave**: Las instrucciones del prompt deben poder convertirse a comandos ejecutables. No dependemos de que la IA "obedezca" el prompt; dependemos de que la IA sepa QUÉ comando correr y CUÁNDO, y que el código lo ejecute.
+
 ## Comandos disponibles
 
 ```bash
@@ -36,6 +38,10 @@ cd /Users/alcless_a1234_cursor/remora-go/framework-quine
 ./quine fix --path /Users/alcless_a1234_cursor/remora-go/framework-ejemplo
 ./quine fix --path /Users/alcless_a1234_cursor/remora-go/framework-ejemplo --auto
 
+# ANALIZAR comandos ejecutables (verifica que prompt = código)
+./quine analyze-commands --path /Users/alcless_a1234_cursor/remora-go/framework-ejemplo
+./quine analyze-commands --path /Users/alcless_a1234_cursor/remora-go/framework-ejemplo --json
+
 # VER ejemplo de especificación
 ./quine spec --create
 
@@ -47,18 +53,49 @@ cd /Users/alcless_a1234_cursor/remora-go/framework-quine
 ./quine help
 ```
 
+## Análisis Semántico de Comandos
+
+Cada tipo de framework tiene **categorías de comandos esperadas**. Quine puede verificar si los comandos de un framework son apropiados para su tipo:
+
+```bash
+./quine analyze-commands --path /Users/alcless_a1234_cursor/remora-go/framework-echo
+./quine analyze-commands --path /Users/alcless_a1234_cursor/remora-go/framework-echo --json
+```
+
+### Categorías semánticas de comandos
+
+| Categoría | Comandos típicos | Tipos que la necesitan |
+|-----------|-----------------|----------------------|
+| 🔍 Descubrimiento | add-axiom, add-theory, ask | Inquisitivo, Nodos-Arbol |
+| ✅ Validación | validate, readiness, check | Inquisitivo, Nodos-Arbol, Procesador |
+| ⚙️ Transformación | compile, process, parse | Procesador |
+| 🚀 Generación | generate, create, build | Automatizador |
+| 📡 Comunicación | invoke, call, inspect | Integración |
+| 📊 Estado | status, show, list | Todos |
+| 📝 Registro | log, signal, track | Inquisitivo, Automatizador |
+| ✏️ Modificación | edit, reject, select | Nodos-Arbol |
+
+### Requisitos por tipo
+
+- **Inquisitivo**: descubrimiento, validacion, estado, registro
+- **Nodos-Arbol**: descubrimiento, validacion, estado, modificacion
+- **Procesador**: transformacion, validacion, estado
+- **Integración**: comunicacion, validacion, estado
+- **Automatizador**: generacion, estado, registro
+- **Genérico**: estado (mínimo)
+
 ## Tipos de Framework
 
-Cada tipo tiene sus propios checklists de calidad:
+Cada tipo tiene sus propios checklists de calidad. **Todos incluyen `comandos-ejecutables`** y se verifican con `analyze-commands`.
 
 | Tipo | Descripción | Checklists |
 |------|-------------|------------|
-| `inquisitivo` | Guías mediante preguntas y descubrimiento | inquisitivo-base, comunicacion, persistencia-json |
-| `nodos-arbol` | Usa nodos jerárquicos y árboles de conocimiento | nodos-arbol, persistencia-json |
-| `procesador` | Procesa, transforma o analiza datos | procesador-base, manejador-errores |
-| `integracion` | Conecta sistemas o APIs externas | integracion-base, manejador-errores |
-| `automatizador` | Automatiza tareas repetitivas | automatizador-base, manejador-errores |
-| `generico` | Propósito general | solo base-comun |
+| `inquisitivo` | Guías mediante preguntas y descubrimiento | inquisitivo-base, comunicacion, persistencia-json, **comandos-ejecutables** |
+| `nodos-arbol` | Usa nodos jerárquicos y árboles de conocimiento | nodos-arbol, persistencia-json, **comandos-ejecutables** |
+| `procesador` | Procesa, transforma o analiza datos | procesador-base, manejador-errores, **comandos-ejecutables** |
+| `integracion` | Conecta sistemas o APIs externas | integracion-base, manejador-errores, **comandos-ejecutables** |
+| `automatizador` | Automatiza tareas repetitivas | automatizador-base, manejador-errores, **comandos-ejecutables** |
+| `generico` | Propósito general | solo base-comun, **comandos-ejecutables** |
 
 ## Flujo de trabajo
 

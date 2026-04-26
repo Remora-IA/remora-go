@@ -114,22 +114,110 @@ func TestMiniMaxRejectsImages(t *testing.T) {
 }
 
 func TestShellCommandFallbackExtractsSingleCommand(t *testing.T) {
-	command := shellCommandFromTextResponse([]ContentBlock{{
+	command, display := shellCommandFromTextResponse([]ContentBlock{{
 		Type: "text",
 		Text: "cd /tmp && ./frameworkecho status",
 	}})
 	if command != "cd /tmp && ./frameworkecho status" {
 		t.Fatalf("unexpected command: %q", command)
 	}
+	if display != "" {
+		t.Fatalf("unexpected display text: %q", display)
+	}
 }
 
 func TestShellCommandFallbackRejectsNaturalLanguage(t *testing.T) {
-	command := shellCommandFromTextResponse([]ContentBlock{{
+	command, _ := shellCommandFromTextResponse([]ContentBlock{{
 		Type: "text",
 		Text: "Deberias ejecutar cd /tmp && ./frameworkecho status",
 	}})
 	if command != "" {
 		t.Fatalf("expected no fallback command, got %q", command)
+	}
+}
+
+func TestShellCommandFallbackKeepsQuestionVisible(t *testing.T) {
+	command, display := shellCommandFromTextResponse([]ContentBlock{{
+		Type: "text",
+		Text: "¿Cuál es la actividad que más tiempo te consume?\n\ngo run ./cmd/flujo done echo --event echo_waiting_user --message \"¿Cuál es la actividad que más tiempo te consume?\"",
+	}})
+	if !strings.HasPrefix(command, "go run ./cmd/flujo done echo") {
+		t.Fatalf("unexpected command: %q", command)
+	}
+	if strings.TrimSpace(display) != "¿Cuál es la actividad que más tiempo te consume?" {
+		t.Fatalf("unexpected display text: %q", display)
+	}
+}
+
+func TestShellCommandFallbackExtractsSerializedToolCall(t *testing.T) {
+	command, display := shellCommandFromTextResponse([]ContentBlock{{
+		Type: "text",
+		Text: `{
+  "name": "bash",
+  "parameters": {
+    "command": "cd /tmp && ./frameworkecho status"
+  }
+}`,
+	}})
+	if command != "cd /tmp && ./frameworkecho status" {
+		t.Fatalf("unexpected command: %q", command)
+	}
+	if display != "" {
+		t.Fatalf("unexpected display text: %q", display)
+	}
+}
+
+func TestGroqFailedGenerationResponse(t *testing.T) {
+	body, err := json.Marshal(GroqErrorResponse{
+		Error: struct {
+			Message          string `json:"message"`
+			Type             string `json:"type"`
+			Code             string `json:"code"`
+			FailedGeneration string `json:"failed_generation"`
+		}{
+			Message:          "Failed to call a function",
+			Type:             "invalid_request_error",
+			Code:             "tool_use_failed",
+			FailedGeneration: "```bash\n./frameworkalfa status\n```",
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, ok := groqFailedGenerationResponse(body)
+	if !ok {
+		t.Fatal("expected failed_generation recovery")
+	}
+	if len(resp.Content) != 1 || !strings.Contains(resp.Content[0].Text, "./frameworkalfa status") {
+		t.Fatalf("unexpected response: %#v", resp)
+	}
+}
+
+func TestSuccessfulTerminalHandoff(t *testing.T) {
+	input := json.RawMessage(`{"command":"go run ./cmd/flujo ask-echo --from alfa --question \"x\""}`)
+	if !successfulTerminalHandoff(input, `handoff echo question="x"`+"\n") {
+		t.Fatal("expected successful ask-echo to stop the agent turn")
+	}
+}
+
+func TestRejectedTerminalHandoffDoesNotStop(t *testing.T) {
+	input := json.RawMessage(`{"command":"go run ./cmd/flujo done echo --event echo_waiting_user --message \"x\""}`)
+	if successfulTerminalHandoff(input, "policy_error: Alfa solo puede ejecutar done alfa") {
+		t.Fatal("expected rejected handoff command to keep the agent running")
+	}
+}
+
+func TestMultiCommandWithHandoffTextDoesNotStop(t *testing.T) {
+	input := json.RawMessage(`{"command":"ls -la temp || true\ngo run ./cmd/flujo done alfa --event alfa_asks_question --message \"x\""}`)
+	if successfulTerminalHandoff(input, "total 0\n") {
+		t.Fatal("expected mixed fallback command block to keep the agent running")
+	}
+}
+
+func TestCdAndTerminalHandoffStops(t *testing.T) {
+	input := json.RawMessage(`{"command":"cd /tmp && go run ./cmd/flujo done alfa --event alfa_asks_question --message \"x\""}`)
+	if !successfulTerminalHandoff(input, "[cola] Alfa agregó pregunta: x\noff alfa event=alfa_asks_question\n") {
+		t.Fatal("expected cd plus terminal handoff to stop the agent turn")
 	}
 }
 

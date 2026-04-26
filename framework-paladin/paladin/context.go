@@ -117,6 +117,72 @@ func (c *Context) Decision(what, why string) {
 	fmt.Printf("[FLOW]   DEC  %s → [%s] %s\n", c.name, formatConsoleValue(what), formatConsoleValue(why))
 }
 
+// Actor declares who is acting in business terms.
+func (c *Context) Actor(name, responsibility string) {
+	c.semantic("actor", name, responsibility, "", "", nil, nil)
+}
+
+// Goal declares what this span is trying to accomplish in business terms.
+func (c *Context) Goal(goal string) {
+	c.semantic("goal", "", goal, "", "", nil, nil)
+}
+
+// Event records a relevant business event. Use this instead of Var when the
+// information changes the meaning of the flow.
+func (c *Context) Event(subject, summary string, meta map[string]any) {
+	c.semantic("event", subject, summary, "", "", nil, meta)
+}
+
+// Rule declares a business rule that the code believes it is applying.
+func (c *Context) Rule(name, summary string, meta map[string]any) {
+	c.semantic("rule", name, summary, "", "", nil, meta)
+}
+
+// Check records a rule evaluation with expected and actual business state.
+func (c *Context) Check(rule, expected, actual string, passed bool) {
+	c.semantic("check", rule, "rule evaluated", expected, actual, &passed, nil)
+}
+
+// Expect records the next business state expected by this code path.
+func (c *Context) Expect(subject, expected string) {
+	c.semantic("expect", subject, "expectation declared", expected, "", nil, nil)
+}
+
+// Handoff records a business handoff between actors.
+func (c *Context) Handoff(from, to, reason string) {
+	c.semantic("handoff", from+"->"+to, reason, "next_actor="+to, "from_actor="+from, nil, nil)
+}
+
+// Violation records a known mismatch between intended and observed flow.
+func (c *Context) Violation(subject, expected, actual string) {
+	passed := false
+	c.semantic("violation", subject, "business flow mismatch", expected, actual, &passed, nil)
+}
+
+func (c *Context) semantic(kind, subject, summary, expected, actual string, passed *bool, meta map[string]any) {
+	event := SemanticEvent{
+		Kind:     kind,
+		Subject:  subject,
+		Summary:  summary,
+		Expected: expected,
+		Actual:   actual,
+		Passed:   passed,
+		Meta:     meta,
+	}
+	if c.trace != nil {
+		c.trace.mu.Lock()
+		c.span.Semantic = append(c.span.Semantic, event)
+		_ = c.trace.persistLocked("running", fmt.Sprintf("semantic recorded: %s.%s", c.name, kind), false)
+		c.trace.mu.Unlock()
+	} else {
+		c.mu.Lock()
+		c.span.Semantic = append(c.span.Semantic, event)
+		c.mu.Unlock()
+	}
+
+	fmt.Printf("[FLOW]   SEM  %s → %s %s %s\n", c.name, kind, formatConsoleValue(subject), formatConsoleValue(summary))
+}
+
 // End cierra el contexto y calcula la duración.
 func (c *Context) End() {
 	duration := time.Since(c.start).Milliseconds()

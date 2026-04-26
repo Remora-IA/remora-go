@@ -1,0 +1,33 @@
+{
+  "trace_id": "pal_1777172821592738000",
+  "version": "1.0",
+  "generated": "2026-04-25T23:07:01-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 5,
+  "total_spans": 1,
+  "total_errors": 0,
+  "root": {
+    "name": "review",
+    "file": "review.go",
+    "line": 66,
+    "start_ns": 1777172821592738000,
+    "duration_ms": 5,
+    "vars": {
+      "detectedType": "generico",
+      "failed": 0,
+      "frameworkName": "framework-whatsapp",
+      "frameworkPath": "/Users/alcless_a1234_cursor/remora-go/framework-whatsapp",
+      "indicators": [
+        "persistencia-json"
+      ],
+      "score": 100
+    },
+    "decisions": [
+      {
+        "what": "review-complete",
+        "why": "score=100.0, failed=0, canRegister=true"
+      }
+    ]
+  }
+}
