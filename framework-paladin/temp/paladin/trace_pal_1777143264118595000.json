@@ -1,0 +1,29 @@
+{
+  "trace_id": "pal_1777143264118595000",
+  "version": "1.0",
+  "generated": "2026-04-25T14:54:24-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 327,
+  "total_spans": 1,
+  "total_errors": 0,
+  "bottlenecks": [
+    "charlie.classify (327ms)"
+  ],
+  "root": {
+    "name": "charlie.classify",
+    "file": "main.go",
+    "line": 58,
+    "start_ns": 1777143264118595000,
+    "duration_ms": 327,
+    "vars": {
+      "cambios_total": 21
+    },
+    "decisions": [
+      {
+        "what": "clasificacion_completa",
+        "why": "21 cambios, suggest=v0.1.1"
+      }
+    ]
+  }
+}
