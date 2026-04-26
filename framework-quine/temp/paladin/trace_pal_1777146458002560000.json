@@ -1,0 +1,53 @@
+{
+  "trace_id": "pal_1777146458002560000",
+  "version": "1.0",
+  "generated": "2026-04-25T15:47:38-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 4,
+  "total_spans": 4,
+  "total_errors": 0,
+  "root": {
+    "name": "quine-generate",
+    "file": "quine.go",
+    "line": 60,
+    "start_ns": 1777146458002560000,
+    "duration_ms": 4,
+    "vars": {
+      "filesCreated": 7,
+      "finalOutputDir": "/Users/alcless_a1234_cursor/remora-go/framework-excel",
+      "frameworkName": "framework-excel",
+      "methodsCount": 3,
+      "outputDir": ""
+    },
+    "children": [
+      {
+        "name": "createStructure",
+        "file": "quine.go",
+        "line": 81,
+        "start_ns": 1777146458003228000,
+        "duration_ms": 0
+      },
+      {
+        "name": "writeFiles",
+        "file": "quine.go",
+        "line": 89,
+        "start_ns": 1777146458005743000,
+        "duration_ms": 0
+      },
+      {
+        "name": "createBuild",
+        "file": "quine.go",
+        "line": 96,
+        "start_ns": 1777146458006773000,
+        "duration_ms": 0
+      }
+    ],
+    "decisions": [
+      {
+        "what": "framework-generado",
+        "why": "se crearon 7 archivos"
+      }
+    ]
+  }
+}

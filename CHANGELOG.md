@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-04-25
+
+> **Release**: 5 nuevos frameworks + expansiones de Paladin y Echo
+
+### Nuevo: Framework Charlie
+
+- **Framework de versionado y changelog** para el proyecto Remora
+- Sistema de clasificación de cambios (feat, fix, docs, test, chore, etc.)
+- Reglas SemVer integradas (major, minor, patch bumps)
+- Changelog automático en formato Keep a Changelog
+- CLI para verificar estado del repo y proponer commits
+- Archivos: INITIAL_PROMPT.md, README.md, frameworkcharlie.json, go.mod, charlie.go, charlie_test.go
+
+### Nuevo: Framework Excel
+
+- **Framework para conectar, leer y escribir archivos Excel**
+- Soporte para lectura de archivos Excel completos
+- Soporte para leer hojas específicas
+- Acceso a valores de celdas individuales
+- Cliente con tracing integrado (Paladin)
+- Estructura modular: cmd/, internal/, temp/
+
+### Nuevo: Framework Quine
+
+- **Framework de quines auto-replicantes** para el proyecto Remora
+- Sistema de revisión de código
+- Integración con Paladin para tracing
+- AGENTS.md e INITIAL_PROMPT.md para guías de uso
+- Estructura: cmd/, internal/quine/, internal/review/, internal/types/
+
+### Expansión: Framework Paladin
+
+- **SYSTEM.md**: Nuevo prompt del sistema con documentación completa
+- **docs/MERE.md**: Documentación de la estructura MERE
+- **examples/**: Dos ejemplos nuevos:
+  - `01_basic/`: Uso básico de tracing
+  - `02_decisions/`: Ejemplo de decisiones lógicas con contexto
+
+### Expansión: Framework Echo
+
+- **cmd/framework-echo/**: Nuevo ejecutable principal
+- **internal/paladin/**: Módulo de tracing integrado en Echo
+  - console.go, context.go, span.go, trace.go
+- **docs/SYSTEM_PROMPT.md**: Actualizado con nuevas instrucciones
+
+---
+
 ## [0.1.1] - 2026-04-25
 
 > **Important**: This release generalizes the MERE data model to work across any business domain, replacing domain-specific entities (payments, invoices, etc.) with generic patterns.

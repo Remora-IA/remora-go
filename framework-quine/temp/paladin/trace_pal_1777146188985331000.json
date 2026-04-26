@@ -1,0 +1,20 @@
+{
+  "trace_id": "pal_1777146188985331000",
+  "version": "1.0",
+  "generated": "2026-04-25T15:43:08-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 2,
+  "total_spans": 1,
+  "total_errors": 0,
+  "root": {
+    "name": "quine-main",
+    "file": "main.go",
+    "line": 22,
+    "start_ns": 1777146188985331000,
+    "duration_ms": 2,
+    "vars": {
+      "command": "help"
+    }
+  }
+}
