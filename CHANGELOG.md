@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-04-26
+
+> **Release**: expandir charlie, echo, flujo, gmail, paladin, quine
+
+### Charlie
+
+- **charlie-validar-operacion**: validacion de directorio antes de operar
+- **charlie-bloqueo-git**: bloqueo de operaciones git peligrosas (reset --hard, push --force)
+- **charlie-report**: generacion de reporte con version y changelog
+- **semantic-tags**: detector de patrones semanticos para changelogs descriptivos
+
+- **charlie-validar-operacion**: validacion de directorio antes de operar (charlie/charlie.go)
+- **framework-charlie/INITIAL_PROMPT.md**: +67 / -2
+- **framework-charlie/README.md**: +121 / -6
+- **charlie/main.go**: +100 / -1
+- **charlie/charlie_test.go**: funciones: TestBackupSkipsGitAndGeneratedArtifacts, TestFormatAmendPlanBlocksUnsafeReleaseRewrite, TestSameReleaseCommitMessage, TestCommitMessageVersion
+
+- **framework-charlie/INITIAL_PROMPT.md**: +7
+- **framework-charlie/README.md**: +8
+- **charlie/charlie.go**: funciones: FullCommit, RemoteTagCommit, BuildPublishTagPlan, buildPublishTagPlan | tipos: PublishTagPlan
+- **charlie/main.go**: +24
+- **charlie/charlie_test.go**: funciones: TestFormatPublishTagPlanShowsApplyCommand
+
+- **framework-foco/go.mod**: archivo nuevo
+- **framework-foco/INITIAL_PROMPT.md**: archivo nuevo
+- **framework-foco/README.md**: archivo nuevo
+- **framework-foco/WHY.md**: archivo nuevo
+- **foco/main.go**: archivo nuevo
+
+- **framework-charlie/INITIAL_PROMPT.md**: +8
+- **framework-charlie/README.md**: +19 / -1
+- **charlie/charlie.go**: funciones: RemoteBranchCommit, IsAncestor, shortSHA, BuildPublishMainPlan | tipos: PublishMainPlan
+- **charlie/main.go**: +20
+- **charlie/charlie_test.go**: funciones: TestFormatPublishMainPlanShowsApplyCommand
+
+### Paladin
+
+- **API semantica**: Nuevos metodos en Context para declarar logica de negocio:
+  - `Actor(name, responsibility)`: Quién actúa
+  - `Goal(goal)`: Intención del span
+  - `Event(subject, summary, meta)`: Evento de negocio
+  - `Rule(name, summary, meta)`: Regla aplicada
+  - `Check(rule, expected, actual, passed)`: Evaluación de regla
+  - `Expect(subject, expected)`: Estado esperado después
+  - `Handoff(from, to, reason)`: Transferencia de control
+  - `Violation(subject, expected, actual)`: Inconsistencia detectada
+- **tipo SemanticEvent**: Estructura para eventos de negocio
+- **paladin-audit**: comando `audit` para evaluar si un repo implementa Paladin correctamente
+- **paladin-explain**: comando `explain` para traducir trace a lenguaje humano
+- **paladin-client**: TraceClient para enviar traces al servidor
+- **paladin-server**: Servidor HTTP para recibir traces
+- **examples/03_semantic_flow**: Nuevo ejemplo de flujo semantico
+
+### Quine
+
+- **quine-taxonomia-comandos**: Taxonomia semantica de comandos
+- **quine-checklist-comandos**: Checklist para verificar que INITIAL_PROMPT sea ejecutable
+- **quine-why**: Generacion automatica de WHY.md en nuevos frameworks
+- **quine-metodos-integracion**: Metodos Register, Connect, Validate para frameworks de integracion
+
+### Flujo
+
+- **cola-preguntas**: Sistema de cola de preguntas para control de turnos entre Alfa y Echo
+- **eventos nuevos**: `echo_user_answered`, `alfa_ceded_to_echo`, `alfa_asks_question`
+- **flujo-terminal-handoff**: Comandos `done` y `ask-echo` detienen el agente
+- **flujo-groq-fallback**: Recuperacion de errores `failed_generation` de Groq
+- **flujo-shell-fallback**: Extraccion de comandos shell de texto y tool calls
+
+### Gmail
+
+- **nuevo framework**: Framework Gmail con cliente, types, cmd y documentacion
+
+### Echo
+
+- **frameworkecho.json**: Rediseño del árbol de conocimiento
+
+---
+
 ## [0.1.3] - 2026-04-25
 
 > **Release**: Actualizar Framework Charlie con formato de commit grupal

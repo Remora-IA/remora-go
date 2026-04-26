@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -15,39 +16,39 @@ import (
 
 // Result contiene el resultado completo de una revisión.
 type Result struct {
-	FrameworkName string               `json:"framework_name"`
-	FrameworkPath string               `json:"framework_path"`
-	DetectedType  string              `json:"detected_type"`
-	Checklists    []ChecklistResult   `json:"checklists"`
-	TotalItems    int                 `json:"total_items"`
-	Passed        int                 `json:"passed"`
-	Failed        int                 `json:"failed"`
-	Warnings      int                 `json:"warnings"`
-	Optional      int                 `json:"optional"`
-	Score         float64             `json:"score"`
+	FrameworkName   string            `json:"framework_name"`
+	FrameworkPath   string            `json:"framework_path"`
+	DetectedType    string            `json:"detected_type"`
+	Checklists      []ChecklistResult `json:"checklists"`
+	TotalItems      int               `json:"total_items"`
+	Passed          int               `json:"passed"`
+	Failed          int               `json:"failed"`
+	Warnings        int               `json:"warnings"`
+	Optional        int               `json:"optional"`
+	Score           float64           `json:"score"`
 	Recommendations []Recommendation  `json:"recommendations,omitempty"`
-	CanBeRegistered bool             `json:"can_be_registered"`
+	CanBeRegistered bool              `json:"can_be_registered"`
 }
 
 // ChecklistResult contiene el resultado de un checklist específico.
 type ChecklistResult struct {
-	ChecklistID   string      `json:"checklist_id"`
-	ChecklistName string      `json:"checklist_name"`
-	Items        []ItemResult `json:"items"`
-	Passed       int         `json:"passed"`
-	Failed       int         `json:"failed"`
-	Warnings     int         `json:"warnings"`
-	Optional     int         `json:"optional"`
+	ChecklistID   string       `json:"checklist_id"`
+	ChecklistName string       `json:"checklist_name"`
+	Items         []ItemResult `json:"items"`
+	Passed        int          `json:"passed"`
+	Failed        int          `json:"failed"`
+	Warnings      int          `json:"warnings"`
+	Optional      int          `json:"optional"`
 }
 
 // ItemResult representa el resultado de un item individual.
 type ItemResult struct {
-	ItemID       string `json:"item_id"`
-	Description  string `json:"description"`
-	Severity     string `json:"severity"`
-	Status       string `json:"status"` // pass, fail, warning, skip
-	Reason       string `json:"reason,omitempty"`
-	Suggestion   string `json:"suggestion,omitempty"`
+	ItemID      string `json:"item_id"`
+	Description string `json:"description"`
+	Severity    string `json:"severity"`
+	Status      string `json:"status"` // pass, fail, warning, skip
+	Reason      string `json:"reason,omitempty"`
+	Suggestion  string `json:"suggestion,omitempty"`
 }
 
 // Recommendation es una recomendación para mejorar el framework.
@@ -178,8 +179,8 @@ func Review(frameworkPath string) (*Result, error) {
 
 // getChecklistsForType retorna los checklists aplicables a un tipo de framework.
 func getChecklistsForType(fwType types.FrameworkType) []string {
-	// Base común siempre
-	checklists := []string{"base-comun"}
+	// Base común + comandos-ejecutables siempre
+	checklists := []string{"base-comun", "comandos-ejecutables"}
 
 	// Agregar específicos según tipo
 	switch fwType {
@@ -194,7 +195,7 @@ func getChecklistsForType(fwType types.FrameworkType) []string {
 	case types.TypeAutomatizador:
 		checklists = append(checklists, "automatizador-base", "manejador-errores")
 	case types.TypeGenerico:
-		// Solo base común
+		// Solo base común + comandos-ejecutables
 	}
 
 	return checklists
@@ -323,7 +324,27 @@ func checkItem(item types.ChecklistItem, frameworkPath string) ItemResult {
 			result.Suggestion = "Crear README.md básico"
 		}
 
-		case "paladin-integrado":
+	case "WHY.md-exists":
+		path := filepath.Join(frameworkPath, "WHY.md")
+		if data, err := os.ReadFile(path); err != nil {
+			result.Status = "fail"
+			result.Reason = "No existe WHY.md"
+			result.Suggestion = "Crear WHY.md con propósito, tipo y límite operativo"
+		} else {
+			content := strings.ToLower(string(data))
+			if !strings.Contains(content, "proposito") && !strings.Contains(content, "propósito") {
+				result.Status = "fail"
+				result.Reason = "WHY.md no declara el propósito"
+				result.Suggestion = "Agregar sección de propósito"
+			}
+			if !strings.Contains(content, "tipo") {
+				result.Status = "fail"
+				result.Reason = "WHY.md no declara el tipo de framework"
+				result.Suggestion = "Agregar sección tipo: inquisitivo, integración, procesador, etc."
+			}
+		}
+
+	case "paladin-integrado":
 		path := filepath.Join(frameworkPath, "internal", "paladin")
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			result.Status = "fail"
@@ -686,6 +707,24 @@ func checkItem(item types.ChecklistItem, frameworkPath string) ItemResult {
 			}
 		}
 
+	case "config-externa":
+		if frameworkContains(frameworkPath, []string{"os.Getenv", ".env", "requiredEnv", "missingEnv"}) {
+			result.Status = "pass"
+		} else {
+			result.Status = "fail"
+			result.Reason = "No se encontró configuración externa por env/archivo"
+			result.Suggestion = "Leer credenciales desde variables de entorno o archivo de configuración, no hardcodear"
+		}
+
+	case "auth-handling":
+		if frameworkContains(frameworkPath, []string{"token", "credential", "credencial", "requiredEnv", "missingEnv"}) {
+			result.Status = "pass"
+		} else {
+			result.Status = "fail"
+			result.Reason = "No se encontró manejo explícito de autenticación"
+			result.Suggestion = "Agregar validación de credenciales antes de conectar"
+		}
+
 	// =========================================================================
 	// ERRORES
 	// =========================================================================
@@ -702,9 +741,190 @@ func checkItem(item types.ChecklistItem, frameworkPath string) ItemResult {
 			}
 		}
 
+	case "exit-codes":
+		mainPath := findMainGo(frameworkPath)
+		if mainPath == "" {
+			result.Status = "skip"
+		} else if data, err := os.ReadFile(mainPath); err == nil {
+			content := string(data)
+			if !strings.Contains(content, "os.Exit(1)") || !strings.Contains(content, "os.Exit(2)") {
+				result.Status = "fail"
+				result.Reason = "No se encontraron exit codes diferenciados para error y usage"
+				result.Suggestion = "Usar os.Exit(1) para errores de ejecución y os.Exit(2) para uso inválido"
+			}
+		}
+
+		// =========================================================================
+		// COMANDOS EJECUTABLES
+		// =========================================================================
+	case "prompt-comandos-lista":
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		if data, err := os.ReadFile(path); err == nil {
+			content := string(data)
+			// Busca que liste comandos con sintaxis ./nombrecomando
+			if !strings.Contains(content, "./") || !strings.Contains(content, "comando") {
+				result.Status = "fail"
+				result.Reason = "INITIAL_PROMPT.md no lista los comandos disponibles"
+				result.Suggestion = "Agregar sección '## Comandos' con sintaxis ./nombrecomando --flag valor"
+			}
+		} else {
+			result.Status = "skip"
+		}
+
+	case "prompt-comandos-implementados":
+		// Verificar que los comandos listados en prompt existen en main.go
+		// Soporta tanto comandos directos (./comando) como subcomandos (./ejecutable subcomando)
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		mainPath := findMainGo(frameworkPath)
+		if mainPath == "" {
+			result.Status = "skip"
+		} else if data, err := os.ReadFile(path); err == nil {
+			promptContent := string(data)
+			mainData, _ := os.ReadFile(mainPath)
+			mainContent := string(mainData)
+
+			// Extraer ejecutable principal del framework
+			fwName := strings.ToLower(filepath.Base(frameworkPath))
+			fwBin := strings.TrimPrefix(fwName, "framework-")
+
+			// Extraer subcomandos del prompt (formato: ./ejecutable subcomando)
+			subCmdPattern := regexp.MustCompile(`\./` + fwBin + `[\s]+([a-z][a-z0-9-]+)`)
+			subCmdsInPrompt := subCmdPattern.FindAllStringSubmatch(promptContent, -1)
+
+			// También capturar comandos directos
+			directCmdPattern := regexp.MustCompile(`\.\/([a-z][a-z0-9-]+)(?:[\s\n]+--|\s\n|\.$|$)`)
+			directCmds := directCmdPattern.FindAllStringSubmatch(promptContent, -1)
+
+			var missing []string
+			var found []string
+
+			// Verificar subcomandos
+			for _, match := range subCmdsInPrompt {
+				subCmd := match[1]
+				if !strings.Contains(mainContent, "case \""+subCmd+"\"") {
+					missing = append(missing, subCmd)
+				} else {
+					found = append(found, subCmd)
+				}
+			}
+
+			// Verificar comandos directos (pero ignorar ejecutables con "framework")
+			for _, match := range directCmds {
+				cmd := match[1]
+				if strings.HasPrefix(cmd, "framework") || strings.Contains(cmd, "-") {
+					continue
+				}
+				if !strings.Contains(mainContent, "case \""+cmd+"\"") {
+					missing = append(missing, cmd)
+				} else {
+					found = append(found, cmd)
+				}
+			}
+
+			if len(found) > 0 && len(missing) == 0 {
+				result.Status = "pass"
+				result.Reason = fmt.Sprintf("%d comandos verificados y todos implementados", len(found))
+			} else if len(missing) > 0 {
+				result.Status = "fail"
+				result.Reason = "Subcomandos listados en prompt pero no implementados: " + strings.Join(missing, ", ")
+				result.Suggestion = "Verificar que todos los subcomandos en el prompt estén en main.go como 'case \"" + missing[0] + "\"'"
+			}
+		}
+
+	case "prompt-no-narrativa-obligatoria":
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		if data, err := os.ReadFile(path); err == nil {
+			content := strings.ToLower(string(data))
+			// Verificar que las reglas importantes tienen respaldo en comandos
+			// No debe depender SOLO de "recordar" reglas narrativas
+			// El semáforo de readiness debería existir como comando
+			mainPath := findMainGo(frameworkPath)
+			if mainPath != "" {
+				mainData, _ := os.ReadFile(mainPath)
+				mainContent := string(mainData)
+
+				// Si hay reglas sobre cuándo actuar, debe haber comando que lo determine
+				if strings.Contains(content, "debería") || strings.Contains(content, "debe") || strings.Contains(content, "tiene que") {
+					// Verificar que hay comando que lo ejecuta
+					if !strings.Contains(mainContent, "readiness") {
+						result.Status = "warning"
+						result.Reason = "Reglas narrativas sin comando que las ejecute automáticamente"
+						result.Suggestion = "Considerar agregar comando que evalúe automáticamente (ej: readiness)"
+					}
+				}
+			}
+		} else {
+			result.Status = "skip"
+		}
+
+	case "prompt-sintaxis-ejecutable":
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		if data, err := os.ReadFile(path); err == nil {
+			content := string(data)
+			// Verificar que usa sintaxis ./comando ...
+			if !strings.Contains(content, "./") {
+				result.Status = "fail"
+				result.Reason = "No usa sintaxis ejecutable ./nombrecomando"
+				result.Suggestion = "Usar formato: ./nombrecomando --flag valor"
+			}
+		} else {
+			result.Status = "skip"
+		}
+
+	case "prompt-no-editar-manual-json":
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		if data, err := os.ReadFile(path); err == nil {
+			content := strings.ToLower(string(data))
+			if !strings.Contains(content, "no editar") && !strings.Contains(content, "no edite") && !strings.Contains(content, "never edit") {
+				result.Status = "fail"
+				result.Reason = "No prohíbe editar JSON manualmente"
+				result.Suggestion = "Agregar: NO edites <archivo>.json manualmente"
+			}
+		} else {
+			result.Status = "skip"
+		}
+
+	case "prompt-instrucciones-cuantificadas":
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		if data, err := os.ReadFile(path); err == nil {
+			content := string(data)
+			// Verificar que hay condiciones tipo "si X, entonces Y"
+			if !strings.Contains(content, "si") && !strings.Contains(content, "when") && !strings.Contains(content, "when") {
+				result.Status = "warning"
+				result.Reason = "Instrucciones no tienen condiciones claras (si X, entonces Y)"
+				result.Suggestion = "Agregar condiciones: 'Si hay AXIOMS pero no THEORIES, haz X'"
+			}
+		} else {
+			result.Status = "skip"
+		}
+
+	case "prompt-workflow-descomprimido":
+		path := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
+		if data, err := os.ReadFile(path); err == nil {
+			content := strings.ToLower(string(data))
+			// No debe tener reglas mentales como "debes recordar", "piénsalo bien"
+			if strings.Contains(content, "recuerda") || strings.Contains(content, "piensa") || strings.Contains(content, "deberías pensar") {
+				result.Status = "warning"
+				result.Reason = "El prompt usa instrucciones mentales en lugar de pasos ejecutables"
+				result.Suggestion = "Convertir a: 'Ejecuta ./comando X' en lugar de 'Recuerda hacer X'"
+			}
+		} else {
+			result.Status = "skip"
+		}
+
 	default:
 		// Si no conocemos el item, lo saltamos
 		result.Status = "skip"
+	}
+
+	if result.Status == "skip" && item.Severity == "required" {
+		result.Status = "fail"
+		if result.Reason == "" {
+			result.Reason = "Check requerido no pudo evaluarse"
+		}
+		if result.Suggestion == "" {
+			result.Suggestion = "Implementar evidencia verificable para este requisito"
+		}
 	}
 
 	return result
@@ -732,6 +952,28 @@ func findMainGo(basePath string) string {
 	}
 
 	return ""
+}
+
+func frameworkContains(basePath string, needles []string) bool {
+	found := false
+	filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		content := strings.ToLower(string(data))
+		for _, needle := range needles {
+			if strings.Contains(content, strings.ToLower(needle)) {
+				found = true
+				return filepath.SkipAll
+			}
+		}
+		return nil
+	})
+	return found
 }
 
 func findNodeFile(basePath string) string {

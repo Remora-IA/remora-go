@@ -30,8 +30,11 @@ const (
 	EventStarted          EventType = "started"
 	EventEchoReadyForAlfa EventType = "echo_ready_for_alfa"
 	EventEchoWaitingUser  EventType = "echo_waiting_user"
+	EventEchoUserAnswered EventType = "echo_user_answered"
 	EventAlfaReadyBravo   EventType = "alfa_ready_for_bravo"
 	EventAlfaNeedsEcho    EventType = "alfa_needs_echo"
+	EventAlfaCededToEcho  EventType = "alfa_ceded_to_echo"
+	EventAlfaAsksQuestion EventType = "alfa_asks_question"
 	EventBravoNeedsEcho   EventType = "bravo_needs_echo"
 	EventBravoDone        EventType = "bravo_done"
 	EventError            EventType = "error"
@@ -110,7 +113,7 @@ func (s *State) Start(role Role, prompt string) {
 	rs.Prompt = prompt
 	rs.Since = time.Now()
 	s.Roles[role] = rs
-	s.Events = append(s.Events, Event{At: time.Now(), Role: role, Type: EventStarted})
+	s.Events = append(s.Events, Event{At: time.Now(), Role: role, Type: EventStarted, Message: prompt})
 }
 
 func (s *State) Done(role Role, event EventType, message string) {
@@ -140,6 +143,19 @@ func (s *State) NextRole() (Role, string, bool) {
 		return RoleBravo, "alfa_listo_para_bravo", true
 	case EventAlfaNeedsEcho:
 		return RoleEcho, "alfa_necesita_pregunta", true
+	case EventAlfaCededToEcho:
+		return RoleEcho, "echo_tiene_palabra", true
+	case EventAlfaAsksQuestion:
+		return RoleEcho, "alfa_pregunta", true
+	case EventEchoUserAnswered:
+		// Usuario respondió, decide quién tiene la palabra según cola
+		queue, err := LoadQuestionsQueue("")
+		if err == nil && queue != nil {
+			if queue.CurrentSpeaker == SpeakerAlfa && queue.HasPendingQuestions(SpeakerAlfa) {
+				return RoleAlfa, "respuesta_para_alfa", true
+			}
+		}
+		return RoleEcho, "echo_continua", true
 	case EventBravoNeedsEcho:
 		return RoleEcho, "bravo_necesita_pregunta", true
 	case EventBravoDone:
@@ -166,7 +182,9 @@ func ParseRole(value string) (Role, error) {
 
 func ParseEvent(value string) (EventType, error) {
 	switch EventType(value) {
-	case EventStarted, EventEchoReadyForAlfa, EventEchoWaitingUser, EventAlfaReadyBravo, EventAlfaNeedsEcho, EventBravoNeedsEcho, EventBravoDone, EventError:
+	case EventStarted, EventEchoReadyForAlfa, EventEchoWaitingUser, EventEchoUserAnswered,
+		EventAlfaReadyBravo, EventAlfaNeedsEcho, EventAlfaCededToEcho, EventAlfaAsksQuestion,
+		EventBravoNeedsEcho, EventBravoDone, EventError:
 		return EventType(value), nil
 	default:
 		return "", fmt.Errorf("evento desconocido: %s", value)

@@ -3,8 +3,10 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -16,12 +18,12 @@ import (
 type FrameworkType string
 
 const (
-	TypeInquisitivo   FrameworkType = "inquisitivo"    // Basado en preguntas/diálogos
-	TypeNodosArbol    FrameworkType = "nodos-arbol"    // Usa nodos y árboles de conocimiento
-	TypeProcesador    FrameworkType = "procesador"     // Procesa datos/archivos
-	TypeIntegracion   FrameworkType = "integracion"    // Conecta sistemas/APIs
-	TypeAutomatizador FrameworkType = "automatizador"  // Automatiza tareas
-	TypeGenerico      FrameworkType = "generico"       // Propósito general
+	TypeInquisitivo   FrameworkType = "inquisitivo"   // Basado en preguntas/diálogos
+	TypeNodosArbol    FrameworkType = "nodos-arbol"   // Usa nodos y árboles de conocimiento
+	TypeProcesador    FrameworkType = "procesador"    // Procesa datos/archivos
+	TypeIntegracion   FrameworkType = "integracion"   // Conecta sistemas/APIs
+	TypeAutomatizador FrameworkType = "automatizador" // Automatiza tareas
+	TypeGenerico      FrameworkType = "generico"      // Propósito general
 )
 
 // TypeMetadata contiene información sobre cada tipo.
@@ -105,10 +107,10 @@ type ChecklistItem struct {
 
 // Checklist representa un checklist completo.
 type Checklist struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	Description string           `json:"description"`
-	Items       []ChecklistItem  `json:"items"`
+	ID          string          `json:"id"`
+	Name        string          `json:"name"`
+	Description string          `json:"description"`
+	Items       []ChecklistItem `json:"items"`
 }
 
 // AllChecklists mapa de todos los checklists.
@@ -154,6 +156,12 @@ var AllChecklists = map[string]Checklist{
 			{
 				ID:          "README.md-exists",
 				Description: "Existe README.md con documentación básica",
+				Severity:    "required",
+				Category:    "documentacion",
+			},
+			{
+				ID:          "WHY.md-exists",
+				Description: "Existe WHY.md con propósito, tipo y límite operativo del framework",
 				Severity:    "required",
 				Category:    "documentacion",
 			},
@@ -505,6 +513,59 @@ var AllChecklists = map[string]Checklist{
 			},
 		},
 	},
+
+	// ==========================================================================
+	// COMANDOS EJECUTABLES - El prompt debe poder convertirse a comandos
+	// ==========================================================================
+	"comandos-ejecutables": {
+		ID:          "comandos-ejecutables",
+		Name:        "Comandos Ejecutables",
+		Description: "Verifica que las instrucciones del prompt puedan ejecutarse como comandos",
+		Items: []ChecklistItem{
+			{
+				ID:          "prompt-comandos-lista",
+				Description: "INITIAL_PROMPT.md lista explícitamente los comandos disponibles",
+				Severity:    "required",
+				Category:    "comandos-ejecutables",
+			},
+			{
+				ID:          "prompt-comandos-implementados",
+				Description: "Todos los comandos listados en el prompt están implementados en main.go",
+				Severity:    "required",
+				Category:    "comandos-ejecutables",
+			},
+			{
+				ID:          "prompt-no-narrativa-obligatoria",
+				Description: "Las reglas obligatorias no dependen de que la IA 'recuerde' narrativamente",
+				Severity:    "required",
+				Category:    "comandos-ejecutables",
+			},
+			{
+				ID:          "prompt-sintaxis-ejecutable",
+				Description: "Los comandos usan sintaxis ejecutable ./nombrecomando ...",
+				Severity:    "required",
+				Category:    "comandos-ejecutables",
+			},
+			{
+				ID:          "prompt-no-editar-manual-json",
+				Description: "El prompt prohíbe editar archivos JSON manualmente",
+				Severity:    "required",
+				Category:    "comandos-ejecutables",
+			},
+			{
+				ID:          "prompt-instrucciones-cuantificadas",
+				Description: "Las instrucciones tienen condiciones claras (si X, entonces ejecuta Y)",
+				Severity:    "recommended",
+				Category:    "comandos-ejecutables",
+			},
+			{
+				ID:          "prompt-workflow-descomprimido",
+				Description: "El flujo de trabajo está descrito como pasos ejecutables, no como reglas mentales",
+				Severity:    "recommended",
+				Category:    "comandos-ejecutables",
+			},
+		},
+	},
 }
 
 // ============================================================================
@@ -513,21 +574,21 @@ var AllChecklists = map[string]Checklist{
 
 // FrameworkRegistry es el repositorio de frameworks conocidos.
 type FrameworkRegistry struct {
-	Version    string            `json:"version"`
-	Updated    string            `json:"updated"`
-	Frameworks []FrameworkEntry  `json:"frameworks"`
+	Version    string           `json:"version"`
+	Updated    string           `json:"updated"`
+	Frameworks []FrameworkEntry `json:"frameworks"`
 }
 
 // FrameworkEntry representa un framework registrado.
 type FrameworkEntry struct {
-	Name        string        `json:"name"`
-	Type        FrameworkType `json:"type"`
-	Path        string        `json:"path"`
-	Role        string        `json:"role"`
-	Description string        `json:"description"`
-	Created     string        `json:"created"`
+	Name         string        `json:"name"`
+	Type         FrameworkType `json:"type"`
+	Path         string        `json:"path"`
+	Role         string        `json:"role"`
+	Description  string        `json:"description"`
+	Created      string        `json:"created"`
 	LastReview   string        `json:"last_review,omitempty"`
-	QualityScore float64      `json:"quality_score,omitempty"`
+	QualityScore float64       `json:"quality_score,omitempty"`
 }
 
 // RegistryFilePath retorna la ruta del archivo de registro.
@@ -603,6 +664,17 @@ func (r *FrameworkRegistry) GetFramework(name string) *FrameworkEntry {
 // DetectFrameworkType detecta el tipo de un framework basándose en su estructura.
 func DetectFrameworkType(basePath string) (FrameworkType, []string) {
 	var indicators []string
+
+	whyPath := filepath.Join(basePath, "WHY.md")
+	if data, err := os.ReadFile(whyPath); err == nil {
+		content := strings.ToLower(string(data))
+		for _, fwType := range []FrameworkType{TypeInquisitivo, TypeNodosArbol, TypeProcesador, TypeIntegracion, TypeAutomatizador, TypeGenerico} {
+			if strings.Contains(content, "tipo\n\n"+string(fwType)) || strings.Contains(content, "tipo: "+string(fwType)) {
+				indicators = append(indicators, "why-type:"+string(fwType))
+				return fwType, indicators
+			}
+		}
+	}
 
 	// Leer INITIAL_PROMPT para detectar tipo inquisitivo
 	initialPromptPath := filepath.Join(basePath, "INITIAL_PROMPT.md")
@@ -700,6 +772,238 @@ func decideType(indicators []string) FrameworkType {
 	}
 
 	return TypeGenerico
+}
+
+// ============================================================================
+// TAXONOMÍA SEMÁNTICA DE COMANDOS
+// ============================================================================
+
+// CommandTaxonomyCategory representa una categoría semántica de comandos.
+type CommandTaxonomyCategory struct {
+	Name        string
+	Description string
+	Verbs       []string // Verbos que la identifican
+	Patterns    []string // Patrones de nombre de comando
+}
+
+// CommandTaxonomy mapa de todas las categorías semánticas.
+var CommandTaxonomy = map[string]CommandTaxonomyCategory{
+	"descubrimiento": {
+		Name:        "Descubrimiento",
+		Description: "Comandos para explorar y capturar información del mundo real",
+		Verbs:       []string{"ask", "question", "probe", "explore", "discover", "add", "create", "capture"},
+		Patterns:    []string{"add-", "ask-", "question", "probe", "explore"},
+	},
+	"validacion": {
+		Name:        "Validación",
+		Description: "Comandos para verificar, confirmar o evaluar información",
+		Verbs:       []string{"validate", "confirm", "verify", "check", "test", "assess", "evaluate", "ready"},
+		Patterns:    []string{"validate", "confirm", "verify", "check", "test", "readiness", "assess"},
+	},
+	"transformacion": {
+		Name:        "Transformación",
+		Description: "Comandos para procesar, compilar o transformar datos",
+		Verbs:       []string{"compile", "process", "transform", "convert", "parse", "normalize", "extract"},
+		Patterns:    []string{"compile", "process", "transform", "convert", "parse", "spec", "normalize"},
+	},
+	"generacion": {
+		Name:        "Generación",
+		Description: "Comandos para crear o generar artefactos de código",
+		Verbs:       []string{"generate", "create", "build", "make", "scaffold", "init", "setup"},
+		Patterns:    []string{"generate", "create", "build", "make", "scaffold", "init", "setup"},
+	},
+	"comunicacion": {
+		Name:        "Comunicación",
+		Description: "Comandos para invocar o comunicarse con otros frameworks",
+		Verbs:       []string{"invoke", "call", "send", "query", "request", "inspect", "parse", "connect", "login", "auth"},
+		Patterns:    []string{"invoke", "call", "send", "query", "inspect", "parse-", "connect", "login", "auth"},
+	},
+	"estado": {
+		Name:        "Estado",
+		Description: "Comandos para consultar o mostrar el estado actual",
+		Verbs:       []string{"status", "state", "health", "info", "show", "list", "get", "view"},
+		Patterns:    []string{"status", "state", "health", "info", "show", "list", "get", "view", "tree"},
+	},
+	"registro": {
+		Name:        "Registro",
+		Description: "Comandos para registrar información, señales o percepciones",
+		Verbs:       []string{"log", "track", "signal", "note", "register", "append", "configure", "config"},
+		Patterns:    []string{"log", "track", "signal", "note", "register", "configure", "config", "credential", "perception", "qa"},
+	},
+	"modificacion": {
+		Name:        "Modificación",
+		Description: "Comandos para editar, actualizar o modificar estado",
+		Verbs:       []string{"edit", "update", "modify", "set", "config", "reject", "select", "confidence"},
+		Patterns:    []string{"edit", "update", "modify", "set", "config", "reject", "select", "confidence"},
+	},
+}
+
+// TypeCategoryRequirements define qué categorías debe tener cada tipo de framework.
+var TypeCategoryRequirements = map[FrameworkType][]string{
+	TypeInquisitivo: {
+		"descubrimiento", "validacion", "estado", "registro",
+	},
+	TypeNodosArbol: {
+		"descubrimiento", "validacion", "estado", "modificacion",
+	},
+	TypeProcesador: {
+		"transformacion", "validacion", "estado",
+	},
+	TypeIntegracion: {
+		"comunicacion", "validacion", "estado",
+	},
+	TypeAutomatizador: {
+		"generacion", "estado", "registro",
+	},
+	TypeGenerico: {
+		"estado", // Mínimo obligatorio
+	},
+}
+
+// CommandAnalysis contiene el resultado del análisis semántico de comandos.
+type CommandAnalysis struct {
+	FrameworkPath string              `json:"framework_path"`
+	FrameworkName string              `json:"framework_name"`
+	DetectedType  FrameworkType       `json:"detected_type"`
+	Commands      []string            `json:"commands"`
+	Categories    map[string][]string `json:"categories"`
+	Required      []string            `json:"required_categories"`
+	Present       []string            `json:"present_categories"`
+	Missing       []string            `json:"missing_categories"`
+	Unclassified  []string            `json:"unclassified_commands"`
+	Score         float64             `json:"score"`
+	IsCoherent    bool                `json:"is_coherent"`
+}
+
+// AnalyzeCommands clasifica semánticamente los comandos de un framework.
+func AnalyzeCommands(frameworkPath string) (*CommandAnalysis, error) {
+	// Detectar tipo
+	detectedType, _ := DetectFrameworkType(frameworkPath)
+
+	// Obtener nombre
+	fwName := filepath.Base(frameworkPath)
+
+	// Leer main.go
+	mainPath := findMainGoInPath(frameworkPath)
+	if mainPath == "" {
+		return nil, fmt.Errorf("no se encontró main.go")
+	}
+
+	data, err := os.ReadFile(mainPath)
+	if err != nil {
+		return nil, err
+	}
+	content := string(data)
+
+	// Extraer comandos del código
+	casePattern := regexp.MustCompile(`case\s+"([a-z][a-z][a-z0-9-]*)"`)
+	commands := []string{}
+	seen := make(map[string]bool)
+	for _, match := range casePattern.FindAllStringSubmatch(content, -1) {
+		cmd := match[1]
+		if len(cmd) > 3 && !seen[cmd] {
+			seen[cmd] = true
+			commands = append(commands, cmd)
+		}
+	}
+
+	// Clasificar comandos por categoría
+	categories := make(map[string][]string)
+	unclassified := []string{}
+	for _, cmd := range commands {
+		cat := ClassifyCommand(cmd)
+		if cat != "" {
+			categories[cat] = append(categories[cat], cmd)
+		} else {
+			unclassified = append(unclassified, cmd)
+		}
+	}
+
+	// Obtener requisitos para el tipo
+	required := TypeCategoryRequirements[detectedType]
+
+	// Verificar cuáles están presentes
+	present := []string{}
+	missing := []string{}
+	for _, req := range required {
+		if cmds, ok := categories[req]; ok && len(cmds) > 0 {
+			present = append(present, req)
+		} else {
+			missing = append(missing, req)
+		}
+	}
+
+	// Calcular score
+	score := 0.0
+	if len(required) > 0 {
+		score = float64(len(present)) / float64(len(required)) * 100
+	}
+
+	return &CommandAnalysis{
+		FrameworkPath: frameworkPath,
+		FrameworkName: fwName,
+		DetectedType:  detectedType,
+		Commands:      commands,
+		Categories:    categories,
+		Required:      required,
+		Present:       present,
+		Missing:       missing,
+		Unclassified:  unclassified,
+		Score:         score,
+		IsCoherent:    score >= 80,
+	}, nil
+}
+
+// ClassifyCommand clasifica un comando en una categoría semántica.
+func ClassifyCommand(cmd string) string {
+	cmdLower := strings.ToLower(cmd)
+
+	for catID, cat := range CommandTaxonomy {
+		// Verificar patrones primero
+		for _, pattern := range cat.Patterns {
+			if strings.Contains(cmdLower, pattern) {
+				return catID
+			}
+		}
+		// Verificar verbos
+		for _, verb := range cat.Verbs {
+			if cmdLower == verb || strings.HasPrefix(cmdLower, verb+"-") || strings.HasPrefix(cmdLower, verb+"_") {
+				return catID
+			}
+		}
+	}
+
+	return ""
+}
+
+// findMainGoInPath encuentra el main.go en un framework.
+func findMainGoInPath(basePath string) string {
+	cmdDir := filepath.Join(basePath, "cmd")
+	entries, err := os.ReadDir(cmdDir)
+	if err != nil {
+		return ""
+	}
+
+	// Preferir directorio sin guiones (frameworkecho vs framework-echo)
+	for _, entry := range entries {
+		if entry.IsDir() && !strings.Contains(entry.Name(), "-") {
+			mainPath := filepath.Join(cmdDir, entry.Name(), "main.go")
+			if _, err := os.Stat(mainPath); err == nil {
+				return mainPath
+			}
+		}
+	}
+	// Luego el resto
+	for _, entry := range entries {
+		if entry.IsDir() {
+			mainPath := filepath.Join(cmdDir, entry.Name(), "main.go")
+			if _, err := os.Stat(mainPath); err == nil {
+				return mainPath
+			}
+		}
+	}
+
+	return ""
 }
 
 // ============================================================================

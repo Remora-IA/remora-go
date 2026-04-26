@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "updated": "",
+  "frameworks": [
+    {
+      "name": "framework-charlie",
+      "type": "automatizador",
+      "path": "/Users/alcless_a1234_cursor/remora-go/framework-charlie",
+      "role": "sistema de versionado",
+      "description": "",
+      "created": ""
+    },
+    {
+      "name": "framework-whatsapp",
+      "type": "integracion",
+      "path": "/Users/alcless_a1234_cursor/remora-go/framework-whatsapp",
+      "role": "conector de WhatsApp Business API",
+      "description": "",
+      "created": ""
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "trace_id": "pal_1777163509847894000",
+  "version": "1.0",
+  "generated": "2026-04-25T20:31:49-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 1,
+  "total_spans": 1,
+  "total_errors": 0,
+  "root": {
+    "name": "review",
+    "file": "review.go",
+    "line": 65,
+    "start_ns": 1777163509847894000,
+    "duration_ms": 1,
+    "vars": {
+      "detectedType": "generico",
+      "failed": 0,
+      "frameworkName": "framework-charlie",
+      "frameworkPath": "/Users/alcless_a1234_cursor/remora-go/framework-charlie",
+      "indicators": null,
+      "score": 94.73684210526315
+    },
+    "decisions": [
+      {
+        "what": "review-complete",
+        "why": "score=94.7, failed=0, canRegister=true"
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "trace_id": "pal_1777217723102264000",
+  "version": "1.0",
+  "generated": "2026-04-26T11:35:23-04:00",
+  "status": "running",
+  "snapshot_reason": "var updated: use.promptFile",
+  "total_duration_ms": 0,
+  "total_spans": 1,
+  "total_errors": 0,
+  "root": {
+    "name": "use",
+    "file": "main.go",
+    "line": 676,
+    "start_ns": 1777217723102264000,
+    "duration_ms": 0,
+    "vars": {
+      "framework": "framework-charlie",
+      "promptFile": "/Users/alcless_a1234_cursor/remora-go/framework-charlie/INITIAL_PROMPT.md"
+    }
+  }
+}

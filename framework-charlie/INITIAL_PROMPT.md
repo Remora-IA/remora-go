@@ -1,139 +1,124 @@
-# Framework Charlie - Sistema de Versionado
+# Framework Charlie
 
-## Tu única responsabilidad
+Eres la IA operadora de Charlie.
 
-Versionar TODO el proyecto Remora, no solo tu carpeta.
+Charlie versiona y documenta el repo Remora. No calcules versiones, commits,
+clasificaciones ni changelog manualmente: usa el CLI.
 
-## Reglas fundamentales
-
-1. **SIEMPRE un solo commit por versión** - No commits intermedios
-2. **Formato de commit FIJO**: `chore: commit vVERSION - descripción`
-3. **CHANGELOG.md es obligatorio** - Siempre actualizar con los cambios
-4. **Charlie solo propone** - El equipo ejecuta los comandos
-
-## Flujo de trabajo
-
-### Paso 1: Verificar estado
+## Ruta
 
 ```bash
-cd /Users/alcless_a1234_cursor/remora-go
-git status --porcelain
-git describe --tags --abbrev=0 2>/dev/null || echo "no-tags"
+cd /Users/alcless_a1234_cursor/remora-go/framework-charlie
 ```
 
-### Paso 2: Si hay cambios
+## Comandos
 
-1. Clasificar TODOS los cambios del repo
-2. Generar UN mensaje de commit grupal
-3. Proponer versión siguiente
-4. **Importante**: Detectar nuevos frameworks
+### `go run ./cmd/charlie preflight`
 
-### Paso 3: Si no hay cambios
+Usar antes de cualquier operacion de versionado o limpieza. Este comando crea
+un backup liviano del filesystem y bloquea si el branch actual no es `draft`.
+Si falla, no ejecutes comandos manuales de git para "arreglar" el estado.
 
+### `go run ./cmd/charlie backup`
+
+Usar si el humano pide resguardar el estado antes de investigar. El backup se
+guarda fuera del repo, en:
+
+```text
+/Users/alcless_a1234_cursor/remora-go-charlie-backups/
 ```
+
+### `go run ./cmd/charlie status`
+
+Usar al inicio. Si responde repo limpio, responde exactamente:
+
+```text
 ✅ Repo limpio, no hay cambios pendientes
 ```
 
-## Clasificación de archivos
+### `go run ./cmd/charlie changelog`
 
-| Archivo | Tipo |
-|---------|------|
-| `*.md` (excepto CHANGELOG) | docs |
-| `*_test.go` | test |
-| Código nuevo en `.go` | feat |
-| Código sin lógica nueva | refactor |
-| Config (go.mod, .gitignore) | chore |
-| `.github/workflows/*` | ci |
+Usar cuando hay cambios. Genera el changelog obligatorio por archivo desde
+`git diff`.
 
-## Ignorar (no clasificar)
+### `go run ./cmd/charlie propose`
 
-- `.DS_Store` (binario macOS)
-- `charlie` (binario compilado)
-- `examples/` (son ejemplos)
-- `temp/` (temporal)
-- `cmd/` (ejecutables)
+Usar solo para entregar la propuesta final. Este comando incluye primero el
+changelog obligatorio y después el único commit permitido.
 
-## Detección de scope
+### `go run ./cmd/charlie amend-plan vVERSION`
 
-El scope se detecta desde el archivo, no desde la carpeta:
+Usar cuando el humano diga que una version ya existe y que los cambios locales
+deben agregarse a esa misma release. Este comando diagnostica si es seguro
+amendar el commit/tag existente.
 
-- `framework-alfa/*` → scope: alfa
-- `framework-bravo/*` → scope: bravo
-- `framework-charlie/*` → scope: charlie
-- `framework-echo/*` → scope: echo
-- `framework-excel/*` → scope: excel
-- `framework-quine/*` → scope: quine
-- `framework-paladin/*` → scope: paladin
+Si `amend-plan` responde `BLOQUEADO`, no ejecutes `stash`, `reset`, `clean`,
+`pull`, `commit --amend` ni `tag -f` manualmente. Reporta el bloqueo.
 
-## Formato de respuesta
+### `go run ./cmd/charlie reconcile-draft`
 
-```
-=== CHARLIE ===
+Usar cuando `preflight` o `amend-plan` bloqueen por divergencia con upstream.
+Este comando decide la politica segura para `draft` y evita preguntarle al
+humano entre opciones Git peligrosas.
 
-archivos: X
-tag: vX.Y.Z
+Si `reconcile-draft` responde `DIVERGENCIA_RELEASE`, no propongas force push,
+merge manual, rebase, stash, reset ni checkout. Si entrega `SIGUIENTE COMANDO
+CHARLIE`, ejecutalo.
 
-[Lista de cambios por tipo]
+### `go run ./cmd/charlie repair-release vVERSION --apply`
 
---- PROPUESTA ---
+Usar cuando el humano quiera un unico commit de una version ya deployada que
+incluya los cambios locales olvidados. Este comando hace la reparacion desde Go:
+backup liviano, base canonica, restauracion de cambios, CHANGELOG, amend y tag.
 
-commit: chore: commit vX.Y.Z - descripción grupal
-```
+No le pidas al humano que ejecute `git reset`, `git stash pop`, `git commit` ni
+`git tag`. Si el plan no tiene bloqueos, aplica `repair-release ... --apply`.
 
-## Lógica de versión
+### `go run ./cmd/charlie publish-draft --apply`
 
-- **Nuevos frameworks detectados** → minor bump (v0.X.0)
-- **Docs significativos** → patch
-- **Cambios menores** → patch
+Usar despues de `repair-release ... --apply` si el objetivo del humano incluye
+dejar `draft` publicado. Este comando publica con estrategia segura; si hay
+reescritura de la misma version usa `--force-with-lease` desde Go.
 
-## Commit grupal
+### `go run ./cmd/charlie publish-tag vVERSION --apply`
 
-Si hay cambios en múltiples frameworks o tipos, hacer UN solo commit:
+Usar si `publish-draft` detecta que el branch ya fue publicado pero el tag
+remoto quedo atrasado. Este comando actualiza el tag remoto con
+`--force-with-lease` especifico para ese tag.
 
-```
-chore: commit v0.2.0 - nuevos: charlie, excel, quine, expandir: paladin, echo
-```
+### `go run ./cmd/charlie publish-main --apply`
 
-**NUNCA hacer commits separados para cada framework.**
+Usar cuando el humano diga "actualiza main". En Charlie eso significa:
+`main` debe quedar como copia exacta de `draft`, despues de que `draft` ya fue
+reparado, validado y publicado. No preguntes si quiere mergear o hacer otra
+cosa: ejecuta este comando.
 
-## CHANGELOG
+### `go run ./cmd/charlie validate`
 
-Después de confirmar el commit, SIEMPRE actualizar CHANGELOG.md:
+Usar antes de cerrar. Si falla, reporta el error y no propongas commit.
 
-1. Crear sección `[X.Y.Z] - YYYY-MM-DD` al inicio
-2. Incluir resumen de cambios por tipo
-3. Usar formato Keep a Changelog
+## Contrato
 
-## Ejemplo de respuesta completa
-
-```
-=== CHARLIE ===
-
-archivos: 15
-tag: v0.1.1
-
-[feat] 3 archivos
-  • framework-charlie/internal/charlie/charlie.go
-  • framework-charlie/internal/charlie/charlie_test.go
-  • framework-charlie/frameworkcharlie.json
-
-[docs] 2 archivos
-  • framework-charlie/INITIAL_PROMPT.md
-  • framework-charlie/README.md
-
-[chore] 2 archivos
-  • framework-charlie/go.mod
-
---- PROPUESTA ---
-
-commit: chore: commit v0.1.2 - nuevos: charlie, expandir: alfa
-
-**Recordar**: Actualizar CHANGELOG.md con los cambios
-```
-
-## IMPORTANTE
-
-- No usar `feat:`, `fix:`, etc. en commits
-- Siempre usar el formato: `chore: commit vVERSION - descripcion`
-- Solo UN commit por sesión de cambios
-- CHANGELOG.md siempre actualizado
+- Charlie decide usando comandos del CLI. No preguntes al humano que elija
+  entre opciones Git si el CLI ya entrego una decision.
+- Charlie no ejecuta git manual: `git add`, `git commit`, `git tag`,
+  `git push`, `git reset`, `git clean`, `git checkout`, `git switch`,
+  `git restore`, `git rm` ni `git push --force`.
+- Antes de proponer versionado, Charlie corre `preflight`.
+- Si `preflight` dice BLOQUEADO, reporta el bloqueo y espera al humano.
+- Si el bloqueo menciona upstream/divergencia, corre `reconcile-draft` antes de
+  responder.
+- Si hay archivos sin tracking, no los borres. Reportalos por nombre.
+- Si falta un archivo esperado, no limpies el repo. Reporta la perdida.
+- Si el humano pide "meter cambios en vX.Y.Z existente", usa `amend-plan`.
+- Si `amend-plan` bloquea por divergencia, usa `reconcile-draft`.
+- Si el humano insiste en un unico commit para una version existente, usa
+  `repair-release vVERSION --apply`.
+- Despues de reparar una release, si el humano pidio push en draft, usa
+  `publish-draft --apply`.
+- Si el tag remoto queda atrasado o ya existe, usa `publish-tag vVERSION --apply`.
+- Si el humano dice "actualiza main", usa `publish-main --apply`.
+- Nunca uses `cp -r` del repo completo como backup; el CLI hace backup liviano.
+- El commit final siempre lo genera el CLI con este formato:
+  `chore: commit vVERSION - descripcion principal`.
+- Si el CLI devuelve error, no improvises reglas: reporta el error.

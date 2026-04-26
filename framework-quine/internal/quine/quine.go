@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -121,6 +122,7 @@ func Generate(spec FrameworkSpec, outputDir string) (*GeneratedFramework, error)
 
 func createFrameworkStructure(spec FrameworkSpec, baseDir string) ([]FileSpec, error) {
 	var files []FileSpec
+	pkgDir := packageDir(spec.Name)
 
 	files = append(files, FileSpec{
 		Path:    filepath.Join(baseDir, "go.mod"),
@@ -130,7 +132,7 @@ func createFrameworkStructure(spec FrameworkSpec, baseDir string) ([]FileSpec, e
 
 	dirs := []string{
 		filepath.Join(baseDir, "cmd", spec.Name),
-		filepath.Join(baseDir, "internal", strings.ToLower(spec.Name)),
+		filepath.Join(baseDir, "internal", pkgDir),
 		filepath.Join(baseDir, "internal", "paladin"),
 		filepath.Join(baseDir, "temp", "paladin"),
 	}
@@ -149,15 +151,27 @@ func createFrameworkStructure(spec FrameworkSpec, baseDir string) ([]FileSpec, e
 	})
 
 	files = append(files, FileSpec{
-		Path:    filepath.Join(baseDir, "internal", strings.ToLower(spec.Name), "client.go"),
+		Path:    filepath.Join(baseDir, "internal", pkgDir, "client.go"),
 		Content: generateClientGo(spec),
 		Type:    "go",
 	})
 
 	files = append(files, FileSpec{
-		Path:    filepath.Join(baseDir, "internal", strings.ToLower(spec.Name), "types.go"),
+		Path:    filepath.Join(baseDir, "internal", pkgDir, "types.go"),
 		Content: generateTypesGo(spec),
 		Type:    "go",
+	})
+
+	files = append(files, FileSpec{
+		Path:    filepath.Join(baseDir, "internal", pkgDir, "client_test.go"),
+		Content: generateClientTestGo(spec),
+		Type:    "go",
+	})
+
+	files = append(files, FileSpec{
+		Path:    filepath.Join(baseDir, "WHY.md"),
+		Content: generateWhy(spec),
+		Type:    "md",
 	})
 
 	files = append(files, FileSpec{
@@ -227,25 +241,25 @@ func writeFiles(files []FileSpec) error {
 // ============================================================================
 
 func generateGoMod(spec FrameworkSpec) string {
-	pkg := strings.ToLower(spec.Name)
-	return fmt.Sprintf("module framework-%s\n\ngo 1.24.0\n\nrequire (\n\tgithub.com/gin-gonic/gin v1.12.0\n)\n", pkg)
+	return fmt.Sprintf("module %s\n\ngo 1.24.0\n", moduleName(spec.Name))
 }
 
 func generateMainGo(spec FrameworkSpec) string {
 	var switchCases string
 	var cmdMethods string
-	var helpLines string = "Framework " + spec.Name + " - CLI\n\nUSO:\n"
-
-	pkg := strings.ToLower(spec.Name)
+	binName := binaryName(spec.Name)
+	pkgDir := packageDir(spec.Name)
+	pkgIdent := packageIdent(spec.Name)
+	module := moduleName(spec.Name)
+	var helpLines string = "Framework " + spec.Name + " - CLI\\n\\nUSO:\\n"
 
 	for _, method := range spec.Methods {
 		cmdName := strings.ToLower(method.Name)
-		switchCases += fmt.Sprintf("\tcase \"%s\":\n\t\tcmd%s(args)\n", cmdName, method.Name)
-		helpLines += "  " + spec.Name + " " + cmdName + "\n"
+		switchCases += fmt.Sprintf("\tcase \"%s\":\n\t\tcmd%s(os.Args[2:])\n", cmdName, method.Name)
+		helpLines += "  ./" + binName + " " + cmdName + "\\n"
 		cmdMethods += fmt.Sprintf(`
 func cmd%s(args []string) {
 	trace := paladin.NewTrace("%s")
-	ctx := trace.Start()
 	defer trace.Flush()
 
 	client := %s.New()
@@ -258,7 +272,7 @@ func cmd%s(args []string) {
 	data, _ := json.MarshalIndent(result, "", "  ")
 	fmt.Println(string(data))
 }
-`, method.Name, method.Name, strings.Title(spec.Name), method.Name)
+`, method.Name, method.Name, pkgIdent, method.Name)
 	}
 
 	return fmt.Sprintf(`package main
@@ -267,16 +281,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 
-	"framework-%s/internal/%s"
-	"framework-%s/internal/paladin"
+	%s "%s/internal/%s"
+	"%s/internal/paladin"
 )
 
 func main() {
 	if len(os.Args) < 2 {
 		usage()
-		os.Exit(1)
+		os.Exit(2)
 	}
 
 	trace := paladin.NewTrace("main")
@@ -292,22 +305,30 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "comando desconocido: %%s\n\n", os.Args[1])
 		usage()
-		os.Exit(1)
+		os.Exit(2)
 	}
 }
 
 func usage() {
-	fmt.Println("%s")
+	fmt.Print("%s")
 }
-%s`, pkg, pkg, pkg, switchCases, helpLines, cmdMethods)
+%s`, pkgIdent, module, pkgDir, module, switchCases, helpLines, cmdMethods)
 }
 
 func generateClientGo(spec FrameworkSpec) string {
-	pkg := strings.ToLower(spec.Name)
+	pkg := packageIdent(spec.Name)
+	module := moduleName(spec.Name)
+	imports := `"time"`
 
 	var methods string
-	for _, method := range spec.Methods {
-		methods += fmt.Sprintf(`
+	if spec.Type == "integracion" {
+		methods = generateIntegrationMethods(spec)
+		imports = `"fmt"
+	"os"
+	"strings"`
+	} else {
+		for _, method := range spec.Methods {
+			methods += fmt.Sprintf(`
 
 // %s %s
 func (c *Client) %s() (interface{}, error) {
@@ -318,14 +339,15 @@ func (c *Client) %s() (interface{}, error) {
 	return map[string]interface{}{"status": "ok", "method": "%s"}, nil
 }
 `, method.Name, method.Description, method.Name, method.Name, method.Name, method.Description, method.Name)
+		}
 	}
 
 	return fmt.Sprintf(`package %s
 
 import (
-	"time"
+	%s
 
-	"framework-%s/internal/paladin"
+	"%s/internal/paladin"
 )
 
 // Client es el cliente principal del framework.
@@ -336,7 +358,7 @@ type Client struct {
 
 // New crea un nuevo cliente.
 func New() *Client {
-	return &Client{}
+	return NewWithTrace("%s")
 }
 
 // NewWithTrace crea un cliente con tracing activo.
@@ -352,11 +374,79 @@ func (c *Client) Flush() {
 		c.trace.Flush()
 	}
 }
-%s`, pkg, pkg, methods)
+%s`, pkg, imports, module, spec.Name, methods)
+}
+
+func generateIntegrationMethods(spec FrameworkSpec) string {
+	envLiteral := fmt.Sprintf("[]string{%s}", quoteList(integrationRequiredEnv(spec.Name)))
+	return fmt.Sprintf(`
+func requiredEnv() []string {
+	return %s
+}
+
+func missingEnv() []string {
+	var missing []string
+	for _, key := range requiredEnv() {
+		if os.Getenv(key) == "" {
+			missing = append(missing, key)
+		}
+	}
+	return missing
+}
+
+// Register informa la configuracion requerida para habilitar la integracion.
+func (c *Client) Register() (interface{}, error) {
+	childCtx := c.ctx.Child("Register")
+	defer childCtx.End()
+	missing := missingEnv()
+	childCtx.Var("missing_env", missing)
+	return map[string]interface{}{
+		"status": "registration_required",
+		"required_env": requiredEnv(),
+		"missing_env": missing,
+		"next_action": "configurar credenciales y volver a ejecutar validate",
+	}, nil
+}
+
+// Connect conecta con la API externa solo si la configuracion esta completa.
+func (c *Client) Connect() (interface{}, error) {
+	if _, err := c.Validate(); err != nil {
+		return nil, err
+	}
+	childCtx := c.ctx.Child("Connect")
+	defer childCtx.End()
+	childCtx.Decision("conexion-autorizada", "credenciales presentes")
+	return map[string]interface{}{"status": "ready_to_connect", "service": "%s"}, nil
+}
+
+// Validate valida credenciales locales antes de intentar comunicarse con la API.
+func (c *Client) Validate() (interface{}, error) {
+	childCtx := c.ctx.Child("Validate")
+	defer childCtx.End()
+	missing := missingEnv()
+	if len(missing) > 0 {
+		childCtx.Var("missing_env", missing)
+		return nil, fmt.Errorf("credenciales faltantes: %%s; ejecutar register para ver configuracion requerida", strings.Join(missing, ", "))
+	}
+	return map[string]interface{}{"status": "valid", "required_env": requiredEnv()}, nil
+}
+
+// Status muestra si la integracion esta lista sin fingir una conexion.
+func (c *Client) Status() (interface{}, error) {
+	childCtx := c.ctx.Child("Status")
+	defer childCtx.End()
+	missing := missingEnv()
+	return map[string]interface{}{
+		"configured": len(missing) == 0,
+		"missing_env": missing,
+		"required_env": requiredEnv(),
+	}, nil
+}
+`, envLiteral, spec.Name)
 }
 
 func generateTypesGo(spec FrameworkSpec) string {
-	pkg := strings.ToLower(spec.Name)
+	pkg := packageIdent(spec.Name)
 	return "package " + pkg + "\n\n" +
 		"// Spec define la estructura del framework.\n" +
 		"type Spec struct {\n" +
@@ -374,34 +464,73 @@ func generateTypesGo(spec FrameworkSpec) string {
 		"}\n"
 }
 
+func generateClientTestGo(spec FrameworkSpec) string {
+	pkg := packageIdent(spec.Name)
+	var calls []string
+	for _, method := range spec.Methods {
+		if spec.Type == "integracion" && (method.Name == "Connect" || method.Name == "Validate") {
+			continue
+		}
+		calls = append(calls, fmt.Sprintf(`
+	if _, err := client.%s(); err != nil {
+		t.Fatalf("%s returned error: %%v", err)
+	}
+`, method.Name, method.Name))
+	}
+	return fmt.Sprintf(`package %s
+
+import "testing"
+
+func TestClientMethods(t *testing.T) {
+	client := New()
+	defer client.Flush()
+%s
+}
+`, pkg, strings.Join(calls, ""))
+}
+
 func generateInitialPrompt(spec FrameworkSpec) string {
 	var methodsMd string
+	binName := binaryName(spec.Name)
 	for _, method := range spec.Methods {
 		methodsMd += "\n### " + method.Name + "\n\n" + method.Description + "\n\nEjemplo: " + method.Example + "\n\nRetorna: " + method.Returns + "\n"
 	}
 
 	return "# Initial Prompt: Framework " + spec.Name + "\n\n" +
 		"Eres la IA operadora de Framework " + spec.Name + ".\n\n" +
-		"Tu trabajo es " + spec.Role + ".\n\n" +
-		"## Tu filosofia\n\n" +
-		"Este framework hace " + spec.Description + ". Solo usas los metodos disponibles.\n\n" +
+		"Tu trabajo es " + spec.Role + ". Lee WHY.md para entender el tipo y limite del framework.\n\n" +
+		"## Filosofia\n\n" +
+		"No razones pasos internos. Ejecuta comandos. Si falta configuracion o credenciales, usa el comando de validacion/status y reporta el bloqueo exacto.\n\n" +
 		"## Metodos disponibles\n\n" + methodsMd + "\n\n" +
 		"## Comandos CLI\n\n" +
-		"```bash\ncd /Users/alcless_a1234_cursor/remora-go/" + spec.Name + "\n./" + spec.Name + " <comando>\n```\n\n" +
+		"```bash\ncd /Users/alcless_a1234_cursor/remora-go/" + spec.Name + "\n./" + binName + " <comando>\n```\n\n" +
 		"## Ejemplo de uso\n\n" + spec.Methods[0].Example + "\n\n" +
 		"## Lo que NO necesitas hacer\n\n" +
 		"- No configures conexiones internamente\n" +
+		"- No edites archivos JSON manualmente\n" +
 		"- No manejes archivos manualmente\n" +
 		"- Solo usa los metodos\n"
 }
 
 func generateReadme(spec FrameworkSpec) string {
+	binName := binaryName(spec.Name)
 	return "# Framework " + spec.Name + "\n\n" +
 		spec.Description + "\n\n" +
 		"## Instalacion\n\n" +
-		"```bash\ncd /Users/alcless_a1234_cursor/remora-go/" + spec.Name + "\ngo mod tidy\ngo build -o " + strings.TrimPrefix(spec.Name, "framework-") + " ./cmd/" + spec.Name + "/\n```\n\n" +
-		"## Uso\n\n./" + strings.TrimPrefix(spec.Name, "framework-") + " <comando>\n\n" +
+		"```bash\ncd /Users/alcless_a1234_cursor/remora-go/" + spec.Name + "\ngo test ./...\ngo build -o " + binName + " ./cmd/" + spec.Name + "/\n```\n\n" +
+		"## Uso\n\n./" + binName + " <comando>\n\n" +
 		"## Comandos\n\n- process: Procesa datos\n- status: Muestra estado\n\n"
+}
+
+func generateWhy(spec FrameworkSpec) string {
+	return "# WHY: " + spec.Name + "\n\n" +
+		"## Proposito\n\n" + spec.Purpose + "\n\n" +
+		"## Tipo\n\n" + spec.Type + "\n\n" +
+		"## Rol operativo\n\n" + spec.Role + "\n\n" +
+		"## Limite de razonamiento\n\n" +
+		"La IA operadora no debe inventar pasos internos. Debe ejecutar los comandos del framework y dejar que el codigo aplique las reglas de negocio.\n\n" +
+		"## Criterio de funcionamiento\n\n" +
+		"El framework funciona si `go test ./...` pasa y sus comandos principales responden sin depender de instrucciones narrativas del prompt.\n"
 }
 
 func generateAgentsMd(spec FrameworkSpec) string {
@@ -411,7 +540,7 @@ func generateAgentsMd(spec FrameworkSpec) string {
 }
 
 func createBuildFiles(spec FrameworkSpec, outputDir string) error {
-	binName := strings.TrimPrefix(spec.Name, "framework-")
+	binName := binaryName(spec.Name)
 	makefile := ".PHONY: build clean test\n\nbuild:\n\tgo build -o " + binName + " ./cmd/" + spec.Name + "/\n\nclean:\n\trm -f " + binName + "\n\trm -rf temp/\n\ntest:\n\tgo test ./...\n\ndev:\n\tgo run ./cmd/" + spec.Name + "/\n"
 
 	if err := os.WriteFile(filepath.Join(outputDir, "Makefile"), []byte(makefile), 0644); err != nil {
@@ -419,6 +548,52 @@ func createBuildFiles(spec FrameworkSpec, outputDir string) error {
 	}
 
 	return nil
+}
+
+func moduleName(name string) string {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if !strings.HasPrefix(name, "framework-") {
+		name = "framework-" + name
+	}
+	return name
+}
+
+func binaryName(name string) string {
+	return strings.TrimPrefix(moduleName(name), "framework-")
+}
+
+func packageDir(name string) string {
+	return packageIdent(name)
+}
+
+func packageIdent(name string) string {
+	base := binaryName(name)
+	base = strings.ReplaceAll(base, "-", "_")
+	re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+	base = re.ReplaceAllString(base, "_")
+	if base == "" {
+		return "framework"
+	}
+	if base[0] >= '0' && base[0] <= '9' {
+		base = "fw_" + base
+	}
+	return base
+}
+
+func integrationRequiredEnv(name string) []string {
+	if strings.Contains(strings.ToLower(name), "whatsapp") {
+		return []string{"WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"}
+	}
+	prefix := strings.ToUpper(strings.ReplaceAll(binaryName(name), "-", "_"))
+	return []string{prefix + "_API_TOKEN"}
+}
+
+func quoteList(items []string) string {
+	quoted := make([]string, 0, len(items))
+	for _, item := range items {
+		quoted = append(quoted, fmt.Sprintf("%q", item))
+	}
+	return strings.Join(quoted, ", ")
 }
 
 // ============================================================================
