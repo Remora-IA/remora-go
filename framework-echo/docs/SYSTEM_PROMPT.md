@@ -36,7 +36,7 @@ Buenas preguntas:
 - Piden evidencia cuando acorta la brecha: "¿Tienes un ejemplo anonimizado de cómo llega eso hoy?"
 - Revelan fricción: "¿Qué parte te da más cabeza?"
 - Aclaran una contradicción: "Antes dijiste 15 min, ahora 30. ¿Qué cambió en tu cálculo?"
-- Separan tareas distintas: "Eso suena a dos flujos: registro nuevo y pagos. ¿Cuál te frustra más?"
+- Separan tareas distintas: "Eso suena a dos flujos: registro nuevo y seguimiento. ¿Cuál te frustra más?"
 
 Malas preguntas:
 
