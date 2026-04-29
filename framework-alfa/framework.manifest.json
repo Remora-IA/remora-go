@@ -1,0 +1,57 @@
+{
+  "name": "alfa",
+  "version": "1.0.0",
+  "description": "Compilador semántico Echo→Bravo. Traduce árbol Echo a flujo ideal.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "frameworkalfa", "./cmd/frameworkalfa"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/frameworkalfa"]
+  },
+  "cwd": "framework-alfa",
+  "inputs": [
+    {
+      "name": "echo_tree",
+      "format": "echo.tree.v1",
+      "required": true,
+      "description": "Árbol Echo validado (frameworkecho.json)"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "alfa_spec",
+      "format": "alfa.spec.v1",
+      "path": "framework-alfa/temp/alfa_spec.json",
+      "description": "Spec compilada con linaje OPPORTUNITY→PAIN→TASK→THEORY→AXIOM y open_questions"
+    },
+    {
+      "name": "ideal_flow",
+      "format": "alfa.ideal_flow.v1",
+      "path": "framework-alfa/temp/ideal_flow.json",
+      "description": "Flujo ideal listo para Bravo"
+    }
+  ],
+  "commands": {
+    "compile": {
+      "description": "Compila árbol Echo a alfa_spec.json",
+      "args": ["compile", "--echo-tree", "{inputs.echo_tree}", "--out", "{outputs.alfa_spec}", "--allow-draft={params.allow_draft}"],
+      "params": ["allow_draft"],
+      "defaults": { "allow_draft": "true" }
+    },
+    "inspect": {
+      "args": ["inspect", "--spec", "{outputs.alfa_spec}"]
+    },
+    "export-bravo": {
+      "args": ["export-bravo", "--spec", "{outputs.alfa_spec}", "--out", "{outputs.ideal_flow}", "--allow-draft={params.allow_draft}"],
+      "params": ["allow_draft"],
+      "defaults": { "allow_draft": "true" }
+    }
+  },
+  "asks_human": {
+    "via": "open_questions_field",
+    "path": "{outputs.alfa_spec}.open_questions",
+    "description": "Si Alfa necesita info, escribe preguntas en open_questions[] para que Echo se las haga al humano"
+  }
+}

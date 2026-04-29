@@ -38,4 +38,4 @@ para la version del dia.
 
 No se crea `paladin-foco` como flujo formal hasta que exista una necesidad
 repetida: traces reales de una demo que deban transformarse automaticamente en
-acciones, bloqueos o criterios de termino.
+acciones, pre-conflictos o criterios de termino.

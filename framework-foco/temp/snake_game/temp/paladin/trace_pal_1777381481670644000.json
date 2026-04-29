@@ -1,0 +1,919 @@
+{
+  "trace_id": "pal_1777381481670644000",
+  "version": "1.0",
+  "generated": "2026-04-28T09:04:44-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 2348,
+  "total_spans": 24,
+  "total_errors": 0,
+  "bottlenecks": [
+    "snake_game (2348ms)",
+    "runLoop (2341ms)",
+    "tick_0 (253ms)",
+    "tick_1 (256ms)",
+    "tick_2 (256ms)",
+    "tick_3 (257ms)",
+    "tick_4 (257ms)",
+    "tick_5 (259ms)",
+    "tick_6 (259ms)",
+    "tick_7 (257ms)",
+    "tick_8 (261ms)"
+  ],
+  "root": {
+    "name": "snake_game",
+    "file": "main.go",
+    "line": 31,
+    "start_ns": 1777381481670644000,
+    "duration_ms": 2348,
+    "children": [
+      {
+        "name": "initGame",
+        "file": "main.go",
+        "line": 40,
+        "start_ns": 1777381481671866000,
+        "duration_ms": 0,
+        "vars": {
+          "foodPosition": "{5 5}",
+          "initialPosition": "{10 10}",
+          "initialSnakeLength": 1
+        },
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "system",
+            "summary": "inicializa el juego Snake Game"
+          },
+          {
+            "kind": "goal",
+            "summary": "Preparar estado inicial del juego con serpiente en posicion central"
+          },
+          {
+            "kind": "event",
+            "subject": "game_initialization",
+            "summary": "Snake Game iniciando",
+            "meta": {
+              "gridSize": 20
+            }
+          },
+          {
+            "kind": "rule",
+            "subject": "initial_snake_length",
+            "summary": "La serpiente inicia con longitud 1"
+          },
+          {
+            "kind": "check",
+            "subject": "initial_snake_length",
+            "summary": "rule evaluated",
+            "expected": "snake_length == 1",
+            "actual": "snake_length == 1",
+            "passed": true
+          },
+          {
+            "kind": "expect",
+            "subject": "game_loop",
+            "summary": "expectation declared",
+            "expected": "El juego entra en el loop principal"
+          },
+          {
+            "kind": "handoff",
+            "subject": "initGame-\u003egameLoop",
+            "summary": "Inicializacion completa",
+            "expected": "next_actor=gameLoop",
+            "actual": "from_actor=initGame"
+          }
+        ]
+      },
+      {
+        "name": "runLoop",
+        "file": "main.go",
+        "line": 70,
+        "start_ns": 1777381481672921000,
+        "duration_ms": 2341,
+        "children": [
+          {
+            "name": "tick_0",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381481673393000,
+            "duration_ms": 253,
+            "vars": {
+              "iteration": 0,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381481673603000,
+                "duration_ms": 1,
+                "vars": {
+                  "currentHead": "{10 10}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 11}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 11}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=11",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 11}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_1"
+              }
+            ]
+          },
+          {
+            "name": "tick_1",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381481927611000,
+            "duration_ms": 256,
+            "vars": {
+              "iteration": 1,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381481929346000,
+                "duration_ms": 2,
+                "vars": {
+                  "currentHead": "{10 11}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 12}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 12}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=12",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 12}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_2"
+              }
+            ]
+          },
+          {
+            "name": "tick_2",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381482185254000,
+            "duration_ms": 256,
+            "vars": {
+              "iteration": 2,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381482186868000,
+                "duration_ms": 2,
+                "vars": {
+                  "currentHead": "{10 12}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 13}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 13}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=13",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 13}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_3"
+              }
+            ]
+          },
+          {
+            "name": "tick_3",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381482442369000,
+            "duration_ms": 257,
+            "vars": {
+              "iteration": 3,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381482443777000,
+                "duration_ms": 3,
+                "vars": {
+                  "currentHead": "{10 13}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 14}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 14}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=14",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 14}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_4"
+              }
+            ]
+          },
+          {
+            "name": "tick_4",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381482701642000,
+            "duration_ms": 257,
+            "vars": {
+              "iteration": 4,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381482704135000,
+                "duration_ms": 4,
+                "vars": {
+                  "currentHead": "{10 14}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 15}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 15}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=15",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 15}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_5"
+              }
+            ]
+          },
+          {
+            "name": "tick_5",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381482961024000,
+            "duration_ms": 259,
+            "vars": {
+              "iteration": 5,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381482964372000,
+                "duration_ms": 4,
+                "vars": {
+                  "currentHead": "{10 15}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 16}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 16}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=16",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 16}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_6"
+              }
+            ]
+          },
+          {
+            "name": "tick_6",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381483222676000,
+            "duration_ms": 259,
+            "vars": {
+              "iteration": 6,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381483226473000,
+                "duration_ms": 4,
+                "vars": {
+                  "currentHead": "{10 16}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 17}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 17}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=17",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 17}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_7"
+              }
+            ]
+          },
+          {
+            "name": "tick_7",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381483483891000,
+            "duration_ms": 257,
+            "vars": {
+              "iteration": 7,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381483485309000,
+                "duration_ms": 3,
+                "vars": {
+                  "currentHead": "{10 17}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 18}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 18}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=18",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 18}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_8"
+              }
+            ]
+          },
+          {
+            "name": "tick_8",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381483742631000,
+            "duration_ms": 261,
+            "vars": {
+              "iteration": 8,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381483744837000,
+                "duration_ms": 6,
+                "vars": {
+                  "currentHead": "{10 18}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 19}"
+                },
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 19}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=19",
+                    "passed": true
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "self_collision",
+                    "summary": "rule evaluated",
+                    "expected": "serpiente no colisiona consigo misma",
+                    "actual": "newHead={10 19}",
+                    "passed": true
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_grew",
+                    "summary": "Serpiente no crecio, removiendo cola"
+                  },
+                  {
+                    "kind": "expect",
+                    "subject": "next_frame",
+                    "summary": "expectation declared",
+                    "expected": "Siguiente actualizacion"
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_9"
+              }
+            ]
+          },
+          {
+            "name": "tick_9",
+            "file": "main.go",
+            "line": 80,
+            "start_ns": 1777381484005465000,
+            "duration_ms": 7,
+            "vars": {
+              "iteration": 9,
+              "score": 0,
+              "snakeLength": 1
+            },
+            "children": [
+              {
+                "name": "update",
+                "file": "main.go",
+                "line": 98,
+                "start_ns": 1777381484007632000,
+                "duration_ms": 4,
+                "vars": {
+                  "currentHead": "{10 19}",
+                  "direction": "{0 1}",
+                  "newHead": "{10 20}"
+                },
+                "decisions": [
+                  {
+                    "what": "game_over_wall",
+                    "why": "Colision con pared detecteda"
+                  }
+                ],
+                "semantic": [
+                  {
+                    "kind": "event",
+                    "subject": "frame_update",
+                    "summary": "Actualizando estado del juego"
+                  },
+                  {
+                    "kind": "event",
+                    "subject": "snake_moved",
+                    "summary": "Serpiente se movio a nueva posicion",
+                    "meta": {
+                      "newHead": "{10 20}"
+                    }
+                  },
+                  {
+                    "kind": "check",
+                    "subject": "wall_boundary",
+                    "summary": "rule evaluated",
+                    "expected": "head dentro de grid",
+                    "actual": "X=10, Y=20",
+                    "passed": false
+                  },
+                  {
+                    "kind": "violation",
+                    "subject": "wall_hit",
+                    "summary": "business flow mismatch",
+                    "expected": "serpiente dentro del grid",
+                    "actual": "serpiente en X=10, Y=20",
+                    "passed": false
+                  }
+                ]
+              }
+            ],
+            "semantic": [
+              {
+                "kind": "expect",
+                "subject": "next_tick",
+                "summary": "expectation declared",
+                "expected": "tick_10"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "game_loop",
+            "summary": "controla el flujo del juego"
+          },
+          {
+            "kind": "goal",
+            "summary": "Mantener el juego corriendo hasta game over"
+          },
+          {
+            "kind": "event",
+            "subject": "game_start",
+            "summary": "Loop principal iniciado",
+            "meta": {
+              "maxIterations": 100
+            }
+          }
+        ]
+      },
+      {
+        "name": "endGame",
+        "file": "main.go",
+        "line": 178,
+        "start_ns": 1777381484014834000,
+        "duration_ms": 3,
+        "vars": {
+          "finalScore": 0,
+          "totalTicks": 10
+        },
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "system",
+            "summary": "finaliza el juego"
+          },
+          {
+            "kind": "event",
+            "subject": "game_over",
+            "summary": "Juego terminado",
+            "meta": {
+              "finalScore": 0,
+              "finalSnakeLength": 2
+            }
+          },
+          {
+            "kind": "rule",
+            "subject": "end_score",
+            "summary": "Puntuacion final registrada"
+          },
+          {
+            "kind": "check",
+            "subject": "final_score_recorded",
+            "summary": "rule evaluated",
+            "expected": "score \u003e= 0",
+            "actual": "score == 0",
+            "passed": true
+          },
+          {
+            "kind": "handoff",
+            "subject": "endGame-\u003emain",
+            "summary": "Juego finalizado",
+            "expected": "next_actor=main",
+            "actual": "from_actor=endGame"
+          }
+        ]
+      }
+    ]
+  }
+}

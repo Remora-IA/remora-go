@@ -2,7 +2,7 @@
   "project_id": "project-001",
   "client_name": "",
   "date_started": "",
-  "current_max_layer": 1,
+  "current_max_layer": 4,
   "focus_nodes": [],
   "config": {
     "qa_log_enabled": false
@@ -23,6 +23,62 @@
       ],
       "created_at": "2026-04-26T03:02:21Z"
     },
+    "ax_002": {
+      "id": "ax_002",
+      "layer": 0,
+      "type": "AXIOM",
+      "title": "Demo: Echo corre vía Channel",
+      "evidence": [
+        "El runner llamó a Channel y Channel ejecutó el CLI de Echo"
+      ],
+      "status": "VALIDATED",
+      "confidence": 100,
+      "created_at": "2026-04-29T23:08:38Z"
+    },
+    "op_001": {
+      "id": "op_001",
+      "layer": 4,
+      "type": "OPPORTUNITY",
+      "title": "Parser automático WhatsApp → Excel",
+      "evidence": [
+        "Eliminaría la copia manual diaria"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "pn_001",
+      "questions_to_ask": [
+        "Para la oportunidad 'Parser automático WhatsApp → Excel': ¿qué dolor confirmado resuelve exactamente?",
+        "¿Qué tendría que ser cierto para que 'Parser automático WhatsApp → Excel' encaje en la forma actual de trabajar?",
+        "¿Qué señales indicarían que 'Parser automático WhatsApp → Excel' obligaría al usuario a adaptarse demasiado?"
+      ],
+      "validation_answer": "Sí, esa es la solución que busco",
+      "created_at": "2026-04-29T23:09:46Z",
+      "validated_at": "2026-04-29T23:09:46Z"
+    },
+    "pn_001": {
+      "id": "pn_001",
+      "layer": 3,
+      "type": "PAIN",
+      "title": "Pierdo 1 hora al día copiando movimientos",
+      "evidence": [
+        "60 minutos diarios duplicando datos"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "tk_001",
+      "children_ids": [
+        "op_001"
+      ],
+      "questions_to_ask": [
+        "Sobre el problema 'Pierdo 1 hora al día copiando movimientos': ¿con qué frecuencia ocurre?",
+        "¿Qué impacto concreto tiene 'Pierdo 1 hora al día copiando movimientos' en su trabajo diario?",
+        "¿Qué hace hoy para convivir con 'Pierdo 1 hora al día copiando movimientos'?",
+        "Si 'Pierdo 1 hora al día copiando movimientos' desapareciera mañana, ¿qué cambiaría primero?"
+      ],
+      "validation_answer": "Sí, es lo más doloroso",
+      "created_at": "2026-04-29T23:09:46Z",
+      "validated_at": "2026-04-29T23:09:46Z"
+    },
     "th_001": {
       "id": "th_001",
       "layer": 1,
@@ -31,15 +87,45 @@
       "evidence": [
         "El usuario quiere pasar info de transacciones de WhatsApp a Excel"
       ],
-      "status": "PENDING",
-      "confidence": 60,
+      "status": "VALIDATED",
+      "confidence": 95,
       "parent_id": "ax_001",
+      "children_ids": [
+        "tk_001"
+      ],
       "questions_to_ask": [
         "Respecto a 'Pasar info de transacciones de WhatsApp a Excel': ¿esto calza con lo que pasa realmente?",
         "¿Qué parte de 'Pasar info de transacciones de WhatsApp a Excel' se repite y qué parte cambia caso a caso?",
         "¿Qué tendría que pasar para que 'Pasar info de transacciones de WhatsApp a Excel' deje de ser cierto?"
       ],
-      "created_at": "2026-04-26T03:02:22Z"
+      "validation_answer": "Sí, ese es el flujo",
+      "created_at": "2026-04-26T03:02:22Z",
+      "validated_at": "2026-04-29T23:09:46Z"
+    },
+    "tk_001": {
+      "id": "tk_001",
+      "layer": 2,
+      "type": "TASK",
+      "title": "Copiar manualmente cada transacción de WhatsApp a Excel",
+      "evidence": [
+        "Usuario lo hace 3 veces al día"
+      ],
+      "status": "VALIDATED",
+      "confidence": 95,
+      "parent_id": "th_001",
+      "children_ids": [
+        "pn_001"
+      ],
+      "questions_to_ask": [
+        "Para la tarea 'Copiar manualmente cada transacción de WhatsApp a Excel': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Copiar manualmente cada transacción de WhatsApp a Excel'? (diario/semanal/mensual)",
+        "Cuando hace 'Copiar manualmente cada transacción de WhatsApp a Excel', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Copiar manualmente cada transacción de WhatsApp a Excel' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Copiar manualmente cada transacción de WhatsApp a Excel' se retrasa o sale mal?"
+      ],
+      "validation_answer": "Sí, lo hago así",
+      "created_at": "2026-04-29T23:09:46Z",
+      "validated_at": "2026-04-29T23:09:46Z"
     }
   }
 }

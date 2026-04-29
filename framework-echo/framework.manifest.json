@@ -1,0 +1,61 @@
+{
+  "name": "echo",
+  "version": "1.0.0",
+  "description": "Framework para guiar reuniones de descubrimiento de procesos",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "frameworkecho", "./cmd/frameworkecho"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/frameworkecho"]
+  },
+  "cwd": "framework-echo",
+  "outputs": [
+    {
+      "name": "tree",
+      "format": "echo.tree.v1",
+      "path": "framework-echo/frameworkecho.json",
+      "description": "Árbol de conocimiento progresivo (AXIOM→THEORY→TASK→PAIN→OPPORTUNITY)"
+    }
+  ],
+  "inputs": [],
+  "commands": {
+    "init": {
+      "description": "Inicializa un proyecto",
+      "args": ["init", "--project-id", "{params.project_id}", "--client", "{params.client}", "--date", "{params.date}"],
+      "params": ["project_id", "client", "date"]
+    },
+    "add-axiom": {
+      "args": ["add-axiom", "--title", "{params.title}", "--evidence", "{params.evidence}"],
+      "params": ["title", "evidence"]
+    },
+    "add-theory": {
+      "args": ["add-theory", "--parent", "{params.parent}", "--title", "{params.title}", "--evidence", "{params.evidence}"],
+      "params": ["parent", "title", "evidence"]
+    },
+    "add-task": {
+      "args": ["add-task", "--parent", "{params.parent}", "--title", "{params.title}", "--evidence", "{params.evidence}"],
+      "params": ["parent", "title", "evidence"]
+    },
+    "add-pain": {
+      "args": ["add-pain", "--parent", "{params.parent}", "--title", "{params.title}", "--evidence", "{params.evidence}"],
+      "params": ["parent", "title", "evidence"]
+    },
+    "add-opportunity": {
+      "args": ["add-opportunity", "--parent", "{params.parent}", "--title", "{params.title}", "--evidence", "{params.evidence}"],
+      "params": ["parent", "title", "evidence"]
+    },
+    "validate": {
+      "args": ["validate", "{params.node_id}", "--answer", "{params.answer}"],
+      "params": ["node_id", "answer"]
+    },
+    "show-tree": { "args": ["show-tree"] },
+    "readiness": { "args": ["readiness"] },
+    "next-questions": { "args": ["next-questions"] }
+  },
+  "asks_human": {
+    "via": "questions_to_ask_field",
+    "description": "Cada nodo PENDING tiene un array questions_to_ask con preguntas para el humano"
+  }
+}

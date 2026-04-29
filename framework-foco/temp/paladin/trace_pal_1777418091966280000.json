@@ -1,0 +1,21 @@
+{
+  "trace_id": "pal_1777418091966280000",
+  "version": "1.0",
+  "generated": "2026-04-28T19:14:51-04:00",
+  "status": "running",
+  "snapshot_reason": "var updated: use.promptFile",
+  "total_duration_ms": 0,
+  "total_spans": 1,
+  "total_errors": 0,
+  "root": {
+    "name": "use",
+    "file": "main.go",
+    "line": 702,
+    "start_ns": 1777418091966280000,
+    "duration_ms": 0,
+    "vars": {
+      "framework": "framework-foco",
+      "promptFile": "/Users/alcless_a1234_cursor/remora-go/framework-foco/INITIAL_PROMPT.md"
+    }
+  }
+}
