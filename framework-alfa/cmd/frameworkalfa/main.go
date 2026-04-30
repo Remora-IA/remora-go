@@ -23,6 +23,10 @@ func main() {
 		cmdExportBravo(os.Args[2:])
 	case "inspect":
 		cmdInspect(os.Args[2:])
+	case "next-question":
+		cmdNextQuestionAlfa()
+	case "ingest-answer":
+		cmdIngestAnswerAlfa()
 	case "help", "-h", "--help":
 		usage()
 	default:

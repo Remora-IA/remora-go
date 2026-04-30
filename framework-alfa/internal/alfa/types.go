@@ -130,6 +130,7 @@ type OpenQuestion struct {
 	QuestionForEcho string   `json:"question_for_echo"`
 	NeededFor       string   `json:"needed_for"`
 	SourceNodes     []string `json:"source_nodes,omitempty"`
+	Answer          string   `json:"answer,omitempty"`
 }
 
 type BravoIdealFlow struct {

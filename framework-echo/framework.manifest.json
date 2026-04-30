@@ -52,10 +52,30 @@
     },
     "show-tree": { "args": ["show-tree"] },
     "readiness": { "args": ["readiness"] },
-    "next-questions": { "args": ["next-questions"] }
+    "next-questions": { "args": ["next-questions"] },
+    "next-question": { "args": ["next-question"] },
+    "ingest-answer": {
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"],
+      "defaults": { "question_id": "" }
+    }
   },
   "asks_human": {
     "via": "questions_to_ask_field",
     "description": "Cada nodo PENDING tiene un array questions_to_ask con preguntas para el humano"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "minimax",
+    "name": "MiniMax-M2.7",
+    "env_key": "MINIMAX_API_KEY",
+    "capabilities": ["text"],
+    "base_url": "https://api.minimax.io/anthropic/v1/messages"
   }
 }

@@ -1,46 +1,42 @@
+// flujo_api expone una API REST para conversaciones multi-framework.
+//
+// Una conversación es una "red comunicacional" entre el usuario y N frameworks
+// elegidos al crearla. Cada framework declara en su framework.manifest.json
+// (campo user_input) si necesita input del usuario y cómo. El orquestador
+// consume preguntas de los frameworks vía Channel (JSON-RPC) y las entrega al
+// usuario UNA a la vez por la cola compartida.
+//
+// Endpoints:
+//   GET    /health
+//   GET    /api/v1/conversations                    lista conversaciones
+//   POST   /api/v1/conversations                    crea conversación con frameworks
+//   GET    /api/v1/conversations/{id}               metadata + mensajes
+//   DELETE /api/v1/conversations/{id}               elimina
+//   GET    /api/v1/conversations/{id}/messages      historial visible
+//   POST   /api/v1/conversations/{id}/messages      manda input del usuario
+//   GET    /api/v1/conversations/{id}/queue         cola de preguntas
+//   GET    /api/v1/frameworks                       drivers disponibles
+//
+// Variables de entorno:
+//   CHANNEL_URL      default http://localhost:8765
+//   CHANNEL_API_KEY  default test-key-001
+//   FLUJO_API_PORT   default 8084
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"strings"
 	"time"
 
+	"channel/adapter"
 	"github.com/gorilla/mux"
 	"remora-flujo/handoff"
 )
 
-const (
-	apiPort      = ":8084"
-	apiBase      = "/api/v1"
-	convDir      = "temp/api_conversations"
-	statePath    = "temp/handoff/state.json"
-	sessionPath  = "temp/sessions/echo/native.json"
-)
-
-type Message struct {
-	ID        string    `json:"id"`
-	Role      string    `json:"role"`
-	Content   string    `json:"content"`
-	Event     string    `json:"event,omitempty"`
-	Timestamp time.Time `json:"timestamp"`
-}
-
-type Conversation struct {
-	ID        string    `json:"id"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type SendMessageRequest struct {
-	Content string `json:"content"`
-}
+const apiBase = "/api/v1"
 
 type APIResponse struct {
 	Success bool        `json:"success"`
@@ -48,527 +44,370 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+type server struct {
+	channel *adapter.Client
+	rules   *FlowRules
+}
+
 func main() {
-	os.MkdirAll(convDir, 0755)
-	os.MkdirAll("temp/handoff", 0755)
-	os.MkdirAll(filepath.Dir(sessionPath), 0755)
+	channelURL := envOr("CHANNEL_URL", "http://localhost:8765")
+	apiKey := envOr("CHANNEL_API_KEY", "test-key-001")
+	port := envOr("FLUJO_API_PORT", "8084")
+
+	if err := os.MkdirAll(convDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "no pude crear %s: %v\n", convDir, err)
+		os.Exit(1)
+	}
+
+	rulesPath := envOr("FLOW_RULES", "cmd/flujo_api/flow.rules.json")
+	rules, rerr := loadFlowRules(rulesPath)
+	if rerr != nil {
+		fmt.Fprintf(os.Stderr, "warn: no pude cargar %s: %v (continuamos sin reglas)\n", rulesPath, rerr)
+		rules = &FlowRules{Version: 1}
+	}
+
+	srv := &server{channel: adapter.New(channelURL, apiKey), rules: rules}
 
 	r := mux.NewRouter()
-
-	// Apply CORS globally
 	r.Use(corsMiddleware)
+	r.HandleFunc("/health", srv.health).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/frameworks", srv.listFrameworks).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations", srv.listConversations).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations", srv.createConversation).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations/{id}", srv.getConversation).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations/{id}", srv.deleteConversation).Methods("DELETE", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations/{id}/messages", srv.getMessages).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations/{id}/messages", srv.postMessage).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations/{id}/queue", srv.getQueue).Methods("GET", "OPTIONS")
 
-	r.HandleFunc("/health", healthHandler)
-
-	// Conversations
-	r.HandleFunc(apiBase+"/conversations", listConversations).Methods("GET")
-	r.HandleFunc(apiBase+"/conversations", createConversation).Methods("POST")
-	r.HandleFunc(apiBase+"/conversations/{id}", getConversation).Methods("GET")
-	r.HandleFunc(apiBase+"/conversations/{id}", deleteConversation).Methods("DELETE")
-
-	// Messages
-	r.HandleFunc(apiBase+"/conversations/{id}/messages", getMessages).Methods("GET")
-	r.HandleFunc(apiBase+"/conversations/{id}/messages", sendMessage).Methods("POST")
-
-	// Status
-	r.HandleFunc(apiBase+"/conversations/{id}/status", getStatus).Methods("GET")
-	r.HandleFunc(apiBase+"/echo/readiness", getEchoReadiness).Methods("GET")
-
-	// CORS preflight handler for all API routes
-	r.HandleFunc(apiBase+"/conversations", handleCORS).Methods("OPTIONS")
-	r.HandleFunc(apiBase+"/conversations/{id}", handleCORS).Methods("OPTIONS")
-	r.HandleFunc(apiBase+"/conversations/{id}/messages", handleCORS).Methods("OPTIONS")
-	r.HandleFunc(apiBase+"/conversations/{id}/status", handleCORS).Methods("OPTIONS")
-	r.HandleFunc(apiBase+"/echo/readiness", handleCORS).Methods("OPTIONS")
-
-	fmt.Printf("🚀 Flujo API en http://localhost%s%s\n", apiPort, apiBase)
-	fmt.Println("   Endpoints:")
-	fmt.Println("   GET  /health")
-	fmt.Println("   GET  /api/v1/conversations")
-	fmt.Println("   POST /api/v1/conversations")
-	fmt.Println("   GET  /api/v1/conversations/{id}")
-	fmt.Println("   DELETE /api/v1/conversations/{id}")
-	fmt.Println("   GET  /api/v1/conversations/{id}/messages")
-	fmt.Println("   POST /api/v1/conversations/{id}/messages")
-	fmt.Println("   GET  /api/v1/conversations/{id}/status")
-	fmt.Println("   GET  /api/v1/echo/readiness")
-
-	if err := http.ListenAndServe(apiPort, r); err != nil {
+	addr := ":" + port
+	fmt.Printf("Flujo API en http://localhost%s%s\n", addr, apiBase)
+	fmt.Printf("  Channel:        %s\n", channelURL)
+	fmt.Printf("  Frameworks:     %v\n", knownFrameworks())
+	fmt.Printf("  Reglas activas: %d (%s)\n", len(rules.Rules), rulesPath)
+	if err := http.ListenAndServe(addr, r); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers for all responses
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Max-Age", "86400")
-
-		// Handle preflight
-		if r.Method == "OPTIONS" {
+		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
-		// Set content type for all responses
 		w.Header().Set("Content-Type", "application/json")
 		next.ServeHTTP(w, r)
 	})
 }
 
-func handleCORS(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	w.Header().Set("Access-Control-Max-Age", "86400")
-	w.WriteHeader(http.StatusOK)
-}
-
-func writeJSON(w http.ResponseWriter, code int, data interface{}) {
+func writeJSON(w http.ResponseWriter, code int, body APIResponse) {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(body)
 }
 
-func writeError(w http.ResponseWriter, code int, msg string) {
-	writeJSON(w, code, APIResponse{Success: false, Error: msg})
-}
-
-func generateID() string {
-	return fmt.Sprintf("msg_%d", time.Now().UnixNano())
-}
-
-// Handlers
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: map[string]string{"status": "ok"}})
-}
-
-func listConversations(w http.ResponseWriter, r *http.Request) {
-	var convs []Conversation
-	entries, _ := os.ReadDir(convDir)
-	for _, e := range entries {
-		if c, err := loadConvMeta(e.Name()); err == nil {
-			convs = append(convs, *c)
-		}
-	}
-	if convs == nil {
-		convs = []Conversation{}
-	}
-	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: convs})
-}
-
-func createConversation(w http.ResponseWriter, r *http.Request) {
-	var req struct{ Title string }
-	json.NewDecoder(r.Body).Decode(&req)
-
-	convID := fmt.Sprintf("conv_%d", time.Now().UnixNano())
-	conv := &Conversation{
-		ID:        convID,
-		Title:     req.Title,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	saveConvMeta(conv)
-	saveMessages(convID, []Message{})
-
-	// Reset handoff state
-	handoff.Save(statePath, handoff.NewState())
-
-	// Clear Echo session for new conversation
-	os.RemoveAll("temp/sessions/echo")
-	os.MkdirAll("temp/sessions/echo", 0755)
-
-	// Iniciar Echo con prompt inicial (async)
-	go func() {
-		runEchoInit(convID)
-	}()
-
-	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: conv})
-}
-
-func getConversation(w http.ResponseWriter, r *http.Request) {
-	conv, err := loadConvMeta(mux.Vars(r)["id"])
-	if err != nil {
-		writeError(w, http.StatusNotFound, "conversación no encontrada")
-		return
-	}
-	msgs, _ := loadMessages(conv.ID)
-	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: map[string]interface{}{
-		"conversation": conv,
-		"messages":    msgs,
-	}})
-}
-
-func deleteConversation(w http.ResponseWriter, r *http.Request) {
-	id := mux.Vars(r)["id"]
-	if _, err := loadConvMeta(id); err != nil {
-		writeError(w, http.StatusNotFound, "conversación no encontrada")
-		return
-	}
-	os.RemoveAll(filepath.Join(convDir, id))
-	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: map[string]string{"deleted": id}})
-}
-
-func getMessages(w http.ResponseWriter, r *http.Request) {
-	convID := mux.Vars(r)["id"]
-	if _, err := loadConvMeta(convID); err != nil {
-		writeError(w, http.StatusNotFound, "conversación no encontrada")
-		return
-	}
-	msgs, _ := loadMessages(convID)
-	var visible []Message
-	for _, m := range msgs {
-		if m.Role == "user" || m.Role == "echo" {
-			visible = append(visible, m)
-		}
-	}
-	if visible == nil {
-		visible = []Message{}
-	}
-	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: visible})
-}
-
-func sendMessage(w http.ResponseWriter, r *http.Request) {
-	convID := mux.Vars(r)["id"]
-	if _, err := loadConvMeta(convID); err != nil {
-		writeError(w, http.StatusNotFound, "conversación no encontrada")
-		return
-	}
-
-	var req SendMessageRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "JSON inválido")
-		return
-	}
-	req.Content = strings.TrimSpace(req.Content)
-	if req.Content == "" {
-		writeError(w, http.StatusBadRequest, "mensaje vacío")
-		return
-	}
-
-	msgs, _ := loadMessages(convID)
-
-	// Agregar mensaje del usuario
-	userMsg := Message{
-		ID:        generateID(),
-		Role:      "user",
-		Content:   req.Content,
-		Timestamp: time.Now(),
-	}
-	msgs = append(msgs, userMsg)
-	saveMessages(convID, msgs)
-
-	// Procesar con Echo
-	echoResp, event := processWithEcho(req.Content, msgs, convID)
-
-	var echoMsg *Message
-	if echoResp != "" {
-		echoMsg = &Message{
-			ID:        generateID(),
-			Role:      "echo",
-			Content:   echoResp,
-			Event:     event,
-			Timestamp: time.Now(),
-		}
-		msgs = append(msgs, *echoMsg)
-		saveMessages(convID, msgs)
-	}
-
-	if echoMsg != nil {
-		writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: echoMsg})
-	} else {
-		writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: map[string]interface{}{
-			"message": userMsg, "handoff_event": event,
-		}})
-	}
-}
-
-func getStatus(w http.ResponseWriter, r *http.Request) {
-	_ = mux.Vars(r)["id"]
-	state, _ := handoff.Load(statePath)
-
-	cmd := exec.Command("/bin/zsh", "-lc", "cd /Users/alcless_a1234_cursor/remora-go/framework-echo && ./frameworkecho readiness")
-	out, _ := cmd.CombinedOutput()
-
-	data := map[string]interface{}{
-		"echo_status":    string(state.Roles[handoff.RoleEcho].Status),
-		"alfa_status":    string(state.Roles[handoff.RoleAlfa].Status),
-		"bravo_status":   string(state.Roles[handoff.RoleBravo].Status),
-		"ready_for_alfa": strings.Contains(string(out), "ready_for_alfa: true"),
-	}
-
-	if last, ok := state.LastEvent(); ok {
-		data["last_event"] = string(last.Type)
-		data["last_message"] = last.Message
-	}
-
+func writeOK(w http.ResponseWriter, data interface{}) {
 	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: data})
 }
 
-func getEchoReadiness(w http.ResponseWriter, r *http.Request) {
-	cmd := exec.Command("/bin/zsh", "-lc", "cd /Users/alcless_a1234_cursor/remora-go/framework-echo && ./frameworkecho readiness && ./frameworkecho show-tree")
-	out, _ := cmd.CombinedOutput()
-	writeJSON(w, http.StatusOK, APIResponse{Success: true, Data: map[string]string{"readiness": string(out)}})
+func writeErr(w http.ResponseWriter, code int, msg string) {
+	writeJSON(w, code, APIResponse{Success: false, Error: msg})
 }
 
-// Echo Processing
+// ---------------------------------------------------------------------------
+// Handlers
+// ---------------------------------------------------------------------------
 
-func runEchoInit(convID string) {
-	// Ejecutar comandos iniciales de Echo para verificar estado
-	cmd := exec.Command("/bin/zsh", "-lc",
-		"cd /Users/alcless_a1234_cursor/remora-go/framework-echo && ./frameworkecho status && ./frameworkecho show-tree && ./frameworkecho readiness && ./frameworkecho config")
-	out, _ := cmd.CombinedOutput()
-	fmt.Printf("[FlujoAPI] Echo init status:\n%s\n", string(out))
+func (s *server) health(w http.ResponseWriter, r *http.Request) {
+	writeOK(w, map[string]string{"status": "ok"})
+}
 
-	// Ejecutar reply con mensaje inicial para obtener respuesta de Echo
-	resp, err := callReplyCLI("(Inicio de conversación con nuevo usuario)")
+func (s *server) listFrameworks(w http.ResponseWriter, r *http.Request) {
+	type fwInfo struct {
+		Name         string   `json:"name"`
+		Provider     string   `json:"provider"`
+		Model        string   `json:"model"`
+		Capabilities []string `json:"capabilities"`
+		EnvKey       string   `json:"env_key"`
+		AskVia       string   `json:"ask_via,omitempty"`
+		Modes        []string `json:"modes,omitempty"`
+	}
+	out := []fwInfo{}
+	for name := range driverRegistry {
+		info := fwInfo{Name: name}
+		if m, err := loadFrameworkManifest(name); err == nil {
+			info.Provider = m.Model.Provider
+			info.Model = m.Model.Name
+			info.Capabilities = m.Model.Capabilities
+			info.EnvKey = m.Model.EnvKey
+			info.AskVia = m.UserInput.AskVia
+			info.Modes = m.UserInput.Modes
+		}
+		out = append(out, info)
+	}
+	writeOK(w, out)
+}
+
+func (s *server) listConversations(w http.ResponseWriter, r *http.Request) {
+	convs, err := listConvs()
 	if err != nil {
-		fmt.Printf("Error en Echo init: %v\n", err)
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeOK(w, convs)
+}
+
+type createConvRequest struct {
+	Title      string            `json:"title"`
+	Frameworks []string          `json:"frameworks"`
+	Models     map[string]string `json:"models,omitempty"`
+}
+
+func (s *server) createConversation(w http.ResponseWriter, r *http.Request) {
+	var req createConvRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+	if len(req.Frameworks) == 0 {
+		req.Frameworks = []string{"echo", "alfa"}
+	}
+	for _, fw := range req.Frameworks {
+		if _, ok := driverRegistry[fw]; !ok {
+			writeErr(w, http.StatusBadRequest, "framework desconocido: "+fw)
+			return
+		}
+	}
+
+	conv := &Conversation{
+		ID:         fmt.Sprintf("conv_%d", time.Now().UnixNano()),
+		Title:      req.Title,
+		Frameworks: req.Frameworks,
+		Models:     req.Models,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if err := saveConv(conv); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Actualizar handoff basándose en el output completo
-	updateHandoffState(resp)
+	// Cola por conversación, con frameworks declarados.
+	queue := handoff.NewQuestionsQueue(conv.Frameworks...)
+	if err := saveQueue(conv.ID, queue); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
-	// Guardar respuesta (ya viene parseada de callReplyCLI)
-	msgs, _ := loadMessages(convID)
-	echoMsg := Message{
-		ID:        generateID(),
-		Role:      "echo",
-		Content:   resp,
-		Event:     detectEvent(resp),
+	// Channel client con session id de la conv → JSONL automático en sessions/<id>.jsonl
+	ch := s.scoped(conv.ID)
+
+	// Init drivers
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+	for _, d := range driversFor(conv) {
+		if err := d.Init(ctx, ch, conv); err != nil {
+			fmt.Fprintf(os.Stderr, "[flujo_api] driver %s.Init error: %v\n", d.Name(), err)
+		}
+	}
+
+	// Pedir primera pregunta sin respuesta previa.
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, "", nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
+	}
+	first := initialFrameworkMessage(conv, q, ok)
+	if first != nil {
+		_ = appendMessage(conv.ID, *first)
+	}
+
+	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: map[string]interface{}{
+		"conversation":    conv,
+		"first_question":  first,
+	}})
+}
+
+func (s *server) getConversation(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	conv, err := loadConv(id)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "conversación no encontrada")
+		return
+	}
+	msgs, _ := loadMessages(id)
+	writeOK(w, map[string]interface{}{"conversation": conv, "messages": msgs})
+}
+
+func (s *server) deleteConversation(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if _, err := loadConv(id); err != nil {
+		writeErr(w, http.StatusNotFound, "conversación no encontrada")
+		return
+	}
+	if err := deleteConv(id); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeOK(w, map[string]string{"deleted": id})
+}
+
+func (s *server) getMessages(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if _, err := loadConv(id); err != nil {
+		writeErr(w, http.StatusNotFound, "conversación no encontrada")
+		return
+	}
+	msgs, _ := loadMessages(id)
+	writeOK(w, msgs)
+}
+
+type sendMessageRequest struct {
+	Content   string            `json:"content"`
+	Resources []MessageResource `json:"resources,omitempty"`
+}
+
+func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	conv, err := loadConv(id)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "conversación no encontrada")
+		return
+	}
+	var req sendMessageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "body inv\u00e1lido")
+		return
+	}
+	if req.Content == "" && len(req.Resources) == 0 {
+		writeErr(w, http.StatusBadRequest, "content o resources requerido")
+		return
+	}
+
+	// 1. Copiar recursos al directorio de la conversación para trazabilidad.
+	copiedResources, cerr := storeResources(conv.ID, req.Resources)
+	if cerr != nil {
+		writeErr(w, http.StatusBadRequest, cerr.Error())
+		return
+	}
+
+	// 2. Persistir mensaje del usuario
+	userMsg := Message{
+		ID:        generateMessageID(),
+		Role:      "user",
+		Content:   req.Content,
+		Resources: copiedResources,
 		Timestamp: time.Now(),
 	}
-	msgs = append(msgs, echoMsg)
-	saveMessages(convID, msgs)
+	if err := appendMessage(id, userMsg); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 
-	fmt.Printf("[FlujoAPI] Nueva conv %s: %s\n", convID, echoMsg.Content)
-}
+	conv.UserAnswerCount++
+	_ = saveConv(conv)
 
-func processWithEcho(message string, messages []Message, convID string) (string, string) {
-	// Usar callReplyCLI para mantener consistencia con el CLI de flujo
-	resp, err := callReplyCLI(message)
+	ch := s.scoped(conv.ID)
+	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
+	defer cancel()
+
+	// 3. Marcar la entrada del usuario en el JSONL de Channel.
+	_, _ = ch.ExecuteCommand(ctx, "echo", []string{"user_input:", req.Content, "resources:", fmt.Sprintf("%d", len(copiedResources))}, "")
+
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, req.Content, copiedResources)
 	if err != nil {
-		return "Error: " + err.Error(), "error"
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	// Actualizar handoff basándose en el output completo
-	updateHandoffState(resp)
+	if !ok {
+		// Sin más preguntas: la conversación quedó en idle.
+		writeOK(w, map[string]interface{}{
+			"user_message":     userMsg,
+			"framework_message": nil,
+			"idle":             true,
+		})
+		return
+	}
 
-	return resp, detectEvent(resp)
+	frameworkMsg := Message{
+		ID:         generateMessageID(),
+		Role:       "framework",
+		Framework:  q.Framework,
+		Content:    q.Text,
+		QuestionID: q.ID,
+		AskVia:     q.AskVia,
+		Timestamp:  time.Now(),
+	}
+	if err := appendMessage(id, frameworkMsg); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeOK(w, map[string]interface{}{
+		"user_message":      userMsg,
+		"framework_message": frameworkMsg,
+		"idle":              false,
+	})
 }
 
-func callReplyCLI(message string) (string, error) {
-	// Ejecutar el comando reply de flujo CLI para mantener consistencia
-	// Esto usa el mismo session path y system prompt que el CLI
-	args := []string{"run", "./cmd/flujo", "reply", message}
-	cmd := exec.Command("go", args...)
-	cmd.Dir = "/Users/alcless_a1234_cursor/remora-go/remora-flujo"
-
-	output, err := cmd.CombinedOutput()
+func (s *server) getQueue(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	if _, err := loadConv(id); err != nil {
+		writeErr(w, http.StatusNotFound, "conversación no encontrada")
+		return
+	}
+	q, err := loadQueue(id)
 	if err != nil {
-		return "", fmt.Errorf("error ejecutando reply: %v - %s", err, string(output))
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
 	}
-
-	return parseReplyOutput(string(output)), nil
+	writeOK(w, q)
 }
 
-func parseReplyOutput(output string) string {
-	// Mejorar el parseo para extraer solo lo visible al usuario
-	lines := strings.Split(output, "\n")
-	var echoContent []string
+// scoped devuelve un cliente Channel cuya SessionID = convID, así Channel
+// persiste automáticamente cada llamada en sessions/<convID>.jsonl.
+func (s *server) scoped(convID string) *adapter.Client {
+	c := adapter.New(s.channel.BaseURL, s.channel.APIKey)
+	c.SessionID = convID
+	return c
+}
 
-	// Primero buscar si hay un bloque Echo: explícito
-	echoStartIdx := -1
-	echoEndIdx := len(lines)
-	
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "Echo:") && echoStartIdx == -1 {
-			echoStartIdx = i
-		}
-		if echoStartIdx != -1 && echoEndIdx == len(lines) {
-			if strings.HasPrefix(trimmed, "[FLOW]") || strings.HasPrefix(trimmed, "[PALADIN]") {
-				echoEndIdx = i
-			}
-		}
-	}
-
-	// Extraer contenido del bloque Echo si existe
-	if echoStartIdx != -1 {
-		for i := echoStartIdx + 1; i < echoEndIdx; i++ {
-			trimmed := strings.TrimSpace(lines[i])
-			
-			// Saltar comandos del sistema
-			if strings.HasPrefix(trimmed, "go run ./cmd/flujo") ||
-				strings.HasPrefix(trimmed, "cd /Users") ||
-				strings.HasPrefix(trimmed, "./frameworkecho") ||
-				strings.HasPrefix(trimmed, "FUNC ") ||
-				strings.HasPrefix(trimmed, "START ") ||
-				strings.HasPrefix(trimmed, "END ") ||
-				strings.HasPrefix(trimmed, "DEC ") ||
-				strings.HasPrefix(trimmed, "VAR ") {
-				continue
-			}
-			
-			if trimmed != "" {
-				echoContent = append(echoContent, trimmed)
-			}
+// initialFrameworkMessage construye el primer Message del framework para una conv nueva.
+func initialFrameworkMessage(conv *Conversation, q handoff.QueuedQuestion, ok bool) *Message {
+	if !ok {
+		// Saludo genérico si ningún framework tiene pregunta inicial.
+		return &Message{
+			ID:        generateMessageID(),
+			Role:      "framework",
+			Framework: conv.Frameworks[0],
+			Content:   "Conversación iniciada. Cuéntame por qué proceso quieres empezar.",
+			Timestamp: time.Now(),
 		}
 	}
-
-	// Limpiar: remover líneas vacías al inicio y fin
-	for len(echoContent) > 0 && strings.TrimSpace(echoContent[0]) == "" {
-		echoContent = echoContent[1:]
-	}
-	for len(echoContent) > 0 && strings.TrimSpace(echoContent[len(echoContent)-1]) == "" {
-		echoContent = echoContent[:len(echoContent)-1]
-	}
-
-	if len(echoContent) > 0 {
-		return strings.TrimSpace(strings.Join(echoContent, "\n"))
-	}
-
-	// Fallback: buscar comando handoff con pregunta
-	return extractHandoffMessage(output)
-}
-
-func extractFallbackText(output string) string {
-	// Cuando no hay bloque Echo explícito, buscar respuestas significativas
-	lines := strings.Split(output, "\n")
-	var result []string
-
-	// Saltar líneas de sistema y logs
-	skipPatterns := []string{
-		"========================================",
-		"[FLOW]",
-		"[PALADIN]",
-		"Paladin Trace",
-		"modelo_activo:",
-		"modelo_razon:",
-		"go run ./cmd/flujo",
-		"./frameworkecho",
-		"START ",
-		"END ",
-		"DEC ",
-		"VAR ",
-		"FUNC ",
-		"Trace:",
-		"App:",
-	}
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		skip := false
-		for _, pattern := range skipPatterns {
-			if strings.HasPrefix(trimmed, pattern) {
-				skip = true
-				break
-			}
-		}
-		if !skip && trimmed != "" {
-			result = append(result, trimmed)
-		}
-	}
-
-	if len(result) == 0 {
-		return "(sin respuesta visible)"
-	}
-
-	// Devolver las últimas líneas significativas (típicamente la respuesta)
-	startIdx := 0
-	if len(result) > 5 {
-		startIdx = len(result) - 5
-	}
-	return strings.TrimSpace(strings.Join(result[startIdx:], "\n"))
-}
-
-func extractHandoffMessage(output string) string {
-	// Buscar el comando handoff y extraer la pregunta/mensaje
-	// Patrón: go run ./cmd/flujo done echo --event echo_waiting_user --message "pregunta"
-	re := regexp.MustCompile(`--message "([^"]+)"`)
-	matches := re.FindAllStringSubmatch(output, -1)
-
-	if len(matches) > 0 {
-		// Devolver el último mensaje (que es la respuesta actual de Echo)
-		return matches[len(matches)-1][1]
-	}
-
-	// Si no hay comando handoff, usar el fallback
-	return extractFallbackText(output)
-}
-
-func detectEvent(response string) string {
-	if strings.Contains(response, "echo_waiting_user") || strings.Contains(response, "?") {
-		return "echo_waiting_user"
-	}
-	if strings.Contains(response, "echo_ready_for_alfa") || strings.Contains(response, "ready_for_alfa") {
-		return "echo_ready_for_alfa"
-	}
-	if strings.Contains(response, "echo_user_answered") {
-		return "echo_user_answered"
-	}
-	return ""
-}
-
-func updateHandoffState(response string) {
-	// Parse commands from response
-	re := regexp.MustCompile(`go run \./cmd/flujo done echo --event (\w+) --message "([^"]*)"`)
-	matches := re.FindAllStringSubmatch(response, -1)
-
-	if len(matches) > 0 {
-		last := matches[len(matches)-1]
-		event := last[1]
-		message := last[2]
-
-		state, _ := handoff.Load(statePath)
-		evt, _ := handoff.ParseEvent(event)
-		state.Done(handoff.RoleEcho, evt, message)
-		handoff.Save(statePath, state)
-
-		fmt.Printf("[FlujoAPI] Handoff update: %s - %s\n", event, message)
+	return &Message{
+		ID:         generateMessageID(),
+		Role:       "framework",
+		Framework:  q.Framework,
+		Content:    q.Text,
+		QuestionID: q.ID,
+		AskVia:     q.AskVia,
+		Timestamp:  time.Now(),
 	}
 }
 
-// File helpers
-
-func loadConvMeta(id string) (*Conversation, error) {
-	metaPath := filepath.Join(convDir, id, "meta.json")
-	data, err := os.ReadFile(metaPath)
-	if err != nil {
-		return nil, err
+func knownFrameworks() []string {
+	out := make([]string, 0, len(driverRegistry))
+	for name := range driverRegistry {
+		out = append(out, name)
 	}
-	var conv Conversation
-	json.Unmarshal(data, &conv)
-	return &conv, nil
-}
-
-func loadMessages(convID string) ([]Message, error) {
-	msgsPath := filepath.Join(convDir, convID, "messages.json")
-	data, err := os.ReadFile(msgsPath)
-	if err != nil {
-		return []Message{}, nil
-	}
-	var msgs []Message
-	json.Unmarshal(data, &msgs)
-	return msgs, nil
-}
-
-func saveMessages(convID string, messages []Message) error {
-	convPath := filepath.Join(convDir, convID)
-	os.MkdirAll(convPath, 0755)
-
-	msgsData, _ := json.MarshalIndent(messages, "", "  ")
-	return os.WriteFile(filepath.Join(convPath, "messages.json"), msgsData, 0644)
-}
-
-func saveConvMeta(conv *Conversation) error {
-	convPath := filepath.Join(convDir, conv.ID)
-	os.MkdirAll(convPath, 0755)
-
-	metaData, _ := json.MarshalIndent(conv, "", "  ")
-	return os.WriteFile(filepath.Join(convPath, "meta.json"), metaData, 0644)
+	return out
 }

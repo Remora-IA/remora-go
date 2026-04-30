@@ -1,8 +1,8 @@
 {
-  "project_id": "project-001",
-  "client_name": "",
-  "date_started": "",
-  "current_max_layer": 4,
+  "project_id": "conv_1777511522670900000",
+  "client_name": "Final",
+  "date_started": "2026-04-29",
+  "current_max_layer": 3,
   "focus_nodes": [],
   "config": {
     "qa_log_enabled": false
@@ -12,80 +12,45 @@
       "id": "ax_001",
       "layer": 0,
       "type": "AXIOM",
-      "title": "Info transacciones en grupos de WhatsApp",
+      "title": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
       "evidence": [
-        "El usuario tiene información de transacciones en grupos de WhatsApp"
+        "Tengo planilla Excel para muebles, la actualizo a mano todos los dias."
       ],
       "status": "VALIDATED",
       "confidence": 100,
       "children_ids": [
         "th_001"
       ],
-      "created_at": "2026-04-26T03:02:21Z"
-    },
-    "ax_002": {
-      "id": "ax_002",
-      "layer": 0,
-      "type": "AXIOM",
-      "title": "Demo: Echo corre vía Channel",
-      "evidence": [
-        "El runner llamó a Channel y Channel ejecutó el CLI de Echo"
-      ],
-      "status": "VALIDATED",
-      "confidence": 100,
-      "created_at": "2026-04-29T23:08:38Z"
-    },
-    "op_001": {
-      "id": "op_001",
-      "layer": 4,
-      "type": "OPPORTUNITY",
-      "title": "Parser automático WhatsApp → Excel",
-      "evidence": [
-        "Eliminaría la copia manual diaria"
-      ],
-      "status": "VALIDATED",
-      "confidence": 95,
-      "parent_id": "pn_001",
-      "questions_to_ask": [
-        "Para la oportunidad 'Parser automático WhatsApp → Excel': ¿qué dolor confirmado resuelve exactamente?",
-        "¿Qué tendría que ser cierto para que 'Parser automático WhatsApp → Excel' encaje en la forma actual de trabajar?",
-        "¿Qué señales indicarían que 'Parser automático WhatsApp → Excel' obligaría al usuario a adaptarse demasiado?"
-      ],
-      "validation_answer": "Sí, esa es la solución que busco",
-      "created_at": "2026-04-29T23:09:46Z",
-      "validated_at": "2026-04-29T23:09:46Z"
+      "created_at": "2026-04-30T01:12:03Z"
     },
     "pn_001": {
       "id": "pn_001",
       "layer": 3,
       "type": "PAIN",
-      "title": "Pierdo 1 hora al día copiando movimientos",
+      "title": "Pierdo casi 1 hora cada dia y se me pasan filas.",
       "evidence": [
-        "60 minutos diarios duplicando datos"
+        "Pierdo casi 1 hora cada dia y se me pasan filas."
       ],
       "status": "VALIDATED",
       "confidence": 95,
       "parent_id": "tk_001",
-      "children_ids": [
-        "op_001"
-      ],
       "questions_to_ask": [
-        "Sobre el problema 'Pierdo 1 hora al día copiando movimientos': ¿con qué frecuencia ocurre?",
-        "¿Qué impacto concreto tiene 'Pierdo 1 hora al día copiando movimientos' en su trabajo diario?",
-        "¿Qué hace hoy para convivir con 'Pierdo 1 hora al día copiando movimientos'?",
-        "Si 'Pierdo 1 hora al día copiando movimientos' desapareciera mañana, ¿qué cambiaría primero?"
+        "Sobre el problema 'Pierdo casi 1 hora cada dia y se me pasan filas.': ¿con qué frecuencia ocurre?",
+        "¿Qué impacto concreto tiene 'Pierdo casi 1 hora cada dia y se me pasan filas.' en su trabajo diario?",
+        "¿Qué hace hoy para convivir con 'Pierdo casi 1 hora cada dia y se me pasan filas.'?",
+        "Si 'Pierdo casi 1 hora cada dia y se me pasan filas.' desapareciera mañana, ¿qué cambiaría primero?"
       ],
-      "validation_answer": "Sí, es lo más doloroso",
-      "created_at": "2026-04-29T23:09:46Z",
-      "validated_at": "2026-04-29T23:09:46Z"
+      "validation_answer": "Pierdo casi 1 hora cada dia y se me pasan filas.",
+      "created_at": "2026-04-30T01:12:03Z",
+      "validated_at": "2026-04-30T01:12:03Z"
     },
     "th_001": {
       "id": "th_001",
       "layer": 1,
       "type": "THEORY",
-      "title": "Pasar info de transacciones de WhatsApp a Excel",
+      "title": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
       "evidence": [
-        "El usuario quiere pasar info de transacciones de WhatsApp a Excel"
+        "Tengo planilla Excel para muebles, la actualizo a mano todos los dias."
       ],
       "status": "VALIDATED",
       "confidence": 95,
@@ -94,21 +59,21 @@
         "tk_001"
       ],
       "questions_to_ask": [
-        "Respecto a 'Pasar info de transacciones de WhatsApp a Excel': ¿esto calza con lo que pasa realmente?",
-        "¿Qué parte de 'Pasar info de transacciones de WhatsApp a Excel' se repite y qué parte cambia caso a caso?",
-        "¿Qué tendría que pasar para que 'Pasar info de transacciones de WhatsApp a Excel' deje de ser cierto?"
+        "Respecto a 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.': ¿esto calza con lo que pasa realmente?",
+        "¿Qué parte de 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' se repite y qué parte cambia caso a caso?",
+        "¿Qué tendría que pasar para que 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' deje de ser cierto?"
       ],
-      "validation_answer": "Sí, ese es el flujo",
-      "created_at": "2026-04-26T03:02:22Z",
-      "validated_at": "2026-04-29T23:09:46Z"
+      "validation_answer": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
+      "created_at": "2026-04-30T01:12:03Z",
+      "validated_at": "2026-04-30T01:12:03Z"
     },
     "tk_001": {
       "id": "tk_001",
       "layer": 2,
       "type": "TASK",
-      "title": "Copiar manualmente cada transacción de WhatsApp a Excel",
+      "title": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
       "evidence": [
-        "Usuario lo hace 3 veces al día"
+        "Tengo planilla Excel para muebles, la actualizo a mano todos los dias."
       ],
       "status": "VALIDATED",
       "confidence": 95,
@@ -117,15 +82,15 @@
         "pn_001"
       ],
       "questions_to_ask": [
-        "Para la tarea 'Copiar manualmente cada transacción de WhatsApp a Excel': ¿cuánto tiempo le toma realizarla?",
-        "¿Con qué frecuencia realiza 'Copiar manualmente cada transacción de WhatsApp a Excel'? (diario/semanal/mensual)",
-        "Cuando hace 'Copiar manualmente cada transacción de WhatsApp a Excel', ¿qué parte le sale fluida y qué parte se siente pesada?",
-        "¿Qué información necesita tener a mano para 'Copiar manualmente cada transacción de WhatsApp a Excel' y dónde la busca hoy?",
-        "¿Qué pasa cuando 'Copiar manualmente cada transacción de WhatsApp a Excel' se retrasa o sale mal?"
+        "Para la tarea 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.': ¿cuánto tiempo le toma realizarla?",
+        "¿Con qué frecuencia realiza 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.'? (diario/semanal/mensual)",
+        "Cuando hace 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.', ¿qué parte le sale fluida y qué parte se siente pesada?",
+        "¿Qué información necesita tener a mano para 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' y dónde la busca hoy?",
+        "¿Qué pasa cuando 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' se retrasa o sale mal?"
       ],
-      "validation_answer": "Sí, lo hago así",
-      "created_at": "2026-04-29T23:09:46Z",
-      "validated_at": "2026-04-29T23:09:46Z"
+      "validation_answer": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
+      "created_at": "2026-04-30T01:12:03Z",
+      "validated_at": "2026-04-30T01:12:03Z"
     }
   }
 }

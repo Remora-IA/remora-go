@@ -26,10 +26,16 @@ func NewHandler(baseDir string, apiKeys []string) *Handler {
 		keyMap[k] = true
 	}
 	absBase, _ := filepath.Abs(baseDir)
+	timeout := 30 * time.Second // Axioma 5
+	if v := os.Getenv("CHANNEL_EXEC_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			timeout = d
+		}
+	}
 	return &Handler{
 		BaseDir: absBase,
 		APIKeys: keyMap,
-		Timeout:  30 * time.Second, // Axioma 5
+		Timeout:  timeout,
 		Sessions: NewSessionLogger(absBase),
 	}
 }

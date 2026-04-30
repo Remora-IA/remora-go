@@ -47,11 +47,32 @@
       "args": ["export-bravo", "--spec", "{outputs.alfa_spec}", "--out", "{outputs.ideal_flow}", "--allow-draft={params.allow_draft}"],
       "params": ["allow_draft"],
       "defaults": { "allow_draft": "true" }
+    },
+    "next-question": {
+      "args": ["next-question", "--spec", "{outputs.alfa_spec}", "--echo-tree", "{inputs.echo_tree}"]
+    },
+    "ingest-answer": {
+      "args": ["ingest-answer", "--spec", "{outputs.alfa_spec}", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"]
     }
   },
   "asks_human": {
     "via": "open_questions_field",
     "path": "{outputs.alfa_spec}.open_questions",
     "description": "Si Alfa necesita info, escribe preguntas en open_questions[] para que Echo se las haga al humano"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "echo",
+    "modes": ["short_answer", "resource_upload"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "multimodal"],
+    "base_url": "https://api.groq.com/openai/v1/chat/completions"
   }
 }

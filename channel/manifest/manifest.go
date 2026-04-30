@@ -21,6 +21,46 @@ type Manifest struct {
 	Outputs     []IOPort           `json:"outputs"`
 	Commands    map[string]Command `json:"commands"`
 	AsksHuman   AsksHuman          `json:"asks_human"`
+	UserInput   UserInputSpec      `json:"user_input"`
+	Model       ModelSpec          `json:"model"`
+}
+
+// ModelSpec declara qué modelo de IA usa el framework cuando el orquestador
+// le pre-procesa input no-textual (imágenes, audio, etc) o post-procesa una
+// respuesta. El framework en sí mismo NO llama al modelo: lo hace la API.
+//
+// Capabilities:
+//   - "text"        modelo de texto plano (default)
+//   - "multimodal"  acepta imágenes en input
+//   - "vision"      especializado en visión
+//
+// EnvKey: nombre de la variable de entorno donde la API toma el API key.
+type ModelSpec struct {
+	Provider     string   `json:"provider"`     // "groq", "minimax", "openai", ...
+	Name         string   `json:"name"`         // p.ej "meta-llama/llama-4-scout-17b-16e-instruct"
+	EnvKey       string   `json:"env_key"`      // p.ej "GROQ_API_KEY"
+	Capabilities []string `json:"capabilities"` // ["text"], ["text","multimodal"]
+	BaseURL      string   `json:"base_url,omitempty"`
+}
+
+// UserInputSpec declara cómo el framework interactúa con el usuario humano.
+// Es la pieza estandarizada que la API REST consume para decidir cómo enrutar
+// preguntas y respuestas. Si Supported=false el framework no necesita input
+// directo del usuario (ej: un compilador puro).
+type UserInputSpec struct {
+	Supported bool     `json:"supported"`
+	// AskVia "" = pregunta directa al usuario; "echo" = otro framework
+	// (típicamente echo) reformula la pregunta antes de mostrarla.
+	AskVia    string   `json:"ask_via,omitempty"`
+	// Modes: tipos de input aceptados, ej "short_answer", "resource_upload".
+	Modes     []string `json:"modes,omitempty"`
+	// NextQuestionCmd: nombre del comando declarado en Commands que devuelve
+	// la próxima pregunta pendiente. Convención: stdout es JSON
+	//   {"id":"...","text":"...","ask_via":""}  (vacío si no hay pregunta).
+	NextQuestionCmd string `json:"next_question_cmd,omitempty"`
+	// IngestAnswerCmd: comando que recibe la respuesta del usuario.
+	// Convención: acepta --question-id y --answer.
+	IngestAnswerCmd string `json:"ingest_answer_cmd,omitempty"`
 }
 
 // BuildSpec dice cómo compilar el framework.

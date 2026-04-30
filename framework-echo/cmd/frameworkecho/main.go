@@ -62,6 +62,10 @@ func main() {
 		cmdSelectedOpportunities()
 	case "readiness":
 		cmdReadiness()
+	case "next-question":
+		cmdNextQuestion()
+	case "ingest-answer":
+		cmdIngestAnswer()
 	case "edit":
 		cmdEdit()
 	case "help":

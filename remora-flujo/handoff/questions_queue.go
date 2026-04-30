@@ -8,42 +8,68 @@ import (
 	"time"
 )
 
+// QuestionsQueue es la cola estándar de preguntas pendientes para el usuario.
+// Es agnóstica al framework: cualquier framework declarado en Frameworks puede
+// encolar preguntas. La API REST consume esta cola para mostrarle UNA pregunta
+// a la vez al usuario y enrutar su respuesta de vuelta al framework dueño.
+//
+// Nota: las helpers AddAlfaQuestion / AddEchoQuestion / GetNextAlfaQuestion /
+// GetNextEchoQuestion / MarkQuestionAnswered(speaker, ...) / HasPendingQuestions /
+// PendingCount / AskQuestion(speaker, ...) se mantienen para compatibilidad con
+// el CLI `flujo` (cmd/flujo). Internamente delegan al modelo nuevo.
 type QuestionsQueue struct {
-	CurrentSpeaker string           `json:"current_speaker"` // "echo" | "alfa"
-	AlfaQuestions  []QueuedQuestion `json:"alfa_questions"`
-	EchoQuestions  []QueuedQuestion `json:"echo_questions"`
+	Frameworks     []string         `json:"frameworks"`
+	CurrentSpeaker string           `json:"current_speaker"`
+	Questions      []QueuedQuestion `json:"questions"`
 	CreatedAt      time.Time        `json:"created_at"`
 	UpdatedAt      time.Time        `json:"updated_at"`
+
+	// Legacy: persistido por versiones anteriores. Se migra en Load y se vacía al guardar.
+	LegacyAlfa []QueuedQuestion `json:"alfa_questions,omitempty"`
+	LegacyEcho []QueuedQuestion `json:"echo_questions,omitempty"`
 }
 
+// QueuedQuestion es una pregunta de un framework hacia el usuario.
 type QueuedQuestion struct {
-	ID            string    `json:"id"`
-	Text          string    `json:"text"`
-	Status        string    `json:"status"` // "pending" | "answered"
-	AskedAt       time.Time `json:"asked_at,omitempty"`
-	AnsweredAt    time.Time `json:"answered_at,omitempty"`
-	AnswerPreview string    `json:"answer_preview,omitempty"`
+	ID         string    `json:"id"`
+	Framework  string    `json:"framework"`              // "echo", "alfa", "whatsapp", ...
+	ExternalID string    `json:"external_id,omitempty"`  // ID nativo del framework, ej "th_001", "oq_001"
+	Text       string    `json:"text"`
+	AskVia     string    `json:"ask_via,omitempty"`      // "" = directa | "echo" = reformula vía Echo
+	Status     string    `json:"status"`                 // pending | asked | answered
+	Answer     string    `json:"answer,omitempty"`
+	AskedAt    time.Time `json:"asked_at,omitempty"`
+	AnsweredAt time.Time `json:"answered_at,omitempty"`
 }
 
+// Estados y nombres canónicos.
 const (
 	SpeakerEcho      = "echo"
 	SpeakerAlfa      = "alfa"
 	QuestionPending  = "pending"
+	QuestionAsked    = "asked"
 	QuestionAnswered = "answered"
 )
 
 var defaultQueuePath = "temp/questions_queue.json"
 
-func NewQuestionsQueue() *QuestionsQueue {
+// NewQuestionsQueue crea una cola vacía con los frameworks activos declarados.
+// Si no se pasan frameworks, asume el flujo histórico ["echo","alfa"].
+func NewQuestionsQueue(frameworks ...string) *QuestionsQueue {
+	if len(frameworks) == 0 {
+		frameworks = []string{SpeakerEcho, SpeakerAlfa}
+	}
 	return &QuestionsQueue{
-		CurrentSpeaker: SpeakerEcho,
-		AlfaQuestions:  []QueuedQuestion{},
-		EchoQuestions:  []QueuedQuestion{},
+		Frameworks:     append([]string(nil), frameworks...),
+		CurrentSpeaker: frameworks[0],
+		Questions:      []QueuedQuestion{},
 		CreatedAt:      time.Now(),
 		UpdatedAt:      time.Now(),
 	}
 }
 
+// LoadQuestionsQueue lee la cola desde disco. Si el archivo no existe devuelve
+// una cola vacía (no error). Migra silenciosamente el formato legacy.
 func LoadQuestionsQueue(path string) (*QuestionsQueue, error) {
 	if path == "" {
 		path = defaultQueuePath
@@ -59,9 +85,20 @@ func LoadQuestionsQueue(path string) (*QuestionsQueue, error) {
 	if err := json.Unmarshal(data, &q); err != nil {
 		return nil, err
 	}
+	q.migrateLegacy()
+	if len(q.Frameworks) == 0 {
+		q.Frameworks = []string{SpeakerEcho, SpeakerAlfa}
+	}
+	if q.CurrentSpeaker == "" {
+		q.CurrentSpeaker = q.Frameworks[0]
+	}
+	if q.Questions == nil {
+		q.Questions = []QueuedQuestion{}
+	}
 	return &q, nil
 }
 
+// SaveQuestionsQueue persiste la cola en disco creando el directorio si falta.
 func SaveQuestionsQueue(path string, q *QuestionsQueue) error {
 	if path == "" {
 		path = defaultQueuePath
@@ -70,6 +107,8 @@ func SaveQuestionsQueue(path string, q *QuestionsQueue) error {
 		return err
 	}
 	q.UpdatedAt = time.Now()
+	q.LegacyAlfa = nil
+	q.LegacyEcho = nil
 	data, err := json.MarshalIndent(q, "", "  ")
 	if err != nil {
 		return err
@@ -77,134 +116,201 @@ func SaveQuestionsQueue(path string, q *QuestionsQueue) error {
 	return os.WriteFile(path, append(data, '\n'), 0644)
 }
 
-// GetNextAlfaQuestion returns the first pending Alfa question, or false if none
-func (q *QuestionsQueue) GetNextAlfaQuestion() (QueuedQuestion, bool) {
-	for _, qq := range q.AlfaQuestions {
-		if qq.Status == QuestionPending {
-			return qq, true
-		}
-	}
-	return QueuedQuestion{}, false
-}
-
-// GetNextEchoQuestion returns the first pending Echo question, or false if none
-func (q *QuestionsQueue) GetNextEchoQuestion() (QueuedQuestion, bool) {
-	for _, qq := range q.EchoQuestions {
-		if qq.Status == QuestionPending {
-			return qq, true
-		}
-	}
-	return QueuedQuestion{}, false
-}
-
-// GetCurrentQuestion returns the question for whoever has the speaker
-func (q *QuestionsQueue) GetCurrentQuestion() (QueuedQuestion, string, bool) {
-	if q.CurrentSpeaker == SpeakerAlfa {
-		qq, ok := q.GetNextAlfaQuestion()
-		return qq, SpeakerAlfa, ok
-	}
-	qq, ok := q.GetNextEchoQuestion()
-	return qq, SpeakerEcho, ok
-}
-
-// AddAlfaQuestion adds a question to Alfa's queue
-func (q *QuestionsQueue) AddAlfaQuestion(text string) {
-	id := generateQuestionID("a", len(q.AlfaQuestions)+1)
-	q.AlfaQuestions = append(q.AlfaQuestions, QueuedQuestion{
-		ID:     id,
-		Text:   text,
-		Status: QuestionPending,
-	})
-}
-
-// AddEchoQuestion adds a question to Echo's queue
-func (q *QuestionsQueue) AddEchoQuestion(text string) {
-	id := generateQuestionID("e", len(q.EchoQuestions)+1)
-	q.EchoQuestions = append(q.EchoQuestions, QueuedQuestion{
-		ID:     id,
-		Text:   text,
-		Status: QuestionPending,
-	})
-}
-
-// MarkQuestionAnswered marks a question as answered
-func (q *QuestionsQueue) MarkQuestionAnswered(speaker string, questionID string, preview string) {
-	if speaker == SpeakerEcho {
-		for i := range q.EchoQuestions {
-			if q.EchoQuestions[i].ID == questionID {
-				q.EchoQuestions[i].Status = QuestionAnswered
-				q.EchoQuestions[i].AnsweredAt = time.Now()
-				q.EchoQuestions[i].AnswerPreview = preview
-				break
-			}
-		}
+// migrateLegacy convierte los slices alfa_questions/echo_questions del formato
+// anterior al slice unificado Questions.
+func (q *QuestionsQueue) migrateLegacy() {
+	if len(q.LegacyAlfa) == 0 && len(q.LegacyEcho) == 0 {
 		return
 	}
+	for _, qq := range q.LegacyEcho {
+		if qq.Framework == "" {
+			qq.Framework = SpeakerEcho
+		}
+		q.Questions = append(q.Questions, qq)
+	}
+	for _, qq := range q.LegacyAlfa {
+		if qq.Framework == "" {
+			qq.Framework = SpeakerAlfa
+		}
+		q.Questions = append(q.Questions, qq)
+	}
+	q.LegacyAlfa = nil
+	q.LegacyEcho = nil
+}
 
-	for i := range q.AlfaQuestions {
-		if q.AlfaQuestions[i].ID == questionID {
-			q.AlfaQuestions[i].Status = QuestionAnswered
-			q.AlfaQuestions[i].AnsweredAt = time.Now()
-			q.AlfaQuestions[i].AnswerPreview = preview
-			break
+// AddQuestion encola una pregunta nueva del framework indicado y devuelve su
+// ID interno de cola. externalID es opcional: si está set, se persiste para
+// que el driver dueño pueda mapear de vuelta al ID nativo del framework.
+func (q *QuestionsQueue) AddQuestion(framework, externalID, text, askVia string) string {
+	if framework == "" {
+		framework = q.CurrentSpeaker
+	}
+	id := generateQuestionID(framework, q.nextSeq(framework))
+	q.Questions = append(q.Questions, QueuedQuestion{
+		ID:         id,
+		Framework:  framework,
+		ExternalID: externalID,
+		Text:       text,
+		AskVia:     askVia,
+		Status:     QuestionPending,
+	})
+	return id
+}
+
+// GetNextPending devuelve la primera pregunta pendiente (FIFO global).
+func (q *QuestionsQueue) GetNextPending() (QueuedQuestion, bool) {
+	for _, qq := range q.Questions {
+		if qq.Status == QuestionPending {
+			return qq, true
 		}
 	}
+	return QueuedQuestion{}, false
 }
 
-// SetSpeaker changes who has the speaking turn
-func (q *QuestionsQueue) SetSpeaker(speaker string) {
-	q.CurrentSpeaker = speaker
-}
-
-// HasPendingQuestions checks if there are pending questions for a speaker
-func (q *QuestionsQueue) HasPendingQuestions(speaker string) bool {
-	if speaker == SpeakerAlfa {
-		_, ok := q.GetNextAlfaQuestion()
-		return ok
+// GetNextPendingFor devuelve la primera pregunta pendiente del framework dado.
+func (q *QuestionsQueue) GetNextPendingFor(framework string) (QueuedQuestion, bool) {
+	for _, qq := range q.Questions {
+		if qq.Status == QuestionPending && qq.Framework == framework {
+			return qq, true
+		}
 	}
-	_, ok := q.GetNextEchoQuestion()
+	return QueuedQuestion{}, false
+}
+
+// MarkAnswered marca por ID una pregunta como respondida.
+func (q *QuestionsQueue) MarkAnswered(questionID, answer string) bool {
+	for i := range q.Questions {
+		if q.Questions[i].ID == questionID {
+			q.Questions[i].Status = QuestionAnswered
+			q.Questions[i].Answer = answer
+			q.Questions[i].AnsweredAt = time.Now()
+			return true
+		}
+	}
+	return false
+}
+
+// MarkAsked marca una pregunta como ya formulada al usuario (sin respuesta aún).
+func (q *QuestionsQueue) MarkAsked(questionID string) bool {
+	for i := range q.Questions {
+		if q.Questions[i].ID == questionID {
+			if q.Questions[i].Status == QuestionPending {
+				q.Questions[i].Status = QuestionAsked
+			}
+			q.Questions[i].AskedAt = time.Now()
+			return true
+		}
+	}
+	return false
+}
+
+// HasPending indica si hay alguna pregunta pendiente sin importar framework.
+func (q *QuestionsQueue) HasPending() bool {
+	_, ok := q.GetNextPending()
 	return ok
 }
 
-// PendingCount returns how many questions are pending for a speaker
-func (q *QuestionsQueue) PendingCount(speaker string) int {
+// HasPendingFor indica si el framework dado tiene preguntas pendientes.
+func (q *QuestionsQueue) HasPendingFor(framework string) bool {
+	_, ok := q.GetNextPendingFor(framework)
+	return ok
+}
+
+// PendingCountFor cuenta preguntas pendientes para un framework.
+func (q *QuestionsQueue) PendingCountFor(framework string) int {
 	count := 0
-	questions := q.AlfaQuestions
-	if speaker == SpeakerEcho {
-		questions = q.EchoQuestions
-	}
-	for _, qq := range questions {
-		if qq.Status == QuestionPending {
+	for _, qq := range q.Questions {
+		if qq.Status == QuestionPending && qq.Framework == framework {
 			count++
 		}
 	}
 	return count
 }
 
-// AskQuestion marks a question as asked (user was prompted)
-func (q *QuestionsQueue) AskQuestion(speaker string, questionID string) {
-	if speaker == SpeakerEcho {
-		for i := range q.EchoQuestions {
-			if q.EchoQuestions[i].ID == questionID {
-				q.EchoQuestions[i].AskedAt = time.Now()
-				break
-			}
-		}
-		return
-	}
-
-	for i := range q.AlfaQuestions {
-		if q.AlfaQuestions[i].ID == questionID {
-			q.AlfaQuestions[i].AskedAt = time.Now()
-			break
-		}
-	}
+// SetSpeaker cambia el framework con la palabra.
+func (q *QuestionsQueue) SetSpeaker(framework string) {
+	q.CurrentSpeaker = framework
 }
 
-func generateQuestionID(prefix string, num int) string {
-	return prefix + "_" + fmt.Sprintf("%03d", num)
+// GetCurrentQuestion devuelve la próxima pregunta para quien tenga la palabra.
+// Devuelve también el framework por conveniencia.
+func (q *QuestionsQueue) GetCurrentQuestion() (QueuedQuestion, string, bool) {
+	if q.CurrentSpeaker == "" {
+		qq, ok := q.GetNextPending()
+		return qq, qq.Framework, ok
+	}
+	qq, ok := q.GetNextPendingFor(q.CurrentSpeaker)
+	if ok {
+		return qq, q.CurrentSpeaker, true
+	}
+	// Fallback: cualquier pendiente.
+	qq, ok = q.GetNextPending()
+	return qq, qq.Framework, ok
 }
 
-func init() {
-	// placeholder
+func (q *QuestionsQueue) nextSeq(framework string) int {
+	count := 0
+	for _, qq := range q.Questions {
+		if qq.Framework == framework {
+			count++
+		}
+	}
+	return count + 1
+}
+
+func generateQuestionID(framework string, num int) string {
+	prefix := framework
+	if len(prefix) > 4 {
+		prefix = prefix[:4]
+	}
+	if prefix == "" {
+		prefix = "q"
+	}
+	return fmt.Sprintf("%s_%03d", prefix, num)
+}
+
+// ---------------------------------------------------------------------------
+// Helpers de compatibilidad con el CLI `flujo` (cmd/flujo). NO usar en código
+// nuevo: prefiere AddQuestion / GetNextPendingFor / MarkAnswered.
+// ---------------------------------------------------------------------------
+
+// AddAlfaQuestion: legacy. Equivale a AddQuestion("alfa", "", text, "").
+func (q *QuestionsQueue) AddAlfaQuestion(text string) {
+	q.AddQuestion(SpeakerAlfa, "", text, "")
+}
+
+// AddEchoQuestion: legacy. Equivale a AddQuestion("echo", "", text, "").
+func (q *QuestionsQueue) AddEchoQuestion(text string) {
+	q.AddQuestion(SpeakerEcho, "", text, "")
+}
+
+// GetNextAlfaQuestion: legacy.
+func (q *QuestionsQueue) GetNextAlfaQuestion() (QueuedQuestion, bool) {
+	return q.GetNextPendingFor(SpeakerAlfa)
+}
+
+// GetNextEchoQuestion: legacy.
+func (q *QuestionsQueue) GetNextEchoQuestion() (QueuedQuestion, bool) {
+	return q.GetNextPendingFor(SpeakerEcho)
+}
+
+// MarkQuestionAnswered: legacy. El parámetro speaker se ignora porque el ID es
+// único; se mantiene la firma para no romper callers.
+func (q *QuestionsQueue) MarkQuestionAnswered(_ string, questionID string, preview string) {
+	q.MarkAnswered(questionID, preview)
+}
+
+// HasPendingQuestions: legacy.
+func (q *QuestionsQueue) HasPendingQuestions(speaker string) bool {
+	return q.HasPendingFor(speaker)
+}
+
+// PendingCount: legacy.
+func (q *QuestionsQueue) PendingCount(speaker string) int {
+	return q.PendingCountFor(speaker)
+}
+
+// AskQuestion: legacy. Marca como asked.
+func (q *QuestionsQueue) AskQuestion(_ string, questionID string) {
+	q.MarkAsked(questionID)
 }
