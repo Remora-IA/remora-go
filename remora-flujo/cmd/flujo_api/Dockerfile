@@ -34,9 +34,11 @@ COPY framework-sabio/framework.manifest.json /workspace/framework-sabio/framewor
 COPY framework-indexa/framework.manifest.json /workspace/framework-indexa/framework.manifest.json
 COPY framework-echo /workspace/framework-echo
 COPY framework-alfa /workspace/framework-alfa
+COPY framework-foco /workspace/framework-foco
+COPY profiles /workspace/profiles
 COPY remora-flujo/cmd/flujo_api/entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh /channel /flujo_api /workspace/framework-indexa/frameworkindexa /workspace/framework-sabio/frameworksabio && mkdir -p /workspace /sessions /conversations /frameworks
+RUN chmod +x /entrypoint.sh /channel /flujo_api /workspace/framework-indexa/frameworkindexa /workspace/framework-sabio/frameworksabio /workspace/framework-foco/foco && mkdir -p /workspace /sessions /conversations /frameworks /temp/foco /temp/mecanico
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]
