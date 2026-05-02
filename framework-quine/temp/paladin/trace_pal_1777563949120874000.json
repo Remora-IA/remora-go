@@ -1,0 +1,20 @@
+{
+  "trace_id": "pal_1777563949120874000",
+  "version": "1.0",
+  "generated": "2026-04-30T11:45:49-04:00",
+  "status": "running",
+  "snapshot_reason": "var updated: use.framework",
+  "total_duration_ms": 0,
+  "total_spans": 1,
+  "total_errors": 0,
+  "root": {
+    "name": "use",
+    "file": "main.go",
+    "line": 701,
+    "start_ns": 1777563949120874000,
+    "duration_ms": 0,
+    "vars": {
+      "framework": "framework-foco"
+    }
+  }
+}

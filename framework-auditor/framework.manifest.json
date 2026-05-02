@@ -1,0 +1,93 @@
+{
+  "name": "auditor",
+  "version": "0.1.0",
+  "description": "Auditor proactivo de ERP. Lee un dataset JSON, corre checks deterministas (integridad referencial, campos requeridos, fechas y valores inválidos, datos huérfanos) y emite findings accionables consumibles por framework-mecanico.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkauditor", "./cmd/frameworkauditor"]
+  },
+  "binary": {
+    "command": "./frameworkauditor",
+    "args_prefix": []
+  },
+  "cwd": "framework-auditor",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "inputs": [
+    {
+      "name": "dataset",
+      "format": "external.api.dump.v1",
+      "path": "data/dataset.working.json",
+      "required": true,
+      "description": "Copia mutable del dump del ERP. Se restaura con `reset` desde dataset.golden.json"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "findings",
+      "format": "auditor.findings.v1",
+      "path": "data/findings.json",
+      "description": "Lista de hallazgos detectados en el último scan"
+    }
+  ],
+  "commands": {
+    "reset": {
+      "description": "Restaura dataset.working.json desde dataset.golden.json y limpia findings",
+      "args": ["reset"],
+      "params": []
+    },
+    "scan": {
+      "description": "Corre todos los checks sobre el dataset y persiste findings.json",
+      "args": ["scan"],
+      "params": []
+    },
+    "list": {
+      "description": "Imprime la lista de findings (texto plano)",
+      "args": ["list"],
+      "params": []
+    },
+    "detail": {
+      "description": "Imprime el detalle de un finding por id",
+      "args": ["detail", "--id", "{params.id}"],
+      "params": ["id"]
+    },
+    "next-question": {
+      "description": "Devuelve el próximo mensaje del auditor para el user",
+      "args": ["next-question"],
+      "params": []
+    },
+    "ingest-answer": {
+      "description": "Recibe respuesta del user y avanza el flujo",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"]
+    }
+  },
+  "asks_human": {
+    "via": "user",
+    "path": "next-question",
+    "description": "El auditor habla primero al usuario reportando los hallazgos"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "minimax",
+    "name": "MiniMax-M2.7",
+    "env_key": "MINIMAX_API_KEY",
+    "capabilities": ["text"]
+  },
+  "capabilities_semantic": {
+    "tags": ["audit", "erp", "data-quality", "rules"],
+    "intent_examples": [
+      "auditá el ERP",
+      "qué errores hay en mis datos",
+      "revisá la integridad de la base"
+    ],
+    "produces": ["findings:erp_audit"],
+    "requires": ["dataset:json"]
+  }
+}

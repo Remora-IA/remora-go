@@ -5,6 +5,107 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.1.7] - 2026-05-01
+
+> **Release**: expandir echo, excel, flujo, quine
+
+### Quine
+
+- **framework-quine/go.mod**: +4
+- **quine/main.go**: +4 / -6
+- **review/review.go**: +33
+- **types/types.go**: +12
+
+### Flujo
+
+- **flujo_api/.dockerignore**: archivo nuevo
+- **flujo_api/Dockerfile**: archivo nuevo
+- **flujo_api/channel**: archivo nuevo
+- **flujo_api/deploy.sh**: archivo nuevo
+- **flujo_api/entrypoint.sh**: archivo nuevo
+- **flujo_api/flow.rules.json**: +15 / -8
+- **static/index.html**: archivo nuevo
+- **remora-flujo/flujo_test**: archivo nuevo
+- **frontend-chat/index.html**: +2093 / -503
+- **flujo_api/drivers.go**: funciones: initDriverRegistry, keysOf
+- **flujo_api/generic_driver.go**: archivo nuevo
+- **flujo_api/main.go**: funciones: getRuntimeInfo, (s *server) getRuntime, (s *server) listModels, (s *server) getRules | tipos: runtimeInfo, createSingleConvRequest
+
+### Echo
+
+- **framework-echo/frameworkecho.json**: +5 / -90
+
+### Excel
+
+- **framework-excel/excel**: configuracion
+
+### Repo
+
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (frameworkauditor/main.go, frameworkmecanico/main.go)
+- **channel/channel**: configuracion
+- **channel/channel-new**: archivo nuevo
+- **channel/orchestrator**: archivo nuevo
+- **cloudbuild.yaml**: archivo nuevo
+- **data/dataset.golden.json**: archivo nuevo
+- **data/dataset.working.json**: archivo nuevo
+- **data/findings.json**: archivo nuevo
+- **framework-auditor/framework.manifest.json**: archivo nuevo
+- **framework-auditor/frameworkauditor**: archivo nuevo
+- **framework-auditor/go.mod**: archivo nuevo
+- **framework-foco/foco**: configuracion
+- **framework-foco/foco_state.json**: -75
+- **data/dump.json**: archivo nuevo
+- **data/panalbit.db**: archivo nuevo
+- **data/store.json**: archivo nuevo
+- **framework-indexa/framework.manifest.json**: archivo nuevo
+- **framework-indexa/frameworkindexa**: archivo nuevo
+- **framework-indexa/go.mod**: archivo nuevo
+- **framework-indexa/go.sum**: archivo nuevo
+- **framework-indexa/panalbit-sync**: archivo nuevo
+- **data/applied.jsonl**: archivo nuevo
+- **data/proposals.json**: archivo nuevo
+- **framework-mecanico/framework.manifest.json**: archivo nuevo
+- **framework-mecanico/frameworkmecanico**: archivo nuevo
+- **framework-mecanico/go.mod**: archivo nuevo
+- **framework-sabio/framework.manifest.json**: archivo nuevo
+- **framework-sabio/frameworksabio**: archivo nuevo
+- **framework-sabio/go.mod**: archivo nuevo
+- **framework-sabio/go.sum**: archivo nuevo
+- **scripts/demo_aceleradora.sh**: archivo nuevo
+- **sessions/conv_1777508171200582000.jsonl**: -30
+- **sessions/conv_1777508580699470000.jsonl**: -10
+- **sessions/conv_1777508715131471000.jsonl**: -33
+- **sessions/conv_1777509252828881000.jsonl**: -32
+- **sessions/conv_1777510967690659000.jsonl**: -12
+- **sessions/conv_1777511106511589000.jsonl**: -20
+- **sessions/conv_1777511380221364000.jsonl**: -15
+- **sessions/conv_1777511522670900000.jsonl**: -15
+- **sessions/conv_1777588675507545000.jsonl**: archivo nuevo
+- **sessions/conv_1777590457233338000.jsonl**: archivo nuevo
+- **sessions/conv_1777590556636254000.jsonl**: archivo nuevo
+- **sessions/conv_1777590615947918000.jsonl**: archivo nuevo
+- **sessions/conv_1777590961468041000.jsonl**: archivo nuevo
+- **sessions/conv_1777591066591723000.jsonl**: archivo nuevo
+- **sessions/conv_1777591126226500000.jsonl**: archivo nuevo
+- **sessions/conv_1777591289579492000.jsonl**: archivo nuevo
+- **sessions/conv_1777596871412664000.jsonl**: archivo nuevo
+- **sessions/conv_1777596933569136000.jsonl**: archivo nuevo
+- **sessions/conv_1777596938610675000.jsonl**: archivo nuevo
+- **sessions/conv_1777597083632122000.jsonl**: archivo nuevo
+- **sessions/demo-completo-1777505315.jsonl**: -3
+- **manifest/manifest.go**: funciones: (m *Manifest) EffectiveExecutionMode, Discover, (m *Manifest) Validate | tipos: CapabilitiesSemantic
+- **checks/checks.go**: archivo nuevo
+- **panalbit-sync/main.go**: archivo nuevo
+- **sqlbuilder/sqlbuilder.go**: archivo nuevo
+- **store/store.go**: archivo nuevo
+- **fixers/fixers.go**: archivo nuevo
+- **frameworksabio/main.go**: archivo nuevo
+- **llm/client.go**: archivo nuevo
+- **sqlqa/sqlqa.go**: archivo nuevo
+- **internal/whitelist.go**: +10
+- **frameworkindexa/main.go**: archivo nuevo
+
 ## [0.1.4] - 2026-04-26
 
 > **Release**: expandir charlie, echo, flujo, gmail, paladin, quine

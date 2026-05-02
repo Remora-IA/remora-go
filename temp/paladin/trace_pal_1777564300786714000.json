@@ -1,0 +1,23 @@
+{
+  "trace_id": "pal_1777564300786714000",
+  "version": "1.0",
+  "generated": "2026-04-30T11:51:41-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 619,
+  "total_spans": 1,
+  "total_errors": 0,
+  "bottlenecks": [
+    "quine-main (619ms)"
+  ],
+  "root": {
+    "name": "quine-main",
+    "file": "main.go",
+    "line": 25,
+    "start_ns": 1777564300786714000,
+    "duration_ms": 619,
+    "vars": {
+      "command": "foco"
+    }
+  }
+}

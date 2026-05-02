@@ -1,0 +1,122 @@
+# Cloud Build configuration for flujo_api + Channel + Frameworks
+substitutions:
+  _SERVICE_NAME: 'flujo-api'
+  _REGION: 'us-central1'
+  _PROJECT_ID: 'project-ceae5831-a2c9-49aa-b1c'
+  _CHANNEL_API_KEY: 'test-key-001'
+  _GEMINI_API_KEY: ''
+  _SHORT_SHA: 'latest'
+
+options:
+  substitution_option: 'ALLOW_LOOSE'
+
+steps:
+  # Build flujo_api
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd remora-flujo && go build -o cmd/flujo_api/flujo_api ./cmd/flujo_api
+    id: 'build-flujo-api'
+    waitFor: ['-']
+
+  # Build Channel
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd channel && go build -o /workspace/remora-flujo/cmd/flujo_api/channel ./cmd/channel
+    id: 'build-channel'
+    waitFor: ['-']
+
+  # Build framework-echo
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-echo && go build -o frameworkecho ./cmd/frameworkecho
+    id: 'build-echo'
+    waitFor: ['-']
+
+  # Build framework-alfa
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-alfa && go build -o frameworkalfa ./cmd/frameworkalfa
+    id: 'build-alfa'
+    waitFor: ['-']
+
+  # Build framework-auditor
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-auditor && go build -o frameworkauditor ./cmd/frameworkauditor
+    id: 'build-auditor'
+    waitFor: ['-']
+
+  # Build framework-indexa
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-indexa && go build -o frameworkindexa ./cmd/frameworkindexa
+    id: 'build-indexa'
+    waitFor: ['-']
+
+  # Build framework-sabio
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-sabio && go build -o frameworksabio ./cmd/frameworksabio
+    id: 'build-sabio'
+    waitFor: ['-']
+
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest'
+      - '-f'
+      - 'remora-flujo/cmd/flujo_api/Dockerfile'
+      - '.'
+    id: 'build-docker'
+    waitFor:
+      - 'build-flujo-api'
+      - 'build-channel'
+      - 'build-echo'
+      - 'build-alfa'
+      - 'build-auditor'
+      - 'build-indexa'
+      - 'build-sabio'
+
+  # Push to GCR
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}'
+    id: 'push-sha'
+    waitFor: ['build-docker']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest'
+    id: 'push-latest'
+    waitFor: ['build-docker']
+
+images:
+  - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest'

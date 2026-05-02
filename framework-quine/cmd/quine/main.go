@@ -683,14 +683,10 @@ func cmdUse(args []string) {
 	}
 
 	initialPromptPath := filepath.Join(frameworkPath, "INITIAL_PROMPT.md")
-	initialPrompt, err := os.ReadFile(initialPromptPath)
-	if err != nil {
+	if _, err := os.Stat(initialPromptPath); err != nil {
 		fmt.Printf("❌ No se encontró INITIAL_PROMPT.md en %s\n", frameworkName)
 		os.Exit(1)
 	}
-
-	initialPromptClean := strings.TrimSpace(string(initialPrompt))
-	piCmd := fmt.Sprintf(`pi '%s'`, strings.ReplaceAll(initialPromptClean, "'", "'\"'\"'"))
 
 	fmt.Printf("🚀 Abriendo sesión de pi con framework %s...\n\n", frameworkName)
 	fmt.Println("   El INITIAL_PROMPT del framework se cargará automáticamente.")
@@ -702,7 +698,9 @@ func cmdUse(args []string) {
 	ctx.Var("framework", frameworkName)
 	ctx.Var("promptFile", initialPromptPath)
 
-	cmd := exec.Command("sh", "-c", piCmd)
+	// Pasar el archivo de prompt con @ como argumento a pi
+	// Esto funciona tanto en modo interactivo como --print
+	cmd := exec.Command("pi", "--no-session", "@"+initialPromptPath)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

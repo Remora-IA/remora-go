@@ -1,0 +1,424 @@
+{
+  "count": 26,
+  "findings": [
+    {
+      "id": "F-001",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "advances",
+      "record_id": "3522",
+      "field": "client_id",
+      "message": "Referencia rota: advances[3522].client_id=243 no existe en clients",
+      "evidence": {
+        "missing_id": "243",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=243 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-002",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "advances",
+      "record_id": "3522",
+      "field": "project_id",
+      "message": "Referencia rota: advances[3522].project_id=422 no existe en projects",
+      "evidence": {
+        "missing_id": "422",
+        "target_endpoint": "projects",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si projects id=422 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-003",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "billing_documents",
+      "record_id": "1",
+      "field": "client_id",
+      "message": "Referencia rota: billing_documents[1].client_id=50 no existe en clients",
+      "evidence": {
+        "missing_id": "50",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=50 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-004",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "billing_documents",
+      "record_id": "2",
+      "field": "client_id",
+      "message": "Referencia rota: billing_documents[2].client_id=60 no existe en clients",
+      "evidence": {
+        "missing_id": "60",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=60 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-005",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "billing_documents",
+      "record_id": "2",
+      "field": "charge_id",
+      "message": "Referencia rota: billing_documents[2].charge_id=29 no existe en charges",
+      "evidence": {
+        "missing_id": "29",
+        "target_endpoint": "charges",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si charges id=29 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-006",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "billing_documents",
+      "record_id": "3",
+      "field": "client_id",
+      "message": "Referencia rota: billing_documents[3].client_id=63 no existe en clients",
+      "evidence": {
+        "missing_id": "63",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=63 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-007",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "billing_documents",
+      "record_id": "3",
+      "field": "charge_id",
+      "message": "Referencia rota: billing_documents[3].charge_id=43 no existe en charges",
+      "evidence": {
+        "missing_id": "43",
+        "target_endpoint": "charges",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si charges id=43 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-008",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "charges",
+      "record_id": "18",
+      "field": "client_id",
+      "message": "Referencia rota: charges[18].client_id=55 no existe en clients",
+      "evidence": {
+        "missing_id": "55",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=55 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-009",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "charges",
+      "record_id": "18",
+      "field": "agreement_id",
+      "message": "Referencia rota: charges[18].agreement_id=64 no existe en agreements",
+      "evidence": {
+        "missing_id": "64",
+        "target_endpoint": "agreements",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si agreements id=64 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-010",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "charges",
+      "record_id": "2",
+      "field": "client_id",
+      "message": "Referencia rota: charges[2].client_id=50 no existe en clients",
+      "evidence": {
+        "missing_id": "50",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=50 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-011",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "charges",
+      "record_id": "2",
+      "field": "agreement_id",
+      "message": "Referencia rota: charges[2].agreement_id=58 no existe en agreements",
+      "evidence": {
+        "missing_id": "58",
+        "target_endpoint": "agreements",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si agreements id=58 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-012",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "charges",
+      "record_id": "3",
+      "field": "client_id",
+      "message": "Referencia rota: charges[3].client_id=54 no existe en clients",
+      "evidence": {
+        "missing_id": "54",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=54 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-013",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "charges",
+      "record_id": "3",
+      "field": "agreement_id",
+      "message": "Referencia rota: charges[3].agreement_id=63 no existe en agreements",
+      "evidence": {
+        "missing_id": "63",
+        "target_endpoint": "agreements",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si agreements id=63 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-014",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "expenses",
+      "record_id": "100",
+      "field": "client_id",
+      "message": "Referencia rota: expenses[100].client_id=184 no existe en clients",
+      "evidence": {
+        "missing_id": "184",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=184 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-015",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "expenses",
+      "record_id": "98",
+      "field": "client_id",
+      "message": "Referencia rota: expenses[98].client_id=74 no existe en clients",
+      "evidence": {
+        "missing_id": "74",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=74 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-016",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "expenses",
+      "record_id": "99",
+      "field": "client_id",
+      "message": "Referencia rota: expenses[99].client_id=74 no existe en clients",
+      "evidence": {
+        "missing_id": "74",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=74 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-017",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "payments",
+      "record_id": "1",
+      "field": "client_id",
+      "message": "Referencia rota: payments[1].client_id=50 no existe en clients",
+      "evidence": {
+        "missing_id": "50",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=50 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-018",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "payments",
+      "record_id": "2",
+      "field": "client_id",
+      "message": "Referencia rota: payments[2].client_id=50 no existe en clients",
+      "evidence": {
+        "missing_id": "50",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=50 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-019",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "payments",
+      "record_id": "3",
+      "field": "client_id",
+      "message": "Referencia rota: payments[3].client_id=50 no existe en clients",
+      "evidence": {
+        "missing_id": "50",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=50 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-020",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "projects",
+      "record_id": "1",
+      "field": "client_id",
+      "message": "Referencia rota: projects[1].client_id=8 no existe en clients",
+      "evidence": {
+        "missing_id": "8",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=8 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-021",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "projects",
+      "record_id": "1",
+      "field": "agreement_id",
+      "message": "Referencia rota: projects[1].agreement_id=8 no existe en agreements",
+      "evidence": {
+        "missing_id": "8",
+        "target_endpoint": "agreements",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si agreements id=8 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-022",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "projects",
+      "record_id": "2",
+      "field": "client_id",
+      "message": "Referencia rota: projects[2].client_id=9 no existe en clients",
+      "evidence": {
+        "missing_id": "9",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=9 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-023",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "projects",
+      "record_id": "2",
+      "field": "agreement_id",
+      "message": "Referencia rota: projects[2].agreement_id=9 no existe en agreements",
+      "evidence": {
+        "missing_id": "9",
+        "target_endpoint": "agreements",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si agreements id=9 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-024",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "projects",
+      "record_id": "3",
+      "field": "client_id",
+      "message": "Referencia rota: projects[3].client_id=10 no existe en clients",
+      "evidence": {
+        "missing_id": "10",
+        "target_endpoint": "clients",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si clients id=10 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-025",
+      "rule": "fk_orphan",
+      "severity": "critical",
+      "endpoint": "projects",
+      "record_id": "3",
+      "field": "agreement_id",
+      "message": "Referencia rota: projects[3].agreement_id=10 no existe en agreements",
+      "evidence": {
+        "missing_id": "10",
+        "target_endpoint": "agreements",
+        "target_key": "id"
+      },
+      "suggestion": "Verificar si agreements id=10 fue eliminado, o si el registro fuente es huérfano y debe darse de baja.",
+      "auto_fixable": false
+    },
+    {
+      "id": "F-026",
+      "rule": "stale_advance",
+      "severity": "warning",
+      "endpoint": "advances",
+      "record_id": "3522",
+      "message": "Anticipo nunca consumido desde 2023-06-07 (monto 100.00 sin aplicar)",
+      "evidence": {
+        "amount": 100,
+        "client_id": "243",
+        "date": "2023-06-07",
+        "project_id": "422",
+        "residue": 100
+      },
+      "suggestion": "Confirmar con finanzas si corresponde aplicar a una factura abierta o devolver al cliente.",
+      "auto_fixable": false
+    }
+  ],
+  "scanned_at": "2026-05-01T01:26:05Z",
+  "version": 1
+}

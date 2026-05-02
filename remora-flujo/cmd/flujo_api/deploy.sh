@@ -1,0 +1,96 @@
+#!/bin/bash
+# Deploy flujo_api + Channel + Frameworks to Google Cloud Run
+# Lee automáticamente remora-flujo/.env.local para obtener API keys locales.
+# Uso: ./deploy.sh
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
+
+# Cargar API keys desde .env.local si existe
+ENV_LOCAL="${REPO_ROOT}/remora-flujo/.env.local"
+if [ -f "$ENV_LOCAL" ]; then
+  echo "=== Loading API keys from .env.local ==="
+  set -a
+  source "$ENV_LOCAL"
+  set +a
+fi
+
+# Normalizar: REMORA_GROQ_API_KEY -> GROQ_API_KEY
+if [ -z "$GROQ_API_KEY" ] && [ -n "$REMORA_GROQ_API_KEY" ]; then
+  export GROQ_API_KEY="$REMORA_GROQ_API_KEY"
+fi
+
+PROJECT_ID="project-ceae5831-a2c9-49aa-b1c"
+SERVICE_NAME="flujo-api"
+REGION="us-central1"
+IMAGE="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
+
+CHANNEL_API_KEY="${CHANNEL_API_KEY:-test-key-001}"
+
+echo "=== Deploy config ==="
+echo "Project: ${PROJECT_ID}"
+echo "Service: ${SERVICE_NAME}"
+echo "Region:  ${REGION}"
+echo "LLM Provider: ${REMORA_LLM_PROVIDER:-groq}"
+
+# Detectar si Docker está disponible; si no, usar Cloud Build
+if command -v docker >/dev/null 2>&1; then
+  echo "=== Building Docker image ==="
+  docker build -t ${IMAGE} -f "${REPO_ROOT}/remora-flujo/cmd/flujo_api/Dockerfile" "${REPO_ROOT}"
+
+  echo "=== Pushing to GCR ==="
+  docker push ${IMAGE}
+
+  echo "=== Deploying to Cloud Run ==="
+  gcloud run deploy ${SERVICE_NAME} \
+    --image=${IMAGE} \
+    --platform=managed \
+    --region=${REGION} \
+    --allow-unauthenticated \
+    --memory=1Gi \
+    --cpu=2 \
+    --timeout=300s \
+    --max-instances=10 \
+    --set-env-vars="PORT=8080,CHANNEL_PORT=8765,CHANNEL_URL=http://localhost:8765,CHANNEL_BASE_DIR=/workspace,REMORA_ROOT=/workspace,CHANNEL_API_KEY=${CHANNEL_API_KEY},CHANNEL_API_KEYS=${CHANNEL_API_KEY}" \
+    $([ -n "$MINIMAX_API_KEY" ] && echo "--set-env-vars=MINIMAX_API_KEY=${MINIMAX_API_KEY}") \
+    $([ -n "$GROQ_API_KEY" ] && echo "--set-env-vars=GROQ_API_KEY=${GROQ_API_KEY}") \
+    $([ -n "$GEMINI_API_KEY" ] && echo "--set-env-vars=GEMINI_API_KEY=${GEMINI_API_KEY}")
+else
+  echo "Docker not found. Using Cloud Build instead..."
+  cd "${REPO_ROOT}"
+
+  # Obtener short SHA del commit o usar timestamp si no hay git
+  if command -v git >/dev/null 2>&1 && [ -d ".git" ]; then
+    SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "$(date +%s)")
+  else
+    SHORT_SHA="$(date +%s)"
+  fi
+
+  SUST="_CHANNEL_API_KEY=${CHANNEL_API_KEY},_SHORT_SHA=${SHORT_SHA}"
+  [ -n "$GEMINI_API_KEY" ] && SUST="${SUST},_GEMINI_API_KEY=${GEMINI_API_KEY}"
+
+  echo "=== Building & Deploying via Cloud Build ==="
+  echo "Image tag: ${SHORT_SHA}"
+  gcloud builds submit --config=cloudbuild.yaml --substitutions="${SUST}"
+
+  # Cloud Build deploya con las keys básicas. Si hay extras (GROQ/MINIMAX) no
+  # cubiertas por cloudbuild.yaml, hacer update del servicio.
+  EXTRA=""
+  [ -n "$MINIMAX_API_KEY" ] && EXTRA="${EXTRA}MINIMAX_API_KEY=${MINIMAX_API_KEY},"
+  [ -n "$GROQ_API_KEY" ]    && EXTRA="${EXTRA}GROQ_API_KEY=${GROQ_API_KEY},"
+  [ -n "$GEMINI_API_KEY" ]  && EXTRA="${EXTRA}GEMINI_API_KEY=${GEMINI_API_KEY},"
+
+  if [ -n "$EXTRA" ]; then
+    EXTRA="${EXTRA%,}"
+    echo "=== Updating Cloud Run with additional API keys ==="
+    gcloud run services update "${SERVICE_NAME}" \
+      --region="${REGION}" \
+      --platform=managed \
+      --update-env-vars="${EXTRA}"
+  fi
+fi
+
+echo ""
+echo "=== Deployed! ==="
+echo "URL: https://${SERVICE_NAME}-${PROJECT_ID}.${REGION}.run.app"

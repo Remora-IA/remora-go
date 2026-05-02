@@ -55,6 +55,16 @@ var allowedCommands = map[string]bool{
 	"tar":  true,
 	"gzip": true,
 	"gunzip": true,
+
+	// Binarios de frameworks que se invocan vía manifest.binary.command.
+	// Cada uno vive en su propio framework-*/ con cwd correspondiente.
+	// Convención: ./framework<nombre> (compilado). Channel ejecuta solo
+	// estos paths exactos; los frameworks que se ejecutan vía `go run`
+	// (echo, alfa) usan el comando "go" arriba y no necesitan entrada propia.
+	"./frameworksabio":   true,
+	"./frameworkindexa":  true,
+	"./frameworkauditor": true,
+	"./frameworkmecanico": true,
 }
 
 // DestructiveCommands son comandos que NUNCA se ejecutan (Axioma 4.5)

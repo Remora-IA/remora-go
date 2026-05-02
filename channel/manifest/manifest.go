@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -23,6 +25,53 @@ type Manifest struct {
 	AsksHuman   AsksHuman          `json:"asks_human"`
 	UserInput   UserInputSpec      `json:"user_input"`
 	Model       ModelSpec          `json:"model"`
+
+	// ExecutionMode declara cómo el orquestador ejecuta el framework.
+	//   - "sync_chain"    (default) participa del round-robin conversacional
+	//                     vía next-question / ingest-answer.
+	//   - "async_trigger" se invoca fuera del chain (cron, webhook, CLI).
+	//                     No participa en next-question. Útil para ingesta,
+	//                     indexación, batch jobs.
+	ExecutionMode string `json:"execution_mode,omitempty"`
+
+	// CapabilitiesSemantic permite que un planner LLM o un feasibility check
+	// razonen sobre qué framework usar para una tarea sin tener código
+	// específico por framework. Todos los campos son opcionales.
+	CapabilitiesSemantic CapabilitiesSemantic `json:"capabilities_semantic,omitempty"`
+
+	// RequiresInfra declara dependencias de infraestructura que el orquestador
+	// debe proveer vía env vars. Ej: ["postgres+pgvector"].
+	RequiresInfra []string `json:"requires_infra,omitempty"`
+}
+
+// CapabilitiesSemantic describe el rol del framework en términos
+// machine-readable para un planner. No reemplaza a la descripción humana.
+type CapabilitiesSemantic struct {
+	// Tags: etiquetas libres, ej ["rag","data-expert","discovery"].
+	Tags []string `json:"tags,omitempty"`
+	// IntentExamples: ejemplos en lenguaje natural de qué pide el usuario
+	// cuando este framework es la opción correcta. Sirve al planner.
+	IntentExamples []string `json:"intent_examples,omitempty"`
+	// Produces: artefactos lógicos que el framework genera. Pueden tener
+	// el formato "key" o "key:<scope>" (ej "data_indexed:<schema_id>").
+	Produces []string `json:"produces,omitempty"`
+	// Requires: artefactos que el framework necesita encontrar disponibles.
+	// El feasibility check empareja Produces de unos con Requires de otros.
+	Requires []string `json:"requires,omitempty"`
+}
+
+// ExecutionModeSync identifica frameworks que participan del round-robin.
+const ExecutionModeSync = "sync_chain"
+
+// ExecutionModeAsync identifica frameworks invocados fuera del chain.
+const ExecutionModeAsync = "async_trigger"
+
+// EffectiveExecutionMode devuelve el modo declarado o el default sync_chain.
+func (m *Manifest) EffectiveExecutionMode() string {
+	if m.ExecutionMode == "" {
+		return ExecutionModeSync
+	}
+	return m.ExecutionMode
 }
 
 // ModelSpec declara qué modelo de IA usa el framework cuando el orquestador
@@ -230,4 +279,86 @@ type ChainLink struct {
 	To     string `json:"to"`
 	Input  string `json:"input"`
 	Format string `json:"format"`
+}
+
+// Discover escanea rootDir y devuelve todos los manifests encontrados en
+// subdirectorios cuyo nombre matchea "framework-*". Devuelve un mapa por
+// Name del manifest. Si un archivo está corrupto, lo registra y sigue.
+func Discover(rootDir string) (map[string]*Manifest, []error) {
+	out := map[string]*Manifest{}
+	var errs []error
+	entries, err := os.ReadDir(rootDir)
+	if err != nil {
+		return out, []error{fmt.Errorf("manifest discover: %w", err)}
+	}
+	// Orden determinístico para tests reproducibles.
+	sort.Slice(entries, func(i, j int) bool { return entries[i].Name() < entries[j].Name() })
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		if !strings.HasPrefix(e.Name(), "framework-") {
+			continue
+		}
+		path := filepath.Join(rootDir, e.Name(), "framework.manifest.json")
+		if _, err := os.Stat(path); err != nil {
+			// Sin manifest = framework no estandarizado todavía. No es error fatal.
+			continue
+		}
+		m, err := Load(path)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", e.Name(), err))
+			continue
+		}
+		if m.Name == "" {
+			errs = append(errs, fmt.Errorf("%s: manifest sin name", e.Name()))
+			continue
+		}
+		out[m.Name] = m
+	}
+	return out, errs
+}
+
+// Validate revisa invariantes mínimos del manifest. Devuelve error con
+// todos los problemas concatenados, o nil si está OK. Es la puerta única
+// que Quine y el orquestador deben usar para considerar un manifest válido.
+func (m *Manifest) Validate() error {
+	var problems []string
+
+	if strings.TrimSpace(m.Name) == "" {
+		problems = append(problems, "name vacío")
+	}
+	if strings.TrimSpace(m.Version) == "" {
+		problems = append(problems, "version vacío")
+	}
+	if m.Binary.Command == "" {
+		problems = append(problems, "binary.command vacío")
+	}
+
+	mode := m.EffectiveExecutionMode()
+	switch mode {
+	case ExecutionModeSync, ExecutionModeAsync:
+	default:
+		problems = append(problems, fmt.Sprintf("execution_mode inválido: %q (esperado %q o %q)", mode, ExecutionModeSync, ExecutionModeAsync))
+	}
+
+	// Si participa del chain conversacional con UserInput.Supported,
+	// debe declarar los dos comandos del contrato.
+	if mode == ExecutionModeSync && m.UserInput.Supported {
+		if m.UserInput.NextQuestionCmd == "" {
+			problems = append(problems, "user_input.next_question_cmd vacío (requerido cuando supported=true)")
+		} else if _, ok := m.Commands[m.UserInput.NextQuestionCmd]; !ok {
+			problems = append(problems, fmt.Sprintf("user_input.next_question_cmd %q no existe en commands", m.UserInput.NextQuestionCmd))
+		}
+		if m.UserInput.IngestAnswerCmd == "" {
+			problems = append(problems, "user_input.ingest_answer_cmd vacío (requerido cuando supported=true)")
+		} else if _, ok := m.Commands[m.UserInput.IngestAnswerCmd]; !ok {
+			problems = append(problems, fmt.Sprintf("user_input.ingest_answer_cmd %q no existe en commands", m.UserInput.IngestAnswerCmd))
+		}
+	}
+
+	if len(problems) == 0 {
+		return nil
+	}
+	return fmt.Errorf("manifest %s inválido: %s", m.Name, strings.Join(problems, "; "))
 }

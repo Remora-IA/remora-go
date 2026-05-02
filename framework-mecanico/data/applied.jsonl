@@ -1,0 +1,13 @@
+{"proposal_id":"P-001","finding_id":"F-004","endpoint":"billing_documents","record_id":"1","field":"number","before":"-1","after":"231","strategy":"next_sequence","applied_at":"2026-05-01T00:55:47.18562Z"}
+{"proposal_id":"P-002","finding_id":"F-028","endpoint":"agreements","record_id":"1","field":"name","before":"","after":"Acuerdo con Gislason Ltd","strategy":"derive_from_related","applied_at":"2026-05-01T00:55:47.187747Z"}
+{"proposal_id":"P-003","finding_id":"F-029","endpoint":"agreements","record_id":"1","field":"code","before":null,"after":"AGR-000001","strategy":"derive_from_related","applied_at":"2026-05-01T00:55:47.18968Z"}
+{"proposal_id":"P-004","finding_id":"F-030","endpoint":"agreements","record_id":"2","field":"name","before":"","after":"Acuerdo con O'Kon-Jenkins","strategy":"derive_from_related","applied_at":"2026-05-01T00:55:47.19329Z"}
+{"proposal_id":"P-005","finding_id":"F-031","endpoint":"agreements","record_id":"2","field":"code","before":null,"after":"AGR-000002","strategy":"derive_from_related","applied_at":"2026-05-01T00:55:47.195297Z"}
+{"proposal_id":"P-006","finding_id":"F-032","endpoint":"agreements","record_id":"3","field":"name","before":"","after":"Acuerdo con Balistreri, Batz and Douglas","strategy":"derive_from_related","applied_at":"2026-05-01T00:55:47.197434Z"}
+{"proposal_id":"P-007","finding_id":"F-033","endpoint":"agreements","record_id":"3","field":"code","before":null,"after":"AGR-000003","strategy":"derive_from_related","applied_at":"2026-05-01T00:55:47.199491Z"}
+{"proposal_id":"P-008","finding_id":"F-034","endpoint":"charges","record_id":"18","field":"date_from","before":"0000-00-00","after":null,"strategy":"set_null","applied_at":"2026-05-01T00:55:47.20134Z"}
+{"proposal_id":"P-009","finding_id":"F-035","endpoint":"charges","record_id":"2","field":"date_from","before":"0000-00-00","after":null,"strategy":"set_null","applied_at":"2026-05-01T00:55:47.203485Z"}
+{"proposal_id":"P-010","finding_id":"F-036","endpoint":"charges","record_id":"3","field":"date_from","before":"0000-00-00","after":null,"strategy":"set_null","applied_at":"2026-05-01T00:55:47.205723Z"}
+{"proposal_id":"P-011","finding_id":"F-037","endpoint":"projects","record_id":"1","field":"inactive_at","before":"0000-00-00 00:00:00","after":null,"strategy":"set_null","applied_at":"2026-05-01T00:55:47.207733Z"}
+{"proposal_id":"P-012","finding_id":"F-038","endpoint":"projects","record_id":"2","field":"inactive_at","before":"0000-00-00 00:00:00","after":null,"strategy":"set_null","applied_at":"2026-05-01T00:55:47.20959Z"}
+{"proposal_id":"P-013","finding_id":"F-039","endpoint":"projects","record_id":"3","field":"inactive_at","before":"0000-00-00 00:00:00","after":null,"strategy":"set_null","applied_at":"2026-05-01T00:55:47.211836Z"}

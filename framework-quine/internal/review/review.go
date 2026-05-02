@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"channel/manifest"
 	"framework-quine/internal/paladin"
 	"framework-quine/internal/types"
 )
@@ -896,6 +897,38 @@ func checkItem(item types.ChecklistItem, frameworkPath string) ItemResult {
 			}
 		} else {
 			result.Status = "skip"
+		}
+
+	// =========================================================================
+	// MANIFEST (contrato declarativo con flujo_api)
+	// =========================================================================
+	case "manifest-exists":
+		path := filepath.Join(frameworkPath, "framework.manifest.json")
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			result.Status = "fail"
+			result.Reason = "No existe framework.manifest.json"
+			result.Suggestion = "Crear framework.manifest.json siguiendo el schema de channel/manifest. Sin él, el orquestador flujo_api no puede integrar este framework automáticamente."
+		}
+
+	case "manifest-valid":
+		path := filepath.Join(frameworkPath, "framework.manifest.json")
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			// Sin manifest no podemos validar; no es fail por sí mismo,
+			// el item manifest-exists ya señala la falta.
+			result.Status = "skip"
+			break
+		}
+		m, err := manifest.Load(path)
+		if err != nil {
+			result.Status = "fail"
+			result.Reason = fmt.Sprintf("framework.manifest.json no parsea: %v", err)
+			result.Suggestion = "Revisar JSON y schema en channel/manifest/manifest.go"
+			break
+		}
+		if err := m.Validate(); err != nil {
+			result.Status = "fail"
+			result.Reason = err.Error()
+			result.Suggestion = "Corregir invariantes mínimos: name, version, binary.command, execution_mode válido, y si user_input.supported=true, declarar next_question_cmd e ingest_answer_cmd"
 		}
 
 	case "prompt-workflow-descomprimido":

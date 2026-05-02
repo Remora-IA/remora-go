@@ -1,27 +1,34 @@
 {
   "version": 1,
-  "description": "Reglas de composición que aplican SOLO cuando estos frameworks corren juntos. NO modifican el comportamiento de cada framework por separado: el orquestador las aplica al elegir qué framework habla en cada turno y al pre-procesar inputs no-textuales.",
+  "description": "Reglas de composición",
   "rules": [
     {
       "id": "alfa_takes_over_after_2_echo_answers",
-      "description": "Si Echo y Alfa están activos, después de 2 respuestas del usuario forzamos que Alfa pida lo que necesite (típicamente un recurso visual) en lugar de seguir Echo con discovery abierto.",
+      "description": "",
       "when": {
-        "frameworks_active_all": ["echo", "alfa"],
+        "frameworks_active_all": [
+          "echo",
+          "alfa"
+        ],
         "user_answer_count_min": 2,
         "user_answer_count_max": 2
       },
-      "then": { "prepend_speaker": "alfa" }
+      "then": {
+        "prepend_speaker": "alfa"
+      }
     },
     {
       "id": "image_resource_routes_to_alfa",
-      "description": "Cualquier respuesta del usuario que incluya una imagen se enriquece con análisis multimodal y se entrega prioritariamente a Alfa (que es el framework con capacidad multimodal declarada en su manifest).",
+      "description": "",
       "when": {
-        "frameworks_active_any": ["alfa"],
+        "frameworks_active_any": [
+          "alfa"
+        ],
         "user_message_has_resource_type": "image"
       },
       "then": {
-        "preprocess": "vision",
-        "prepend_speaker": "alfa"
+        "prepend_speaker": "alfa",
+        "preprocess": "vision"
       }
     }
   ]

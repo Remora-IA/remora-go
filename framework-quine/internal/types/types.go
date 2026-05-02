@@ -189,6 +189,18 @@ var AllChecklists = map[string]Checklist{
 				Severity:    "recommended",
 				Category:    "codigo",
 			},
+			{
+				ID:          "manifest-exists",
+				Description: "Existe framework.manifest.json (contrato declarativo con el orquestador flujo_api)",
+				Severity:    "recommended",
+				Category:    "manifest",
+			},
+			{
+				ID:          "manifest-valid",
+				Description: "framework.manifest.json es válido según channel/manifest schema (skip si no existe)",
+				Severity:    "recommended",
+				Category:    "manifest",
+			},
 		},
 	},
 

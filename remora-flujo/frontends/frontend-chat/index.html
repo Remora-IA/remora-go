@@ -29,6 +29,19 @@
       /* Glow: white blob on dark */
       --glow-color:   rgba(255,255,255,0.07);
       --glow-mid:     rgba(220,220,220,0.03);
+      /* Framework colors */
+      --echo-color:   hsl(260, 70%, 65%);
+      --echo-glow:    hsla(260, 70%, 65%, 0.5);
+      --alfa-color:   hsl(190, 75%, 60%);
+      --alfa-glow:    hsla(190, 75%, 60%, 0.5);
+      --bravo-color:  hsl(150, 70%, 55%);
+      --bravo-glow:   hsla(150, 70%, 55%, 0.5);
+      --sabio-color:  hsl(40, 80%, 60%);
+      --sabio-glow:   hsla(40, 80%, 60%, 0.5);
+      --auditor-color: hsl(0, 75%, 62%);
+      --auditor-glow:  hsla(0, 75%, 62%, 0.5);
+      --mecanico-color: hsl(220, 75%, 65%);
+      --mecanico-glow:  hsla(220, 75%, 65%, 0.5);
     }
 
     /* ─── Tokens — Light ─── */
@@ -52,11 +65,23 @@
       /* Glow: dark blob on light */
       --glow-color:   rgba(0,0,0,0.06);
       --glow-mid:     rgba(30,30,30,0.025);
+      /* Framework colors - lighter variants for light mode */
+      --echo-color:   hsl(260, 65%, 55%);
+      --echo-glow:    hsla(260, 65%, 55%, 0.4);
+      --alfa-color:   hsl(190, 65%, 50%);
+      --alfa-glow:    hsla(190, 65%, 50%, 0.4);
+      --bravo-color:  hsl(150, 60%, 45%);
+      --bravo-glow:   hsla(150, 60%, 45%, 0.4);
+      --sabio-color:  hsl(40, 70%, 50%);
+      --sabio-glow:   hsla(40, 70%, 50%, 0.4);
+      --auditor-color: hsl(0, 65%, 52%);
+      --auditor-glow:  hsla(0, 65%, 52%, 0.4);
+      --mecanico-color: hsl(220, 65%, 55%);
+      --mecanico-glow:  hsla(220, 65%, 55%, 0.4);
     }
 
     html, body {
       height: 100%;
-      /* Apple's web font stack */
       font-family: -apple-system, "SF Pro Display", "SF Pro Text",
                    "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
@@ -102,23 +127,19 @@
       align-items: center;
       gap: 11px;
       flex-shrink: 0;
+      z-index: 10;
     }
 
-    /* 30% bigger: 34 → 44px */
     .logo-mark {
       width: 44px;
       height: 44px;
       flex-shrink: 0;
     }
 
-    /* Logo rect fill adapts to theme */
     .logo-rect { transition: fill 0.3s; }
     [data-theme="dark"]  .logo-rect { fill: #111113; }
     [data-theme="light"] .logo-rect { fill: #1d1d1f; }
 
-    /* Logo strokes stay white on dark, white on light (rect is dark so strokes look good) */
-
-    /* 30% bigger: 15 → 19.5px */
     .brand {
       font-size: 19.5px;
       font-weight: 600;
@@ -127,40 +148,447 @@
       transition: color 0.3s;
     }
 
-    /* ─── Main ─── */
-    main {
+    /* ─── Header buttons ─── */
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .header-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-btn:hover {
+      background: var(--surface2);
+      color: var(--text);
+      border-color: var(--border-hover);
+    }
+
+    .header-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* ─── NODES CANVAS ─── */
+    .nodes-canvas {
       flex: 1;
+      position: relative;
+      overflow: hidden;
+      background: transparent;
+    }
+
+    .connections-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .connection {
+      stroke: var(--border);
+      stroke-width: 2;
+      fill: none;
+      opacity: 0.3;
+      transition: all 0.5s ease;
+    }
+
+    .connection.active {
+      stroke-width: 2.5;
+      opacity: 0.8;
+    }
+
+    .connection.pulse {
+      animation: line-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes line-pulse {
+      0%, 100% { opacity: 0.5; stroke-dashoffset: 0; }
+      50% { opacity: 1; stroke-dashoffset: 26; }
+    }
+
+    /* ─── NODE ─── */
+    .node {
+      position: absolute;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 0 20px 40px;
-      gap: 26px;
+      gap: 10px;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 10;
+      transform: translate(-50%, -50%);
+      opacity: 1;
     }
 
-    h1 {
-      font-size: clamp(1.6rem, 3.2vw, 2.1rem);
-      font-weight: 600;
-      letter-spacing: -0.03em;
-      text-align: center;
+    .node-dot {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .node-dot svg {
+      width: 28px;
+      height: 28px;
+      opacity: 0.6;
+      transition: opacity 0.3s;
+    }
+
+    .node-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      transition: all 0.3s ease;
+    }
+
+    .node.active .node-dot {
+      transform: scale(1.15);
+    }
+
+    .node.active .node-label {
       color: var(--text);
+      font-size: 13px;
+    }
+
+    /* Framework-specific colors */
+    .node.echo.active .node-dot {
+      background: var(--echo-color);
+      border-color: var(--echo-color);
+      box-shadow: 0 0 40px var(--echo-glow);
+    }
+    .node.echo.active .node-dot svg { opacity: 1; }
+
+    .node.alfa.active .node-dot {
+      background: var(--alfa-color);
+      border-color: var(--alfa-color);
+      box-shadow: 0 0 40px var(--alfa-glow);
+    }
+    .node.alfa.active .node-dot svg { opacity: 1; }
+
+    .node.bravo.active .node-dot {
+      background: var(--bravo-color);
+      border-color: var(--bravo-color);
+      box-shadow: 0 0 40px var(--bravo-glow);
+    }
+    .node.bravo.active .node-dot svg { opacity: 1; }
+
+    .node.sabio.active .node-dot {
+      background: var(--sabio-color);
+      border-color: var(--sabio-color);
+      box-shadow: 0 0 40px var(--sabio-glow);
+    }
+    .node.sabio.active .node-dot svg { opacity: 1; }
+
+    .node.auditor.active .node-dot {
+      background: var(--auditor-color);
+      border-color: var(--auditor-color);
+      box-shadow: 0 0 40px var(--auditor-glow);
+    }
+    .node.auditor.active .node-dot svg { opacity: 1; }
+
+    .node.mecanico.active .node-dot {
+      background: var(--mecanico-color);
+      border-color: var(--mecanico-color);
+      box-shadow: 0 0 40px var(--mecanico-glow);
+    }
+    .node.mecanico.active .node-dot svg { opacity: 1; }
+
+    .node.user.active .node-dot {
+      background: var(--text);
+      border-color: var(--text);
+      box-shadow: 0 0 40px rgba(255,255,255,0.3);
+    }
+    .node.user.active .node-dot svg { opacity: 1; }
+
+    .node.speaking .node-dot {
+      animation: node-speak 1s ease-in-out infinite;
+    }
+
+    @keyframes node-speak {
+      0%, 100% { transform: scale(1.15); }
+      50% { transform: scale(1.25); }
+    }
+
+    .node.dimmed {
+      opacity: 0.25;
+    }
+
+    .node.dimmed .node-dot {
+      transform: scale(0.85) !important;
+    }
+
+    @keyframes node-appear {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .node.new {
+      animation: node-appear 0.5s ease-out forwards;
+    }
+
+    /* ─── ADD NODE BUTTON (+) ─── */
+    .add-node-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 5;
+    }
+
+    .add-node-btn:hover {
+      border-color: var(--text-muted);
+      background: var(--surface2);
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+
+    .add-node-btn svg {
+      width: 32px;
+      height: 32px;
+      color: var(--text-muted);
       transition: color 0.3s;
     }
 
-    /* ─── Input card ─── */
-    .input-card {
-      width: 100%;
-      max-width: 660px;
+    .add-node-btn:hover svg {
+      color: var(--text);
+    }
+
+    .add-node-btn.hidden {
+      display: none;
+    }
+
+    /* ─── THOUGHT BUBBLE ─── */
+    .thought-bubble {
+      position: absolute;
+      width: 340px;
+      padding: 20px 24px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 18px;
-      padding: 16px 16px 12px;
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--text);
+      opacity: 0;
+      transform: scale(0.92) translateY(10px);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: auto;
+      z-index: 20;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 120px);
+    }
+
+    .thought-bubble.visible {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+
+    .thought-bubble::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-left: none;
+      transform: rotate(45deg);
+    }
+
+    .thought-bubble.pos-below::before {
+      top: -8px;
+      left: 50%;
+      margin-left: -7px;
+    }
+
+    .thought-bubble.pos-above::before {
+      bottom: -8px;
+      left: 50%;
+      margin-left: -7px;
+      transform: rotate(-135deg);
+    }
+
+    .thought-bubble.pos-left::before {
+      right: -8px;
+      top: 50%;
+      margin-top: -7px;
+      transform: rotate(45deg);
+    }
+
+    .thought-bubble.pos-right::before {
+      left: -8px;
+      top: 50%;
+      margin-top: -7px;
+      transform: rotate(-135deg);
+    }
+
+    .thought-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .thought-header .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .thought-body {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      max-height: calc(100vh - 280px);
+      padding-right: 4px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .thought-body::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .thought-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .thought-body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    /* Thought bubble types */
+    .thought-bubble.echo .thought-header { color: var(--echo-color); }
+    .thought-bubble.echo .thought-header .dot { background: var(--echo-color); }
+    .thought-bubble.alfa .thought-header { color: var(--alfa-color); }
+    .thought-bubble.alfa .thought-header .dot { background: var(--alfa-color); }
+    .thought-bubble.bravo .thought-header { color: var(--bravo-color); }
+    .thought-bubble.bravo .thought-header .dot { background: var(--bravo-color); }
+    .thought-bubble.sabio .thought-header { color: var(--sabio-color); }
+    .thought-bubble.sabio .thought-header .dot { background: var(--sabio-color); }
+    .thought-bubble.auditor .thought-header { color: var(--auditor-color); }
+    .thought-bubble.auditor .thought-header .dot { background: var(--auditor-color); }
+    .thought-bubble.mecanico .thought-header { color: var(--mecanico-color); }
+    .thought-bubble.mecanico .thought-header .dot { background: var(--mecanico-color); }
+    .thought-bubble.user .thought-header { color: var(--text); }
+    .thought-bubble.user .thought-header .dot { background: var(--text); }
+
+    /* Input inside thought bubble */
+    .thought-input-wrapper {
+      margin-top: 16px;
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+    }
+
+    .thought-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      resize: none;
+      min-height: 44px;
+      max-height: 120px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .thought-input:focus {
+      border-color: var(--border-hover);
+    }
+
+    .thought-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .thought-send-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: var(--send-bg);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--send-icon);
+      transition: opacity 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+
+    .thought-send-btn:hover { opacity: 0.85; }
+    .thought-send-btn:active { transform: scale(0.94); }
+    .thought-send-btn:disabled { opacity: 0.3; cursor: default; }
+
+    /* ─── INITIAL INPUT (first message) ─── */
+    .initial-input-area {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 600px;
+      padding: 0 20px;
+      z-index: 15;
+    }
+
+    .initial-input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 16px 12px;
       transition: border-color 0.2s, background 0.3s;
     }
 
-    .input-card:focus-within { border-color: var(--border-hover); }
+    .initial-input-card:focus-within {
+      border-color: var(--border-hover);
+    }
 
-    .input-card textarea {
+    .initial-input-card textarea {
       width: 100%;
       background: transparent;
       border: none;
@@ -171,27 +599,28 @@
       -webkit-font-smoothing: antialiased;
       resize: none;
       line-height: 1.55;
-      min-height: 56px;
-      max-height: 200px;
+      min-height: 52px;
+      max-height: 150px;
       transition: color 0.3s;
     }
 
-    .input-card textarea::placeholder { color: var(--text-dim); }
+    .initial-input-card textarea::placeholder {
+      color: var(--text-dim);
+    }
 
-    .input-footer {
+    .initial-input-footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 10px;
+      margin-top: 8px;
     }
 
-    .controls-left {
+    .initial-controls-left {
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    /* Model badge — read-only */
     .model-badge {
       display: flex;
       align-items: center;
@@ -204,7 +633,6 @@
       font-weight: 500;
       color: var(--text-muted);
       user-select: none;
-      cursor: default;
       transition: background 0.3s, border-color 0.3s, color 0.3s;
     }
 
@@ -216,64 +644,9 @@
       flex-shrink: 0;
     }
 
-    /* Attach */
-    .attach-label {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 34px;
-      height: 34px;
-      border-radius: 9px;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-    }
-
-    .attach-label:hover {
-      background: var(--surface2);
-      color: var(--text);
-    }
-
-    #file-input { display: none; }
-
-    /* File chips */
-    .file-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-
-    .file-chip {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--file-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 4px 10px;
-      font-size: 12px;
-      color: var(--text-muted);
-      transition: background 0.3s;
-    }
-
-    .file-chip button {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      line-height: 1;
-      padding: 0;
-      font-size: 14px;
-      display: flex;
-    }
-
-    .file-chip button:hover { color: var(--text); }
-
-    /* Send button */
     .send-btn {
-      width: 36px;
-      height: 36px;
+      width: 38px;
+      height: 38px;
       border-radius: 10px;
       background: var(--send-bg);
       border: none;
@@ -290,132 +663,409 @@
     .send-btn:active { transform: scale(0.94); }
     .send-btn:disabled { opacity: 0.25; cursor: default; }
 
-    /* ─── Examples section ─── */
-    .examples-section {
+    .initial-input-area.hidden {
+      display: none;
+    }
+
+    /* ─── FRAMEWORK MODAL ─── */
+    .framework-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 12px;
-      max-width: 660px;
-      width: 100%;
-    }
-
-    .examples-label {
-      font-size: 12px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-      color: var(--text-muted);
-      transition: color 0.3s;
-    }
-
-    .examples {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
       justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
     }
 
-    .chip {
-      display: flex;
-      align-items: center;
-      gap: 7px;
+    .framework-modal.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .framework-modal-content {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 22px;
-      padding: 8px 15px;
-      font-size: 13px;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-      white-space: nowrap;
-      -webkit-font-smoothing: antialiased;
+      border-radius: 24px;
+      max-width: 480px;
+      width: 90%;
+      max-height: 70vh;
+      overflow: hidden;
+      transform: scale(0.95);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    .chip:hover {
-      background: var(--chip-hover);
-      border-color: var(--border-hover);
-      color: var(--text);
+    .framework-modal.visible .framework-modal-content {
+      transform: scale(1);
     }
 
-    .chip svg { flex-shrink: 0; opacity: 0.45; }
-    .chip:hover svg { opacity: 0.75; }
+    /* ─── Rules Modal ─── */
+    .rules-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
 
-    /* ─── Chat area ─── */
-    .chat-area {
-      display: none;
+    .rules-modal.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .rules-modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      width: min(700px, 90vw);
+      max-height: 80vh;
+      display: flex;
       flex-direction: column;
-      width: 100%;
-      max-width: 660px;
+      transform: translateY(20px);
+      transition: transform 0.3s;
+    }
+
+    .rules-modal.visible .rules-modal-content {
+      transform: translateY(0);
+    }
+
+    .rules-modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rules-modal-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .rules-modal-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .rules-modal-body {
       flex: 1;
       overflow-y: auto;
-      padding: 24px 20px 20px;
-      gap: 16px;
-      margin: 0 auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--scroll) transparent;
+      padding: 16px 24px;
     }
 
-    .chat-area.active { display: flex; }
-
-    .message {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      animation: fadeUp 0.2s ease;
+    .rules-description {
+      margin-bottom: 16px;
     }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .message.user { flex-direction: row-reverse; }
-
-    .msg-avatar {
-      width: 30px;
-      height: 30px;
+    .rules-description textarea {
+      width: 100%;
+      min-height: 60px;
+      padding: 10px 12px;
       border-radius: 8px;
-      flex-shrink: 0;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 13px;
+      resize: vertical;
+      font-family: inherit;
+    }
+
+    .rule-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+
+    .rule-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .rule-card-id {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--echo-color);
+    }
+
+    .rule-card-toggle {
+      margin-left: auto;
+      width: 36px;
+      height: 20px;
+      border-radius: 10px;
+      border: none;
+      background: var(--border);
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .rule-card-toggle.active {
+      background: var(--echo-color);
+    }
+
+    .rule-card-toggle::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.2s;
+    }
+
+    .rule-card-toggle.active::after {
+      transform: translateX(16px);
+    }
+
+    .rule-card-description {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .rule-when, .rule-then {
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+
+    .rule-when strong, .rule-then strong {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .rule-json {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .rules-modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rules-status {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .rules-status.saved {
+      color: #34c759;
+    }
+
+    .rules-status.error {
+      color: #ff3b30;
+    }
+
+    .rules-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .framework-modal-header {
+      padding: 24px 28px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .framework-modal-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .framework-modal-header p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .framework-list {
+      padding: 16px 20px;
+      overflow-y: auto;
+      max-height: calc(70vh - 120px);
+    }
+
+    .framework-option {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .framework-option:last-child {
+      margin-bottom: 0;
+    }
+
+    .framework-option:hover {
+      border-color: var(--border-hover);
+      background: var(--chip-hover);
+    }
+
+    .framework-option.selected {
+      border-color: var(--echo-color);
+      background: hsla(260, 70%, 65%, 0.1);
+    }
+
+    .framework-option-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .framework-option.echo .framework-option-icon {
+      background: hsla(260, 70%, 65%, 0.2);
+      color: var(--echo-color);
+    }
+
+    .framework-option.alfa .framework-option-icon {
+      background: hsla(190, 75%, 60%, 0.2);
+      color: var(--alfa-color);
+    }
+
+    .framework-option.bravo .framework-option-icon {
+      background: hsla(150, 70%, 55%, 0.2);
+      color: var(--bravo-color);
+    }
+
+    .framework-option.sabio .framework-option-icon {
+      background: hsla(40, 80%, 60%, 0.2);
+      color: var(--sabio-color);
+    }
+
+    .framework-option.auditor .framework-option-icon {
+      background: hsla(0, 75%, 62%, 0.2);
+      color: var(--auditor-color);
+    }
+
+    .framework-option.mecanico .framework-option-icon {
+      background: hsla(220, 75%, 65%, 0.2);
+      color: var(--mecanico-color);
+    }
+
+    .framework-option-info {
+      flex: 1;
+    }
+
+    .framework-option-name {
+      font-size: 15px;
       font-weight: 600;
-      background: var(--surface2);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-    }
-
-    .msg-bubble {
-      max-width: 80%;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 11px 14px;
-      font-size: 14px;
-      line-height: 1.6;
       color: var(--text);
-      transition: background 0.3s, border-color 0.3s;
+      margin-bottom: 4px;
     }
 
-    .typing-dots span {
-      display: inline-block;
-      width: 5px;
-      height: 5px;
+    .framework-option-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .framework-option-check {
+      width: 22px;
+      height: 22px;
       border-radius: 50%;
-      background: var(--text-muted);
-      margin: 0 2px;
-      animation: blink 1.2s infinite;
-    }
-    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-    @keyframes blink {
-      0%, 80%, 100% { opacity: 0.2; }
-      40% { opacity: 1; }
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
     }
 
-    /* ─── Theme toggle — bottom left ─── */
+    .framework-option.selected .framework-option-check {
+      background: var(--echo-color);
+      border-color: var(--echo-color);
+    }
+
+    .framework-option.selected .framework-option-check svg {
+      display: block;
+    }
+
+    .framework-option-check svg {
+      display: none;
+      width: 12px;
+      height: 12px;
+      color: white;
+    }
+
+    .framework-modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .modal-btn {
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .modal-btn.cancel {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .modal-btn.cancel:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .modal-btn.confirm {
+      background: var(--echo-color);
+      border: none;
+      color: white;
+    }
+
+    .modal-btn.confirm:hover {
+      opacity: 0.9;
+    }
+
+    .modal-btn.confirm:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    /* ─── Theme toggle ─── */
     .theme-toggle {
       position: fixed;
       bottom: 24px;
@@ -442,17 +1092,149 @@
 
     .theme-toggle:active { transform: scale(0.96); }
 
-    /* Show/hide sun vs moon icon */
-    .icon-sun  { display: none; }
+    .icon-sun { display: none; }
     .icon-moon { display: block; }
-
-    [data-theme="light"] .icon-sun  { display: block; }
+    [data-theme="light"] .icon-sun { display: block; }
     [data-theme="light"] .icon-moon { display: none; }
+
+    /* ─── Typing indicator ─── */
+    .typing-dots {
+      display: flex;
+      gap: 4px;
+      padding: 4px 0;
+    }
+
+    .typing-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: blink 1.2s infinite;
+    }
+
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.3; }
+      40% { opacity: 1; }
+    }
+
+
+    /* ─── Model Selector ─── */
+    .model-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .model-indicator:hover {
+      border-color: var(--border-hover);
+      color: var(--text);
+    }
+
+    .model-indicator .model-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+
+    .model-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .model-modal.visible { opacity: 1; pointer-events: all; }
+
+    .model-modal-content {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      max-width: 420px;
+      width: 90%;
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+    }
+
+    .model-modal.visible .model-modal-content { transform: scale(1); }
+
+    .model-modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .model-modal-header h2 { font-size: 16px; font-weight: 700; }
+    .model-modal-header p { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    .model-list { padding: 16px 20px; }
+
+    .model-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .model-option:hover { border-color: var(--border-hover); }
+    .model-option.selected { border-color: var(--echo-color); background: hsla(260, 70%, 65%, 0.1); }
+
+    .model-option-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .model-option-info { flex: 1; }
+    .model-option-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .model-option-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .model-option-check {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .model-option.selected .model-option-check { background: var(--echo-color); border-color: var(--echo-color); }
+    .model-option.selected .model-option-check svg { display: block; }
+    .model-option-check svg { display: none; width: 12px; height: 12px; color: white; }
+
+
+    .model-modal-footer {
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+    }
   </style>
 </head>
 <body>
 
-<!-- Big diffused glow blob -->
 <div class="glow"></div>
 
 <div class="shell">
@@ -472,41 +1254,61 @@
             stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <span class="brand">Handoff</span>
+    <div class="header-actions">
+      <button class="header-btn" id="btn-rules" title="Configurar reglas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/>
+          <circle cx="12" cy="12" r="4"/>
+        </svg>
+        Reglas
+      </button>
+      <div class="model-indicator" id="model-indicator" title="Cambiar modelo">
+        <span class="model-dot"></span>
+        <span id="current-model-name">Cargando...</span>
+      </div>
+    </div>
   </header>
 
-  <!-- Main landing -->
-  <main id="landing">
+  <!-- Nodes Canvas -->
+  <div class="nodes-canvas" id="nodes-canvas">
 
-    <h1 id="headline"></h1>
+    <!-- SVG Connections -->
+    <svg class="connections-svg" id="connections-svg">
+      <!-- Lines will be drawn dynamically -->
+    </svg>
 
-    <div class="input-card">
-      <div class="file-chips" id="file-chips"></div>
-      <textarea
-        id="chat-input"
-        placeholder=""
-        rows="3"
-        autofocus
-      ></textarea>
-      <div class="input-footer">
-        <div class="controls-left">
-          <div class="model-badge">
-            <span class="model-dot"></span>
-            gammav1
-          </div>
-          <label class="attach-label" for="file-input" title="Adjuntar archivo">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19
-                       a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
-            </svg>
-          </label>
-          <input type="file" id="file-input" multiple />
-        </div>
-        <button class="send-btn" id="send-btn" title="Enviar" disabled>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2.5"
-               stroke-linecap="round" stroke-linejoin="round">
+    <!-- User Node -->
+    <div class="node user" id="node-user" style="top: 75%; left: 50%;">
+      <div class="node-dot">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <span class="node-label">Tú</span>
+    </div>
+
+    <!-- Add Node Button (+) -->
+    <button class="add-node-btn" id="add-node-btn" title="Agregar framework">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+
+    <!-- Thought Bubble -->
+    <div class="thought-bubble" id="thought-bubble">
+      <div class="thought-header">
+        <span class="dot"></span>
+        <span class="header-text">Framework</span>
+      </div>
+      <div class="thought-body" id="thought-body">
+        <!-- Content here -->
+      </div>
+      <div class="thought-input-wrapper" id="thought-input-wrapper" style="display: none;">
+        <textarea class="thought-input" id="thought-input" rows="1" placeholder="Escribe tu respuesta..."></textarea>
+        <button class="thought-send-btn" id="thought-send-btn" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="19" x2="12" y2="5"/>
             <polyline points="5 12 12 5 19 12"/>
           </svg>
@@ -514,29 +1316,37 @@
       </div>
     </div>
 
-    <!-- Examples -->
-    <div class="examples-section">
-      <span class="examples-label" id="examples-label"></span>
-      <div class="examples" id="examples-chips"></div>
+    <!-- Initial Input Area -->
+    <div class="initial-input-area" id="initial-input-area">
+      <div class="initial-input-card">
+        <textarea id="initial-input" placeholder="Describe el problema o proceso que quieres automatizar..." rows="2"></textarea>
+        <div class="initial-input-footer">
+          <div class="initial-controls-left">
+            <div class="model-badge">
+              <span class="model-dot"></span>
+              gammav1
+            </div>
+          </div>
+          <button class="send-btn" id="initial-send-btn" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="19" x2="12" y2="5"/>
+              <polyline points="5 12 12 5 19 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
-  </main>
-
-  <!-- Chat view -->
-  <div class="chat-area" id="chat-area"></div>
+  </div>
 
 </div>
 
-<!-- Theme toggle — bottom left -->
+<!-- Theme toggle -->
 <button class="theme-toggle" id="theme-toggle" title="Cambiar tema">
-  <!-- Moon (shown in dark mode) -->
-  <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
   </svg>
-  <!-- Sun (shown in light mode) -->
-  <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <circle cx="12" cy="12" r="5"/>
     <line x1="12" y1="1" x2="12" y2="3"/>
     <line x1="12" y1="21" x2="12" y2="23"/>
@@ -549,318 +1359,1098 @@
   </svg>
 </button>
 
-<script>
-  const textarea   = document.getElementById('chat-input');
-  const sendBtn    = document.getElementById('send-btn');
-  const fileInput  = document.getElementById('file-input');
-  const fileChips  = document.getElementById('file-chips');
-  const chatArea   = document.getElementById('chat-area');
-  const landing    = document.getElementById('landing');
-  const themeBtn   = document.getElementById('theme-toggle');
+<!-- Model Selection Modal -->
+<div class="model-modal" id="model-modal">
+  <div class="model-modal-content">
+    <div class="model-modal-header">
+      <h2>Seleccionar Modelo</h2>
+      <p>Elige el modelo LLM que se usará para procesar</p>
+    </div>
+    <div class="model-list" id="model-list">
+      <!-- Model options will be loaded here -->
+    </div>
+    <div class="model-modal-footer">
+      <button class="modal-btn cancel" id="model-modal-close">Cerrar</button>
+    </div>
+  </div>
+</div>
 
-  /* ── Rotating copies ── */
-  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+<!-- Framework Selection Modal -->
+<div class="framework-modal" id="framework-modal">
+  <div class="framework-modal-content">
+    <div class="framework-modal-header">
+      <h2>Agregar Framework</h2>
+      <p>Selecciona qué frameworks quieres activar para esta sesión</p>
+    </div>
+    <div class="framework-list" id="framework-list">
+      <!-- Framework options will be loaded here -->
+    </div>
+    <div class="framework-modal-footer">
+      <button class="modal-btn cancel" id="modal-cancel">Cancelar</button>
+      <button class="modal-btn confirm" id="modal-confirm" disabled>Continuar</button>
+    </div>
+  </div>
+</div>
 
-  const HEADLINES = [
-    '¿Qué parte de tu negocio quieres automatizar hoy?',
-    'Cuéntame qué está fallando. Lo resolvemos juntos.',
-    'Dime qué necesitas. Yo me encargo del resto.',
-    '¿Qué estarías haciendo si no tuvieras que hacer esto manualmente?',
-  ];
-
-  const PLACEHOLDERS = [
-    'Describe el problema o el proceso que quieres automatizar...',
-    'Ej: "Necesito hacer seguimiento a mis clientes con pagos vencidos"',
-    'Cuéntame qué proceso te está quitando tiempo...',
-  ];
-
-  const LABELS = [
-    'Algunos ejemplos de lo que puedo hacer',
-    '¿Por dónde empezamos?',
-    'Prueba con algo así',
-  ];
-
-  const CHIPS = [
-    'Hacer seguimiento automático a mis clientes',
-    'Ordenar mi proceso de cobranza',
-    'Conectar mis herramientas y automatizar alertas',
-    'Dejar de perder ventas por falta de seguimiento',
-    'Saber qué está pasando en mi negocio sin preguntar',
-  ];
-
-  const arrowSVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
-
-  document.getElementById('headline').textContent = pick(HEADLINES);
-  textarea.placeholder = pick(PLACEHOLDERS);
-  document.getElementById('examples-label').textContent = pick(LABELS);
-
-  const chipsEl = document.getElementById('examples-chips');
-  CHIPS.forEach(text => {
-    const div = document.createElement('div');
-    div.className = 'chip';
-    div.innerHTML = text + arrowSVG;
-    div.addEventListener('click', () => useExample(div));
-    chipsEl.appendChild(div);
-  });
-
-  let attachedFiles = [];
-
-  /* ── Theme toggle ── */
-  themeBtn.addEventListener('click', () => {
-    const html = document.documentElement;
-    html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
-  });
-
-  /* ── Auto-resize textarea ── */
-  textarea.addEventListener('input', () => {
-    textarea.style.height = 'auto';
-    textarea.style.height = Math.min(textarea.scrollHeight, 200) + 'px';
-    sendBtn.disabled = !textarea.value.trim() && attachedFiles.length === 0;
-  });
-
-  /* ── Enter to send ── */
-  textarea.addEventListener('keydown', e => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (!sendBtn.disabled) send();
-    }
-  });
-
-  /* ── File attachment ── */
-  fileInput.addEventListener('change', () => {
-    Array.from(fileInput.files).forEach(f => {
-      if (!attachedFiles.find(x => x.name === f.name && x.size === f.size))
-        attachedFiles.push(f);
-    });
-    fileInput.value = '';
-    renderFileChips();
-    sendBtn.disabled = !textarea.value.trim() && attachedFiles.length === 0;
-  });
-
-  function renderFileChips() {
-    fileChips.innerHTML = '';
-    attachedFiles.forEach((f, i) => {
-      const chip = document.createElement('div');
-      chip.className = 'file-chip';
-      chip.innerHTML = `
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-          <polyline points="13 2 13 9 20 9"/>
+<!-- Rules Configuration Modal -->
+<div class="rules-modal" id="rules-modal">
+  <div class="rules-modal-content">
+    <div class="rules-modal-header">
+      <div>
+        <h2>Reglas de Composición</h2>
+        <p>Controlan cómo interactúan los frameworks entre sí</p>
+      </div>
+      <button class="header-btn" id="rules-close" style="padding: 6px 10px; border: none; background: transparent;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
-        <span>${f.name}</span>
-        <button onclick="removeFile(${i})" title="Quitar">×</button>`;
-      fileChips.appendChild(chip);
-    });
-  }
+      </button>
+    </div>
+    <div class="rules-modal-body">
+      <div class="rules-description">
+        <label style="font-size: 12px; color: var(--text-muted); display: block; margin-bottom: 6px;">Descripción</label>
+        <textarea id="rules-description" placeholder="Descripción de las reglas..."></textarea>
+      </div>
+      <div id="rules-list">
+        <!-- Rules will be loaded here -->
+      </div>
+    </div>
+    <div class="rules-modal-footer">
+      <span class="rules-status" id="rules-status"></span>
+      <div class="rules-actions">
+        <button class="modal-btn cancel" id="rules-cancel">Cancelar</button>
+        <button class="modal-btn confirm" id="rules-save">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-  function removeFile(i) {
-    attachedFiles.splice(i, 1);
-    renderFileChips();
-    sendBtn.disabled = !textarea.value.trim() && attachedFiles.length === 0;
-  }
+<script>
+// ============================================
+// CONSTANTS & STATE
+// ============================================
+const API_BASE = 'http://localhost:8084/api/v1';
 
-  /* ── Example chips ── */
-  function useExample(el) {
-    const txt = el.childNodes[0].textContent.trim();
-    textarea.value = txt;
-    textarea.dispatchEvent(new Event('input'));
-    textarea.focus();
-  }
+const FRAMEWORK_ICONS = {
+  echo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>`,
+  alfa: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+    <line x1="12" y1="17" x2="12.01" y2="17"/>
+  </svg>`,
+  bravo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+  </svg>`,
+  sabio: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    <circle cx="12" cy="11" r="2"/>
+  </svg>`,
+  indexa: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+    <path d="M3 5v14a9 3 0 0 0 18 0V5"/>
+    <path d="M3 12a9 3 0 0 0 18 0"/>
+  </svg>`,
+  auditor: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/>
+    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    <line x1="11" y1="8" x2="11" y2="14"/>
+    <line x1="8" y1="11" x2="14" y2="11"/>
+  </svg>`,
+  mecanico: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>`
+};
 
-  /* ── Switch to chat view ── */
-  function switchToChat() {
-    landing.style.display = 'none';
-    chatArea.classList.add('active');
-    const inputCard = document.querySelector('.input-card');
-    const shell = document.querySelector('.shell');
-    inputCard.style.cssText = `
-      width: 100%; max-width: 660px;
-      margin: 0 auto; flex-shrink: 0;
-      position: sticky; bottom: 0;
-      background: var(--bg);
-      border-top: 1px solid var(--border);
-      border-left: none; border-right: none; border-bottom: none;
-      border-radius: 0; padding: 14px 16px 20px;
+const FRAMEWORK_INFO = {
+  echo: {
+    name: 'Echo',
+    desc: 'Entiende tu problema, hace preguntas estratégicas y define qué automatizar primero.'
+  },
+  alfa: {
+    name: 'Alfa',
+    desc: 'Simula soluciones y debate hasta encontrar el mejor approach para tu caso.'
+  },
+  bravo: {
+    name: 'Bravo',
+    desc: 'Ejecuta el plan elegido, valida cada paso y te entrega resultados concretos.'
+  },
+  sabio: {
+    name: 'Sabio',
+    desc: 'Experto en tus datos: hace retrieval sobre tu información indexada y responde con citas a fuentes reales.'
+  },
+  indexa: {
+    name: 'Indexa',
+    desc: 'Ingiere data desde tus APIs y la deja consultable por Sabio.'
+  },
+  auditor: {
+    name: 'Auditor',
+    desc: 'Recorre tu ERP buscando errores enterrados: integridad referencial, datos inconsistentes, valores inválidos. Habla primero, sin que se lo pidas.'
+  },
+  mecanico: {
+    name: 'Mecánico',
+    desc: 'Toma los hallazgos del Auditor, propone planes de fix y los aplica solo cuando vos confirmás. Cada cambio queda en audit-trail.'
+  }
+};
+
+// Devuelve la "clase visual" de un framework. Si está en FRAMEWORK_ICONS
+// usa su propio nombre como type; si no, cae a 'echo' como default seguro.
+function frameworkType(name) {
+  return FRAMEWORK_ICONS[name] ? name : 'echo';
+}
+
+let selectedFrameworks = [];
+let activeNodes = []; // { id, name, type }
+let currentConvId = null;
+let currentQuestionId = null;
+let currentFramework = null;
+let isWaitingForResponse = false;
+let currentModel = 'minimax'; // default
+let availableModels = [];
+
+// ============================================
+// MODEL SELECTOR
+// ============================================
+const modelIndicator = document.getElementById('model-indicator');
+const modelModal = document.getElementById('model-modal');
+const modelList = document.getElementById('model-list');
+const currentModelName = document.getElementById('current-model-name');
+const modelModalClose = document.getElementById('model-modal-close');
+
+async function loadModels() {
+  try {
+    const res = await fetch(`${API_BASE}/models`);
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) {
+      availableModels = json.data;
+      renderModelOptions();
+      
+      // Load current runtime info to show which model is active
+      const runtimeRes = await fetch(`${API_BASE}/runtime`);
+      const runtimeJson = await runtimeRes.json();
+      if (runtimeJson.success) {
+        const rt = runtimeJson.data;
+        if (rt.provider === 'groq') currentModel = 'groq';
+        else if (rt.provider === 'minimax') currentModel = 'minimax';
+        
+        const modelInfo = availableModels.find(m => m.id === currentModel);
+        currentModelName.textContent = modelInfo ? modelInfo.name : rt.model;
+        renderModelOptions();
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load models:', e);
+    currentModelName.textContent = 'No disponible';
+  }
+}
+
+function renderModelOptions() {
+  modelList.innerHTML = '';
+  availableModels.forEach(model => {
+    const option = document.createElement('div');
+    option.className = `model-option ${model.id === currentModel ? 'selected' : ''}`;
+    option.dataset.model = model.id;
+    option.innerHTML = `
+      <div class="model-option-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="model-option-info">
+        <div class="model-option-name">${model.name}</div>
+        <div class="model-option-desc">${model.description}</div>
+      </div>
+      <div class="model-option-check">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
     `;
-    shell.appendChild(inputCard);
+    option.addEventListener('click', () => selectModel(model.id));
+    modelList.appendChild(option);
+  });
+}
+
+function selectModel(modelId) {
+  currentModel = modelId;
+  const modelInfo = availableModels.find(m => m.id === modelId);
+  currentModelName.textContent = modelInfo ? modelInfo.name : modelId;
+  renderModelOptions();
+  modelModal.classList.remove('visible');
+}
+
+modelIndicator.addEventListener('click', () => {
+  modelModal.classList.add('visible');
+});
+
+modelModalClose.addEventListener('click', () => {
+  modelModal.classList.remove('visible');
+});
+
+modelModal.addEventListener('click', (e) => {
+  if (e.target === modelModal) modelModal.classList.remove('visible');
+});
+
+// Load models on init
+loadModels();
+
+// ============================================
+// DOM ELEMENTS
+// ============================================
+const canvas = document.getElementById('nodes-canvas');
+const connectionsSvg = document.getElementById('connections-svg');
+const addNodeBtn = document.getElementById('add-node-btn');
+const thoughtBubble = document.getElementById('thought-bubble');
+const thoughtBody = document.getElementById('thought-body');
+const thoughtInputWrapper = document.getElementById('thought-input-wrapper');
+const thoughtInput = document.getElementById('thought-input');
+const thoughtSendBtn = document.getElementById('thought-send-btn');
+const initialInputArea = document.getElementById('initial-input-area');
+const initialInput = document.getElementById('initial-input');
+const initialSendBtn = document.getElementById('initial-send-btn');
+const frameworkModal = document.getElementById('framework-modal');
+const frameworkList = document.getElementById('framework-list');
+const modalCancel = document.getElementById('modal-cancel');
+const modalConfirm = document.getElementById('modal-confirm');
+const themeBtn = document.getElementById('theme-toggle');
+const nodeUser = document.getElementById('node-user');
+
+// ============================================
+// INITIALIZATION
+// ============================================
+
+// Theme toggle
+themeBtn.addEventListener('click', () => {
+  document.documentElement.dataset.theme = 
+    document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+// Auto-resize textarea
+function autoResize(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+}
+
+initialInput.addEventListener('input', () => {
+  autoResize(initialInput);
+  initialSendBtn.disabled = !initialInput.value.trim();
+});
+
+thoughtInput.addEventListener('input', () => {
+  autoResize(thoughtInput);
+  thoughtSendBtn.disabled = !thoughtInput.value.trim();
+});
+
+// ============================================
+// NODE MANAGEMENT
+// ============================================
+
+function createNodeElement(id, name, type, x, y) {
+  const node = document.createElement('div');
+  node.className = `node ${type}`;
+  node.id = `node-${id}`;
+  node.style.cssText = `top: ${y}%; left: ${x}%;`;
+  node.innerHTML = `
+    <div class="node-dot">
+      ${FRAMEWORK_ICONS[type] || FRAMEWORK_ICONS.echo}
+    </div>
+    <span class="node-label">${name}</span>
+  `;
+  return node;
+}
+
+function addNode(id, name, type) {
+  console.log('addNode called with:', id, name, type);
+  console.log('  canvas element:', canvas);
+  console.log('  canvas children before:', canvas.children.length);
+  
+  // Calculate position based on how many nodes exist
+  const nodeCount = activeNodes.length;
+  const positions = [
+    { x: 50, y: 35 },   // First framework - top center
+    { x: 30, y: 35 },   // Second - top left
+    { x: 70, y: 35 },   // Third - top right
+  ];
+  const pos = positions[Math.min(nodeCount, positions.length - 1)] || positions[0];
+  
+  const nodeEl = createNodeElement(id, name, type, pos.x, pos.y);
+  nodeEl.classList.add('new'); // Play appear animation
+  canvas.appendChild(nodeEl);
+  
+  activeNodes.push({ id, name, type });
+  drawConnections();
+  
+  return nodeEl;
+}
+
+function drawConnections() {
+  const userNode = nodeUser;
+  const userDot = userNode.querySelector('.node-dot');
+  
+  connectionsSvg.innerHTML = '';
+  
+  activeNodes.forEach((node, index) => {
+    const nodeEl = document.getElementById(`node-${node.id}`);
+    if (!nodeEl || !userDot) return;
+    
+    const nodeDot = nodeEl.querySelector('.node-dot');
+    
+    const userRect = userDot.getBoundingClientRect();
+    const nodeRect = nodeDot.getBoundingClientRect();
+    const svgRect = connectionsSvg.getBoundingClientRect();
+    
+    const x1 = ((userRect.left + userRect.width / 2) - svgRect.left) / svgRect.width * 100;
+    const y1 = ((userRect.top + userRect.height / 2) - svgRect.top) / svgRect.height * 100;
+    const x2 = ((nodeRect.left + nodeRect.width / 2) - svgRect.left) / svgRect.width * 100;
+    const y2 = ((nodeRect.top + nodeRect.height / 2) - svgRect.top) / svgRect.height * 100;
+    
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', `${x1}%`);
+    line.setAttribute('y1', `${y1}%`);
+    line.setAttribute('x2', `${x2}%`);
+    line.setAttribute('y2', `${y2}%`);
+    line.setAttribute('class', 'connection');
+    line.id = `conn-user-${node.id}`;
+    
+    connectionsSvg.appendChild(line);
+  });
+}
+
+function setNodeActive(nodeId, isActive) {
+  const node = document.getElementById(`node-${nodeId}`);
+  if (node) {
+    node.classList.toggle('active', isActive);
+    node.classList.toggle('dimmed', !isActive && activeNodes.length > 0);
   }
-
-  /* ── Append message ── */
-  function appendMessage(role, text) {
-    const wrap = document.createElement('div');
-    wrap.className = `message ${role}`;
-
-    const avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.textContent = role === 'user' ? 'Tú' : 'H';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-    bubble.textContent = text;
-
-    wrap.appendChild(avatar);
-    wrap.appendChild(bubble);
-    chatArea.appendChild(wrap);
-    chatArea.scrollTop = chatArea.scrollHeight;
-    return bubble;
+  
+  const conn = document.getElementById(`conn-user-${nodeId}`);
+  if (conn) {
+    conn.classList.toggle('active', isActive);
+    conn.classList.toggle('pulse', isActive);
   }
+}
 
-  /* ── Typing indicator ── */
-  function showTyping() {
-    const wrap = document.createElement('div');
-    wrap.className = 'message assistant';
-    wrap.id = 'typing-indicator';
-    wrap.innerHTML = `
-      <div class="msg-avatar">H</div>
-      <div class="msg-bubble">
-        <div class="typing-dots"><span></span><span></span><span></span></div>
-      </div>`;
-    chatArea.appendChild(wrap);
-    chatArea.scrollTop = chatArea.scrollHeight;
+function setNodeSpeaking(nodeId, isSpeaking) {
+  const node = document.getElementById(`node-${nodeId}`);
+  if (node) {
+    node.classList.toggle('speaking', isSpeaking);
   }
+}
 
-  function removeTyping() {
-    const t = document.getElementById('typing-indicator');
-    if (t) t.remove();
+function deactivateAllNodes() {
+  activeNodes.forEach(node => {
+    setNodeActive(node.id, false);
+    setNodeSpeaking(node.id, false);
+  });
+}
+
+// ============================================
+// THOUGHT BUBBLE
+// ============================================
+
+function showThoughtBubble(type, header, content, hasInput = false, position = 'pos-below') {
+  const dot = thoughtBubble.querySelector('.dot');
+  const headerText = thoughtBubble.querySelector('.header-text');
+  
+  thoughtBubble.className = `thought-bubble ${type} ${position}`;
+  dot.style.background = 'var(--text)';
+  headerText.textContent = header;
+  thoughtBody.innerHTML = `<p>${content.replace(/\n/g, '<br>')}</p>`;
+  
+  thoughtInputWrapper.style.display = hasInput ? 'flex' : 'none';
+  thoughtInput.value = '';
+  thoughtSendBtn.disabled = true;
+  
+  // Position bubble near the active node
+  positionBubbleNearNode(position);
+  
+  thoughtBubble.classList.add('visible');
+}
+
+function positionBubbleNearNode(position) {
+  // Find active node
+  const activeNode = document.querySelector('.node.active');
+  if (!activeNode) {
+    // Default position if no active node
+    thoughtBubble.style.top = '50%';
+    thoughtBubble.style.left = '50%';
+    thoughtBubble.style.transform = 'translate(-50%, -50%)';
+    return;
   }
+  
+  const nodeRect = activeNode.getBoundingClientRect();
+  const canvasRect = canvas.getBoundingClientRect();
+  
+  const nodeCenterX = nodeRect.left + nodeRect.width / 2 - canvasRect.left;
+  const nodeCenterY = nodeRect.top + nodeRect.height / 2 - canvasRect.top;
+  
+  const bubbleWidth = 340;
+  const minX = 20;
+  const maxX = canvasRect.width - bubbleWidth - 20;
+  
+  // Calculate centered position first, then we'll constrain
+  let bubbleLeft = nodeCenterX - bubbleWidth / 2;
+  let bubbleTop;
+  
+  // Get the rendered height of thought-body content
+  // The bubble has padding 20px 24px, header ~40px, and potential input wrapper ~60px
+  const headerHeight = thoughtBubble.querySelector('.thought-header')?.offsetHeight || 0;
+  const inputWrapper = thoughtInputWrapper;
+  const inputVisible = inputWrapper.style.display !== 'none';
+  const inputHeight = inputVisible ? (inputWrapper.offsetHeight || 60) : 0;
+  
+  // Calculate available space above and below the node
+  const spaceAbove = nodeCenterY - 60; // Space from top to node center
+  const spaceBelow = canvasRect.height - nodeCenterY - 60; // Space from node center to bottom
+  
+  // Determine optimal position based on available space
+  // We want bubble to appear below if there's room, otherwise above
+  const estimatedBubbleHeight = headerHeight + thoughtBody.scrollHeight + inputHeight + 40;
+  const minBubbleHeight = 100;
+  const actualBubbleHeight = Math.max(estimatedBubbleHeight, minBubbleHeight);
+  
+  // Smart positioning: choose position that fits best
+  let preferredPosition = position;
+  if (position === 'pos-below' && spaceBelow < actualBubbleHeight + 60) {
+    preferredPosition = 'pos-above';
+  } else if (position === 'pos-above' && spaceAbove < actualBubbleHeight + 60) {
+    preferredPosition = 'pos-below';
+  }
+  
+  switch (preferredPosition) {
+    case 'pos-below':
+      bubbleTop = nodeCenterY + 50;
+      break;
+    case 'pos-above':
+      bubbleTop = nodeCenterY - actualBubbleHeight - 60;
+      break;
+    case 'pos-left':
+      bubbleLeft = nodeCenterX - bubbleWidth - 40;
+      bubbleTop = nodeCenterY - actualBubbleHeight / 2;
+      break;
+    case 'pos-right':
+      bubbleLeft = nodeCenterX + 40;
+      bubbleTop = nodeCenterY - actualBubbleHeight / 2;
+      break;
+    default:
+      bubbleTop = nodeCenterY + 50;
+  }
+  
+  // Constrain bubble within canvas bounds
+  const minY = 20;
+  const maxY = canvasRect.height - actualBubbleHeight - 20;
+  
+  // Horizontal constraints
+  bubbleLeft = Math.max(minX, Math.min(maxX, bubbleLeft));
+  // Vertical constraints
+  bubbleTop = Math.max(minY, Math.min(maxY, bubbleTop));
+  
+  // Final safety check - if bubble still doesn't fit vertically,
+  // use the available space
+  if (bubbleTop + actualBubbleHeight > canvasRect.height - 10) {
+    bubbleTop = Math.max(10, canvasRect.height - actualBubbleHeight - 10);
+  }
+  if (bubbleTop < 10) {
+    bubbleTop = 10;
+  }
+  
+  thoughtBubble.style.left = bubbleLeft + 'px';
+  thoughtBubble.style.top = bubbleTop + 'px';
+  thoughtBubble.style.transform = 'none';
+}
 
-  /* ── API Configuration ── */
-  const API_BASE = 'http://localhost:8084/api/v1';
-  let currentConvId = null;
+function hideThoughtBubble() {
+  thoughtBubble.classList.remove('visible');
+}
 
-  /* ── Init: create or resume conversation ── */
-  async function initConversation() {
-    try {
-      const res = await fetch(`${API_BASE}/conversations`, {
+// ============================================
+// FRAMEWORK MODAL
+// ============================================
+
+function showFrameworkModal() {
+  loadAvailableFrameworks();
+  frameworkModal.classList.add('visible');
+}
+
+function hideFrameworkModal() {
+  frameworkModal.classList.remove('visible');
+  selectedFrameworks = [];
+  renderFrameworkOptions();
+}
+
+async function loadAvailableFrameworks() {
+  try {
+    const res = await fetch(`${API_BASE}/frameworks`);
+    const json = await res.json();
+    
+    if (json.success && Array.isArray(json.data)) {
+      frameworkList.innerHTML = '';
+      
+      json.data.forEach(fw => {
+        const type = frameworkType(fw.name);
+        
+        const option = document.createElement('div');
+        option.className = `framework-option ${type}`;
+        option.dataset.framework = fw.name;
+        option.innerHTML = `
+          <div class="framework-option-icon">
+            ${FRAMEWORK_ICONS[type]}
+          </div>
+          <div class="framework-option-info">
+            <div class="framework-option-name">${fw.name}</div>
+            <div class="framework-option-desc">${FRAMEWORK_INFO[fw.name]?.desc || fw.description || 'Framework de automatización'}</div>
+          </div>
+          <div class="framework-option-check">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+        `;
+        
+        option.addEventListener('click', () => toggleFrameworkSelection(fw.name));
+        frameworkList.appendChild(option);
+      });
+      
+      renderFrameworkOptions();
+    }
+  } catch (e) {
+    console.error('Failed to load frameworks:', e);
+    // Fallback to default frameworks
+    frameworkList.innerHTML = '';
+    ['echo', 'alfa', 'bravo'].forEach(name => {
+      const type = name;
+      const option = document.createElement('div');
+      option.className = `framework-option ${type}`;
+      option.dataset.framework = name;
+      option.innerHTML = `
+        <div class="framework-option-icon">
+          ${FRAMEWORK_ICONS[type]}
+        </div>
+        <div class="framework-option-info">
+          <div class="framework-option-name">${FRAMEWORK_INFO[name].name}</div>
+          <div class="framework-option-desc">${FRAMEWORK_INFO[name].desc}</div>
+        </div>
+        <div class="framework-option-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+      `;
+      option.addEventListener('click', () => toggleFrameworkSelection(name));
+      frameworkList.appendChild(option);
+    });
+    renderFrameworkOptions();
+  }
+}
+
+function toggleFrameworkSelection(name) {
+  const idx = selectedFrameworks.indexOf(name);
+  if (idx === -1) {
+    selectedFrameworks.push(name);
+  } else {
+    selectedFrameworks.splice(idx, 1);
+  }
+  renderFrameworkOptions();
+  modalConfirm.disabled = selectedFrameworks.length === 0;
+}
+
+function renderFrameworkOptions() {
+  document.querySelectorAll('.framework-option').forEach(opt => {
+    opt.classList.toggle('selected', selectedFrameworks.includes(opt.dataset.framework));
+  });
+}
+
+// ============================================
+// API COMMUNICATION
+// ============================================
+
+async function createConversationAndStart(frameworks, initialMessage) {
+  try {
+    // Try single framework conversation first
+    if (frameworks.length === 1) {
+      const res = await fetch(`${API_BASE}/conversations-single`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Handoff Chat' })
+        body: JSON.stringify({
+          title: 'Handoff Session',
+          framework: frameworks[0]
+        })
       });
       const json = await res.json();
-      if (json.success && json.data && json.data.id) {
-        currentConvId = json.data.id;
-        console.log('Conversation created:', currentConvId);
-        // Wait a bit for Echo's initial response
-        await new Promise(r => setTimeout(r, 6000));
-        await loadMessages();
-      }
-    } catch (e) {
-      console.error('Failed to init conversation:', e);
-    }
-  }
-
-  /* ── Load messages from API ── */
-  async function loadMessages() {
-    if (!currentConvId) return;
-    try {
-      const res = await fetch(`${API_BASE}/conversations/${currentConvId}/messages`);
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        // Render messages that aren't already in chat
-        json.data.forEach(msg => {
-          if (msg.role === 'user' || msg.role === 'echo') {
-            // Check if already rendered
-            const existing = chatArea.querySelector(`[data-msg-id="${msg.id}"]`);
-            if (!existing) {
-              renderMessage(msg.role, msg.content, msg.id);
-            }
-          }
+      
+      if (json.success && json.data.conversation) {
+        currentConvId = json.data.conversation.id;
+        
+        // Add nodes for selected frameworks
+        frameworks.forEach(name => {
+          addNode(name, FRAMEWORK_INFO[name]?.name || name, frameworkType(name));
         });
+        
+        // Activate user node
+        nodeUser.classList.remove('dimmed');
+        nodeUser.classList.add('active');
+        
+        // Hide initial input, show thought bubble
+        initialInputArea.classList.add('hidden');
+        addNodeBtn.classList.add('hidden');
+        
+        // If there's an initial question from the framework
+        if (json.data.first_question) {
+          const q = json.data.first_question;
+          currentFramework = q.framework;
+          currentQuestionId = q.question_id;
+          
+          const nodeType = frameworkType(q.framework);
+          setNodeActive(q.framework, true);
+          setNodeSpeaking(q.framework, true);
+          
+          setTimeout(() => {
+            setNodeSpeaking(q.framework, false);
+            showThoughtBubble(
+              nodeType,
+              FRAMEWORK_INFO[nodeType]?.name || q.framework,
+              q.content,
+              true,
+              'pos-below'
+            );
+          }, 500);
+        } else {
+          // No question, user needs to send initial message
+          showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
+          await sendInitialMessage(initialMessage);
+        }
+        
+        return;
       }
-    } catch (e) {
-      console.error('Failed to load messages:', e);
     }
-  }
-
-  /* ── Render a single message ── */
-  function renderMessage(role, text, msgId) {
-    const wrap = document.createElement('div');
-    wrap.className = `message ${role}`;
-    wrap.setAttribute('data-msg-id', msgId || 'temp-' + Date.now());
-
-    const avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.textContent = role === 'user' ? 'Tú' : 'H';
-
-    const bubble = document.createElement('div');
-    bubble.className = 'msg-bubble';
-    bubble.textContent = text;
-
-    wrap.appendChild(avatar);
-    wrap.appendChild(bubble);
-    chatArea.appendChild(wrap);
-    chatArea.scrollTop = chatArea.scrollHeight;
-  }
-
-  /* ── Send message via API ── */
-  async function sendMessage(text) {
-    if (!currentConvId) {
-      await initConversation();
+    
+    // Fallback: multi-framework conversation
+    const res = await fetch(`${API_BASE}/conversations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: 'Handoff Session',
+        frameworks: frameworks
+      })
+    });
+    const json = await res.json();
+    
+    if (json.success && json.data.conversation) {
+      currentConvId = json.data.conversation.id;
+      
+      // Add nodes for selected frameworks
+      frameworks.forEach(name => {
+        addNode(name, FRAMEWORK_INFO[name]?.name || name, frameworkType(name));
+      });
+      
+      // Activate user node
+      nodeUser.classList.remove('dimmed');
+      nodeUser.classList.add('active');
+      
+      // Hide initial input
+      initialInputArea.classList.add('hidden');
+      addNodeBtn.classList.add('hidden');
+      
+      // Show user's initial message in thought bubble
+      showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
+      
+      // Send initial message to API
+      await sendInitialMessage(initialMessage);
     }
-    if (!currentConvId) return null;
+  } catch (e) {
+    console.error('Failed to create conversation:', e);
+    showThoughtBubble('echo', 'Error', 'No se pudo conectar con el servidor. Asegúrate de que la API está corriendo en ' + API_BASE, false, 'pos-below');
+  }
+}
 
-    try {
-      const res = await fetch(`${API_BASE}/conversations/${currentConvId}/messages`, {
+async function sendInitialMessage(text) {
+  if (!text.trim() || !currentConvId) return;
+  if (isWaitingForResponse) return;
+  
+  isWaitingForResponse = true;
+  deactivateAllNodes();
+  
+  try {
+    let res;
+    if (activeNodes.length === 1) {
+      res = await fetch(`${API_BASE}/conversations-single/${currentConvId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: text })
       });
-      const json = await res.json();
-      if (json.success && json.data) {
-        return json.data;
-      }
-    } catch (e) {
-      console.error('Failed to send message:', e);
+    } else {
+      res = await fetch(`${API_BASE}/conversations/${currentConvId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text })
+      });
     }
-    return null;
+    
+    const json = await res.json();
+    
+    if (json.success) {
+      if (json.data.framework_message) {
+        const msg = json.data.framework_message;
+        currentFramework = msg.framework;
+        currentQuestionId = msg.question_id;
+        
+        const nodeType = frameworkType(msg.framework);
+        setNodeActive(msg.framework, true);
+        setNodeSpeaking(msg.framework, true);
+        
+        hideThoughtBubble();
+        
+        setTimeout(() => {
+          setNodeSpeaking(msg.framework, false);
+          showThoughtBubble(
+            nodeType,
+            FRAMEWORK_INFO[nodeType]?.name || msg.framework,
+            msg.content,
+            true,
+            'pos-below'
+          );
+        }, 300);
+      } else if (json.data.idle) {
+        showThoughtBubble('echo', 'Echo', 'La sesión está completa. Puedes iniciar una nueva si lo necesitas.', false, 'pos-below');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to send message:', e);
+    showThoughtBubble('echo', 'Error', 'Error de conexión. Intenta de nuevo.', true, 'pos-below');
   }
+  
+  isWaitingForResponse = false;
+}
 
-  /* ── Send ── */
-  async function send() {
-    const text = textarea.value.trim();
-    if (!text && attachedFiles.length === 0) return;
+async function sendResponseToFramework(text) {
+  if (!text.trim() || !currentConvId) return;
+  if (isWaitingForResponse) return;
+  
+  isWaitingForResponse = true;
+  hideThoughtBubble();
+  deactivateAllNodes();
+  
+  // Show user's response in bubble
+  showThoughtBubble('user', 'Tú', text, false, 'pos-below');
+  
+  // Send to API
+  try {
+    let res;
+    if (activeNodes.length === 1) {
+      res = await fetch(`${API_BASE}/conversations-single/${currentConvId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text })
+      });
+    } else {
+      res = await fetch(`${API_BASE}/conversations/${currentConvId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text })
+      });
+    }
+    
+    const json = await res.json();
+    
+    if (json.success) {
+      if (json.data.framework_message) {
+        const msg = json.data.framework_message;
+        currentFramework = msg.framework;
+        currentQuestionId = msg.question_id;
+        
+        const nodeType = frameworkType(msg.framework);
+        setNodeActive(msg.framework, true);
+        setNodeSpeaking(msg.framework, true);
+        
+        setTimeout(() => {
+          setNodeSpeaking(msg.framework, false);
+          showThoughtBubble(
+            nodeType,
+            FRAMEWORK_INFO[nodeType]?.name || msg.framework,
+            msg.content,
+            true,
+            'pos-below'
+          );
+        }, 500);
+      } else if (json.data.idle) {
+        showThoughtBubble('echo', 'Echo', 'La sesión ha terminado. Gracias por usar Handoff.', false, 'pos-below');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to send response:', e);
+    showThoughtBubble('echo', 'Error', 'Error de conexión. Intenta de nuevo.', true, 'pos-below');
+  }
+  
+  isWaitingForResponse = false;
+}
 
-    if (!chatArea.classList.contains('active')) switchToChat();
+// ============================================
+// EVENT LISTENERS
+// ============================================
 
-    // Show user message immediately
-    const userMsgId = 'user-' + Date.now();
-    appendMessage('user', text + (attachedFiles.length ? `\n[${attachedFiles.map(f => f.name).join(', ')}]` : ''));
+// Add node button
+addNodeBtn.addEventListener('click', showFrameworkModal);
 
-    textarea.value = '';
-    textarea.style.height = 'auto';
-    attachedFiles = [];
-    renderFileChips();
-    sendBtn.disabled = true;
-
-    showTyping();
-
+// Modal buttons
+modalCancel.addEventListener('click', hideFrameworkModal);
+modalConfirm.addEventListener('click', async () => {
+  console.log('Confirm button clicked');
+  console.log('selectedFrameworks before check:', selectedFrameworks);
+  
+  if (selectedFrameworks.length === 0) {
+    console.log('Early return - no frameworks selected');
+    return;
+  }
+  
+  console.log('Modal confirm clicked, frameworks:', selectedFrameworks);
+  
+  // Save frameworks to a local variable BEFORE hiding modal
+  const frameworksToAdd = [...selectedFrameworks];
+  console.log('Frameworks saved:', frameworksToAdd);
+  
+  // Hide modal (this resets selectedFrameworks to [])
+  hideFrameworkModal();
+  
+  // Hide the + button
+  addNodeBtn.classList.add('hidden');
+  
+  console.log('Starting forEach loop');
+  for (let i = 0; i < frameworksToAdd.length; i++) {
+    const name = frameworksToAdd[i];
+    const type = frameworkType(name);
+    console.log('Loop iteration:', i, name, type);
     try {
-      // Send to API
-      const response = await sendMessage(text);
-
-      removeTyping();
-
-      if (response && response.role === 'echo') {
-        appendMessage('echo', response.content);
-      } else if (response && response.handoff_event) {
-        console.log('Handoff event:', response.handoff_event);
-        // Reload to get all messages
-        await loadMessages();
-      }
-    } catch (e) {
-      removeTyping();
-      appendMessage('echo', 'Error de conexión. Intenta de nuevo.');
+      addNode(name, FRAMEWORK_INFO[name]?.name || name, type);
+      console.log('addNode completed');
+    } catch(e) {
+      console.error('Error in addNode:', e);
     }
-
-    sendBtn.disabled = false;
   }
+  console.log('Loop finished');
+  
+  // Activate user node
+  nodeUser.classList.remove('dimmed');
+  nodeUser.classList.add('active');
+  
+  // Focus on initial input
+  initialInput.focus();
+  
+  console.log('Active nodes after adding:', activeNodes);
+});
 
-  /* ── Start conversation on load ── */
-  initConversation();
+// Initial input send
+initialSendBtn.addEventListener('click', async () => {
+  const text = initialInput.value.trim();
+  if (!text) return;
+  
+  // Check if we have active frameworks (not selectedFrameworks which gets reset)
+  if (activeNodes.length === 0) {
+    // No frameworks selected, show modal
+    showFrameworkModal();
+    return;
+  }
+  
+  // Get the framework IDs from activeNodes
+  const frameworkNames = activeNodes.map(n => n.id);
+  console.log('Sending with frameworks:', frameworkNames);
+  
+  await createConversationAndStart(frameworkNames, text);
+});
 
-  sendBtn.addEventListener('click', send);
+initialInput.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!initialSendBtn.disabled) {
+      initialSendBtn.click();
+    }
+  }
+});
+
+// Thought bubble send
+thoughtSendBtn.addEventListener('click', async () => {
+  const text = thoughtInput.value.trim();
+  if (!text) return;
+  await sendResponseToFramework(text);
+});
+
+thoughtInput.addEventListener('keydown', async (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    if (!thoughtSendBtn.disabled) {
+      thoughtSendBtn.click();
+    }
+  }
+});
+
+// Close modal on click outside
+frameworkModal.addEventListener('click', (e) => {
+  if (e.target === frameworkModal) {
+    hideFrameworkModal();
+  }
+});
+
+// Handle window resize for connections
+window.addEventListener('resize', () => {
+  if (activeNodes.length > 0) {
+    drawConnections();
+  }
+});
+
+// ============================================
+// INITIAL STATE
+// ============================================
+
+// Hide thought bubble initially
+hideThoughtBubble();
+
+// User node starts dimmed
+nodeUser.classList.add('dimmed');
+nodeUser.classList.remove('active');
+
+// ============================================
+// RULES MODAL
+// ============================================
+
+const rulesModal = document.getElementById('rules-modal');
+const rulesBtn = document.getElementById('btn-rules');
+const rulesClose = document.getElementById('rules-close');
+const rulesCancel = document.getElementById('rules-cancel');
+const rulesSave = document.getElementById('rules-save');
+const rulesStatus = document.getElementById('rules-status');
+const rulesDescription = document.getElementById('rules-description');
+const rulesList = document.getElementById('rules-list');
+
+let currentRules = { version: 1, description: '', rules: [] };
+let rulesModified = false;
+
+function showRulesModal() {
+  rulesModal.classList.add('visible');
+  loadRules();
+}
+
+function hideRulesModal() {
+  rulesModal.classList.remove('visible');
+  rulesModified = false;
+}
+
+async function loadRules() {
+  try {
+    const res = await fetch(`${API_BASE}/rules`);
+    const data = await res.json();
+    if (data.success) {
+      currentRules = data.data;
+      renderRules();
+    }
+  } catch (e) {
+    console.error('Error loading rules:', e);
+    rulesStatus.textContent = 'Error al cargar reglas';
+    rulesStatus.className = 'rules-status error';
+  }
+}
+
+function renderRules() {
+  rulesDescription.value = currentRules.description || '';
+  rulesList.innerHTML = '';
+  
+  currentRules.rules.forEach((rule, index) => {
+    const card = document.createElement('div');
+    card.className = 'rule-card';
+    card.innerHTML = `
+      <div class="rule-card-header">
+        <span class="rule-card-id">${rule.id}</span>
+        <button class="rule-card-toggle ${rule._enabled !== false ? 'active' : ''}" data-index="${index}"></button>
+      </div>
+      <div class="rule-card-description">${rule.description || 'Sin descripción'}</div>
+      <div class="rule-when"><strong>WHEN:</strong> ${formatCondition(rule.when)}</div>
+      <div class="rule-then"><strong>THEN:</strong> ${formatThen(rule.then)}</div>
+    `;
+    rulesList.appendChild(card);
+  });
+  
+  // Add toggle listeners
+  rulesList.querySelectorAll('.rule-card-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const index = parseInt(btn.dataset.index);
+      currentRules.rules[index]._enabled = !currentRules.rules[index]._enabled;
+      btn.classList.toggle('active');
+      rulesModified = true;
+    });
+  });
+}
+
+function formatCondition(when) {
+  if (!when) return '{}';
+  const parts = [];
+  if (when.frameworks_active_all) parts.push(`frameworks: [${when.frameworks_active_all.join(', ')}]`);
+  if (when.frameworks_active_any) parts.push(`frameworks_any: [${when.frameworks_active_any.join(', ')}]`);
+  if (when.user_answer_count_min !== undefined) parts.push(`answers: ${when.user_answer_count_min}${when.user_answer_count_max ? '-' + when.user_answer_count_max : '+'}`);
+  if (when.user_message_has_resource_type) parts.push(`resource: ${when.user_message_has_resource_type}`);
+  return parts.length > 0 ? parts.join(', ') : '{}';
+}
+
+function formatThen(then) {
+  if (!then) return '{}';
+  const parts = [];
+  if (then.prepend_speaker) parts.push(`speaker: ${then.prepend_speaker}`);
+  if (then.preprocess) parts.push(`preprocess: ${then.preprocess}`);
+  return parts.length > 0 ? parts.join(', ') : '{}';
+}
+
+async function saveRules() {
+  // Build rules payload (filter out _enabled for disabled rules)
+  const payload = {
+    version: currentRules.version,
+    description: rulesDescription.value,
+    rules: currentRules.rules.filter(r => r._enabled !== false).map(r => {
+      const { _enabled, ...rest } = r;
+      return rest;
+    })
+  };
+  
+  try {
+    rulesStatus.textContent = 'Guardando...';
+    rulesStatus.className = 'rules-status';
+    
+    const res = await fetch(`${API_BASE}/rules`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      rulesStatus.textContent = '✓ Guardado correctamente';
+      rulesStatus.className = 'rules-status saved';
+      rulesModified = false;
+      setTimeout(hideRulesModal, 800);
+    } else {
+      rulesStatus.textContent = 'Error: ' + (data.error || 'Error desconocido');
+      rulesStatus.className = 'rules-status error';
+    }
+  } catch (e) {
+    rulesStatus.textContent = 'Error de conexión';
+    rulesStatus.className = 'rules-status error';
+  }
+}
+
+// Event listeners for rules modal
+rulesBtn.addEventListener('click', showRulesModal);
+rulesClose.addEventListener('click', hideRulesModal);
+rulesCancel.addEventListener('click', hideRulesModal);
+rulesSave.addEventListener('click', saveRules);
+
+rulesModal.addEventListener('click', (e) => {
+  if (e.target === rulesModal) {
+    hideRulesModal();
+  }
+});
+
+rulesDescription.addEventListener('input', () => {
+  rulesModified = true;
+});
 </script>
 </body>
 </html>

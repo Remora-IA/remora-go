@@ -1,0 +1,78 @@
+{
+  "name": "sabio",
+  "version": "0.1.0",
+  "description": "Experto en datos indexados. Responde preguntas del usuario haciendo retrieval sobre el vector store de framework-indexa y formulando la respuesta con Gemini.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworksabio", "./cmd/frameworksabio"]
+  },
+  "binary": {
+    "command": "./frameworksabio",
+    "args_prefix": []
+  },
+  "cwd": "framework-sabio",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "inputs": [
+    {
+      "name": "vector_store",
+      "format": "indexa.store.v1",
+      "path": "../framework-indexa/data/store.json",
+      "required": true,
+      "description": "Vector store producido por framework-indexa"
+    }
+  ],
+  "outputs": [],
+  "commands": {
+    "next-question": {
+      "description": "Devuelve la próxima respuesta lista (o saludo inicial)",
+      "args": ["next-question"],
+      "params": []
+    },
+    "ingest-answer": {
+      "description": "Recibe la pregunta del user, hace RAG, deja respuesta lista. Acepta historial conversacional opcional (base64-url-safe de JSON [{role,content},...]) para resolver referencias contextuales.",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--history", "{params.history}"],
+      "params": ["question_id", "answer", "history"],
+      "defaults": {"history": ""}
+    },
+    "query": {
+      "description": "Modo CLI directo (sin state) para tests",
+      "args": ["query", "--question", "{params.question}"],
+      "params": ["question"]
+    },
+    "reset": {
+      "description": "Limpia el state (saludo + respuesta pendiente)",
+      "args": ["reset"],
+      "params": []
+    }
+  },
+  "asks_human": {
+    "via": "user",
+    "path": "next-question",
+    "description": "Sabio pregunta directamente al usuario qué quiere consultar"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "minimax",
+    "name": "MiniMax-M2.7",
+    "env_key": "MINIMAX_API_KEY",
+    "capabilities": ["text"]
+  },
+  "capabilities_semantic": {
+    "tags": ["rag", "data-expert", "qa"],
+    "intent_examples": [
+      "cuántos clientes tengo",
+      "qué proyectos están activos",
+      "muéstrame los pagos pendientes",
+      "información sobre el cliente X"
+    ],
+    "produces": ["answer_with_citations"],
+    "requires": ["data_indexed:timebilling"]
+  }
+}

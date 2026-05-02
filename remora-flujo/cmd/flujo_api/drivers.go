@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"channel/adapter"
+	"channel/manifest"
 )
 
 // FrameworkDriver es el adaptador entre la API y un framework concreto.
@@ -45,9 +47,92 @@ type QueuedAnswerCtx struct {
 	Resources    []MessageResource
 }
 
-var driverRegistry = map[string]FrameworkDriver{
+// driverRegistry es la fuente de verdad de qué frameworks puede correr el
+// orquestador. Se inicializa al boot vía initDriverRegistry. Los drivers
+// hardcodeados (echo, alfa) tienen lógica especial de bootstrap; cualquier
+// otro framework con manifest válido entra automáticamente vía genericDriver.
+var driverRegistry = map[string]FrameworkDriver{}
+
+// hardcodedDrivers son los drivers con lógica custom que NO deben ser
+// reemplazados por un genericDriver aunque tengan manifest válido.
+var hardcodedDrivers = map[string]FrameworkDriver{
 	"echo": &echoDriver{},
 	"alfa": &alfaDriver{},
+}
+
+// initDriverRegistry escanea rootDir buscando framework-*/framework.manifest.json,
+// valida cada uno, y construye el driverRegistry. Los frameworks listados en
+// hardcodedDrivers se registran tal cual (su manifest se usa solo para
+// metadata, no para construir el driver). Los demás obtienen un genericDriver.
+//
+// Devuelve los manifests cargados (válidos e inválidos por separado) para
+// que el caller pueda loguear o exponer en /frameworks.
+func initDriverRegistry(rootDir string, logger *log.Logger) (loaded map[string]*manifest.Manifest, skipped map[string]error) {
+	loaded = map[string]*manifest.Manifest{}
+	skipped = map[string]error{}
+
+	manifests, derrs := manifest.Discover(rootDir)
+	for _, e := range derrs {
+		logger.Printf("manifest discover warn: %v", e)
+	}
+
+	// 1. Drivers hardcodeados: siempre presentes, manifest opcional.
+	for name, drv := range hardcodedDrivers {
+		driverRegistry[name] = drv
+		if m, ok := manifests[name]; ok {
+			if err := m.Validate(); err != nil {
+				logger.Printf("manifest %s inválido (driver hardcoded): %v", name, err)
+			}
+			loaded[name] = m
+		}
+	}
+
+	// 2. Manifests descubiertos sin driver hardcoded → genericDriver.
+	for name, m := range manifests {
+		if _, isHardcoded := hardcodedDrivers[name]; isHardcoded {
+			continue
+		}
+		if err := m.Validate(); err != nil {
+			skipped[name] = err
+			logger.Printf("manifest %s skip: %v", name, err)
+			continue
+		}
+		// Solo frameworks sync_chain entran al driverRegistry. Los async_trigger
+		// se invocan fuera del round-robin (no implementan next-question).
+		if m.EffectiveExecutionMode() != manifest.ExecutionModeSync {
+			loaded[name] = m
+			logger.Printf("manifest %s descubierto (execution_mode=%s, fuera del chain)", name, m.EffectiveExecutionMode())
+			continue
+		}
+		drv, err := newGenericDriver(m, rootDir)
+		if err != nil {
+			skipped[name] = err
+			logger.Printf("manifest %s skip (driver build): %v", name, err)
+			continue
+		}
+		driverRegistry[name] = drv
+		loaded[name] = m
+		logger.Printf("framework registrado vía genericDriver: %s", name)
+	}
+
+	logger.Printf("discovery completo: %d frameworks activos en el chain (%v), %d manifests cargados, %d omitidos",
+		len(driverRegistry), keysOf(driverRegistry), len(loaded), len(skipped))
+	return loaded, skipped
+}
+
+// keysOf devuelve las llaves de un map ordenadas, para logs reproducibles.
+func keysOf(m map[string]FrameworkDriver) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	// Orden estable.
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j-1] > out[j]; j-- {
+			out[j-1], out[j] = out[j], out[j-1]
+		}
+	}
+	return out
 }
 
 func driversFor(conv *Conversation) []FrameworkDriver {
@@ -92,18 +177,18 @@ type echoDriver struct{}
 func (e *echoDriver) Name() string { return "echo" }
 
 func (e *echoDriver) Init(ctx context.Context, ch *adapter.Client, conv *Conversation) error {
-	_, _ = ch.ExecuteCommand(ctx, "go", []string{"run", "./cmd/frameworkecho", "reset"}, "framework-echo")
+	_, _ = ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"reset"}, "/workspace/framework-echo")
 	today := time.Now().Format("2006-01-02")
 	clientName := conv.Title
 	if clientName == "" {
 		clientName = "anonimo"
 	}
-	resp, err := ch.ExecuteCommand(ctx, "go", []string{
-		"run", "./cmd/frameworkecho", "init",
+	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{
+		"init",
 		"--project-id", conv.ID,
 		"--client", clientName,
 		"--date", today,
-	}, "framework-echo")
+	}, "/workspace/framework-echo")
 	if err != nil {
 		return err
 	}
@@ -115,11 +200,11 @@ func (e *echoDriver) Init(ctx context.Context, ch *adapter.Client, conv *Convers
 
 func (e *echoDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv *Conversation, qctx QueuedAnswerCtx) error {
 	args := []string{
-		"run", "./cmd/frameworkecho", "ingest-answer",
+		"ingest-answer",
 		"--question-id", qctx.ExternalID,
 		"--answer", qctx.Answer,
 	}
-	resp, err := ch.ExecuteCommand(ctx, "go", args, "framework-echo")
+	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", args, "/workspace/framework-echo")
 	if err != nil {
 		return err
 	}
@@ -130,7 +215,7 @@ func (e *echoDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 }
 
 func (e *echoDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, bool) {
-	resp, err := ch.ExecuteCommand(ctx, "go", []string{"run", "./cmd/frameworkecho", "next-question"}, "framework-echo")
+	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"next-question"}, "/workspace/framework-echo")
 	if err != nil || !resp.Success {
 		return "", "", "", false
 	}
@@ -159,7 +244,7 @@ func (a *alfaDriver) Init(ctx context.Context, ch *adapter.Client, conv *Convers
 // alfaSpecPath construye el path del spec por conversación.
 func alfaSpecPath(conv *Conversation) (relPath, absPath string) {
 	relPath = "framework-alfa/temp/alfa_spec_api_" + conv.ID + ".json"
-	absPath = "/Users/alcless_a1234_cursor/remora-go/" + relPath
+	absPath = "/workspace/" + relPath
 	return
 }
 
@@ -168,12 +253,12 @@ func (a *alfaDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 		return nil
 	}
 	_, specAbs := alfaSpecPath(conv)
-	resp, err := ch.ExecuteCommand(ctx, "go", []string{
-		"run", "./cmd/frameworkalfa", "ingest-answer",
+	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkalfa", []string{
+		"ingest-answer",
 		"--spec", specAbs,
 		"--question-id", qctx.ExternalID,
 		"--answer", qctx.Answer,
-	}, "framework-alfa")
+	}, "/workspace/framework-alfa")
 	if err != nil {
 		return err
 	}
@@ -185,19 +270,19 @@ func (a *alfaDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 
 func (a *alfaDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, bool) {
 	_, specAbs := alfaSpecPath(conv)
-	echoTreeAbs := "/Users/alcless_a1234_cursor/remora-go/framework-echo/frameworkecho.json"
+	echoTreeAbs := "/workspace/framework-echo/frameworkecho.json"
 	// Compilar/recompilar draft cada vez para reflejar avances de Echo.
-	_, _ = ch.ExecuteCommand(ctx, "go", []string{
-		"run", "./cmd/frameworkalfa", "compile",
+	_, _ = ch.ExecuteCommand(ctx, "/frameworks/frameworkalfa", []string{
+		"compile",
 		"--echo-tree", echoTreeAbs,
 		"--out", specAbs,
 		"--allow-draft=true",
-	}, "framework-alfa")
-	resp, err := ch.ExecuteCommand(ctx, "go", []string{
-		"run", "./cmd/frameworkalfa", "next-question",
+	}, "/workspace/framework-alfa")
+	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkalfa", []string{
+		"next-question",
 		"--spec", specAbs,
 		"--echo-tree", echoTreeAbs,
-	}, "framework-alfa")
+	}, "/workspace/framework-alfa")
 	if err != nil || !resp.Success {
 		return "", "", "", false
 	}

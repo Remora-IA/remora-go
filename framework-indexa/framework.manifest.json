@@ -1,0 +1,75 @@
+{
+  "name": "indexa",
+  "version": "0.1.0",
+  "description": "Ingesta data desde un dump JSON de una API externa, genera embeddings y persiste en un vector store consultable por framework-sabio.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkindexa", "./cmd/frameworkindexa"]
+  },
+  "binary": {
+    "command": "./frameworkindexa",
+    "args_prefix": []
+  },
+  "cwd": "framework-indexa",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "inputs": [
+    {
+      "name": "source_json",
+      "format": "external.api.dump.v1",
+      "path": "{params.source}",
+      "required": true,
+      "description": "Dump JSON de la API origen"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "vector_store",
+      "format": "indexa.store.v1",
+      "path": "data/store.json",
+      "required": false,
+      "description": "Archivo de persistencia del vector store local"
+    }
+  ],
+  "commands": {
+    "init": {
+      "description": "Inicializa el store",
+      "args": ["init"],
+      "params": []
+    },
+    "index": {
+      "description": "Indexa un dump JSON en el store",
+      "args": ["index", "--source", "{params.source}"],
+      "params": ["source"]
+    },
+    "status": {
+      "description": "Muestra documentos por endpoint",
+      "args": ["status"],
+      "params": []
+    }
+  },
+  "asks_human": {
+    "via": "",
+    "path": "",
+    "description": "Indexa no pide input al usuario; se invoca por trigger externo"
+  },
+  "user_input": {
+    "supported": false
+  },
+  "model": {
+    "provider": "google",
+    "name": "text-embedding-004",
+    "env_key": "GEMINI_API_KEY",
+    "capabilities": ["text-embedding"]
+  },
+  "capabilities_semantic": {
+    "tags": ["ingest", "embeddings", "rag"],
+    "intent_examples": [
+      "indexar la base de timebilling",
+      "cargar todos los clientes y proyectos al store",
+      "actualizar el índice con los datos más recientes"
+    ],
+    "produces": ["data_indexed:timebilling"],
+    "requires": ["api_dump:json"]
+  }
+}

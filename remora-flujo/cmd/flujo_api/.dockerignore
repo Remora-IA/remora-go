@@ -1,0 +1,31 @@
+# Ignore build artifacts
+flujo_api_test
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Ignore Go files
+*.go
+
+# Ignore documentation
+*.md
+README*
+
+# Ignore IDE files
+.idea/
+.vscode/
+*.swp
+
+# Ignore temp files
+temp/
+*.log
+sessions/
+conversations/
+
+# Ignore system files
+.DS_Store
+*.backup
+
+# Ignore git
+.git/

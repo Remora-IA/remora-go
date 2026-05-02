@@ -1,96 +1,11 @@
 {
-  "project_id": "conv_1777511522670900000",
-  "client_name": "Final",
-  "date_started": "2026-04-29",
-  "current_max_layer": 3,
+  "project_id": "conv_1777523615244615000",
+  "client_name": "Handoff Session",
+  "date_started": "2026-04-30",
+  "current_max_layer": 0,
   "focus_nodes": [],
   "config": {
     "qa_log_enabled": false
   },
-  "nodes": {
-    "ax_001": {
-      "id": "ax_001",
-      "layer": 0,
-      "type": "AXIOM",
-      "title": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
-      "evidence": [
-        "Tengo planilla Excel para muebles, la actualizo a mano todos los dias."
-      ],
-      "status": "VALIDATED",
-      "confidence": 100,
-      "children_ids": [
-        "th_001"
-      ],
-      "created_at": "2026-04-30T01:12:03Z"
-    },
-    "pn_001": {
-      "id": "pn_001",
-      "layer": 3,
-      "type": "PAIN",
-      "title": "Pierdo casi 1 hora cada dia y se me pasan filas.",
-      "evidence": [
-        "Pierdo casi 1 hora cada dia y se me pasan filas."
-      ],
-      "status": "VALIDATED",
-      "confidence": 95,
-      "parent_id": "tk_001",
-      "questions_to_ask": [
-        "Sobre el problema 'Pierdo casi 1 hora cada dia y se me pasan filas.': ¿con qué frecuencia ocurre?",
-        "¿Qué impacto concreto tiene 'Pierdo casi 1 hora cada dia y se me pasan filas.' en su trabajo diario?",
-        "¿Qué hace hoy para convivir con 'Pierdo casi 1 hora cada dia y se me pasan filas.'?",
-        "Si 'Pierdo casi 1 hora cada dia y se me pasan filas.' desapareciera mañana, ¿qué cambiaría primero?"
-      ],
-      "validation_answer": "Pierdo casi 1 hora cada dia y se me pasan filas.",
-      "created_at": "2026-04-30T01:12:03Z",
-      "validated_at": "2026-04-30T01:12:03Z"
-    },
-    "th_001": {
-      "id": "th_001",
-      "layer": 1,
-      "type": "THEORY",
-      "title": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
-      "evidence": [
-        "Tengo planilla Excel para muebles, la actualizo a mano todos los dias."
-      ],
-      "status": "VALIDATED",
-      "confidence": 95,
-      "parent_id": "ax_001",
-      "children_ids": [
-        "tk_001"
-      ],
-      "questions_to_ask": [
-        "Respecto a 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.': ¿esto calza con lo que pasa realmente?",
-        "¿Qué parte de 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' se repite y qué parte cambia caso a caso?",
-        "¿Qué tendría que pasar para que 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' deje de ser cierto?"
-      ],
-      "validation_answer": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
-      "created_at": "2026-04-30T01:12:03Z",
-      "validated_at": "2026-04-30T01:12:03Z"
-    },
-    "tk_001": {
-      "id": "tk_001",
-      "layer": 2,
-      "type": "TASK",
-      "title": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
-      "evidence": [
-        "Tengo planilla Excel para muebles, la actualizo a mano todos los dias."
-      ],
-      "status": "VALIDATED",
-      "confidence": 95,
-      "parent_id": "th_001",
-      "children_ids": [
-        "pn_001"
-      ],
-      "questions_to_ask": [
-        "Para la tarea 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.': ¿cuánto tiempo le toma realizarla?",
-        "¿Con qué frecuencia realiza 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.'? (diario/semanal/mensual)",
-        "Cuando hace 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.', ¿qué parte le sale fluida y qué parte se siente pesada?",
-        "¿Qué información necesita tener a mano para 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' y dónde la busca hoy?",
-        "¿Qué pasa cuando 'Tengo planilla Excel para muebles, la actualizo a mano todos los dias.' se retrasa o sale mal?"
-      ],
-      "validation_answer": "Tengo planilla Excel para muebles, la actualizo a mano todos los dias.",
-      "created_at": "2026-04-30T01:12:03Z",
-      "validated_at": "2026-04-30T01:12:03Z"
-    }
-  }
+  "nodes": {}
 }

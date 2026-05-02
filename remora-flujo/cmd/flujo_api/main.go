@@ -16,6 +16,11 @@
 //   POST   /api/v1/conversations/{id}/messages      manda input del usuario
 //   GET    /api/v1/conversations/{id}/queue         cola de preguntas
 //   GET    /api/v1/frameworks                       drivers disponibles
+//   GET    /api/v1/frameworks/{name}                detail de un framework
+//   GET    /api/v1/rules                            ver reglas de composición
+//   PUT    /api/v1/rules                            modificar reglas de composición
+//   POST   /api/v1/conversations-single             crear conversación con 1 solo framework
+//   POST   /api/v1/conversations-single/{id}/messages  enviar a conversación single
 //
 // Variables de entorno:
 //   CHANNEL_URL      default http://localhost:8765
@@ -25,8 +30,10 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -34,7 +41,11 @@ import (
 	"channel/adapter"
 	"github.com/gorilla/mux"
 	"remora-flujo/handoff"
+	"remora-flujo/nativeagent"
 )
+
+//go:embed static
+var staticFS embed.FS
 
 const apiBase = "/api/v1"
 
@@ -45,8 +56,23 @@ type APIResponse struct {
 }
 
 type server struct {
-	channel *adapter.Client
-	rules   *FlowRules
+	channel   *adapter.Client
+	rules     *FlowRules
+	runtimeInfo runtimeInfo
+}
+
+type runtimeInfo struct {
+	Provider  string
+	Model     string
+	Note      string
+}
+
+func getRuntimeInfo() runtimeInfo {
+	provider, model, note, err := nativeagent.RuntimeInfo()
+	if err != nil {
+		return runtimeInfo{Provider: "unknown", Model: "unknown", Note: err.Error()}
+	}
+	return runtimeInfo{Provider: provider, Model: model, Note: note}
 }
 
 func main() {
@@ -66,7 +92,24 @@ func main() {
 		rules = &FlowRules{Version: 1}
 	}
 
-	srv := &server{channel: adapter.New(channelURL, apiKey), rules: rules}
+	// Auto-discovery de frameworks vía manifests. Los drivers hardcodeados
+	// (echo, alfa) se mantienen; cualquier framework adicional con manifest
+	// válido se registra automáticamente vía genericDriver.
+	rootDir := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
+	bootLog := log.New(os.Stderr, "[boot] ", log.LstdFlags)
+	loadedManifests, skippedManifests := initDriverRegistry(rootDir, bootLog)
+	_ = loadedManifests
+	if len(skippedManifests) > 0 {
+		bootLog.Printf("manifests omitidos: %d", len(skippedManifests))
+	}
+
+	srv := &server{
+		channel:     adapter.New(channelURL, apiKey),
+		rules:       rules,
+		runtimeInfo: getRuntimeInfo(),
+	}
+
+	fmt.Printf("Runtime LLM: %s | %s | %s\n", srv.runtimeInfo.Provider, srv.runtimeInfo.Model, srv.runtimeInfo.Note)
 
 	r := mux.NewRouter()
 	r.Use(corsMiddleware)
@@ -79,6 +122,43 @@ func main() {
 	r.HandleFunc(apiBase+"/conversations/{id}/messages", srv.getMessages).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations/{id}/messages", srv.postMessage).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations/{id}/queue", srv.getQueue).Methods("GET", "OPTIONS")
+
+	// Rules endpoints - para ver y modificar flow.rules.json
+	r.HandleFunc(apiBase+"/rules", srv.getRules).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/rules", srv.updateRules).Methods("PUT", "POST", "OPTIONS")
+
+	// Framework detail endpoint
+	r.HandleFunc(apiBase+"/frameworks/{name}", srv.getFramework).Methods("GET", "OPTIONS")
+
+	// Single framework conversation (para probar un framework solo)
+	r.HandleFunc(apiBase+"/conversations-single", srv.createSingleConversation).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/conversations-single/{id}/messages", srv.postSingleMessage).Methods("POST", "OPTIONS")
+
+	// Runtime info endpoint
+	r.HandleFunc(apiBase+"/runtime", srv.getRuntime).Methods("GET", "OPTIONS")
+
+	// Models available for selection
+	r.HandleFunc(apiBase+"/models", srv.listModels).Methods("GET", "OPTIONS")
+
+	// Frontend estático embebido
+	// GET / → sirve index.html
+	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/" {
+			http.NotFound(w, req)
+			return
+		}
+		data, err := staticFS.ReadFile("static/index.html")
+		if err != nil {
+			http.Error(w, "Frontend no encontrado", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+	}).Methods("GET")
+	// GET /app → redirect a /
+	r.HandleFunc("/app", func(w http.ResponseWriter, req *http.Request) {
+		http.Redirect(w, req, "/", http.StatusFound)
+	}).Methods("GET")
 
 	addr := ":" + port
 	fmt.Printf("Flujo API en http://localhost%s%s\n", addr, apiBase)
@@ -102,7 +182,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -132,6 +212,19 @@ func writeErr(w http.ResponseWriter, code int, msg string) {
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
 	writeOK(w, map[string]string{"status": "ok"})
+}
+
+func (s *server) getRuntime(w http.ResponseWriter, r *http.Request) {
+	writeOK(w, s.runtimeInfo)
+}
+
+func (s *server) listModels(w http.ResponseWriter, r *http.Request) {
+	// Lista de modelos disponibles para selección en el frontend
+	models := []map[string]string{
+		{"id": "minimax", "name": "MiniMax M2.7", "description": "Modelo rápido para análisis"},
+		{"id": "groq", "name": "Llama 4 Scout", "description": "Modelo de alto rendimiento"},
+	}
+	writeOK(w, models)
 }
 
 func (s *server) listFrameworks(w http.ResponseWriter, r *http.Request) {
@@ -410,4 +503,218 @@ func knownFrameworks() []string {
 		out = append(out, name)
 	}
 	return out
+}
+
+// ============================================
+// RULES ENDPOINTS
+// ============================================
+
+func (s *server) getRules(w http.ResponseWriter, r *http.Request) {
+	writeOK(w, s.rules)
+}
+
+func (s *server) updateRules(w http.ResponseWriter, r *http.Request) {
+	var updated FlowRules
+	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
+		writeErr(w, http.StatusBadRequest, "JSON inválido: "+err.Error())
+		return
+	}
+
+	// Validar versión mínima
+	if updated.Version != 1 {
+		writeErr(w, http.StatusBadRequest, "versión debe ser 1")
+		return
+	}
+
+	s.rules = &updated
+
+	// Persistir a archivo
+	rulesPath := envOr("FLOW_RULES", "cmd/flujo_api/flow.rules.json")
+	data, err := json.MarshalIndent(updated, "", "  ")
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "error serializando: "+err.Error())
+		return
+	}
+	if err := os.WriteFile(rulesPath, append(data, '\n'), 0644); err != nil {
+		writeErr(w, http.StatusInternalServerError, "error guardando archivo: "+err.Error())
+		return
+	}
+
+	writeOK(w, map[string]string{"saved": rulesPath})
+}
+
+// ============================================
+// FRAMEWORK DETAIL ENDPOINT
+// ============================================
+
+func (s *server) getFramework(w http.ResponseWriter, r *http.Request) {
+	name := mux.Vars(r)["name"]
+	
+	// Verificar que existe
+	if _, ok := driverRegistry[name]; !ok {
+		writeErr(w, http.StatusNotFound, "framework no encontrado: "+name)
+		return
+	}
+
+	// Cargar manifest
+	m, err := loadFrameworkManifest(name)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "manifest no encontrado para: "+name)
+		return
+	}
+
+	writeOK(w, m)
+}
+
+// ============================================
+// SINGLE FRAMEWORK CONVERSATION
+// ============================================
+
+type createSingleConvRequest struct {
+	Title      string `json:"title"`
+	Framework  string `json:"framework"`
+}
+
+func (s *server) createSingleConversation(w http.ResponseWriter, r *http.Request) {
+	var req createSingleConvRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "body inválido")
+		return
+	}
+
+	// Verificar que el framework existe
+	if _, ok := driverRegistry[req.Framework]; !ok {
+		writeErr(w, http.StatusBadRequest, "framework desconocido: "+req.Framework)
+		return
+	}
+
+	conv := &Conversation{
+		ID:         fmt.Sprintf("conv_%d", time.Now().UnixNano()),
+		Title:      req.Title,
+		Frameworks: []string{req.Framework},
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if err := saveConv(conv); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	queue := handoff.NewQuestionsQueue(conv.Frameworks...)
+	if err := saveQueue(conv.ID, queue); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ch := s.scoped(conv.ID)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+	defer cancel()
+
+	// Init driver
+	drivers := driversFor(conv)
+	for _, d := range drivers {
+		if err := d.Init(ctx, ch, conv); err != nil {
+			fmt.Fprintf(os.Stderr, "[flujo_api] driver %s.Init error: %v\n", d.Name(), err)
+		}
+	}
+
+	// Pedir primera pregunta
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, "", nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
+	}
+	first := initialFrameworkMessage(conv, q, ok)
+	if first != nil {
+		_ = appendMessage(conv.ID, *first)
+	}
+
+	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: map[string]interface{}{
+		"conversation":    conv,
+		"first_question":  first,
+	}})
+}
+
+// ============================================
+// SEND TO SINGLE FRAMEWORK
+// ============================================
+
+func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	conv, err := loadConv(id)
+	if err != nil {
+		writeErr(w, http.StatusNotFound, "conversación no encontrada")
+		return
+	}
+
+	var req sendMessageRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "body inválido")
+		return
+	}
+	if req.Content == "" && len(req.Resources) == 0 {
+		writeErr(w, http.StatusBadRequest, "content o resources requerido")
+		return
+	}
+
+	copiedResources, cerr := storeResources(conv.ID, req.Resources)
+	if cerr != nil {
+		writeErr(w, http.StatusBadRequest, cerr.Error())
+		return
+	}
+
+	userMsg := Message{
+		ID:        generateMessageID(),
+		Role:      "user",
+		Content:   req.Content,
+		Resources: copiedResources,
+		Timestamp: time.Now(),
+	}
+	if err := appendMessage(id, userMsg); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	conv.UserAnswerCount++
+	_ = saveConv(conv)
+
+	ch := s.scoped(conv.ID)
+	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
+	defer cancel()
+
+	_, _ = ch.ExecuteCommand(ctx, "echo", []string{"user_input:", req.Content}, "")
+
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, req.Content, copiedResources)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if !ok {
+		writeOK(w, map[string]interface{}{
+			"user_message":     userMsg,
+			"framework_message": nil,
+			"idle":             true,
+		})
+		return
+	}
+
+	frameworkMsg := Message{
+		ID:         generateMessageID(),
+		Role:       "framework",
+		Framework:  q.Framework,
+		Content:    q.Text,
+		QuestionID: q.ID,
+		AskVia:     q.AskVia,
+		Timestamp:  time.Now(),
+	}
+	if err := appendMessage(id, frameworkMsg); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeOK(w, map[string]interface{}{
+		"user_message":      userMsg,
+		"framework_message": frameworkMsg,
+		"idle":              false,
+	})
 }
