@@ -100,7 +100,7 @@ steps:
       - 'build-alfa'
       - 'build-auditor'
       - 'build-indexa'
-      - 'build-sabio'
+      - 'build-mecanico'
 
   # Push to GCR
   - name: 'gcr.io/cloud-builders/docker'
