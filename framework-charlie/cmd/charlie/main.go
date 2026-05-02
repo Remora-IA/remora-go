@@ -14,6 +14,66 @@ func main() {
 	}
 
 	switch command {
+	case "doctor":
+		apply := len(os.Args) > 2 && os.Args[2] == "--apply"
+		var report *charlie.DoctorReport
+		var err error
+		if apply {
+			report, err = charlie.ApplyDoctor()
+		} else {
+			report, err = charlie.RunDoctor()
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(charlie.FormatDoctorReport(report))
+		if report.OverallHealth == charlie.SeverityBlocker || report.OverallHealth == charlie.SeverityCritical {
+			os.Exit(2)
+		}
+		return
+	case "apply-propose":
+		apply := false
+		push := false
+		for _, a := range os.Args[2:] {
+			if a == "--apply" {
+				apply = true
+			}
+			if a == "--push" {
+				push = true
+			}
+		}
+		var plan *charlie.ApplyProposePlan
+		var err error
+		if apply {
+			plan, err = charlie.ApplyApplyPropose(push)
+		} else {
+			plan, err = charlie.BuildApplyProposePlan()
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(charlie.FormatApplyProposePlan(plan))
+		if len(plan.Blockers) > 0 {
+			os.Exit(2)
+		}
+		return
+	case "plan":
+		intent := ""
+		for i := 2; i < len(os.Args); i++ {
+			if os.Args[i] == "--intent" && i+1 < len(os.Args) {
+				intent = os.Args[i+1]
+				break
+			}
+		}
+		if intent == "" {
+			fmt.Fprintln(os.Stderr, "uso: charlie plan --intent \"descripcion del objetivo\"")
+			os.Exit(2)
+		}
+		plan := charlie.BuildIntentPlan(intent)
+		fmt.Println(charlie.FormatIntentPlan(plan))
+		return
 	case "backup":
 		path, err := charlie.BackupWorkingTree()
 		if err != nil {
@@ -176,11 +236,19 @@ func usage() {
 	fmt.Println(`Charlie CLI
 
 USO:
-  charlie status      Muestra estado, tag actual y siguiente version lineal
+  charlie status          Muestra estado, tag actual y siguiente version lineal
+  charlie doctor [--apply] (v0.1.8) diagnostica integridad del repo; --apply
+                  ejecuta recetas seguras (fetch-missing-objects, disable-gc-auto, etc.)
+  charlie plan --intent "..." (v0.1.8) devuelve la secuencia de comandos Charlie
+                  que satisface un objetivo en lenguaje natural
   charlie backup      Crea backup liviano del working tree fuera del repo
-  charlie preflight   Crea backup y bloquea versionado inseguro
+  charlie preflight   Crea backup y bloquea versionado inseguro (incluye doctor)
   charlie changelog   Genera CHANGELOG detallado por archivo desde git diff
   charlie propose     Genera changelog obligatorio y un unico commit propuesto
+  charlie apply-propose [--apply] [--push] (v0.1.8)
+                  Cierra el happy path: escribe CHANGELOG, stagea, commitea,
+                  taggea y (opcional) pushea, todo vuelto por runGitControlled
+                  y auditado en framework-charlie/temp/applied.jsonl
   charlie validate    Valida version, changelog y formato de commit
   charlie amend-plan vVERSION
                   Diagnostica como agregar cambios a una release existente

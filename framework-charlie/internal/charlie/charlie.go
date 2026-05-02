@@ -623,6 +623,12 @@ func Preflight() (*PreflightReport, error) {
 	if len(unmerged) > 0 {
 		report.Blockers = append(report.Blockers, "hay conflictos sin resolver: "+strings.Join(unmerged, ", "))
 	}
+	// Doctor-level health check (v0.1.8+): detects repo corruption that
+	// would make the rest of the flow crash with raw git errors. Merged
+	// into Preflight blockers so the operator sees one unified view.
+	for _, hb := range PreflightHealthBlockers() {
+		report.Blockers = append(report.Blockers, "[doctor] "+hb)
+	}
 	return report, nil
 }
 
@@ -1550,7 +1556,8 @@ func ShouldIgnore(filePath string) bool {
 			return true
 		}
 	}
-	return false
+	// Fall back to .charlieignore patterns (v0.1.8+).
+	return matchesCharlieIgnore(filePath)
 }
 
 func ClassifyFile(filePath string) ChangeType {

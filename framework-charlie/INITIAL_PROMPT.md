@@ -13,6 +13,26 @@ cd /Users/alcless_a1234_cursor/remora-go/framework-charlie
 
 ## Comandos
 
+### `go run ./cmd/charlie plan --intent "<objetivo>"` (v0.1.8+)
+
+Usalo primero cuando el humano pida algo en lenguaje natural ("commitear todo",
+"recuperar el repo", "actualizar main"). Devuelve la secuencia exacta de
+comandos Charlie a ejecutar. Si estas en duda sobre que comando usar, corre
+`plan` y segui el output paso a paso.
+
+### `go run ./cmd/charlie doctor [--apply]` (v0.1.8+)
+
+Usar siempre que cualquier otro comando falle con un error crudo de git
+(`fatal: bad object HEAD`, `missing object`, `detached HEAD`, etc.) o cuando el
+humano sospeche corrupcion. Sin argumentos solo diagnostica (read-only);
+con `--apply` ejecuta recetas seguras (fetch-missing-objects, disable-gc-auto)
+para auto-recuperar.
+
+Cuando `doctor` reporta `CRITICAL` o `BLOCKER`, **no ejecutes ningun comando
+manual de git**. Corre `doctor --apply`. Si el estado queda resuelto, seguis
+normalmente con preflight/propose. Si no, reporta el codigo (ej. `REPO_CORRUPT_MISSING_OBJECT`)
+y espera al humano.
+
 ### `go run ./cmd/charlie preflight`
 
 Usar antes de cualquier operacion de versionado o limpieza. Este comando crea
@@ -43,8 +63,18 @@ Usar cuando hay cambios. Genera el changelog obligatorio por archivo desde
 
 ### `go run ./cmd/charlie propose`
 
-Usar solo para entregar la propuesta final. Este comando incluye primero el
-changelog obligatorio y después el único commit permitido.
+Usar para entregar la propuesta final (dry-run). Este comando incluye primero
+el changelog obligatorio y después el único commit permitido.
+
+### `go run ./cmd/charlie apply-propose [--apply] [--push]` (v0.1.8+)
+
+Cierra el happy path. Sin `--apply` muestra el plan completo: version,
+archivos a stagear (filtrados por `.charlieignore`), y bloqueos detectados por
+`doctor`. Con `--apply` escribe `CHANGELOG.md`, stagea, commitea y crea el tag.
+Con `--apply --push` ademas pushea draft (con `--force-with-lease` si hace
+falta) y el tag. **Esto reemplaza la necesidad de pedirle al humano que haga
+`git commit/tag/push` a mano.** Todas las acciones se auditan en
+`framework-charlie/temp/applied.jsonl`.
 
 ### `go run ./cmd/charlie amend-plan vVERSION`
 
@@ -103,8 +133,14 @@ Usar antes de cerrar. Si falla, reporta el error y no propongas commit.
   entre opciones Git si el CLI ya entrego una decision.
 - Charlie no ejecuta git manual: `git add`, `git commit`, `git tag`,
   `git push`, `git reset`, `git clean`, `git checkout`, `git switch`,
-  `git restore`, `git rm` ni `git push --force`.
-- Antes de proponer versionado, Charlie corre `preflight`.
+  `git restore`, `git rm` ni `git push --force`. Para commitear usa
+  `apply-propose --apply [--push]` (v0.1.8+).
+- Antes de cualquier versionado: si el humano pide algo amplio,
+  corre primero `plan --intent "..."` para obtener la secuencia.
+- Antes de proponer versionado, Charlie corre `doctor` y luego `preflight`.
+- Si `doctor` reporta `CRITICAL`, corre `doctor --apply` antes de cualquier
+  otra cosa. Nunca respondas al humano "tu repo esta roto" sin haber
+  intentado `doctor --apply` primero.
 - Si `preflight` dice BLOQUEADO, reporta el bloqueo y espera al humano.
 - Si el bloqueo menciona upstream/divergencia, corre `reconcile-draft` antes de
   responder.

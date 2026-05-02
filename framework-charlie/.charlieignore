@@ -1,0 +1,41 @@
+# Charlie ignore patterns (v0.1.8+)
+# Formato simple: glob sobre nombre base, rutas exactas, prefijos con "/"
+# y sub-cadenas estilo "/temp/". Lineas con # son comentarios.
+
+# macOS
+.DS_Store
+*.bak
+
+# Directorios de scratch y binarios
+temp/
+bin/
+.devin/
+
+# Binarios compilados por framework (mismo nombre que el paquete)
+channel/channel
+channel/channel-new
+channel/orchestrator
+framework-auditor/frameworkauditor
+framework-charlie/charlie
+framework-echo/frameworkecho
+framework-excel/frameworkexcel
+framework-foco/foco
+framework-foco/foco_state.json
+framework-gmail/framework-gmail
+framework-indexa/frameworkindexa
+framework-indexa/panalbit-sync
+framework-mecanico/frameworkmecanico
+framework-paladin/bin/
+framework-quine/quine
+framework-sabio/frameworksabio
+remora-flujo/flujo
+remora-flujo/flujo_api
+remora-flujo/flujo_test
+remora-flujo/agentrpc
+
+# Bases de datos embebidas (no versionables)
+*.db
+framework-indexa/data/panalbit.db
+
+# Trazas, capturas y logs de Paladin que se regeneran
+trace_pal_*.json

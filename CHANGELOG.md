@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-05-01
+
+> **Release**: expandir charlie
+
+### Charlie
+
+- **charlie-bloqueo-git**: bloqueo de operaciones git peligrosas (reset --hard, push --force) (charlie/apply_propose.go, charlie/doctor.go)
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (charlie/main.go)
+- **framework-charlie/.charlieignore**: archivo nuevo
+- **framework-charlie/INITIAL_PROMPT.md**: +40 / -4
+- **framework-charlie/README.md**: +30 / -1
+- **charlie/charlie.go**: +8 / -1
+- **charlie/ignore.go**: archivo nuevo
+- **charlie/intent.go**: archivo nuevo
+- **charlie/audit.go**: archivo nuevo
+- **charlie/doctor_test.go**: archivo nuevo
+
 
 ## [0.1.7] - 2026-05-01
 

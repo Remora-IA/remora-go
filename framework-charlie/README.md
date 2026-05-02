@@ -28,10 +28,39 @@ chore: commit vVERSION - descripción grupal
 - `chore: commit v0.1.3 - expandir alfa y bravo`
 - `chore: commit v0.2.0 - nuevo framework delta`
 
+## Novedades v0.1.8
+
+- **`charlie doctor [--apply]`** — diagnostica y auto-recupera corrupcion
+  de repo (HEAD apuntando a objeto faltante, gc agresivo, detached HEAD,
+  divergencia). Sin `--apply` es 100% read-only. Con `--apply` corre recetas
+  seguras ordenadas por nivel de riesgo (fetch primero, rewrite de ref ultimo).
+- **`charlie apply-propose [--apply] [--push]`** — cierra el happy path.
+  Antes Charlie solo proponia y obligaba al humano/Alfa a `git commit`.
+  Ahora Charlie commitea via su propio runGitControlled, respetando la
+  politica, con backup automatico y audit log.
+- **`charlie plan --intent "..."`** — router de intenciones. La IA
+  operadora describe el objetivo en lenguaje natural y Charlie devuelve
+  la secuencia de comandos a ejecutar.
+- **`.charlieignore`** — archivo en `framework-charlie/` con globs que
+  filtran binarios compilados, bases de datos y trazas. Evita commits
+  monstruo como el de v0.1.7 (125 files / 817k lineas).
+- **Audit log** en `framework-charlie/temp/applied.jsonl` — cada `--apply`
+  deja una linea JSON. Sobrevive a una corrupcion de reflog.
+- **Preflight ahora llama a Doctor** — si hay corrupcion, preflight la
+  reporta como bloqueo con prefijo `[doctor]` antes de continuar.
+
 ## Flujo de trabajo
 
 ```bash
-# 1. Crear backup y verificar que estas en draft
+# 0. (opcional) Si el humano pide algo ambiguo, traduce a comandos
+go run ./cmd/charlie plan --intent "commitear todo y pushear"
+
+# 1. Chequeo de salud (v0.1.8+)
+go run ./cmd/charlie doctor
+# Si reporta CRITICAL/BLOCKER:
+go run ./cmd/charlie doctor --apply
+
+# 2. Crear backup y verificar que estas en draft
 go run ./cmd/charlie preflight
 
 # 2. Verificar estado
