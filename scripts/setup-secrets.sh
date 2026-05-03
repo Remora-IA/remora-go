@@ -95,12 +95,25 @@ if [ ${#SECRETS_TO_BIND[@]} -eq 0 ]; then
   exit 0
 fi
 
-# --update-secrets reemplaza los bindings existentes con esta lista.
+# Cloud Run no permite cambiar una env var plana a referencia a secret en una
+# sola llamada. Si alguno de los keys ya existia como env var plana, hay que
+# removerla primero. Esto es idempotente: si no existia, no pasa nada.
+echo "  · removiendo env vars planas previas (si existian)..."
+KEYS_TO_REMOVE=$(IFS=,; echo "${SENSITIVE_KEYS[*]}")
+gcloud run services update "$SERVICE" \
+  --region="$REGION" \
+  --project="$PROJECT_ID" \
+  --remove-env-vars="$KEYS_TO_REMOVE" \
+  --quiet \
+  >/dev/null 2>&1 || true
+
+# --update-secrets agrega los nuevos bindings.
 SECRETS_ARG=$(IFS=,; echo "${SECRETS_TO_BIND[*]}")
 gcloud run services update "$SERVICE" \
   --region="$REGION" \
   --project="$PROJECT_ID" \
   --update-secrets="$SECRETS_ARG" \
+  --quiet \
   >/dev/null
 green "  ✓ Secrets bindeados a $SERVICE"
 

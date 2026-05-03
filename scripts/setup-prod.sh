@@ -67,6 +67,24 @@ else
   green "  ✓ .env ya existe (skip bootstrap)"
 fi
 
+# --- 1.5 Verificar API keys (gate critico) ---------------------------------
+echo ""
+echo "→ Verificando API keys de LLM..."
+groq=$(grep -E "^GROQ_API_KEY=" .env | cut -d= -f2- | tr -d '"' | tr -d "'" | head -1)
+minimax=$(grep -E "^MINIMAX_API_KEY=" .env | cut -d= -f2- | tr -d '"' | tr -d "'" | head -1)
+if [ -z "$groq" ] && [ -z "$minimax" ]; then
+  red "❌ Faltan API keys de LLM. Sin al menos una, el sistema no funciona."
+  echo ""
+  yellow "Editar .env y completar al menos una:"
+  echo "    GROQ_API_KEY=gsk_...        (https://console.groq.com/keys)"
+  echo "    MINIMAX_API_KEY=...         (https://www.minimax.io)"
+  echo ""
+  echo "Despues volve a correr 'make setup-prod'."
+  exit 1
+fi
+[ -n "$groq" ]    && green "  ✓ GROQ_API_KEY presente"
+[ -n "$minimax" ] && green "  ✓ MINIMAX_API_KEY presente"
+
 # --- 2. Habilitar APIs necesarias -------------------------------------------
 echo ""
 echo "→ Paso 2: habilitando APIs..."
