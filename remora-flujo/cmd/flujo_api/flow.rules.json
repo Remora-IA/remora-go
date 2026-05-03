@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 1,
   "description": "Reglas de composición. Solo overrides finos. El routing 'quién habla' se resuelve por capabilities (capabilities_semantic.intent_examples vía intent.go). Reglas name-based marcadas deprecated por ARCHITECTURE.md regla 3.",
   "rules": [
     {

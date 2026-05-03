@@ -899,6 +899,60 @@
     .send-email-action-btn.sent { background: #16a34a; }
     .send-email-action-btn.error { background: #dc2626; }
 
+    /* Editable email fields */
+    .email-edit-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 8px;
+      padding: 8px;
+      background: rgba(0,0,0,0.18);
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .email-edit-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: rgba(255,255,255,0.55);
+    }
+    .email-edit-input,
+    .email-edit-textarea {
+      width: 100%;
+      box-sizing: border-box;
+      background: rgba(0,0,0,0.35);
+      color: #e5e7eb;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 12px;
+      font-family: inherit;
+      resize: vertical;
+    }
+    .email-edit-textarea { min-height: 140px; }
+    .email-edit-input:focus,
+    .email-edit-textarea:focus { outline: none; border-color: var(--accent); }
+    .email-edit-warn {
+      font-size: 11px;
+      color: #fca5a5;
+      display: none;
+    }
+    .email-edit-warn.visible { display: block; }
+
+    /* Task counter en header */
+    .task-counter {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      background: rgba(59,130,246,0.15);
+      color: #93c5fd;
+      border: 1px solid rgba(59,130,246,0.35);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      margin-right: 6px;
+    }
+
     /* ─── Rules Modal ─── */
     .rules-modal {
       position: fixed;
@@ -1478,6 +1532,7 @@
   <header>
     <span class="brand">Rémora</span>
     <div class="header-actions">
+      <span class="task-counter" id="task-counter" hidden></span>
       <button class="header-btn" id="btn-rules" title="Configurar reglas">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707"/>
@@ -1767,6 +1822,57 @@ let currentConvId = null;
 let currentQuestionId = null;
 let currentFramework = null;
 let isWaitingForResponse = false;
+// currentTask es la tarea pendiente activa traída de /api/v1/tasks/next.
+// Se usa para enriquecer /send-email con entity_ref + task_id (commit 6/7).
+let currentTask = null;
+let taskTotals = { pending: 0, in_progress: 0, completed: 0 };
+
+// escapeAttr / escapeText: escapan strings para inyección segura en HTML.
+function escapeAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeText(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// loadActiveTask consulta el ledger y actualiza currentTask + el contador
+// "X de N" del header. Idempotente: se puede llamar al inicio del flow,
+// después de cada Gestionar y después de cada email_sent.
+async function loadActiveTask() {
+  try {
+    const res = await fetch(`${API_BASE}/tasks/next`);
+    const json = await res.json();
+    const data = (json && json.data) || {};
+    if (data.found && data.task) {
+      currentTask = data.task;
+      taskTotals = {
+        pending: data.pending || 0,
+        in_progress: data.in_progress || 0,
+        completed: data.completed || 0
+      };
+      const counter = document.getElementById('task-counter');
+      if (counter) {
+        const total = taskTotals.pending + taskTotals.in_progress + taskTotals.completed;
+        const idx = (taskTotals.completed || 0) + 1;
+        counter.textContent = `Tarea ${idx} de ${total} · ${currentTask.title || currentTask.entity_ref || ''}`;
+        counter.hidden = false;
+      }
+    } else {
+      currentTask = null;
+      const counter = document.getElementById('task-counter');
+      if (counter) {
+        counter.textContent = 'Sin tareas pendientes';
+        counter.hidden = false;
+      }
+    }
+  } catch (e) {
+    // Silencioso: sin ledger, el flujo sigue funcionando con prioridades calculadas.
+    console.warn('loadActiveTask:', e);
+  }
+}
 let currentModel = 'minimax'; // default
 let availableModels = [];
 
@@ -2269,17 +2375,100 @@ function extractEmailSubject(content) {
   return 'Email de cobranza';
 }
 
+// sanitizeEmailDraft remueve basura típica de drafts del LLM:
+//   - Header markdown del estilo `**Email de Cobranza para X**` al inicio
+//   - Cierres tipo `**No requiere acción adicional**` al final
+//   - Línea "Asunto: ..." (queda capturada en el subject editable)
+//   - Bloques markdown `**...**` que envuelven líneas completas
+function sanitizeEmailDraft(content) {
+  if (!content) return '';
+  let out = content;
+  // Quitar header bold al inicio: `**Email...**\n\n`
+  out = out.replace(/^\s*\*\*[^\n*][^\n]*\*\*\s*\n+/m, '');
+  // Quitar línea "Asunto: ..." (con o sin **)
+  out = out.replace(/(?:^|\n)\s*\*?\*?[Aa]sunto\s*:[^\n]*\n+/, '\n');
+  // Quitar cierre tipo `**No requiere acción ...**`
+  out = out.replace(/\n+\s*\*\*\s*No\s+requiere[^\n*]*\*\*\s*$/i, '');
+  // Quitar líneas que son SOLO un bold envolvente (markdown decorativo)
+  out = out.replace(/^\s*\*\*([^\n*]+)\*\*\s*$/gm, '$1');
+  return out.trim();
+}
+
+// findUnresolvedPlaceholders detecta `[Tu nombre]`, `[Fecha]`, etc.
+// Excluye links markdown `[txt](url)` y URLs entre corchetes.
+function findUnresolvedPlaceholders(text) {
+  if (!text) return [];
+  const cleaned = text.replace(/\[[^\]\n]{1,80}\]\([^)]+\)/g, '');
+  const re = /\[([^\]\n]{1,80})\]/g;
+  const seen = new Set();
+  const out = [];
+  let m;
+  while ((m = re.exec(cleaned)) !== null) {
+    const tok = m[1].trim();
+    if (!tok) continue;
+    const lower = tok.toLowerCase();
+    if (lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('www.')) continue;
+    const key = '[' + tok + ']';
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
 function maybeRenderSendEmailBtn(framework, content) {
   const existing = thoughtBubble.querySelector('.send-email-action-btn');
   if (existing) existing.remove();
+  const existingFields = thoughtBubble.querySelector('.email-edit-fields');
+  if (existingFields) existingFields.remove();
   if (!isEmailDraft(framework, content)) return;
 
-  const subject = extractEmailSubject(content);
+  const sanitized = sanitizeEmailDraft(content);
+  const initialSubject = extractEmailSubject(content);
+
+  // Inputs editables: subject + body. El usuario los puede corregir antes
+  // de enviar (resuelve placeholders, ajusta tono, etc).
+  const fields = document.createElement('div');
+  fields.className = 'email-edit-fields';
+  fields.innerHTML = `
+    <label class="email-edit-label">Asunto</label>
+    <input class="email-edit-input" id="email-edit-subject" type="text" value="${escapeAttr(initialSubject)}">
+    <label class="email-edit-label">Cuerpo</label>
+    <textarea class="email-edit-textarea" id="email-edit-body" spellcheck="true">${escapeText(sanitized)}</textarea>
+    <div class="email-edit-warn" id="email-edit-warn"></div>
+  `;
+  thoughtBubble.appendChild(fields);
+
+  const subjectEl = fields.querySelector('#email-edit-subject');
+  const bodyEl = fields.querySelector('#email-edit-body');
+  const warnEl = fields.querySelector('#email-edit-warn');
+
   const btn = document.createElement('button');
   btn.className = 'send-email-action-btn';
   btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Enviar email de cobranza`;
 
+  function refreshValidation() {
+    const missing = findUnresolvedPlaceholders(bodyEl.value);
+    if (missing.length > 0) {
+      btn.disabled = true;
+      btn.classList.add('error');
+      btn.title = 'Completá los placeholders: ' + missing.join(', ');
+      warnEl.textContent = 'Hay placeholders sin completar: ' + missing.join(', ');
+      warnEl.classList.add('visible');
+    } else {
+      btn.disabled = false;
+      btn.classList.remove('error');
+      btn.title = '';
+      warnEl.classList.remove('visible');
+      warnEl.textContent = '';
+    }
+  }
+  bodyEl.addEventListener('input', refreshValidation);
+  refreshValidation();
+
   btn.addEventListener('click', async () => {
+    refreshValidation();
+    if (btn.disabled) return;
     btn.disabled = true;
     btn.innerHTML = 'Enviando...';
     try {
@@ -2287,15 +2476,23 @@ function maybeRenderSendEmailBtn(framework, content) {
       const nodeMensajero = document.getElementById('node-mensajero');
       if (nodeMensajero) { nodeMensajero.classList.remove('dimmed'); nodeMensajero.classList.add('active'); }
 
+      // Resolver entity context desde currentTask (poblada por loadActiveTask).
+      const payload = {
+        subject: subjectEl.value,
+        body: bodyEl.value,
+        channel: 'email',
+        conv_id: currentConvId || 'default'
+      };
+      if (currentTask && currentTask.entity_ref) {
+        payload.entity_type = currentTask.entity_type || 'client';
+        payload.entity_ref = currentTask.entity_ref;
+        payload.task_id = currentTask.id;
+      }
+
       const res = await fetch(`${API_BASE}/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject,
-          body: content,
-          channel: 'email',
-          conv_id: currentConvId || 'default'
-        })
+        body: JSON.stringify(payload)
       });
       const json = await res.json();
 
@@ -2318,19 +2515,45 @@ function maybeRenderSendEmailBtn(framework, content) {
         return;
       }
 
+      // 412 con missing entity_ref (contacto faltante).
+      if (res.status === 412 && json.data && json.data.entity_ref) {
+        btn.className = 'send-email-action-btn error';
+        btn.disabled = false;
+        btn.innerHTML = '✗ Falta email del contacto';
+        showThoughtBubble('contactos', 'Contactos',
+          `No tengo email cargado para **${json.data.entity_ref}**.\n\nCargalo en \`profiles/${(window.appConfig && window.appConfig.profile) || 'cobranza-chile'}/contacts.seed.csv\` o vía \`framework-contactos store\`.`,
+          false, 'pos-below');
+        return;
+      }
+
+      // 422: placeholders sin resolver (validación server-side).
+      if (res.status === 422 && json.data && json.data.unresolved_placeholders) {
+        btn.className = 'send-email-action-btn error';
+        btn.disabled = false;
+        btn.innerHTML = '✗ Completá los placeholders';
+        warnEl.textContent = 'Backend rechazó: ' + json.data.unresolved_placeholders.join(', ');
+        warnEl.classList.add('visible');
+        return;
+      }
+
       if (json.success) {
         btn.className = 'send-email-action-btn sent';
         const to = (json.data && json.data.to) || '';
         const devRewritten = !!(json.data && json.data.dev_rewritten);
         const originalTo = (json.data && json.data.original_to) || '';
+        const finalSubject = (json.data && json.data.subject) || subjectEl.value;
         btn.innerHTML = `✓ Enviado${to ? ' a ' + to : ''}${devRewritten ? ' (DEV)' : ''}`;
         const devNote = devRewritten
           ? `\n\n🛠 **Modo dev activo**: en producción hubiera ido a _${originalTo}_, pero se redirigió a _${to}_.`
           : '';
         showThoughtBubble('mensajero', 'Mensajero',
-          `✓ Email enviado correctamente${to ? ' a **' + to + '**' : ''}.\n\nAsunto: _${subject}_${devNote}`,
+          `✓ Email enviado correctamente${to ? ' a **' + to + '**' : ''}.\n\nAsunto: _${finalSubject}_${devNote}`,
           false, 'pos-below');
         if (nodeMensajero) nodeMensajero.classList.remove('dimmed');
+        // Refrescar la próxima tarea pendiente para que el contador y el
+        // contexto del próximo Gestionar reflejen el evento que acaba de
+        // cerrar el ledger (task_event email_sent).
+        if (payload.task_id) loadActiveTask();
       } else {
         btn.className = 'send-email-action-btn error';
         btn.disabled = false;
@@ -2370,7 +2593,12 @@ function renderSuggestedChips(framework, dynamicChips) {
     const chip = document.createElement('button');
     chip.className = 'suggested-chip';
     chip.textContent = text;
-    chip.addEventListener('click', () => {
+    chip.addEventListener('click', async () => {
+      // Si el chip es "Gestionar: <Deudor>", refrescar currentTask para que
+      // el próximo /send-email reciba entity_ref + task_id correctos.
+      if (typeof text === 'string' && text.startsWith('Gestionar:')) {
+        await loadActiveTask();
+      }
       sendResponseToFramework(text);
     });
     container.appendChild(chip);
@@ -2677,6 +2905,9 @@ modalConfirm.addEventListener('click', async () => {
   if (chosenFlowId === 'cobranza-chile') {
     // Hide initial input, Foco will speak automatically
     initialInputArea.classList.add('hidden');
+    // Cargar tarea activa antes de arrancar el flow para que el contador
+    // y el contexto de envío estén poblados desde el primer mensaje.
+    await loadActiveTask();
     await createConversationAndStart(flow.frameworks, '');
   } else {
     initialInput.focus();

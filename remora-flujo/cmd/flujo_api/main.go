@@ -822,6 +822,26 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 		req.ConvID = "default"
 	}
 
+	// Sanitización defensiva del subject: deduplicar prefijos repetidos
+	// ("Cobranza: Cobranza: Foo" → "Cobranza: Foo"). El frontend genera el
+	// subject vía LLM y puede repetir el namespace.
+	req.Subject = dedupeSubjectPrefix(req.Subject)
+
+	// Validar que el body no contenga placeholders sin resolver. Los drafts
+	// del LLM a veces dejan `[Tu nombre]`, `[Fecha]` etc. Si llegan al SMTP
+	// se envían tal cual al cliente. Mejor 422 + lista al frontend para que
+	// pinte el botón en rojo.
+	if missing := unresolvedPlaceholders(req.Body); len(missing) > 0 {
+		writeJSON(w, http.StatusUnprocessableEntity, APIResponse{
+			Success: false,
+			Data: map[string]interface{}{
+				"unresolved_placeholders": missing,
+			},
+			Error: "placeholders sin resolver: " + strings.Join(missing, ", "),
+		})
+		return
+	}
+
 	// Resolver destinatario vía framework-contactos si no vino `to` en el
 	// request pero sí vino entity_type+entity_ref. Si tampoco hay contacto,
 	// devolvemos 412 con provider_hint=contactos para que el frontend
