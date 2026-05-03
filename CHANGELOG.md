@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16] - 2026-05-03
+
+> **Release**: expandir charlie
+
+### Charlie
+
+- **framework-charlie/INITIAL_PROMPT.md**: +11 / -11
+- **charlie/main.go**: -35
+- **charlie/deploy.go**: -156
+
+### Repo
+
+- **Makefile**: +4 / -4
+- **framework-deployer/framework.manifest.json**: archivo nuevo
+- **framework-deployer/go.mod**: archivo nuevo
+- **README.md**: +19
+- **framework-deployer/INITIAL_PROMPT.md**: archivo nuevo
+- **framework-deployer/README.md**: archivo nuevo
+- **deployer/deploy.go**: archivo nuevo
+- **deployer/main.go**: archivo nuevo
+
 ## [0.1.15] - 2026-05-03
 
 > **Release**: expandir charlie

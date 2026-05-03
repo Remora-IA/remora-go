@@ -12,10 +12,10 @@ SHELL          := /bin/bash
 ROOT           := $(shell pwd)
 GO             := go
 FRAMEWORKS     := framework-alfa framework-auditor framework-charlie \
-                  framework-contactos framework-echo framework-foco \
-                  framework-gmail framework-hosting framework-indexa \
-                  framework-mecanico framework-mensajero framework-quine \
-                  framework-sabio framework-tareas
+                  framework-contactos framework-deployer framework-echo \
+                  framework-foco framework-gmail framework-hosting \
+                  framework-indexa framework-mecanico framework-mensajero \
+                  framework-quine framework-sabio framework-tareas
 PROJECT_ID     := project-ceae5831-a2c9-49aa-b1c
 REGION         := us-central1
 DEV_SERVICE    := flujo-api-dev

@@ -1,0 +1,29 @@
+{
+  "name": "deployer",
+  "version": "0.1.0",
+  "description": "Deploya remora-go a Cloud Run dev. Nunca toca produccion. No hace commits.",
+  "capabilities": ["deploy.dev"],
+  "commands": {
+    "plan": {
+      "exec": "go run ./cmd/deployer",
+      "description": "Muestra el plan de deploy (sin ejecutar)"
+    },
+    "apply": {
+      "exec": "go run ./cmd/deployer --apply",
+      "description": "Deploya a flujo-api-dev"
+    }
+  },
+  "guards": {
+    "forbidden_targets": ["prod", "flujo-api"],
+    "side_effects": ["gcloud builds submit", "gcloud run deploy"],
+    "no_git_writes": true
+  },
+  "env_vars": {
+    "optional": [
+      "PROJECT_ID",
+      "REGION",
+      "DEV_SERVICE",
+      "REMORA_ROOT"
+    ]
+  }
+}

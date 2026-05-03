@@ -181,37 +181,6 @@ func main() {
 			os.Exit(2)
 		}
 		return
-	case "deploy":
-		apply := false
-		target := charlie.DeployDev
-		for i := 2; i < len(os.Args); i++ {
-			switch os.Args[i] {
-			case "--apply":
-				apply = true
-			case "--prod":
-				target = charlie.DeployProd
-			case "--dev":
-				target = charlie.DeployDev
-			}
-		}
-		var plan *charlie.DeployPlan
-		var err error
-		if apply {
-			plan, err = charlie.ApplyDeploy(target)
-		} else {
-			plan, err = charlie.BuildDeployPlan(target)
-		}
-		if plan != nil {
-			fmt.Println(charlie.FormatDeployPlan(plan))
-		}
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
-			os.Exit(2)
-		}
-		if plan != nil && len(plan.Blockers) > 0 {
-			os.Exit(2)
-		}
-		return
 	case "clean-traces":
 		apply := false
 		root := ".."
@@ -313,10 +282,6 @@ USO:
                   Publica o actualiza el tag remoto con lease
   charlie publish-main [--apply]
                   Actualiza main para que sea copia exacta de draft
-  charlie deploy [--apply] [--dev|--prod] (v0.1.15)
-                  Deploya la imagen actual a Cloud Run. Default: dev.
-                  --prod siempre BLOQUEADO (Charlie nunca toca produccion).
-                  Sin --apply solo muestra el plan.
   charlie clean-traces [--apply] [--root PATH] (v0.1.11)
                   Lista (o borra con --apply) archivos regenerables seguros:
                   trace_pal_*.json, trace_gf_*.json, .DS_Store. NUNCA toca

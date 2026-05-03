@@ -47,6 +47,25 @@ remora-go/
 └── .gitignore              ← regla: solo codigo fuente al repo
 ```
 
+## Frameworks operacionales
+
+Dos frameworks dedicados que NO se llaman como capabilities del chat:
+
+- **`framework-charlie/`** → versionado del repo (commits, tags, push).
+  Nunca toca infra. Nunca deploya.
+- **`framework-deployer/`** → deploy a Cloud Run **dev**. Nunca commitea.
+  Nunca toca prod. Podes deployar el mismo commit muchas veces.
+
+Son ortogonales: deployar no implica commit, commitear no implica deploy.
+
+```bash
+# Deploy a dev (NO genera commit)
+cd framework-deployer && go run ./cmd/deployer --apply
+
+# Versionar codigo (NO genera deploy)
+cd framework-charlie && go run ./cmd/charlie apply-propose --apply --push
+```
+
 ## Versionado: usar Charlie, no git directo
 
 Charlie (`framework-charlie/`) es el unico autorizado a hacer commits, tags
