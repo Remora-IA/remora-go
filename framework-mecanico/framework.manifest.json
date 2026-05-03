@@ -83,6 +83,11 @@
       "description": "Recibe respuesta del user y avanza el flujo",
       "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
       "params": ["question_id", "answer"]
+    },
+    "draft-email": {
+      "description": "Genera borrador de email de cobranza",
+      "args": ["draft-email", "--deudor", "{params.deudor}", "--saldo", "{params.saldo}", "--dias-mora", "{params.dias_mora}", "--tono", "{params.tono}"],
+      "params": ["deudor", "saldo", "dias_mora", "tono"]
     }
   },
   "asks_human": {

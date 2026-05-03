@@ -1,0 +1,53 @@
+{
+  "name": "foco",
+  "version": "1.0.1-cobranza",
+  "description": "Priorizador de deudores para cobranza-chile. Genera lista priorizada desde datos de facturación.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "foco", "./cmd/foco"]
+  },
+  "binary": {
+    "command": "./foco",
+    "args_prefix": []
+  },
+  "cwd": "framework-foco",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "model": {
+    "provider": "none",
+    "capabilities": []
+  },
+  "commands": {
+    "next-question": {
+      "description": "Devuelve la próxima pregunta o acción",
+      "args": ["next-question"],
+      "params": []
+    },
+    "ingest-answer": {
+      "description": "Procesa la respuesta del usuario y genera prioridades",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"]
+    },
+    "query": {
+      "description": "Modo CLI directo para testing",
+      "args": ["query", "--question", "{params.question}"],
+      "params": ["question"]
+    },
+    "priorities": {
+      "description": "Genera lista priorizada en formato JSON",
+      "args": ["priorities"],
+      "params": []
+    }
+  },
+  "user_input": {
+    "supported": true,
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer",
+    "modes": ["query"],
+    "ask_via": "cli"
+  },
+  "state": {
+    "dir": "temp/foco",
+    "files": ["state.json", "last_priority_list.json"]
+  }
+}

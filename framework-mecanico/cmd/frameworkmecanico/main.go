@@ -57,6 +57,8 @@ func main() {
 		cmdNextQuestion(os.Args[2:])
 	case "ingest-answer":
 		cmdIngestAnswer(os.Args[2:])
+	case "draft-email":
+		cmdDraftEmail(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -701,4 +703,162 @@ func emitJSON(v interface{}) {
 func fail(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, "error: "+format+"\n", args...)
 	os.Exit(1)
+}
+
+// Cobranza mode: generate email drafts for debt collection
+func cmdDraftEmail(args []string) {
+	fs := flag.NewFlagSet("draft-email", flag.ExitOnError)
+	deudor := fs.String("deudor", "", "nombre del deudor")
+	tono := fs.String("tono", "formal", "amistoso|formal|carta")
+	saldo := fs.Float64("saldo", 0, "monto adeudado")
+	dias := fs.Int("dias-mora", 0, "días de mora")
+	save := fs.Bool("save", true, "guardar en state")
+	fs.Parse(args)
+
+	if *deudor == "" {
+		fail("draft-email requiere --deudor")
+	}
+
+	draft := generateEmailDraft(*deudor, *tono, *saldo, *dias)
+
+	if *save {
+		stateDir := "temp/mecanico"
+		_ = os.MkdirAll(stateDir, 0755)
+
+		// Guardar draft como JSON
+		draftPath := filepath.Join(stateDir, "last_draft.json")
+		data, _ := json.MarshalIndent(draft, "", "  ")
+		_ = os.WriteFile(draftPath, data, 0644)
+
+		// Guardar respuesta para orquestador
+		statePath := filepath.Join(stateDir, "state.json")
+		resp := map[string]interface{}{
+			"response":   formatDraftForUser(draft),
+			"draft":      draft,
+			"timestamp":  time.Now().Format(time.RFC3339),
+			"pending_id": fmt.Sprintf("mecanico_draft_%d", time.Now().Unix()),
+		}
+		respData, _ := json.Marshal(resp)
+		_ = os.WriteFile(statePath, respData, 0644)
+	}
+
+	// Imprimir respuesta legible
+	fmt.Println(formatDraftForUser(draft))
+}
+
+type emailDraft struct {
+	Type             string `json:"type"`
+	Action           string `json:"action"`
+	Deudor           string `json:"deudor"`
+	Subject          string `json:"subject"`
+	Body             string `json:"body"`
+	To               string `json:"to"`
+	Tono             string `json:"tono"`
+	LegalReference   string `json:"legal_reference,omitempty"`
+	GmailOpenURL     string `json:"gmail_open_url"`
+	RequiresApproval bool   `json:"requires_approval"`
+	GeneratedAt      string `json:"generated_at"`
+}
+
+func generateEmailDraft(deudor, tono string, saldo float64, dias int) *emailDraft {
+	estudio := os.Getenv("ESTUDIO_NOMBRE")
+	if estudio == "" {
+		estudio = "Estudio Jurídico Remora"
+	}
+	cobrador := os.Getenv("COBRADOR_NOMBRE")
+	if cobrador == "" {
+		cobrador = "Departamento de Cobranza"
+	}
+	fecha := time.Now().Format("02/01/2006")
+	email := strings.ToLower(strings.ReplaceAll(deudor, " ", "")) + "@ejemplo.cl"
+
+	var subject, body string
+	switch tono {
+	case "amistoso":
+		subject = fmt.Sprintf("Recordatorio de pago - %s - %s", deudor, estudio)
+		body = fmt.Sprintf(`Estimado/a %s,
+
+Por medio de la presente le recordamos que tiene facturas pendientes por un monto total de $%.0f.
+
+Detalle:
+- Días de mora: %d días
+
+Le solicitamos gentilmente regularizar esta situación a la brevedad.
+
+Saludos cordiales,
+%s
+%s`, deudor, saldo, dias, cobrador, estudio)
+
+	case "carta":
+		subject = fmt.Sprintf("Carta de requerimiento formal - Art. 37 Ley 21.394")
+		body = fmt.Sprintf(`%s, %s
+
+Sr./Sra. %s
+
+REFERENCIA: Requerimiento de pago
+
+Por intermedio de este estudio jurídico, nos dirigimos a Usted para notificarle la existencia de la siguiente deuda:
+
+- Monto total: $%.0f
+- Días de mora: %d
+
+Se le otorga un plazo de 10 días hábiles para el pago total de la deuda.
+
+Atentamente,
+%s
+%s`, estudio, fecha, deudor, saldo, dias, cobrador, estudio)
+
+	default: // formal
+		subject = fmt.Sprintf("Requerimiento de pago - Facturas vencidas - %s", estudio)
+		body = fmt.Sprintf(`Sr./Sra. %s,
+
+Por intermedio del %s, nos dirigimos a Usted para requerir el pago de las facturas pendientes:
+
+- Monto adeudado: $%.0f
+- Días de mora: %d
+
+Le informamos que, de no regularizar esta situación, iniciaremos las acciones legales correspondientes.
+
+Atentamente,
+%s
+%s`, deudor, estudio, saldo, dias, cobrador, estudio)
+	}
+
+	// Gmail compose URL
+	gmailURL := fmt.Sprintf("https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s",
+		urlEncode(email), urlEncode(subject), urlEncode(body))
+
+	return &emailDraft{
+		Type:             "action_proposal",
+		Action:           "email",
+		Deudor:           deudor,
+		Subject:          subject,
+		Body:             body,
+		To:               email,
+		Tono:             tono,
+		GmailOpenURL:     gmailURL,
+		RequiresApproval: true,
+		GeneratedAt:      time.Now().Format(time.RFC3339),
+	}
+}
+
+func formatDraftForUser(draft *emailDraft) string {
+	var sb strings.Builder
+	tonoEmoji := map[string]string{"amistoso": "📧", "formal": "📨", "carta": "📑"}
+	emoji := tonoEmoji[draft.Tono]
+	if emoji == "" {
+		emoji = "📧"
+	}
+
+	sb.WriteString(fmt.Sprintf("%s **Borrador de email (%s)**\n\n", emoji, draft.Tono))
+	sb.WriteString(fmt.Sprintf("**Para:** %s <%s>\n", draft.Deudor, draft.To))
+	sb.WriteString(fmt.Sprintf("**Asunto:** %s\n\n", draft.Subject))
+	sb.WriteString(fmt.Sprintf("---\n%s\n---\n\n", draft.Body))
+	sb.WriteString(fmt.Sprintf("👉 [Abrir en Gmail](%s)\n", draft.GmailOpenURL))
+	sb.WriteString("\n_Revisa el borrador y envíalo desde Gmail cuando estés listo._")
+	return sb.String()
+}
+
+func urlEncode(s string) string {
+	return strings.ReplaceAll(s, " ", "%20")
 }

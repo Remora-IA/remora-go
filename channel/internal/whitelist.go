@@ -65,6 +65,8 @@ var allowedCommands = map[string]bool{
 	"./frameworkindexa":  true,
 	"./frameworkauditor": true,
 	"./frameworkmecanico": true,
+	"./frameworkhosting":  true,
+	"./foco":              true,
 }
 
 // DestructiveCommands son comandos que NUNCA se ejecutan (Axioma 4.5)

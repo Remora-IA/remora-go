@@ -3,6 +3,7 @@ module framework-sabio
 go 1.25.0
 
 require (
+	channel v0.0.0
 	framework-indexa v0.0.0
 	modernc.org/sqlite v1.34.5
 )
@@ -20,3 +21,5 @@ require (
 )
 
 replace framework-indexa => ../framework-indexa
+
+replace channel => ../channel

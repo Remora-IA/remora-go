@@ -27,6 +27,7 @@ import (
 	"strings"
 	"time"
 
+	"channel/profile"
 	"framework-indexa/store"
 	"framework-sabio/internal/llm"
 	"framework-sabio/internal/sqlqa"
@@ -48,6 +49,29 @@ const (
 	greetingText      = "Soy el experto en tus datos indexados. Decime qué querés saber (ej: \"cuántos clientes tengo\", \"detalle de proyectos activos\", \"pagos pendientes\")."
 	defaultTopK       = 6
 )
+
+// profileLoader carga el perfil activo (Forma Genérica o Forma <nombre>)
+// Usa env REMORA_PROFILE_PATH para sobreescribir la ubicación (útil en Docker)
+var profileLoader = profile.NewLoader(envOr("REMORA_PROFILE_PATH", "../profiles"))
+var activeProfile *profile.Profile
+
+// getProfile carga y cachea el perfil activo
+func getProfile() *profile.Profile {
+	if activeProfile == nil {
+		var err error
+		activeProfile, err = profileLoader.Load()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[sabio] profile load error: %v\n", err)
+			activeProfile = &profile.Profile{Name: "generic", Overlays: map[string]string{}}
+		}
+	}
+	return activeProfile
+}
+
+// systemPromptWithOverlay aplica el overlay del perfil al system prompt base
+func systemPromptWithOverlay(baseSystem, framework string) string {
+	return getProfile().SystemPromptWithOverlay(baseSystem, framework)
+}
 
 // state mantiene la conversación pendiente de Sabio entre invocaciones CLI.
 // Como el orquestador llama al binario una vez por paso, el estado vive en
@@ -298,7 +322,7 @@ func answerQuestion(question, storePath string, history []HistoryTurn) (string, 
 		ctxBuilder.WriteString("\n---\n")
 	}
 
-	system := `Sos Sabio, un asistente que responde sobre los datos de negocio del usuario en español rioplatense natural.
+	baseSystem := `Sos Sabio, un asistente que responde sobre los datos de negocio del usuario en español rioplatense natural.
 El usuario NO es técnico (gerente, abogado, contador). No conoce JSON, IDs, ni nombres de tablas.
 
 PROHIBIDO ABSOLUTAMENTE (jamás aparece en tu respuesta):
@@ -326,6 +350,8 @@ EJEMPLOS DE CONVERSIÓN:
 - "El proyecto tiene project_id: 422 y client_id: 243" → "Es el proyecto 000239-0001 del cliente Gislason Ltd."
 - "billing_documents_detail muestra status: ABIERTA" → "La factura está abierta."
 - "[advances:3522]" → (omitir, no se cita).`
+
+	system := systemPromptWithOverlay(baseSystem, "sabio")
 
 	userPrompt := fmt.Sprintf("Pregunta del usuario: %s\n\nDatos del negocio relevantes (uso interno, NO copiar literal):\n%s\n\nRespondé al usuario en lenguaje natural de negocio. Aplicá las reglas estrictas: nada de nombres de campos, nada de IDs internos, nada de citas con corchetes.", question, ctxBuilder.String())
 
@@ -424,7 +450,7 @@ func answerWithSQL(ctx context.Context, c *llm.Client, dbPath, question string, 
 // history aporta contexto conversacional para resolver referencias como
 // "los 2 primeros", "y los inactivos?", etc.
 func generateSQL(ctx context.Context, c *llm.Client, schema, question string, history []HistoryTurn, previousSQL string, previousErr error) (string, error) {
-	system := `Sos un experto en SQLite. Te dan el schema de una base con datos de un sistema de timebilling para estudios jurídicos, y una pregunta del usuario en español.
+	baseSystem := `Sos un experto en SQLite. Te dan el schema de una base con datos de un sistema de timebilling para estudios jurídicos, y una pregunta del usuario en español.
 
 Tu tarea: generar UNA sola sentencia SELECT (o WITH ... SELECT) en sintaxis SQLite que responda la pregunta usando los datos reales de la base.
 
@@ -456,9 +482,34 @@ REGLAS ESTRICTAS:
 - ALIAS SEMÁNTICOS OBLIGATORIOS: nombrá las columnas devueltas con sufijos que indiquen su unidad para que el lenguaje natural no se confunda:
     * Conteos: usá sufijo _count o _total_n. Ej: COUNT(*) AS clientes_count, COUNT(*) AS pagos_total_n.
     * Sumas de dinero: sufijo _amount con la moneda si se conoce. Ej: SUM(CAST("amount" AS REAL)) AS pagos_amount.
+    * Días de mora: sufijo _dias. Ej: CAST((julianday('now') - julianday(MIN(m."date"))) AS INTEGER) AS mora_dias.
     * Sumas de horas: sufijo _hours. Ej: SUM(CAST("duration" AS REAL)) AS trabajo_hours.
     * Listados de nombres: alias claro como nombre, cliente, proyecto.
   Esto es CRÍTICO: el phraser lee estos nombres y decide si poner $ o no.
+
+CÁLCULO DE DÍAS DE MORA — REGLA CRÍTICA:
+- Para calcular días de mora SIEMPRE usá aritmética de fechas de SQLite:
+    CAST((julianday('now') - julianday("date")) AS INTEGER)
+- "date" debe ser una columna de tipo fecha ('YYYY-MM-DD'), NUNCA "amount" ni ningún campo numérico monetario.
+- NUNCA uses strftime('%s',...) para calcular diferencia de días (produce segundos, no días).
+- NUNCA uses CAST("date" AS INTEGER) (produce solo el año, ej: 2015).
+- Ejemplo correcto: CAST((julianday('now') - julianday(MIN(m."date"))) AS INTEGER) AS mora_dias
+
+CÁLCULO DE SALDO PENDIENTE DE COBRANZA — REGLA CRÍTICA:
+- El saldo pendiente real de un cliente se calcula sumando milestones de sus charges en estado impago:
+    SELECT c."name",
+           COALESCE(SUM(CAST(m."amount" AS REAL)), 0) AS saldo_amount,
+           CAST((julianday('now') - julianday(MIN(m."date"))) AS INTEGER) AS mora_dias,
+           COUNT(DISTINCT ch."id") AS facturas_count
+    FROM "clients" c
+    JOIN "charges" ch ON ch."client_id" = c."id"
+    LEFT JOIN "milestones" m ON m."charge_id" = ch."id"
+    WHERE ch."state" IN ('FACTURADO','EMITIDO','PAGO PARCIAL','ENVIADO AL CLIENTE','EN REVISION')
+      AND m."amount" IS NOT NULL AND m."amount" != ''
+      AND lower(c."name") LIKE lower('%nombre%')
+    GROUP BY c."id"
+- NUNCA confundas saldo_amount con mora_dias. Son columnas distintas con significado distinto.
+- mora_dias es un número de días (ej: 400), saldo_amount es un monto monetario (ej: 22611.60).
 
 EJEMPLOS:
 - "cuántos clientes" → SELECT COUNT(*) AS total FROM "clients"
@@ -467,9 +518,14 @@ EJEMPLOS:
 - "cuántas facturas tiene el cliente Tillman" → SELECT COUNT(*) FROM "billing_documents" bd JOIN "clients" c ON bd."client_id" = c."id" WHERE lower(c."name") LIKE lower('%Tillman%')
 - "pagos del año 2024" → SELECT COUNT(*) FROM "payments" WHERE "date" LIKE '2024-%'
 - "monto total de pagos en 2022" → SELECT SUM(CAST("amount" AS REAL)) FROM "payments" WHERE "date" LIKE '2022-%'
+- "análisis 360° de Thiel-Effertz" → usar el patrón de CÁLCULO DE SALDO PENDIENTE con nombre '%Thiel%'
+- "generar email de cobranza" o "email para [cliente]" → (1) extraé el nombre del cliente del historial conversacional, (2) aplicá el patrón de CÁLCULO DE SALDO PENDIENTE exacto para ese cliente (charges+milestones, NO billing_documents.amount que es distinto), (3) devolvé: nombre, saldo_amount, mora_dias, facturas_count.
+- NUNCA uses "billing_documents"."amount" como saldo de cobranza — ese campo es el monto facturado, no el saldo pendiente de milestones. El saldo real siempre viene de SUM(milestones.amount) filtrado por charges.state impago.
 
 Schema:
 ` + schema
+
+	system := systemPromptWithOverlay(baseSystem, "sabio")
 
 	historyBlock := formatHistoryForPrompt(history)
 	userPrompt := question
@@ -522,7 +578,7 @@ func cleanSQLResponse(s string) string {
 // para que el phraser pueda continuar el hilo (ej: el usuario dijo "los 2
 // primeros" → la respuesta debe nombrarlos, no decir "hay 2").
 func phraseSQLAnswer(ctx context.Context, c *llm.Client, question string, qr *sqlqa.QueryResult, history []HistoryTurn) (string, error) {
-	system := `Sos Sabio, un asistente que responde en español rioplatense natural sobre los datos de negocio del usuario (estudio jurídico, sistema de timebilling).
+	baseSystem := `Sos Sabio, un asistente que responde en español rioplatense natural sobre los datos de negocio del usuario (estudio jurídico, sistema de timebilling).
 
 El usuario NO es técnico (gerente, abogado, contador). NO conoce JSON, IDs, ni nombres de tablas.
 
@@ -535,6 +591,7 @@ PROHIBIDO:
 INTERPRETACIÓN DE COLUMNAS (CRÍTICO PARA NO ALUCINAR UNIDADES):
 - Columna terminada en _count, _total_n, _qty, _n, o que es un COUNT(*) → CANTIDAD ENTERA. NUNCA agregues símbolo de moneda. Ej: "pagos_count": 1451 → "hay 1451 pagos" (NO "$1451").
 - Columna terminada en _amount, _monto, _total_amount, _sum → MONTO DE DINERO. Solo agregá moneda si en los datos hay una columna como currency, currency_code o si la pregunta lo deja claro. Si no, decí el número sin símbolo.
+- Columna terminada en _dias, _days → DÍAS ENTEROS. Decí "X días". NUNCA lo interpretes como monto de dinero.
 - Columna terminada en _hours, _horas → HORAS. Decí "X horas".
 - Columna terminada en _date, _at o que se ve como fecha → FECHA en DD/MM/AAAA.
 - Si la columna se llama solo "name", "id", "code", o un alias semántico claro ("cliente", "proyecto") → es un identificador o nombre, decílo como tal.
@@ -556,6 +613,8 @@ Vas a recibir:
 4. Las filas devueltas.
 
 Tu salida: solo la respuesta natural al usuario. Nada más.`
+
+	system := systemPromptWithOverlay(baseSystem, "sabio")
 
 	historyBlock := formatHistoryForPrompt(history)
 	if historyBlock == "" {

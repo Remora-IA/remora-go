@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-05-03
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **frontend-chat/index.html**: +510 / -223
+- **handoff/questions_queue.go**: funciones: (q *QuestionsQueue) AddQuestion
+
+### Repo
+
+- **framework-foco/framework.manifest.json**: archivo nuevo
+- **framework-foco/go.mod**: +20 / -1
+- **framework-hosting/go.mod**: archivo nuevo
+- **framework-mecanico/framework.manifest.json**: +5
+- **framework-mecanico/go.mod**: +2
+- **framework-mecanico/go.sum**: archivo nuevo
+- **framework-mecanico/mecanico**: archivo nuevo
+- **framework-sabio/go.mod**: +3
+- **cobranza-chile/flow.rules.json**: archivo nuevo
+- **cobranza-chile/profile.json**: archivo nuevo
+- **views/action_proposal.json**: archivo nuevo
+- **views/deudor_card.json**: archivo nuevo
+- **views/priority_list.json**: archivo nuevo
+- **cobranza-chile/foco.md**: archivo nuevo
+- **cobranza-chile/glossary.md**: archivo nuevo
+- **cobranza-chile/mecanico.md**: archivo nuevo
+- **cobranza-chile/sabio.md**: archivo nuevo
+- **profile/profile.go**: archivo nuevo
+- **foco/cobranza_sql.go**: archivo nuevo
+- **foco/main.go**: funciones: runNextQuestion, runIngestAnswer, runQuery, runPriorities
+- **cpanel/client.go**: archivo nuevo
+- **cpanel/email.go**: archivo nuevo
+- **creds/store.go**: archivo nuevo
+- **frameworkmecanico/main.go**: funciones: cmdDraftEmail, generateEmailDraft, formatDraftForUser, urlEncode | tipos: emailDraft
+- **frameworksabio/main.go**: funciones: getProfile, systemPromptWithOverlay
+- **internal/whitelist.go**: +2
+
 ## [0.1.8] - 2026-05-01
 
 > **Release**: expandir charlie

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -165,6 +166,14 @@ func main() {
 		err = runDone(os.Args[2:])
 	case "show":
 		err = runShow()
+	case "next-question":
+		err = runNextQuestion()
+	case "ingest-answer":
+		err = runIngestAnswer(os.Args[2:])
+	case "query":
+		err = runQuery(os.Args[2:])
+	case "priorities":
+		err = runPriorities()
 	case "help", "-h", "--help":
 		usage()
 		return
@@ -2300,5 +2309,205 @@ SECUNDARIO:
   foco flow
   foco whatif --task task_001
   foco ask
-  foco answer --text "texto libre"`)
+  foco answer --text "texto libre"
+
+COBRANZA (profile=cobranza-chile):
+  foco next-question
+  foco ingest-answer --question-id id --answer "texto"
+  foco query --question "¿qué hago hoy?"
+  foco priorities`)
+}
+
+// Cobranza mode functions
+func runNextQuestion() error {
+	// Si hay prioridades generadas y pendientes de mostrar, devolverlas como question
+	stateFile := filepath.Join("temp", "foco", "last_priority_list.json")
+	if data, err := os.ReadFile(stateFile); err == nil {
+		// Consumed: eliminar para no repetir
+		_ = os.Remove(stateFile)
+
+		// Formatear como texto legible
+		var list struct {
+			Items []struct {
+				Rank           int     `json:"rank"`
+				Deudor         string  `json:"deudor"`
+				SaldoTotal     float64 `json:"saldo_total"`
+				DiasMoraMax    int     `json:"dias_mora_max"`
+				Score          int     `json:"score"`
+				Razon          string  `json:"razon"`
+				AccionSugerida string  `json:"accion_sugerida"`
+			} `json:"items"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(data, &list); err == nil {
+			var sb strings.Builder
+			if list.Message != "" {
+				sb.WriteString(list.Message)
+			} else {
+				sb.WriteString("**Prioridades de cobranza — hoy**\n\n")
+				sb.WriteString("| # | Deudor | Saldo | Mora | Score |\n")
+				sb.WriteString("|---|--------|-------|------|-------|\n")
+				for _, item := range list.Items {
+					sb.WriteString(fmt.Sprintf("| %d | %s | $%s | %d días | %d |\n",
+						item.Rank, item.Deudor, formatMoney(item.SaldoTotal), item.DiasMoraMax, item.Score))
+				}
+				// Mostrar solo la acción del deudor #1
+				if len(list.Items) > 0 {
+					top := list.Items[0]
+					sb.WriteString("\n**Acción inmediata**\n\n")
+					sb.WriteString(fmt.Sprintf("**%s** — %s\n", top.Deudor, top.AccionSugerida))
+				}
+			}
+			var chips []string
+			if len(list.Items) > 0 {
+				chips = []string{"Gestionar: " + list.Items[0].Deudor}
+			}
+			q := map[string]interface{}{
+				"id":      "priorities_shown",
+				"text":    sb.String(),
+				"ask_via": "cli",
+				"chips":   chips,
+			}
+			out, _ := json.Marshal(q)
+			fmt.Println(string(out))
+			return nil
+		}
+	}
+	// Sin prioridades pendientes: foco no tiene más preguntas
+	fmt.Println("{}")
+	return nil
+}
+
+func runIngestAnswer(args []string) error {
+	fs := flag.NewFlagSet("ingest-answer", flag.ExitOnError)
+	_ = fs.String("question-id", "", "id de pregunta")
+	answer := fs.String("answer", "", "respuesta")
+	fs.Parse(args)
+
+	if *answer == "" {
+		return errors.New("ingest-answer: --answer requerido")
+	}
+
+	// Si pregunta por prioridades, generarlas
+	lower := strings.ToLower(*answer)
+	keywords := []string{"prioridad", "prioridades", "qué hacer", "que hacer", "quien cobrar", "a quien", "top", "hoy"}
+	askPriority := false
+	for _, k := range keywords {
+		if strings.Contains(lower, k) {
+			askPriority = true
+			break
+		}
+	}
+
+	if askPriority {
+		return runPriorities()
+	}
+
+	// Respuesta genérica de cobranza
+	response := map[string]interface{}{
+		"response":   "Puedo ayudarte a priorizar deudores o generar emails de cobranza. Pregúntame '¿qué hago hoy?'",
+		"timestamp":  time.Now().Format(time.RFC3339),
+		"pending_id": fmt.Sprintf("foco_%d", time.Now().Unix()),
+	}
+	data, _ := json.Marshal(response)
+	_ = os.WriteFile(statePath, data, 0644)
+	fmt.Println(response["response"])
+	return nil
+}
+
+func runQuery(args []string) error {
+	fs := flag.NewFlagSet("query", flag.ExitOnError)
+	question := fs.String("question", "", "pregunta")
+	fs.Parse(args)
+	if *question == "" {
+		return errors.New("query: --question requerido")
+	}
+	return runPriorities()
+}
+
+func runPriorities() error {
+	dbPath := os.Getenv("FOCO_DB")
+	if dbPath == "" {
+		dbPath = "../framework-indexa/data/panalbit.db"
+	}
+
+	// Verificar si existe DB
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		// Sin datos, devolver lista vacía
+		list := map[string]interface{}{
+			"type":         "priority_list",
+			"generated_at": time.Now().Format(time.RFC3339),
+			"profile":      "cobranza-chile",
+			"items":        []interface{}{},
+			"count":        0,
+			"message":      "No hay datos de deudores. Usa framework-indexa para cargar datos.",
+		}
+		jsonData, _ := json.MarshalIndent(list, "", "  ")
+		fmt.Println(string(jsonData))
+		return nil
+	}
+
+	items, queryErr := queryRealPriorities(dbPath)
+	if queryErr != nil {
+		fmt.Fprintf(os.Stderr, "[foco] query priorities error: %v\n", queryErr)
+		list := map[string]interface{}{
+			"type":         "priority_list",
+			"generated_at": time.Now().Format(time.RFC3339),
+			"profile":      "cobranza-chile",
+			"items":        []interface{}{},
+			"count":        0,
+			"message":      "No pude consultar la base de datos: " + queryErr.Error(),
+		}
+		jsonData, _ := json.MarshalIndent(list, "", "  ")
+		fmt.Println(string(jsonData))
+		return nil
+	}
+
+	if len(items) == 0 {
+		list := map[string]interface{}{
+			"type":         "priority_list",
+			"generated_at": time.Now().Format(time.RFC3339),
+			"profile":      "cobranza-chile",
+			"items":        []interface{}{},
+			"count":        0,
+			"message":      "No hay deudores pendientes de cobro. Todo al día.",
+		}
+		jsonData, _ := json.MarshalIndent(list, "", "  ")
+		fmt.Println(string(jsonData))
+		return nil
+	}
+
+	list := map[string]interface{}{
+		"type":         "priority_list",
+		"generated_at": time.Now().Format(time.RFC3339),
+		"profile":      "cobranza-chile",
+		"items":        items,
+		"count":        len(items),
+	}
+
+	jsonData, _ := json.MarshalIndent(list, "", "  ")
+
+	// Guardar en state
+	stateDir := "temp/foco"
+	_ = os.MkdirAll(stateDir, 0755)
+	_ = os.WriteFile(filepath.Join(stateDir, "last_priority_list.json"), jsonData, 0644)
+
+	// Formato legible (markdown) para modo CLI directo.
+	fmt.Println("**Prioridades de cobranza — hoy**")
+	fmt.Println()
+	fmt.Println("| # | Deudor | Saldo | Mora | Score |")
+	fmt.Println("|---|--------|-------|------|-------|")
+	for _, item := range items {
+		fmt.Printf("| %d | %s | $%s | %d días | %d |\n",
+			item.Rank, item.Deudor, formatMoney(item.SaldoTotal), item.DiasMoraMax, item.Score)
+	}
+	fmt.Println()
+	// Mostrar solo la acción del deudor con mayor prioridad (#1)
+	if len(items) > 0 {
+		fmt.Println("**Acción inmediata**")
+		fmt.Println()
+		fmt.Printf("**%s** — %s\n", items[0].Deudor, items[0].AccionSugerida)
+	}
+
+	return nil
 }

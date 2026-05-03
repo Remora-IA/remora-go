@@ -36,6 +36,7 @@ type QueuedQuestion struct {
 	ExternalID string    `json:"external_id,omitempty"`  // ID nativo del framework, ej "th_001", "oq_001"
 	Text       string    `json:"text"`
 	AskVia     string    `json:"ask_via,omitempty"`      // "" = directa | "echo" = reformula vía Echo
+	Chips      []string  `json:"chips,omitempty"`        // Respuestas sugeridas para el usuario
 	Status     string    `json:"status"`                 // pending | asked | answered
 	Answer     string    `json:"answer,omitempty"`
 	AskedAt    time.Time `json:"asked_at,omitempty"`
@@ -141,17 +142,22 @@ func (q *QuestionsQueue) migrateLegacy() {
 // AddQuestion encola una pregunta nueva del framework indicado y devuelve su
 // ID interno de cola. externalID es opcional: si está set, se persiste para
 // que el driver dueño pueda mapear de vuelta al ID nativo del framework.
-func (q *QuestionsQueue) AddQuestion(framework, externalID, text, askVia string) string {
+func (q *QuestionsQueue) AddQuestion(framework, externalID, text, askVia string, chips ...[]string) string {
 	if framework == "" {
 		framework = q.CurrentSpeaker
 	}
 	id := generateQuestionID(framework, q.nextSeq(framework))
+	var c []string
+	if len(chips) > 0 {
+		c = chips[0]
+	}
 	q.Questions = append(q.Questions, QueuedQuestion{
 		ID:         id,
 		Framework:  framework,
 		ExternalID: externalID,
 		Text:       text,
 		AskVia:     askVia,
+		Chips:      c,
 		Status:     QuestionPending,
 	})
 	return id

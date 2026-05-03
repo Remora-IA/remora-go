@@ -1,0 +1,96 @@
+{
+  "type": "deudor_card",
+  "description": "Vista 360° de un deudor específico",
+  "render_hint": "card_full",
+  "sections": [
+    {
+      "id": "header",
+      "title": "{nombre_deudor}",
+      "fields": [
+        {"key": "rut", "label": "RUT", "type": "string"},
+        {"key": "tipo", "label": "Tipo", "type": "string"}
+      ]
+    },
+    {
+      "id": "deuda_resumen",
+      "title": "Resumen de Deuda",
+      "layout": "grid_2",
+      "fields": [
+        {"key": "saldo_total", "label": "Total Adeudado", "type": "currency", "format": "$#,##0"},
+        {"key": "dias_mora_max", "label": "Días de Mora", "type": "badge", "color_by_value": {
+          "0-29": "green",
+          "30-59": "orange",
+          "60+": "red"
+        }},
+        {"key": "cantidad_facturas", "label": "Facturas", "type": "integer"},
+        {"key": "estado_legal", "label": "Estado", "type": "status_badge"}
+      ]
+    },
+    {
+      "id": "facturas_detalle",
+      "title": "Facturas Pendientes",
+      "layout": "table",
+      "fields": [
+        {"key": "numero", "label": "N° Factura"},
+        {"key": "fecha_vencimiento", "label": "Vencimiento", "type": "date", "format": "dd/mm/yyyy"},
+        {"key": "monto", "label": "Monto", "type": "currency", "format": "$#,##0"},
+        {"key": "dias_mora", "label": "Días", "type": "integer"}
+      ]
+    },
+    {
+      "id": "historial_gestiones",
+      "title": "Últimas Gestiones",
+      "layout": "timeline",
+      "fields": [
+        {"key": "fecha", "label": "Fecha", "type": "date"},
+        {"key": "tipo", "label": "Tipo"},
+        {"key": "resultado", "label": "Resultado"},
+        {"key": "proxima_accion", "label": "Próxima Acción"}
+      ]
+    },
+    {
+      "id": "contacto",
+      "title": "Datos de Contacto",
+      "layout": "list",
+      "fields": [
+        {"key": "email", "label": "Email", "type": "email", "action": "mailto"},
+        {"key": "telefono", "label": "Teléfono", "type": "phone", "action": "call"},
+        {"key": "direccion", "label": "Dirección"}
+      ]
+    },
+    {
+      "id": "acciones",
+      "title": "Acciones Rápidas",
+      "layout": "buttons_row",
+      "buttons": [
+        {
+          "label": "📧 Recordatorio",
+          "action": "call_mecanico",
+          "payload": {"template": "recordatorio", "deudor_id": "{id}"},
+          "style": "primary"
+        },
+        {
+          "label": "📨 Requerimiento",
+          "action": "call_mecanico",
+          "payload": {"template": "requerimiento", "deudor_id": "{id}"},
+          "style": "warning",
+          "show_if": "dias_mora_max >= 30"
+        },
+        {
+          "label": "📑 Carta Certificada",
+          "action": "call_mecanico",
+          "payload": {"template": "carta_certificada", "deudor_id": "{id}"},
+          "style": "danger",
+          "show_if": "dias_mora_max >= 60"
+        },
+        {
+          "label": "⚖️ Escalar",
+          "action": "call_bravo",
+          "payload": {"check_legal": true, "deudor_id": "{id}"},
+          "style": "secondary",
+          "show_if": "dias_mora_max >= 90"
+        }
+      ]
+    }
+  ]
+}

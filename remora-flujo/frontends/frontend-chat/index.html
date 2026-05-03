@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Handoff</title>
+  <title>Rémora</title>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -42,29 +42,34 @@
       --auditor-glow:  hsla(0, 75%, 62%, 0.5);
       --mecanico-color: hsl(220, 75%, 65%);
       --mecanico-glow:  hsla(220, 75%, 65%, 0.5);
+      --foco-color:     hsl(25, 80%, 55%);
+      --foco-glow:      hsla(25, 80%, 55%, 0.5);
     }
 
-    /* ─── Tokens — Light ─── */
+    /* ─── Tokens — Light (Rémora style) ─── */
     [data-theme="light"] {
-      --bg:           #f5f5f7;
+      --bg:           #FAFAF8;
       --surface:      #ffffff;
-      --surface2:     #f0f0f2;
-      --border:       #d8d8dc;
-      --border-hover: #adadb3;
-      --text:         #1d1d1f;
-      --text-muted:   #86868b;
-      --text-dim:     #c7c7cc;
-      --send-bg:      #1d1d1f;
-      --send-icon:    #f5f5f7;
-      --chip-hover:   #ebebef;
-      --scroll:       #c7c7cc;
-      --toggle-bg:    #e8e8ec;
-      --toggle-border:#d0d0d5;
-      --toggle-icon:  #555;
-      --file-bg:      #ebebef;
+      --surface2:     #F3F2EF;
+      --border:       rgba(17, 17, 16, 0.08);
+      --border-hover: rgba(17, 17, 16, 0.15);
+      --text:         #111110;
+      --text-muted:   #6B6A67;
+      --text-dim:     #A8A7A4;
+      --send-bg:      #111110;
+      --send-icon:    #FAFAF8;
+      --chip-hover:   #ECEAE5;
+      --scroll:       #d8d8dc;
+      --toggle-bg:    #F3F2EF;
+      --toggle-border:#ECEAE5;
+      --toggle-icon:  #6B6A67;
+      --file-bg:      #F3F2EF;
+      /* Accent blue from remora site */
+      --accent:       #2563EB;
+      --accent-light: #EEF3FF;
       /* Glow: dark blob on light */
-      --glow-color:   rgba(0,0,0,0.06);
-      --glow-mid:     rgba(30,30,30,0.025);
+      --glow-color:   rgba(0,0,0,0.04);
+      --glow-mid:     rgba(30,30,30,0.02);
       /* Framework colors - lighter variants for light mode */
       --echo-color:   hsl(260, 65%, 55%);
       --echo-glow:    hsla(260, 65%, 55%, 0.4);
@@ -78,13 +83,18 @@
       --auditor-glow:  hsla(0, 65%, 52%, 0.4);
       --mecanico-color: hsl(220, 65%, 55%);
       --mecanico-glow:  hsla(220, 65%, 55%, 0.4);
+      --foco-color:     hsl(25, 70%, 50%);
+      --foco-glow:      hsla(25, 70%, 50%, 0.4);
     }
+
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
     html, body {
       height: 100%;
-      font-family: -apple-system, "SF Pro Display", "SF Pro Text",
+      font-family: "Plus Jakarta Sans", -apple-system, "SF Pro Display", "SF Pro Text",
                    "Helvetica Neue", Arial, sans-serif;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
       background: var(--bg);
       color: var(--text);
       overflow: hidden;
@@ -120,14 +130,26 @@
       height: 100vh;
     }
 
-    /* ─── Header ─── */
+    /* ─── Header (Rémora sticky nav style) ─── */
     header {
-      padding: 22px 32px;
+      position: sticky;
+      top: 0;
+      height: 60px;
+      padding: 0 40px;
       display: flex;
       align-items: center;
       gap: 11px;
       flex-shrink: 0;
-      z-index: 10;
+      z-index: 100;
+      background-color: rgba(250, 250, 248, 0.9);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(17, 17, 16, 0.08);
+    }
+
+    [data-theme="dark"] header {
+      background-color: rgba(12, 12, 13, 0.9);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .logo-mark {
@@ -141,39 +163,52 @@
     [data-theme="light"] .logo-rect { fill: #1d1d1f; }
 
     .brand {
-      font-size: 19.5px;
-      font-weight: 600;
-      letter-spacing: -0.025em;
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
       color: var(--text);
       transition: color 0.3s;
+      font-family: "Plus Jakarta Sans", -apple-system, "SF Pro Display", sans-serif;
     }
 
-    /* ─── Header buttons ─── */
+    /* ─── Header buttons (Rémora style) ─── */
     .header-actions {
       margin-left: auto;
       display: flex;
-      gap: 8px;
+      gap: 12px;
     }
 
     .header-btn {
-      padding: 8px 14px;
+      padding: 8px 16px;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       cursor: pointer;
       border: 1px solid var(--border);
       background: transparent;
       color: var(--text-muted);
-      transition: all 0.2s;
+      transition: all 0.2s ease;
       display: flex;
       align-items: center;
       gap: 6px;
+      font-family: "Plus Jakarta Sans", -apple-system, sans-serif;
     }
 
     .header-btn:hover {
       background: var(--surface2);
       color: var(--text);
       border-color: var(--border-hover);
+    }
+
+    .header-btn.primary {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .header-btn.primary:hover {
+      opacity: 0.9;
+      background: var(--accent);
     }
 
     .header-btn svg {
@@ -395,7 +430,7 @@
       padding: 20px 24px;
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
+      border-radius: 14px;
       font-size: 14px;
       line-height: 1.65;
       color: var(--text);
@@ -405,7 +440,7 @@
       pointer-events: auto;
       z-index: 20;
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 24px rgba(17, 17, 16, 0.08);
       display: flex;
       flex-direction: column;
       max-height: calc(100vh - 120px);
@@ -497,6 +532,74 @@
       border-radius: 3px;
     }
 
+    /* Markdown rendering inside thought-body (sober, minimal) */
+    .thought-body p { margin: 0 0 10px 0; line-height: 1.55; }
+    .thought-body p:last-child { margin-bottom: 0; }
+    .thought-body h1,
+    .thought-body h2,
+    .thought-body h3,
+    .thought-body h4 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin: 14px 0 8px 0;
+    }
+    .thought-body h1:first-child,
+    .thought-body h2:first-child,
+    .thought-body h3:first-child { margin-top: 0; }
+    .thought-body strong { color: var(--text); font-weight: 600; }
+    .thought-body em { color: var(--text-muted); font-style: normal; }
+    .thought-body ul,
+    .thought-body ol { margin: 6px 0 12px 0; padding-left: 20px; }
+    .thought-body li { margin: 3px 0; line-height: 1.5; }
+    .thought-body hr {
+      border: 0;
+      border-top: 1px solid var(--border);
+      margin: 14px 0;
+    }
+    .thought-body code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .thought-body table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 10px 0 14px 0;
+      font-size: 13px;
+    }
+    .thought-body th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 8px 10px 6px 10px;
+      border-bottom: 1px solid var(--border);
+      background: transparent;
+    }
+    .thought-body td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .thought-body tr:last-child td { border-bottom: none; }
+    .thought-body td:first-child,
+    .thought-body th:first-child { padding-left: 0; }
+    .thought-body td:last-child,
+    .thought-body th:last-child { padding-right: 0; }
+    .thought-body blockquote {
+      margin: 10px 0;
+      padding: 2px 12px;
+      border-left: 2px solid var(--border);
+      color: var(--text-muted);
+    }
+
     /* Thought bubble types */
     .thought-bubble.echo .thought-header { color: var(--echo-color); }
     .thought-bubble.echo .thought-header .dot { background: var(--echo-color); }
@@ -579,13 +682,15 @@
     .initial-input-card {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 18px;
+      border-radius: 14px;
       padding: 14px 16px 12px;
-      transition: border-color 0.2s, background 0.3s;
+      transition: border-color 0.2s, background 0.3s, box-shadow 0.2s;
+      box-shadow: 0 1px 3px rgba(17, 17, 16, 0.04);
     }
 
     .initial-input-card:focus-within {
-      border-color: var(--border-hover);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-light);
     }
 
     .initial-input-card textarea {
@@ -656,19 +761,19 @@
       justify-content: center;
       color: var(--send-icon);
       flex-shrink: 0;
-      transition: opacity 0.15s, transform 0.1s, background 0.3s, color 0.3s;
+      transition: all 0.2s ease;
     }
 
-    .send-btn:hover { opacity: 0.88; }
-    .send-btn:active { transform: scale(0.94); }
-    .send-btn:disabled { opacity: 0.25; cursor: default; }
+    .send-btn:hover { opacity: 0.85; transform: translateY(-1px); }
+    .send-btn:active { transform: scale(0.94) translateY(0); }
+    .send-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
 
     .initial-input-area.hidden {
       display: none;
     }
 
-    /* ─── FRAMEWORK MODAL ─── */
-    .framework-modal {
+    /* ─── FLOW MODAL ─── */
+    .flow-modal {
       position: fixed;
       inset: 0;
       background: rgba(0,0,0,0.7);
@@ -682,26 +787,117 @@
       transition: opacity 0.3s ease;
     }
 
-    .framework-modal.visible {
+    .flow-modal.visible {
       opacity: 1;
       pointer-events: all;
     }
 
-    .framework-modal-content {
+    .flow-modal-content {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 24px;
-      max-width: 480px;
+      border-radius: 16px;
+      max-width: 520px;
       width: 90%;
       max-height: 70vh;
       overflow: hidden;
       transform: scale(0.95);
       transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 32px rgba(17, 17, 16, 0.12);
     }
 
-    .framework-modal.visible .framework-modal-content {
+    .flow-modal.visible .flow-modal-content {
       transform: scale(1);
     }
+
+    .flow-option {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 20px;
+      cursor: pointer;
+      transition: background 0.15s;
+      border-bottom: 1px solid var(--border);
+    }
+    .flow-option:last-child { border-bottom: none; }
+    .flow-option:hover { background: var(--chip-hover); }
+    .flow-option.selected { background: var(--chip-hover); }
+
+    .flow-option-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .flow-option-icon svg { width: 22px; height: 22px; }
+
+    .flow-option-info { flex: 1; min-width: 0; }
+    .flow-option-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .flow-option-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .flow-option-frameworks { font-size: 11px; color: var(--text-dim); margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .flow-option-frameworks span {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px;
+    }
+
+    .flow-option-check {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+    .flow-option.selected .flow-option-check {
+      background: var(--accent); border-color: var(--accent);
+    }
+    .flow-option-check svg { display: none; width: 12px; height: 12px; color: white; }
+    .flow-option.selected .flow-option-check svg { display: block; }
+
+    /* ─── SUGGESTED RESPONSE CHIPS ─── */
+    .suggested-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .suggested-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .suggested-chip:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+    .send-email-action-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 10px 18px;
+      width: 100%;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .send-email-action-btn:hover { background: #1d4ed8; }
+    .send-email-action-btn:disabled { background: #6b7280; cursor: default; opacity: 0.7; }
+    .send-email-action-btn.sent { background: #16a34a; }
+    .send-email-action-btn.error { background: #dc2626; }
 
     /* ─── Rules Modal ─── */
     .rules-modal {
@@ -725,13 +921,14 @@
     .rules-modal-content {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: 14px;
       width: min(700px, 90vw);
       max-height: 80vh;
       display: flex;
       flex-direction: column;
       transform: translateY(20px);
       transition: transform 0.3s;
+      box-shadow: 0 8px 32px rgba(17, 17, 16, 0.12);
     }
 
     .rules-modal.visible .rules-modal-content {
@@ -798,7 +995,7 @@
     .rule-card-id {
       font-weight: 600;
       font-size: 14px;
-      color: var(--echo-color);
+      color: var(--accent);
     }
 
     .rule-card-toggle {
@@ -814,7 +1011,7 @@
     }
 
     .rule-card-toggle.active {
-      background: var(--echo-color);
+      background: var(--accent);
     }
 
     .rule-card-toggle::after {
@@ -887,18 +1084,18 @@
       gap: 10px;
     }
 
-    .framework-modal-header {
+    .flow-modal-header {
       padding: 24px 28px 20px;
       border-bottom: 1px solid var(--border);
     }
 
-    .framework-modal-header h2 {
+    .flow-modal-header h2 {
       font-size: 18px;
       font-weight: 700;
       color: var(--text);
     }
 
-    .framework-modal-header p {
+    .flow-modal-header p {
       font-size: 13px;
       color: var(--text-muted);
       margin-top: 6px;
@@ -933,8 +1130,8 @@
     }
 
     .framework-option.selected {
-      border-color: var(--echo-color);
-      background: hsla(260, 70%, 65%, 0.1);
+      border-color: var(--accent);
+      background: var(--accent-light);
     }
 
     .framework-option-icon {
@@ -1007,8 +1204,8 @@
     }
 
     .framework-option.selected .framework-option-check {
-      background: var(--echo-color);
-      border-color: var(--echo-color);
+      background: var(--accent);
+      border-color: var(--accent);
     }
 
     .framework-option.selected .framework-option-check svg {
@@ -1022,7 +1219,7 @@
       color: white;
     }
 
-    .framework-modal-footer {
+    .flow-modal-footer {
       padding: 16px 20px;
       border-top: 1px solid var(--border);
       display: flex;
@@ -1051,7 +1248,7 @@
     }
 
     .modal-btn.confirm {
-      background: var(--echo-color);
+      background: var(--accent);
       border: none;
       color: white;
     }
@@ -1071,9 +1268,9 @@
       bottom: 24px;
       left: 24px;
       z-index: 10;
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
       border: 1px solid var(--toggle-border);
       background: var(--toggle-bg);
       color: var(--toggle-icon);
@@ -1081,7 +1278,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+      transition: all 0.2s ease;
     }
 
     .theme-toggle:hover {
@@ -1200,7 +1397,7 @@
     }
 
     .model-option:hover { border-color: var(--border-hover); }
-    .model-option.selected { border-color: var(--echo-color); background: hsla(260, 70%, 65%, 0.1); }
+    .model-option.selected { border-color: var(--accent); background: var(--accent-light); }
 
     .model-option-icon {
       width: 40px; height: 40px;
@@ -1232,6 +1429,7 @@
       justify-content: flex-end;
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 </head>
 <body>
 
@@ -1241,19 +1439,7 @@
 
   <!-- Header -->
   <header>
-    <svg class="logo-mark" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect class="logo-rect" width="44" height="44" rx="11"/>
-      <path d="M8 28 C10 22 13 20 16.5 23 C18.5 25 19.5 27.5 22.5 26 C25.5 24.5 27.5 22 31 23 C32.5 23.5 34 25 35 25.5"
-            stroke="white" stroke-width="2.6" fill="none"
-            stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M8 33 C10.5 27 14 25 17.5 28 C19.5 30 20.5 32.5 23.5 31 C26.5 29.5 28.5 27 32 28"
-            stroke="white" stroke-width="1.9" fill="none" stroke-opacity="0.5"
-            stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M12.5 17.5 C14 15 16 14.5 18.5 16 C20 17 20.5 18.5 22.5 18 C24.5 17.5 26.5 15.5 29.5 17"
-            stroke="white" stroke-width="1.6" fill="none" stroke-opacity="0.3"
-            stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <span class="brand">Handoff</span>
+    <span class="brand">Rémora</span>
     <div class="header-actions">
       <button class="header-btn" id="btn-rules" title="Configurar reglas">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1375,19 +1561,19 @@
   </div>
 </div>
 
-<!-- Framework Selection Modal -->
-<div class="framework-modal" id="framework-modal">
-  <div class="framework-modal-content">
-    <div class="framework-modal-header">
-      <h2>Agregar Framework</h2>
-      <p>Selecciona qué frameworks quieres activar para esta sesión</p>
+<!-- Flow Selection Modal -->
+<div class="flow-modal" id="flow-modal">
+  <div class="flow-modal-content">
+    <div class="flow-modal-header">
+      <h2>Elegir Flujo</h2>
+      <p>Selecciona el flujo de trabajo para esta sesión</p>
     </div>
-    <div class="framework-list" id="framework-list">
-      <!-- Framework options will be loaded here -->
+    <div class="flow-list" id="flow-list">
+      <!-- Flow options will be loaded here -->
     </div>
-    <div class="framework-modal-footer">
+    <div class="flow-modal-footer">
       <button class="modal-btn cancel" id="modal-cancel">Cancelar</button>
-      <button class="modal-btn confirm" id="modal-confirm" disabled>Continuar</button>
+      <button class="modal-btn confirm" id="modal-confirm" disabled>Comenzar</button>
     </div>
   </div>
 </div>
@@ -1429,7 +1615,9 @@
 // ============================================
 // CONSTANTS & STATE
 // ============================================
-const API_BASE = 'http://localhost:8084/api/v1';
+const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? `http://${window.location.hostname}:8084/api/v1`
+  : `${window.location.origin}/api/v1`;
 
 const FRAMEWORK_ICONS = {
   echo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1460,6 +1648,11 @@ const FRAMEWORK_ICONS = {
   </svg>`,
   mecanico: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>`,
+  foco: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <circle cx="12" cy="12" r="6"/>
+    <circle cx="12" cy="12" r="2"/>
   </svg>`
 };
 
@@ -1491,6 +1684,10 @@ const FRAMEWORK_INFO = {
   mecanico: {
     name: 'Mecánico',
     desc: 'Toma los hallazgos del Auditor, propone planes de fix y los aplica solo cuando vos confirmás. Cada cambio queda en audit-trail.'
+  },
+  foco: {
+    name: 'Foco',
+    desc: 'Priorizador: analiza deudores y genera la lista de cobranza del día con scores y acciones sugeridas.'
   }
 };
 
@@ -1500,7 +1697,7 @@ function frameworkType(name) {
   return FRAMEWORK_ICONS[name] ? name : 'echo';
 }
 
-let selectedFrameworks = [];
+let selectedFlow = null;
 let activeNodes = []; // { id, name, type }
 let currentConvId = null;
 let currentQuestionId = null;
@@ -1508,6 +1705,35 @@ let currentFramework = null;
 let isWaitingForResponse = false;
 let currentModel = 'minimax'; // default
 let availableModels = [];
+
+// ─── FLOWS DEFINITION ───
+const FLOWS = {
+  'cobranza-chile': {
+    id: 'cobranza-chile',
+    name: 'Cobranza Chile',
+    desc: 'Cobrador inicia el día: Foco prioriza deudores, Sabio da vista 360°, Mecánico genera borradores de email.',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>`,
+    color: 'hsl(25, 80%, 55%)',
+    frameworks: ['foco', 'sabio'],
+    suggestedResponses: {
+      foco: ['Ver detalle del primer deudor', 'Mostrar todos los deudores'],
+      sabio: ['Generar email de cobranza', 'Qué acciones puedo tomar?', 'Ver historial de pagos']
+    }
+  },
+  'general': {
+    id: 'general',
+    name: 'General',
+    desc: 'Sesión libre con Echo y Alfa: describe tu problema y los frameworks te guían.',
+    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>`,
+    color: 'hsl(260, 70%, 65%)',
+    frameworks: ['echo', 'alfa'],
+    suggestedResponses: {}
+  }
+};
 
 // ============================================
 // MODEL SELECTOR
@@ -1611,8 +1837,8 @@ const thoughtSendBtn = document.getElementById('thought-send-btn');
 const initialInputArea = document.getElementById('initial-input-area');
 const initialInput = document.getElementById('initial-input');
 const initialSendBtn = document.getElementById('initial-send-btn');
-const frameworkModal = document.getElementById('framework-modal');
-const frameworkList = document.getElementById('framework-list');
+const flowModal = document.getElementById('flow-modal');
+const flowList = document.getElementById('flow-list');
 const modalCancel = document.getElementById('modal-cancel');
 const modalConfirm = document.getElementById('modal-confirm');
 const themeBtn = document.getElementById('theme-toggle');
@@ -1751,6 +1977,26 @@ function deactivateAllNodes() {
 // THOUGHT BUBBLE
 // ============================================
 
+function renderContent(content) {
+  if (content == null) return '';
+  const text = String(content);
+  if (/^\s*<(table|div|section|article|ul|ol|p|h[1-6])\b/i.test(text)) {
+    return text;
+  }
+  if (typeof marked !== 'undefined') {
+    try {
+      return marked.parse(text, { breaks: true, gfm: true });
+    } catch (e) {
+      console.warn('marked parse failed', e);
+    }
+  }
+  const esc = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return `<p>${esc.replace(/\n/g, '<br>')}</p>`;
+}
+
 function showThoughtBubble(type, header, content, hasInput = false, position = 'pos-below') {
   const dot = thoughtBubble.querySelector('.dot');
   const headerText = thoughtBubble.querySelector('.header-text');
@@ -1758,7 +2004,7 @@ function showThoughtBubble(type, header, content, hasInput = false, position = '
   thoughtBubble.className = `thought-bubble ${type} ${position}`;
   dot.style.background = 'var(--text)';
   headerText.textContent = header;
-  thoughtBody.innerHTML = `<p>${content.replace(/\n/g, '<br>')}</p>`;
+  thoughtBody.innerHTML = renderContent(content);
   
   thoughtInputWrapper.style.display = hasInput ? 'flex' : 'none';
   thoughtInput.value = '';
@@ -1867,100 +2113,135 @@ function hideThoughtBubble() {
 }
 
 // ============================================
-// FRAMEWORK MODAL
+// FLOW MODAL
 // ============================================
 
-function showFrameworkModal() {
-  loadAvailableFrameworks();
-  frameworkModal.classList.add('visible');
+function showFlowModal() {
+  renderFlowOptions();
+  flowModal.classList.add('visible');
 }
 
-function hideFrameworkModal() {
-  frameworkModal.classList.remove('visible');
-  selectedFrameworks = [];
-  renderFrameworkOptions();
+function hideFlowModal() {
+  flowModal.classList.remove('visible');
+  selectedFlow = null;
+  renderFlowOptions();
 }
 
-async function loadAvailableFrameworks() {
-  try {
-    const res = await fetch(`${API_BASE}/frameworks`);
-    const json = await res.json();
-    
-    if (json.success && Array.isArray(json.data)) {
-      frameworkList.innerHTML = '';
-      
-      json.data.forEach(fw => {
-        const type = frameworkType(fw.name);
-        
-        const option = document.createElement('div');
-        option.className = `framework-option ${type}`;
-        option.dataset.framework = fw.name;
-        option.innerHTML = `
-          <div class="framework-option-icon">
-            ${FRAMEWORK_ICONS[type]}
-          </div>
-          <div class="framework-option-info">
-            <div class="framework-option-name">${fw.name}</div>
-            <div class="framework-option-desc">${FRAMEWORK_INFO[fw.name]?.desc || fw.description || 'Framework de automatización'}</div>
-          </div>
-          <div class="framework-option-check">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          </div>
-        `;
-        
-        option.addEventListener('click', () => toggleFrameworkSelection(fw.name));
-        frameworkList.appendChild(option);
-      });
-      
-      renderFrameworkOptions();
-    }
-  } catch (e) {
-    console.error('Failed to load frameworks:', e);
-    // Fallback to default frameworks
-    frameworkList.innerHTML = '';
-    ['echo', 'alfa', 'bravo'].forEach(name => {
-      const type = name;
-      const option = document.createElement('div');
-      option.className = `framework-option ${type}`;
-      option.dataset.framework = name;
-      option.innerHTML = `
-        <div class="framework-option-icon">
-          ${FRAMEWORK_ICONS[type]}
+function renderFlowOptions() {
+  flowList.innerHTML = '';
+  Object.values(FLOWS).forEach(flow => {
+    const option = document.createElement('div');
+    option.className = `flow-option ${selectedFlow === flow.id ? 'selected' : ''}`;
+    option.dataset.flow = flow.id;
+    option.innerHTML = `
+      <div class="flow-option-icon" style="background: ${flow.color}22; color: ${flow.color};">
+        ${flow.icon}
+      </div>
+      <div class="flow-option-info">
+        <div class="flow-option-name">${flow.name}</div>
+        <div class="flow-option-desc">${flow.desc}</div>
+        <div class="flow-option-frameworks">
+          ${flow.frameworks.map(f => `<span>${FRAMEWORK_INFO[f]?.name || f}</span>`).join('')}
         </div>
-        <div class="framework-option-info">
-          <div class="framework-option-name">${FRAMEWORK_INFO[name].name}</div>
-          <div class="framework-option-desc">${FRAMEWORK_INFO[name].desc}</div>
-        </div>
-        <div class="framework-option-check">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-        </div>
-      `;
-      option.addEventListener('click', () => toggleFrameworkSelection(name));
-      frameworkList.appendChild(option);
+      </div>
+      <div class="flow-option-check">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+    `;
+    option.addEventListener('click', () => {
+      selectedFlow = flow.id;
+      modalConfirm.disabled = false;
+      renderFlowOptions();
     });
-    renderFrameworkOptions();
-  }
-}
-
-function toggleFrameworkSelection(name) {
-  const idx = selectedFrameworks.indexOf(name);
-  if (idx === -1) {
-    selectedFrameworks.push(name);
-  } else {
-    selectedFrameworks.splice(idx, 1);
-  }
-  renderFrameworkOptions();
-  modalConfirm.disabled = selectedFrameworks.length === 0;
-}
-
-function renderFrameworkOptions() {
-  document.querySelectorAll('.framework-option').forEach(opt => {
-    opt.classList.toggle('selected', selectedFrameworks.includes(opt.dataset.framework));
+    flowList.appendChild(option);
   });
+}
+
+// ============================================
+// SUGGESTED RESPONSE CHIPS
+// ============================================
+
+function isEmailDraft(framework, content) {
+  if (framework !== 'sabio') return false;
+  if (!content) return false;
+  const lower = content.toLowerCase();
+  return lower.includes('asunto:') ||
+    (lower.includes('estimad') && (lower.includes('atentamente') || lower.includes('cordialmente')));
+}
+
+function extractEmailSubject(content) {
+  const m = content.match(/(?:^|\n)\s*(?:\*\*)?[Aa]sunto\s*:?\*?\*?\s*(.+?)(?:\r?\n|$)/i);
+  return m ? m[1].replace(/\*\*/g, '').trim() : 'Email de cobranza';
+}
+
+function maybeRenderSendEmailBtn(framework, content) {
+  const existing = thoughtBubble.querySelector('.send-email-action-btn');
+  if (existing) existing.remove();
+  if (!isEmailDraft(framework, content)) return;
+
+  const subject = extractEmailSubject(content);
+  const btn = document.createElement('button');
+  btn.className = 'send-email-action-btn';
+  btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Enviar email de cobranza`;
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    btn.innerHTML = 'Enviando...';
+    try {
+      const res = await fetch(`${API_BASE}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject, body: content })
+      });
+      const json = await res.json();
+      if (json.success) {
+        btn.className = 'send-email-action-btn sent';
+        btn.innerHTML = `✓ Enviado a ${json.data.to}`;
+      } else {
+        btn.className = 'send-email-action-btn error';
+        btn.disabled = false;
+        btn.innerHTML = `✗ Error: ${json.error}`;
+      }
+    } catch (e) {
+      btn.className = 'send-email-action-btn error';
+      btn.disabled = false;
+      btn.innerHTML = '✗ Error de conexión';
+    }
+  });
+
+  thoughtBubble.appendChild(btn);
+}
+
+function renderSuggestedChips(framework, dynamicChips) {
+  // Remove existing chips
+  const existing = thoughtBubble.querySelector('.suggested-chips');
+  if (existing) existing.remove();
+
+  let chips;
+  if (dynamicChips && dynamicChips.length > 0) {
+    chips = dynamicChips;
+  } else {
+    const flow = FLOWS[selectedFlow || 'general'];
+    if (!flow || !flow.suggestedResponses || !flow.suggestedResponses[framework]) return;
+    chips = flow.suggestedResponses[framework];
+  }
+  if (!chips || chips.length === 0) return;
+  
+  const container = document.createElement('div');
+  container.className = 'suggested-chips';
+  chips.forEach(text => {
+    const chip = document.createElement('button');
+    chip.className = 'suggested-chip';
+    chip.textContent = text;
+    chip.addEventListener('click', () => {
+      sendResponseToFramework(text);
+    });
+    container.appendChild(chip);
+  });
+  
+  thoughtBubble.appendChild(container);
 }
 
 // ============================================
@@ -2009,13 +2290,15 @@ async function createConversationAndStart(frameworks, initialMessage) {
           
           setTimeout(() => {
             setNodeSpeaking(q.framework, false);
+            const hasInputChips = !(q.suggested_chips && q.suggested_chips.length > 0);
             showThoughtBubble(
               nodeType,
               FRAMEWORK_INFO[nodeType]?.name || q.framework,
               q.content,
-              true,
+              hasInputChips,
               'pos-below'
             );
+            renderSuggestedChips(q.framework, q.suggested_chips);
           }, 500);
         } else {
           // No question, user needs to send initial message
@@ -2054,11 +2337,32 @@ async function createConversationAndStart(frameworks, initialMessage) {
       initialInputArea.classList.add('hidden');
       addNodeBtn.classList.add('hidden');
       
-      // Show user's initial message in thought bubble
-      showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
-      
-      // Send initial message to API
-      await sendInitialMessage(initialMessage);
+      // If there's an initial question from a framework (e.g. Foco in cobranza mode)
+      if (json.data.first_question) {
+        const q = json.data.first_question;
+        currentFramework = q.framework;
+        currentQuestionId = q.question_id;
+
+        const nodeType = frameworkType(q.framework);
+        setNodeActive(q.framework, true);
+        setNodeSpeaking(q.framework, true);
+
+        setTimeout(() => {
+          setNodeSpeaking(q.framework, false);
+          const hasInputChips = !(q.suggested_chips && q.suggested_chips.length > 0);
+          showThoughtBubble(
+            nodeType,
+            FRAMEWORK_INFO[nodeType]?.name || q.framework,
+            q.content,
+            hasInputChips,
+            'pos-below'
+          );
+          renderSuggestedChips(q.framework, q.suggested_chips);
+        }, 500);
+      } else if (initialMessage) {
+        showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
+        await sendInitialMessage(initialMessage);
+      }
     }
   } catch (e) {
     console.error('Failed to create conversation:', e);
@@ -2112,6 +2416,8 @@ async function sendInitialMessage(text) {
             true,
             'pos-below'
           );
+          renderSuggestedChips(msg.framework);
+          maybeRenderSendEmailBtn(msg.framework, msg.content);
         }, 300);
       } else if (json.data.idle) {
         showThoughtBubble('echo', 'Echo', 'La sesión está completa. Puedes iniciar una nueva si lo necesitas.', false, 'pos-below');
@@ -2174,6 +2480,8 @@ async function sendResponseToFramework(text) {
             true,
             'pos-below'
           );
+          renderSuggestedChips(msg.framework);
+          maybeRenderSendEmailBtn(msg.framework, msg.content);
         }, 500);
       } else if (json.data.idle) {
         showThoughtBubble('echo', 'Echo', 'La sesión ha terminado. Gracias por usar Handoff.', false, 'pos-below');
@@ -2191,54 +2499,38 @@ async function sendResponseToFramework(text) {
 // EVENT LISTENERS
 // ============================================
 
-// Add node button
-addNodeBtn.addEventListener('click', showFrameworkModal);
+// Add node button → show flow modal
+addNodeBtn.addEventListener('click', showFlowModal);
 
 // Modal buttons
-modalCancel.addEventListener('click', hideFrameworkModal);
+modalCancel.addEventListener('click', hideFlowModal);
 modalConfirm.addEventListener('click', async () => {
-  console.log('Confirm button clicked');
-  console.log('selectedFrameworks before check:', selectedFrameworks);
+  if (!selectedFlow) return;
   
-  if (selectedFrameworks.length === 0) {
-    console.log('Early return - no frameworks selected');
-    return;
-  }
+  const flow = FLOWS[selectedFlow];
+  if (!flow) return;
   
-  console.log('Modal confirm clicked, frameworks:', selectedFrameworks);
-  
-  // Save frameworks to a local variable BEFORE hiding modal
-  const frameworksToAdd = [...selectedFrameworks];
-  console.log('Frameworks saved:', frameworksToAdd);
-  
-  // Hide modal (this resets selectedFrameworks to [])
-  hideFrameworkModal();
-  
-  // Hide the + button
+  hideFlowModal();
   addNodeBtn.classList.add('hidden');
   
-  console.log('Starting forEach loop');
-  for (let i = 0; i < frameworksToAdd.length; i++) {
-    const name = frameworksToAdd[i];
+  // Add nodes for flow's frameworks
+  flow.frameworks.forEach(name => {
     const type = frameworkType(name);
-    console.log('Loop iteration:', i, name, type);
-    try {
-      addNode(name, FRAMEWORK_INFO[name]?.name || name, type);
-      console.log('addNode completed');
-    } catch(e) {
-      console.error('Error in addNode:', e);
-    }
-  }
-  console.log('Loop finished');
+    addNode(name, FRAMEWORK_INFO[name]?.name || name, type);
+  });
   
   // Activate user node
   nodeUser.classList.remove('dimmed');
   nodeUser.classList.add('active');
   
-  // Focus on initial input
-  initialInput.focus();
-  
-  console.log('Active nodes after adding:', activeNodes);
+  // For cobranza flow: create conversation and let Foco speak first
+  if (selectedFlow === 'cobranza-chile') {
+    // Hide initial input, Foco will speak automatically
+    initialInputArea.classList.add('hidden');
+    await createConversationAndStart(flow.frameworks, '');
+  } else {
+    initialInput.focus();
+  }
 });
 
 // Initial input send
@@ -2246,17 +2538,12 @@ initialSendBtn.addEventListener('click', async () => {
   const text = initialInput.value.trim();
   if (!text) return;
   
-  // Check if we have active frameworks (not selectedFrameworks which gets reset)
   if (activeNodes.length === 0) {
-    // No frameworks selected, show modal
-    showFrameworkModal();
+    showFlowModal();
     return;
   }
   
-  // Get the framework IDs from activeNodes
   const frameworkNames = activeNodes.map(n => n.id);
-  console.log('Sending with frameworks:', frameworkNames);
-  
   await createConversationAndStart(frameworkNames, text);
 });
 
@@ -2286,9 +2573,9 @@ thoughtInput.addEventListener('keydown', async (e) => {
 });
 
 // Close modal on click outside
-frameworkModal.addEventListener('click', (e) => {
-  if (e.target === frameworkModal) {
-    hideFrameworkModal();
+flowModal.addEventListener('click', (e) => {
+  if (e.target === flowModal) {
+    hideFlowModal();
   }
 });
 
