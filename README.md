@@ -84,6 +84,37 @@ gcloud run deploy flujo-api-dev \
   --region us-central1
 ```
 
+### Setup PROD (un solo comando)
+
+```bash
+make setup-prod
+```
+
+Hace todo en orden y es idempotente (corerlo de nuevo no rompe nada):
+
+1. Verifica `gcloud auth` (te avisa si falta `gcloud auth login`).
+2. Habilita APIs necesarias (Secret Manager, Cloud Build, Run).
+3. Sube los secretos del `.env` a GCP Secret Manager y los bindea al servicio.
+4. Activa la readiness probe en `/healthz`.
+5. Crea el trigger de CI en Cloud Build.
+6. Smoke test del `/healthz` deployado.
+
+### Pasos manuales de UNA SOLA VEZ
+
+Hay 2 cosas que Google no permite hacer a un script (requieren auth humana):
+
+**1. Login en gcloud:**
+```bash
+gcloud auth login
+gcloud config set project project-ceae5831-a2c9-49aa-b1c
+```
+
+**2. Conectar el repo de GitHub a Cloud Build** (solo si `make setup-prod`
+te avisa que el trigger fallo):
+- Abrir https://console.cloud.google.com/cloud-build/triggers/connect
+- Click "Connect Repository" → GitHub → autorizar → seleccionar `Remora-IA/remora-go`
+- Volver a correr `make setup-prod`
+
 ### Secrets en produccion
 
 Los secretos NO van como `--set-env-vars` planos. Se suben a GCP Secret
@@ -103,15 +134,8 @@ las env vars no-sensibles (`REMORA_PROFILE`, `REMORA_DEV_MODE`, etc.).
 
 - `GET /health` — liveness simple (`{status: ok}`).
 - `GET /healthz` — readiness profunda. Devuelve `200` si LLM, frameworks
-  y channel estan OK; `503` si algo falta. Usar como readiness probe en
-  Cloud Run:
-
-```bash
-gcloud run services update flujo-api-dev \
-  --region=us-central1 \
-  --use-http2 \
-  --update-readiness-probe="httpGet.path=/healthz,initialDelaySeconds=5,periodSeconds=10"
-```
+  y channel estan OK; `503` si algo falta. Cloud Run lo usa como startup
+  probe (configurado por `make setup-prod`).
 
 ### CI (validacion automatica en cada push)
 

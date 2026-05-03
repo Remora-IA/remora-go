@@ -5,7 +5,7 @@
 # en lugar de comandos sueltos. Si algo falta, agregalo aca.
 # =============================================================================
 
-.PHONY: help bootstrap build build-frameworks build-flujo dev clean clean-logs clean-binaries test deploy-dev fmt vet check
+.PHONY: help bootstrap setup-prod build build-frameworks build-flujo dev clean clean-logs clean-binaries test deploy-dev fmt vet check
 
 # --- Variables --------------------------------------------------------------
 SHELL          := /bin/bash
@@ -24,7 +24,8 @@ DEV_SERVICE    := flujo-api-dev
 help:
 	@echo "Remora Go - comandos disponibles:"
 	@echo ""
-	@echo "  make bootstrap     Setup inicial: valida .env, genera vault key, compila"
+	@echo "  make bootstrap     Setup inicial local (valida .env, genera vault key, compila)"
+	@echo "  make setup-prod    Setup prod completo (secrets + healthz + CI). Idempotente."
 	@echo "  make build         Compila todos los binarios (frameworks + flujo_api)"
 	@echo "  make dev           Arranca flujo_api en :8080 (modo desarrollo)"
 	@echo "  make test          Corre tests de todo el repo"
@@ -39,6 +40,9 @@ help:
 # --- Setup inicial ----------------------------------------------------------
 bootstrap:
 	@bash scripts/bootstrap.sh
+
+setup-prod:
+	@bash scripts/setup-prod.sh
 
 # --- Build ------------------------------------------------------------------
 build: build-frameworks build-flujo

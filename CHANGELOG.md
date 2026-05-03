@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] - 2026-05-03
+
+> **Release**: expandir charlie
+
+### Charlie
+
+- **charlie/charlie.go**: +1 / -1
+
+### Repo
+
+- **Makefile**: +6 / -2
+- **scripts/setup-prod.sh**: archivo nuevo
+- **README.md**: +33 / -9
+
 ## [0.1.12] - 2026-05-03
 
 > **Release**: expandir flujo

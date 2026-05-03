@@ -2551,7 +2551,7 @@ func ValidateReport(report *Report) []string {
 
 	// Verificar estructura del changelog (nuevo formato con secciones por scope)
 	hasValidStructure := false
-	validSectionMarkers := []string{"### Charlie", "### Paladin", "### Quine", "### Flujo", "### Echo", "### Gmail", "### Alfa", "### Bravo"}
+	validSectionMarkers := []string{"### Charlie", "### Paladin", "### Quine", "### Flujo", "### Echo", "### Gmail", "### Alfa", "### Bravo", "### Repo", "### Limpieza", "### Scripts", "### Foco", "### Sabio", "### Mecanico", "### Mensajero", "### Hosting", "### Indexa", "### Tareas", "### Contactos", "### Auditor", "### Excel"}
 	for _, marker := range validSectionMarkers {
 		if strings.Contains(report.Changelog, marker) {
 			hasValidStructure = true
