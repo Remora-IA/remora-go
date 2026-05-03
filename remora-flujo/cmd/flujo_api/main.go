@@ -155,6 +155,10 @@ func main() {
 	// consulta al bootear para saber si pintar el badge de modo dev.
 	r.HandleFunc(apiBase+"/config", srv.handleConfig).Methods("GET", "OPTIONS")
 
+	// Paladin traces — para debug del flujo. Devuelve el trace más reciente
+	// persistido en temp/paladin/trace_*.json. Sin auth: solo útil en dev.
+	r.HandleFunc(apiBase+"/traces/latest", srv.handleTracesLatest).Methods("GET", "OPTIONS")
+
 	// Task ledger — lista, próxima, crear, eventos.
 	r.HandleFunc(apiBase+"/tasks", srv.handleTasksList).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/tasks", srv.handleTasksCreate).Methods("POST", "OPTIONS")
@@ -952,6 +956,9 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 			"channel":        msResp.Channel,
 			"result_ref":     "message:" + msResp.MessageID,
 		})
+		// El ledger cambió: la próxima vez que el orchestrator pida active
+		// task verá la siguiente en la fila, no la que se acaba de cerrar.
+		invalidateActiveTaskCache()
 	}
 	writeOK(w, msResp)
 }
