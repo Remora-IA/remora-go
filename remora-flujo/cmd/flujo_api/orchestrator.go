@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"channel/adapter"
+	"channel/manifest"
 	"remora-flujo/handoff"
 )
 
@@ -25,7 +26,7 @@ import (
 // Es agnóstico al framework: drivers son intercambiables y las reglas no
 // modifican el comportamiento de cada framework por separado, sólo deciden
 // quién habla cuándo.
-func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules *FlowRules, userAnswer string, resources []MessageResource) (handoff.QueuedQuestion, bool, error) {
+func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules *FlowRules, manifests map[string]*manifest.Manifest, userAnswer string, resources []MessageResource) (handoff.QueuedQuestion, bool, error) {
 	queue, err := loadQueue(conv.ID)
 	if err != nil {
 		return handoff.QueuedQuestion{}, false, err
@@ -39,7 +40,16 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		return handoff.QueuedQuestion{}, false, fmt.Errorf("no hay drivers activos para la conversación")
 	}
 
-	// 1. Evaluar reglas de composición.
+	// 1a. Capability-based routing (intent classification). Antes de las
+	// reglas declarativas, miramos si la respuesta del usuario matchea
+	// los intent_examples de algún framework activo. Si hay match, ese
+	// framework habla primero. Esto reemplaza reglas name-based del estilo
+	// `prepend_speaker: "<nombre>"` por routing emergente desde el manifest.
+	if intentMatch := classifyIntent(userAnswer, manifests, conv.Frameworks); intentMatch != "" {
+		drivers = reorderDrivers(drivers, intentMatch)
+	}
+
+	// 1b. Evaluar reglas de composición declarativas (overrides finos).
 	evalCtx := EvalContext{
 		FrameworksActive: conv.Frameworks,
 		UserAnswerCount:  conv.UserAnswerCount,
@@ -50,6 +60,11 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		for _, action := range rules.Match(evalCtx) {
 			if action.PrependSpeaker != "" {
 				drivers = reorderDrivers(drivers, action.PrependSpeaker)
+			}
+			if action.PrependSpeakerProviderOf != "" {
+				if name := providerOfModelCapability(action.PrependSpeakerProviderOf, manifests, conv.Frameworks); name != "" {
+					drivers = reorderDrivers(drivers, name)
+				}
 			}
 			if action.Preprocess != "" && wantPreprocess == "" {
 				wantPreprocess = action.Preprocess

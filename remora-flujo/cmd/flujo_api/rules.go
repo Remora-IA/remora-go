@@ -25,6 +25,12 @@ type FlowRule struct {
 	Description string        `json:"description"`
 	When        FlowCondition `json:"when"`
 	Then        FlowAction    `json:"then"`
+	// Deprecated marca reglas que ya no aplican porque su comportamiento se
+	// resuelve ahora vía capability-based routing (ver intent.go) o porque
+	// dependen de nombres de framework hardcodeados (regla 3 de
+	// ARCHITECTURE.md). Se mantienen en el archivo como documentación
+	// histórica pero no se ejecutan.
+	Deprecated bool `json:"deprecated,omitempty"`
 }
 
 // FlowCondition declara cuándo aplica una regla. Todos los campos no-vacíos
@@ -41,7 +47,15 @@ type FlowCondition struct {
 type FlowAction struct {
 	// PrependSpeaker mueve un framework al frente de la lista de polling
 	// para el próximo turno (sin alterar la lista persistente).
+	// DEPRECATED en reglas nuevas: usa name-based. Preferí
+	// PrependSpeakerProviderOf (model capability) o dejar que intent.go
+	// resuelva el routing por capabilities_semantic.
 	PrependSpeaker string `json:"prepend_speaker,omitempty"`
+	// PrependSpeakerProviderOf resuelve dinámicamente al primer framework
+	// activo cuyo model.capabilities incluye la capability indicada (ej
+	// "multimodal"). Reemplaza a PrependSpeaker para reglas que ya no
+	// quieren mencionar nombres de frameworks específicos.
+	PrependSpeakerProviderOf string `json:"prepend_speaker_provider_of,omitempty"`
 	// Preprocess pide pre-procesar el input del usuario antes de entregarlo
 	// al framework. Valores soportados: "vision".
 	Preprocess string `json:"preprocess,omitempty"`
@@ -74,6 +88,9 @@ type EvalContext struct {
 func (fr *FlowRules) Match(ctx EvalContext) []FlowAction {
 	var out []FlowAction
 	for _, r := range fr.Rules {
+		if r.Deprecated {
+			continue
+		}
 		if condMatches(r.When, ctx) {
 			out = append(out, r.Then)
 		}

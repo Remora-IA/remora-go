@@ -70,7 +70,11 @@
       "cuántos clientes tengo",
       "qué proyectos están activos",
       "muéstrame los pagos pendientes",
-      "información sobre el cliente X"
+      "información sobre el cliente",
+      "gestionar:",
+      "analizar al cliente",
+      "trabajar sobre el deudor",
+      "vista 360 del cliente"
     ],
     "produces": ["answer_with_citations"],
     "requires": ["data_indexed:timebilling"]

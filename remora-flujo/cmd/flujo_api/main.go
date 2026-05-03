@@ -444,7 +444,7 @@ func (s *server) createConversation(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		// Flujo normal: primera pregunta sin respuesta previa.
-		q, ok, err := runLoop(ctx, ch, conv, s.rules, "", nil)
+		q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, "", nil)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
 		}
@@ -610,7 +610,7 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 	// 3. Marcar la entrada del usuario en el JSONL de Channel.
 	_, _ = ch.ExecuteCommand(ctx, "echo", []string{"user_input:", req.Content, "resources:", fmt.Sprintf("%d", len(copiedResources))}, "")
 
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, req.Content, copiedResources)
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -1098,7 +1098,7 @@ func (s *server) createSingleConversation(w http.ResponseWriter, r *http.Request
 	}
 
 	// Pedir primera pregunta
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, "", nil)
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, "", nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
 	}
@@ -1162,7 +1162,7 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = ch.ExecuteCommand(ctx, "echo", []string{"user_input:", req.Content}, "")
 
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, req.Content, copiedResources)
+	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return

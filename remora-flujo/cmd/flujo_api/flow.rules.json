@@ -1,10 +1,11 @@
 {
-  "version": 1,
-  "description": "Reglas de composición",
+  "version": 2,
+  "description": "Reglas de composición. Solo overrides finos. El routing 'quién habla' se resuelve por capabilities (capabilities_semantic.intent_examples vía intent.go). Reglas name-based marcadas deprecated por ARCHITECTURE.md regla 3.",
   "rules": [
     {
       "id": "sabio_after_foco_priorities",
-      "description": "En cobranza: cuando el usuario responde al mensaje de prioridades de Foco, Sabio provee la vista 360° del deudor seleccionado.",
+      "deprecated": true,
+      "description": "@deprecated: name-based. Reemplazada por intent.classifyIntent matcheando 'gestionar:'/'analizar al cliente' contra sabio.capabilities_semantic.intent_examples.",
       "when": {
         "frameworks_active_all": ["foco", "sabio"],
         "user_answer_count_min": 1
@@ -15,12 +16,10 @@
     },
     {
       "id": "alfa_takes_over_after_2_echo_answers",
-      "description": "",
+      "deprecated": true,
+      "description": "@deprecated: name-based + phase-based. La transición echo→alfa ya está manejada internamente por los drivers (alfa publica preguntas vía open_questions). Esta regla queda como referencia histórica.",
       "when": {
-        "frameworks_active_all": [
-          "echo",
-          "alfa"
-        ],
+        "frameworks_active_all": ["echo", "alfa"],
         "user_answer_count_min": 2,
         "user_answer_count_max": 2
       },
@@ -29,22 +28,19 @@
       }
     },
     {
-      "id": "image_resource_routes_to_alfa",
-      "description": "",
+      "id": "image_resource_routes_to_multimodal_provider",
+      "description": "Si el usuario sube una imagen, dar el turno al primer framework activo cuyo model.capabilities incluya 'multimodal' y disparar preprocesamiento vision. No menciona frameworks por nombre: el orquestador resuelve provider_of('multimodal') al ejecutar.",
       "when": {
-        "frameworks_active_any": [
-          "alfa"
-        ],
         "user_message_has_resource_type": "image"
       },
       "then": {
-        "prepend_speaker": "alfa",
+        "prepend_speaker_provider_of": "multimodal",
         "preprocess": "vision"
       }
     },
     {
       "id": "ensure_credentials_smtp_before_send",
-      "description": "Regla GENÉRICA (no específica de cobranza): si el usuario quiere que se envíe un mensaje por email/sms/whatsapp y el vault no tiene la capability credentials.<channel>, el orquestador delega el turno al framework que la produce para que la provisione. La resolución productor↔capability se hace leyendo manifests (capabilities_semantic.produces); este flow.rules.json no menciona nombres de framework específicos del provisioner.",
+      "description": "Regla GENÉRICA capability-based: si el usuario quiere enviar mensaje por email/sms/whatsapp y el vault no tiene credentials.<channel>, delegar al framework que la produce. La resolución productor↔capability se hace leyendo manifests (capabilities_semantic.produces).",
       "when": {
         "user_intent_any": [
           "send_message",
