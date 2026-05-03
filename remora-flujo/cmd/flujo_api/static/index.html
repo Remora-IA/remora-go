@@ -1653,6 +1653,16 @@ const FRAMEWORK_ICONS = {
     <circle cx="12" cy="12" r="10"/>
     <circle cx="12" cy="12" r="6"/>
     <circle cx="12" cy="12" r="2"/>
+  </svg>`,
+  mensajero: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+    <polyline points="22,6 12,13 2,6"/>
+  </svg>`,
+  hosting: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+    <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+    <line x1="6" y1="6" x2="6.01" y2="6"/>
+    <line x1="6" y1="18" x2="6.01" y2="18"/>
   </svg>`
 };
 
@@ -1688,6 +1698,14 @@ const FRAMEWORK_INFO = {
   foco: {
     name: 'Foco',
     desc: 'Priorizador: analiza deudores y genera la lista de cobranza del día con scores y acciones sugeridas.'
+  },
+  mensajero: {
+    name: 'Mensajero',
+    desc: 'Envía mensajes salientes (email/sms) usando las credenciales del vault. No genera contenido, solo transporta.'
+  },
+  hosting: {
+    name: 'Hosting',
+    desc: 'Gestiona credenciales del servidor de hosting (cPanel). Provisiona buzones de correo y guarda SMTP en el vault.'
   }
 };
 
@@ -2196,6 +2214,10 @@ function maybeRenderSendEmailBtn(framework, content) {
     btn.disabled = true;
     btn.innerHTML = 'Enviando...';
     try {
+      // Activar nodo mensajero mientras envía
+      const nodeMensajero = document.getElementById('node-mensajero');
+      if (nodeMensajero) { nodeMensajero.classList.remove('dimmed'); nodeMensajero.classList.add('active'); }
+
       const res = await fetch(`${API_BASE}/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -2208,16 +2230,22 @@ function maybeRenderSendEmailBtn(framework, content) {
       });
       const json = await res.json();
 
+      // Desactivar nodo mensajero
+      if (nodeMensajero) { nodeMensajero.classList.remove('active'); nodeMensajero.classList.add('dimmed'); }
+
       // Capability missing (HTTP 412): el vault no tiene credentials.<channel>.
-      // Mostramos un CTA para que el user dispare el provisioning vía el
-      // framework que produce esa capability (data.provider_hint).
       if (res.status === 412 && json.data && json.data.missing_capability) {
         const cap = json.data.missing_capability;
         const provider = json.data.provider_hint || 'hosting';
         btn.className = 'send-email-action-btn error';
         btn.disabled = false;
-        btn.innerHTML = `⚙ Configurar ${cap} primero (vía ${provider})`;
-        btn.title = `El vault no tiene ${cap}. Pediile al framework ${provider} que lo provisione (ej: "conectar mi hosting" + "crear buzón cobranza").`;
+        btn.innerHTML = `⚙ Configurar ${cap} (vía ${provider})`;
+        // Activar nodo hosting y mostrar su bubble
+        const nodeHosting = document.getElementById('node-' + provider);
+        if (nodeHosting) { nodeHosting.classList.remove('dimmed'); nodeHosting.classList.add('active'); }
+        showThoughtBubble(provider, FRAMEWORK_INFO[provider]?.name || provider,
+          `Para enviar emails necesito credenciales SMTP (\`${cap}\`).\n\nDime los datos de tu hosting (cPanel) y provisiono el buzón automáticamente, o importa credenciales existentes.`,
+          false, 'pos-below');
         return;
       }
 
@@ -2225,10 +2253,18 @@ function maybeRenderSendEmailBtn(framework, content) {
         btn.className = 'send-email-action-btn sent';
         const to = (json.data && json.data.to) || '';
         btn.innerHTML = `✓ Enviado${to ? ' a ' + to : ''}`;
+        // Mostrar confirmación de mensajero
+        showThoughtBubble('mensajero', 'Mensajero',
+          `✓ Email enviado correctamente${to ? ' a **' + to + '**' : ''}.\n\nAsunto: _${subject}_`,
+          false, 'pos-below');
+        if (nodeMensajero) nodeMensajero.classList.remove('dimmed');
       } else {
         btn.className = 'send-email-action-btn error';
         btn.disabled = false;
         btn.innerHTML = `✗ Error: ${json.error || 'desconocido'}`;
+        showThoughtBubble('mensajero', 'Mensajero',
+          `✗ No pude enviar el email.\n\n${json.error || 'Error desconocido'}`,
+          false, 'pos-below');
       }
     } catch (e) {
       btn.className = 'send-email-action-btn error';
@@ -2552,6 +2588,15 @@ modalConfirm.addEventListener('click', async () => {
     const type = frameworkType(name);
     addNode(name, FRAMEWORK_INFO[name]?.name || name, type);
   });
+
+  // Nodos de acción (async_trigger): visibles pero no conversacionales
+  if (chosenFlowId === 'cobranza-chile') {
+    ['mensajero', 'hosting'].forEach(name => {
+      addNode(name, FRAMEWORK_INFO[name]?.name || name, name);
+      const node = document.getElementById('node-' + name);
+      if (node) node.classList.add('dimmed');
+    });
+  }
   
   // Activate user node
   nodeUser.classList.remove('dimmed');

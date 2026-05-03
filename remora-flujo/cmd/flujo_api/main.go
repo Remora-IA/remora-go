@@ -44,6 +44,7 @@ import (
 	"time"
 
 	"channel/adapter"
+	"channel/manifest"
 	"github.com/gorilla/mux"
 	"remora-flujo/handoff"
 	"remora-flujo/nativeagent"
@@ -61,9 +62,10 @@ type APIResponse struct {
 }
 
 type server struct {
-	channel   *adapter.Client
-	rules     *FlowRules
-	runtimeInfo runtimeInfo
+	channel      *adapter.Client
+	rules        *FlowRules
+	runtimeInfo  runtimeInfo
+	allManifests map[string]*manifest.Manifest
 }
 
 type runtimeInfo struct {
@@ -103,15 +105,15 @@ func main() {
 	rootDir := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
 	bootLog := log.New(os.Stderr, "[boot] ", log.LstdFlags)
 	loadedManifests, skippedManifests := initDriverRegistry(rootDir, bootLog)
-	_ = loadedManifests
 	if len(skippedManifests) > 0 {
 		bootLog.Printf("manifests omitidos: %d", len(skippedManifests))
 	}
 
 	srv := &server{
-		channel:     adapter.New(channelURL, apiKey),
-		rules:       rules,
-		runtimeInfo: getRuntimeInfo(),
+		channel:      adapter.New(channelURL, apiKey),
+		rules:        rules,
+		runtimeInfo:  getRuntimeInfo(),
+		allManifests: loadedManifests,
 	}
 
 	fmt.Printf("Runtime LLM: %s | %s | %s\n", srv.runtimeInfo.Provider, srv.runtimeInfo.Model, srv.runtimeInfo.Note)
@@ -237,25 +239,53 @@ func (s *server) listModels(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) listFrameworks(w http.ResponseWriter, r *http.Request) {
 	type fwInfo struct {
-		Name         string   `json:"name"`
-		Provider     string   `json:"provider"`
-		Model        string   `json:"model"`
-		Capabilities []string `json:"capabilities"`
-		EnvKey       string   `json:"env_key"`
-		AskVia       string   `json:"ask_via,omitempty"`
-		Modes        []string `json:"modes,omitempty"`
+		Name          string   `json:"name"`
+		Provider      string   `json:"provider"`
+		Model         string   `json:"model"`
+		Capabilities  []string `json:"capabilities"`
+		EnvKey        string   `json:"env_key"`
+		AskVia        string   `json:"ask_via,omitempty"`
+		Modes         []string `json:"modes,omitempty"`
+		ExecutionMode string   `json:"execution_mode"`
+		Description   string   `json:"description,omitempty"`
+		Produces      []string `json:"produces,omitempty"`
+		Requires      []string `json:"requires,omitempty"`
 	}
+	seen := map[string]bool{}
 	out := []fwInfo{}
+
+	// Frameworks en el chain conversacional (driverRegistry)
 	for name := range driverRegistry {
-		info := fwInfo{Name: name}
-		if m, err := loadFrameworkManifest(name); err == nil {
+		seen[name] = true
+		info := fwInfo{Name: name, ExecutionMode: manifest.ExecutionModeSync}
+		if m, ok := s.allManifests[name]; ok {
 			info.Provider = m.Model.Provider
 			info.Model = m.Model.Name
 			info.Capabilities = m.Model.Capabilities
 			info.EnvKey = m.Model.EnvKey
 			info.AskVia = m.UserInput.AskVia
 			info.Modes = m.UserInput.Modes
+			info.Description = m.Description
+			info.Produces = m.CapabilitiesSemantic.Produces
+			info.Requires = m.CapabilitiesSemantic.Requires
 		}
+		out = append(out, info)
+	}
+
+	// Frameworks async_trigger (fuera del chain pero conocidos)
+	for name, m := range s.allManifests {
+		if seen[name] {
+			continue
+		}
+		info := fwInfo{
+			Name:          name,
+			ExecutionMode: m.EffectiveExecutionMode(),
+			Description:   m.Description,
+			Provider:      m.Model.Provider,
+			Capabilities:  m.Model.Capabilities,
+		}
+		info.Produces = m.CapabilitiesSemantic.Produces
+		info.Requires = m.CapabilitiesSemantic.Requires
 		out = append(out, info)
 	}
 	writeOK(w, out)
