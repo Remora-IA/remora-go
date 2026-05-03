@@ -58,6 +58,19 @@ if [ -f "$CONTACTS_SEED" ] && [ ! -s "$CONTACTS_DB" ]; then
         --file "$CONTACTS_SEED" || echo "WARN: no se pudo sembrar contactos (continuamos)"
 fi
 
+# Seed de tareas iniciales (mismo patrón). Si hay tasks.seed.json y la DB no
+# existe aún, se crean las tareas del día. seed-from-foco es idempotente:
+# no duplica tareas pendientes para el mismo (entity_ref, action).
+TASKS_SEED="$PROFILE_DIR/tasks.seed.json"
+TASKS_DB="$PROFILE_DIR/tasks.db"
+if [ -f "$TASKS_SEED" ] && [ ! -s "$TASKS_DB" ]; then
+    echo "Sembrando tareas desde $TASKS_SEED..."
+    /workspace/framework-tareas/frameworktareas seed-from-foco \
+        --profile "$REMORA_PROFILE" \
+        --file "$TASKS_SEED" \
+        --limit 10 || echo "WARN: no se pudo sembrar tareas (continuamos)"
+fi
+
 echo "Starting Flujo API on :${FLUJO_API_PORT_OUTER:-8080}..."
 # Iniciar Flujo API
 exec /flujo_api

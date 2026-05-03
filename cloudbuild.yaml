@@ -131,6 +131,16 @@ steps:
     id: 'build-contactos'
     waitFor: ['-']
 
+  # Build framework-tareas
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-tareas && go build -o frameworktareas ./cmd/frameworktareas
+    id: 'build-tareas'
+    waitFor: ['-']
+
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -156,6 +166,7 @@ steps:
       - 'build-vault'
       - 'build-mensajero'
       - 'build-contactos'
+      - 'build-tareas'
 
   # Push to GCR
   - name: 'gcr.io/cloud-builders/docker'

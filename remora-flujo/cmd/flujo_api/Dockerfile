@@ -56,6 +56,8 @@ COPY framework-mensajero/frameworkmensajero /workspace/framework-mensajero/frame
 COPY framework-mensajero/framework.manifest.json /workspace/framework-mensajero/framework.manifest.json
 COPY framework-contactos/frameworkcontactos /workspace/framework-contactos/frameworkcontactos
 COPY framework-contactos/framework.manifest.json /workspace/framework-contactos/framework.manifest.json
+COPY framework-tareas/frameworktareas /workspace/framework-tareas/frameworktareas
+COPY framework-tareas/framework.manifest.json /workspace/framework-tareas/framework.manifest.json
 COPY profiles /workspace/profiles
 COPY remora-flujo/cmd/flujo_api/entrypoint.sh /entrypoint.sh
 
@@ -67,6 +69,7 @@ RUN chmod +x /entrypoint.sh /channel /flujo_api \
       /workspace/framework-hosting/frameworkhosting \
       /workspace/framework-mensajero/frameworkmensajero \
       /workspace/framework-contactos/frameworkcontactos \
+      /workspace/framework-tareas/frameworktareas \
     && mkdir -p /workspace /sessions /conversations /frameworks \
       /temp/foco /temp/mecanico \
       /workspace/channel/bin \

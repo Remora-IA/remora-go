@@ -154,6 +154,12 @@ func main() {
 	// consulta al bootear para saber si pintar el badge de modo dev.
 	r.HandleFunc(apiBase+"/config", srv.handleConfig).Methods("GET", "OPTIONS")
 
+	// Task ledger — lista, próxima, crear, eventos.
+	r.HandleFunc(apiBase+"/tasks", srv.handleTasksList).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/tasks", srv.handleTasksCreate).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/tasks/next", srv.handleTasksNext).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/tasks/{id}/event", srv.handleTaskEvent).Methods("POST", "OPTIONS")
+
 	// Frontend estático embebido
 	// GET / → sirve index.html
 	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -643,6 +649,9 @@ type sendEmailReq struct {
 	EntityRef  string `json:"entity_ref,omitempty"`
 	Channel string `json:"channel,omitempty"`
 	ConvID  string `json:"conv_id,omitempty"`
+	// TaskID opcional: si viene, al completar el envío se emite un task.event
+	// con kind=email_sent para cerrar la tarea automáticamente en el ledger.
+	TaskID string `json:"task_id,omitempty"`
 }
 
 type sendEmailResp struct {
@@ -839,6 +848,18 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 	if devRewritten {
 		msResp.DevRewritten = true
 		msResp.OriginalTo = originalTo
+	}
+	// Auto-evento al ledger si el cliente pasó task_id. Esto cierra el loop
+	// de Foco: ejecuta acción → framework la registra → Foco ve la siguiente.
+	if req.TaskID != "" {
+		emitTaskEvent(req.TaskID, "mensajero", "email_sent", map[string]interface{}{
+			"message_id":     msResp.MessageID,
+			"to":             msResp.To,
+			"original_to":    originalTo,
+			"dev_rewritten":  devRewritten,
+			"channel":        msResp.Channel,
+			"result_ref":     "message:" + msResp.MessageID,
+		})
 	}
 	writeOK(w, msResp)
 }
