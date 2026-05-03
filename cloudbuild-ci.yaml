@@ -1,0 +1,63 @@
+# =============================================================================
+# Cloud Build CI - Validacion en cada push a draft
+# =============================================================================
+# NO deploya. Solo verifica que el codigo compila, pasa vet y tests.
+#
+# Wire-up:
+#   gcloud builds triggers create github \
+#     --name=remora-go-ci \
+#     --repo-name=remora-go --repo-owner=Remora-IA \
+#     --branch-pattern="^draft$" \
+#     --build-config=cloudbuild-ci.yaml
+# =============================================================================
+
+steps:
+  - name: 'golang:1.26-bookworm'
+    id: 'vet-frameworks'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        for fw in framework-* channel remora-flujo; do
+          if [ -f "$fw/go.mod" ]; then
+            echo "=== vet: $fw ==="
+            (cd "$fw" && go vet ./...)
+          fi
+        done
+
+  - name: 'golang:1.26-bookworm'
+    id: 'build-all'
+    entrypoint: 'bash'
+    waitFor: ['vet-frameworks']
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        for fw in framework-* channel remora-flujo; do
+          if [ -f "$fw/go.mod" ]; then
+            echo "=== build: $fw ==="
+            (cd "$fw" && go build ./...)
+          fi
+        done
+
+  - name: 'golang:1.26-bookworm'
+    id: 'test-core'
+    entrypoint: 'bash'
+    waitFor: ['build-all']
+    args:
+      - '-c'
+      - |
+        set -euo pipefail
+        # Solo channel y remora-flujo tienen tests robustos hoy.
+        # Frameworks pueden agregarse aca cuando tengan suites estables.
+        echo "=== tests: channel ==="
+        (cd channel && go test ./... -timeout 60s) || exit 1
+        echo "=== tests: remora-flujo ==="
+        (cd remora-flujo && go test ./... -timeout 120s) || exit 1
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: '1200s'

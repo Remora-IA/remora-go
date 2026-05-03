@@ -121,6 +121,7 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(corsMiddleware)
 	r.HandleFunc("/health", srv.health).Methods("GET", "OPTIONS")
+	r.HandleFunc("/healthz", srv.healthz).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/frameworks", srv.listFrameworks).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations", srv.listConversations).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations", srv.createConversation).Methods("POST", "OPTIONS")
@@ -232,6 +233,77 @@ func writeErr(w http.ResponseWriter, code int, msg string) {
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
 	writeOK(w, map[string]string{"status": "ok"})
+}
+
+// healthz es la readiness probe profunda usada por Cloud Run para decidir si
+// la instancia esta lista para recibir trafico. Devuelve 200 si todo OK, 503
+// si algun componente critico no esta configurado o no responde.
+//
+// Cloud Run config:
+//
+//	gcloud run deploy ... --use-http2 \
+//	  --readiness-probe=httpGet.path=/healthz,initialDelaySeconds=5,periodSeconds=10
+func (s *server) healthz(w http.ResponseWriter, r *http.Request) {
+	type checkResult struct {
+		Name   string `json:"name"`
+		OK     bool   `json:"ok"`
+		Detail string `json:"detail,omitempty"`
+	}
+	checks := []checkResult{}
+	allOK := true
+
+	// 1. LLM configurado.
+	llmOK := s.runtimeInfo.Provider != "" && s.runtimeInfo.Provider != "unknown"
+	llmDetail := fmt.Sprintf("provider=%s model=%s", s.runtimeInfo.Provider, s.runtimeInfo.Model)
+	if !llmOK {
+		llmDetail = "LLM no configurado: " + s.runtimeInfo.Note
+		allOK = false
+	}
+	checks = append(checks, checkResult{Name: "llm", OK: llmOK, Detail: llmDetail})
+
+	// 2. Frameworks cargados.
+	fwCount := len(s.allManifests)
+	fwOK := fwCount > 0
+	fwDetail := fmt.Sprintf("%d manifests cargados", fwCount)
+	if !fwOK {
+		fwDetail = "no hay frameworks registrados"
+		allOK = false
+	}
+	checks = append(checks, checkResult{Name: "frameworks", OK: fwOK, Detail: fwDetail})
+
+	// 3. Flow rules cargadas (no-bloqueante: solo informativo).
+	rulesCount := 0
+	if s.rules != nil {
+		rulesCount = len(s.rules.Rules)
+	}
+	checks = append(checks, checkResult{
+		Name:   "rules",
+		OK:     true,
+		Detail: fmt.Sprintf("%d reglas activas", rulesCount),
+	})
+
+	// 4. Channel adapter inicializado (no se hace ping para evitar dependency loop).
+	chOK := s.channel != nil
+	chDetail := "adapter inicializado"
+	if !chOK {
+		chDetail = "channel adapter nil"
+		allOK = false
+	}
+	checks = append(checks, checkResult{Name: "channel", OK: chOK, Detail: chDetail})
+
+	status := "ok"
+	httpStatus := http.StatusOK
+	if !allOK {
+		status = "unhealthy"
+		httpStatus = http.StatusServiceUnavailable
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(httpStatus)
+	json.NewEncoder(w).Encode(map[string]any{
+		"status": status,
+		"checks": checks,
+	})
 }
 
 func (s *server) getRuntime(w http.ResponseWriter, r *http.Request) {

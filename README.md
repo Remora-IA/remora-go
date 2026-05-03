@@ -72,17 +72,61 @@ Ver `framework-charlie/INITIAL_PROMPT.md` para el contrato completo.
 ## Deploy
 
 ```bash
-# Cloud Build compila todos los binarios y arma la imagen.
-gcloud builds submit --config cloudbuild.yaml .
+make deploy-dev   # Cloud Build + Cloud Run dev (NUNCA prod)
+```
 
-# Deploy a DEV (nunca a prod sin autorizacion explicita)
+Atajo manual equivalente:
+
+```bash
+gcloud builds submit --config cloudbuild.yaml .
 gcloud run deploy flujo-api-dev \
   --image gcr.io/project-ceae5831-a2c9-49aa-b1c/flujo-api:latest \
   --region us-central1
 ```
 
-Las env vars en Cloud Run se setean via `--set-env-vars` o (preferido)
-montando GCP Secret Manager. Ver `cloudbuild.yaml` para detalles.
+### Secrets en produccion
+
+Los secretos NO van como `--set-env-vars` planos. Se suben a GCP Secret
+Manager y se bindean al servicio:
+
+```bash
+./scripts/setup-secrets.sh
+```
+
+Lee `.env` local, sube cada secreto a Secret Manager (creando o versionando)
+y los monta como env vars en `flujo-api-dev`. Es idempotente. Tambien setea
+las env vars no-sensibles (`REMORA_PROFILE`, `REMORA_DEV_MODE`, etc.).
+
+### Healthcheck
+
+`flujo_api` expone dos endpoints:
+
+- `GET /health` — liveness simple (`{status: ok}`).
+- `GET /healthz` — readiness profunda. Devuelve `200` si LLM, frameworks
+  y channel estan OK; `503` si algo falta. Usar como readiness probe en
+  Cloud Run:
+
+```bash
+gcloud run services update flujo-api-dev \
+  --region=us-central1 \
+  --use-http2 \
+  --update-readiness-probe="httpGet.path=/healthz,initialDelaySeconds=5,periodSeconds=10"
+```
+
+### CI (validacion automatica en cada push)
+
+`cloudbuild-ci.yaml` corre `vet + build + test` sobre todo el repo. Para
+activarlo en cada push a `draft`:
+
+```bash
+gcloud builds triggers create github \
+  --name=remora-go-ci \
+  --repo-name=remora-go --repo-owner=Remora-IA \
+  --branch-pattern="^draft$" \
+  --build-config=cloudbuild-ci.yaml
+```
+
+Local equivalente: `make check` (fmt + vet + test).
 
 ## Convenciones
 
