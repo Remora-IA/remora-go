@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -1729,12 +1729,13 @@ const FLOWS = {
   'cobranza-chile': {
     id: 'cobranza-chile',
     name: 'Cobranza Chile',
-    desc: 'Cobrador inicia el día: Foco prioriza deudores, Sabio da vista 360°, Mecánico genera borradores de email.',
+    desc: 'Foco prioriza deudores, Sabio da vista 360°. Mensajero envía emails usando credenciales que Hosting provisiona desde cPanel.',
     icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
     </svg>`,
     color: 'hsl(25, 80%, 55%)',
     frameworks: ['foco', 'sabio'],
+    actionFrameworks: ['mensajero', 'hosting'],
     suggestedResponses: {
       foco: ['Ver detalle del primer deudor', 'Mostrar todos los deudores'],
       sabio: ['Generar email de cobranza', 'Ver próximo deudor', 'Qué acciones puedo tomar?']
@@ -2162,7 +2163,7 @@ function renderFlowOptions() {
         <div class="flow-option-name">${flow.name}</div>
         <div class="flow-option-desc">${flow.desc}</div>
         <div class="flow-option-frameworks">
-          ${flow.frameworks.map(f => `<span>${FRAMEWORK_INFO[f]?.name || f}</span>`).join('')}
+          ${[...flow.frameworks, ...(flow.actionFrameworks || [])].map(f => `<span>${FRAMEWORK_INFO[f]?.name || f}</span>`).join('')}
         </div>
       </div>
       <div class="flow-option-check">
@@ -2590,13 +2591,11 @@ modalConfirm.addEventListener('click', async () => {
   });
 
   // Nodos de acción (async_trigger): visibles pero no conversacionales
-  if (chosenFlowId === 'cobranza-chile') {
-    ['mensajero', 'hosting'].forEach(name => {
-      addNode(name, FRAMEWORK_INFO[name]?.name || name, name);
-      const node = document.getElementById('node-' + name);
-      if (node) node.classList.add('dimmed');
-    });
-  }
+  (flow.actionFrameworks || []).forEach(name => {
+    addNode(name, FRAMEWORK_INFO[name]?.name || name, name);
+    const node = document.getElementById('node-' + name);
+    if (node) node.classList.add('dimmed');
+  });
   
   // Activate user node
   nodeUser.classList.remove('dimmed');
