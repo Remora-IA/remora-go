@@ -1263,6 +1263,43 @@
     }
 
     /* ─── Theme toggle ─── */
+    .dev-badge {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, hsl(18, 95%, 55%) 0%, hsl(8, 90%, 50%) 100%);
+      color: #fff;
+      border: 1px solid hsla(18, 95%, 45%, 0.5);
+      border-radius: 999px;
+      box-shadow: 0 4px 14px hsla(18, 95%, 50%, 0.35), 0 1px 3px rgba(0,0,0,0.15);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      pointer-events: none;
+      user-select: none;
+      animation: dev-pulse 2.4s ease-in-out infinite;
+    }
+    .dev-badge.hidden { display: none; }
+    .dev-badge strong {
+      font-weight: 600;
+      opacity: 0.92;
+      text-transform: none;
+      letter-spacing: 0.2px;
+      padding-left: 6px;
+      border-left: 1px solid rgba(255,255,255,0.35);
+    }
+    @keyframes dev-pulse {
+      0%, 100% { box-shadow: 0 4px 14px hsla(18, 95%, 50%, 0.35), 0 1px 3px rgba(0,0,0,0.15); }
+      50%      { box-shadow: 0 4px 22px hsla(18, 95%, 50%, 0.65), 0 1px 3px rgba(0,0,0,0.15); }
+    }
+
     .theme-toggle {
       position: fixed;
       bottom: 24px;
@@ -1525,6 +1562,15 @@
 
   </div>
 
+</div>
+
+<!-- Dev mode badge (visible solo si GET /config devuelve dev_mode: true) -->
+<div id="dev-badge" class="dev-badge hidden" title="">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+  <span>MODO DEV</span>
+  <strong id="dev-badge-recipient"></strong>
 </div>
 
 <!-- Theme toggle -->
@@ -1841,6 +1887,28 @@ modelModal.addEventListener('click', (e) => {
 
 // Load models on init
 loadModels();
+
+// ─── CONFIG (dev mode, profile) ───
+let APP_CONFIG = { dev_mode: false, dev_recipient: '', profile: '' };
+async function loadConfig() {
+  try {
+    const res = await fetch(`${API_BASE}/config`);
+    const json = await res.json();
+    if (json && json.success && json.data) {
+      APP_CONFIG = json.data;
+      const badge = document.getElementById('dev-badge');
+      const recip = document.getElementById('dev-badge-recipient');
+      if (APP_CONFIG.dev_mode) {
+        if (recip) recip.textContent = `correos → ${APP_CONFIG.dev_recipient || 'dev'}`;
+        if (badge) {
+          badge.classList.remove('hidden');
+          badge.title = `Modo dev activo. Todos los emails se redirigen a ${APP_CONFIG.dev_recipient}. Profile: ${APP_CONFIG.profile || '(sin perfil)'}`;
+        }
+      }
+    }
+  } catch (e) { console.warn('config fetch failed', e); }
+}
+loadConfig();
 
 // ============================================
 // DOM ELEMENTS
@@ -2253,10 +2321,14 @@ function maybeRenderSendEmailBtn(framework, content) {
       if (json.success) {
         btn.className = 'send-email-action-btn sent';
         const to = (json.data && json.data.to) || '';
-        btn.innerHTML = `✓ Enviado${to ? ' a ' + to : ''}`;
-        // Mostrar confirmación de mensajero
+        const devRewritten = !!(json.data && json.data.dev_rewritten);
+        const originalTo = (json.data && json.data.original_to) || '';
+        btn.innerHTML = `✓ Enviado${to ? ' a ' + to : ''}${devRewritten ? ' (DEV)' : ''}`;
+        const devNote = devRewritten
+          ? `\n\n🛠 **Modo dev activo**: en producción hubiera ido a _${originalTo}_, pero se redirigió a _${to}_.`
+          : '';
         showThoughtBubble('mensajero', 'Mensajero',
-          `✓ Email enviado correctamente${to ? ' a **' + to + '**' : ''}.\n\nAsunto: _${subject}_`,
+          `✓ Email enviado correctamente${to ? ' a **' + to + '**' : ''}.\n\nAsunto: _${subject}_${devNote}`,
           false, 'pos-below');
         if (nodeMensajero) nodeMensajero.classList.remove('dimmed');
       } else {

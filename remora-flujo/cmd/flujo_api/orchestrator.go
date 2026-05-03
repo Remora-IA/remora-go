@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"channel/adapter"
 	"remora-flujo/handoff"
@@ -63,6 +64,17 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		targetFramework := drivers[0].Name()
 
 		enrichedAnswer := userAnswer
+		// Si el usuario seleccionó "Gestionar: <deudor>", transformar en query 360°
+		// explícita para que Sabio sepa exactamente qué analizar.
+		if strings.HasPrefix(enrichedAnswer, "Gestionar: ") && len(drivers) > 0 && drivers[0].Name() == "sabio" {
+			deudor := strings.TrimPrefix(enrichedAnswer, "Gestionar: ")
+			enrichedAnswer = fmt.Sprintf(
+				"Genera un análisis 360° completo del cliente/deudor '%s'. "+
+					"Incluye todo lo que tengas en los datos: saldo total adeudado, días de mora, "+
+					"facturas y documentos pendientes, historial de pagos reciente, "+
+					"y las 3 acciones de cobranza más urgentes a tomar con este cliente.",
+				deudor)
+		}
 		if wantPreprocess == "vision" && hasImageResource(resources) {
 			out, perr := preprocessVision(ctx, conv, targetFramework, userAnswer, resources)
 			if perr != nil {
@@ -107,14 +119,26 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 	}
 
 	// 3. Pedir siguiente pregunta a cada driver en el orden eventual.
+	// Usamos PollQuestionFull para capturar chips opcionales.
+	type fullPoller interface {
+		PollQuestionFull(context.Context, *adapter.Client, *Conversation, map[string]bool) (nextQuestionResponse, bool)
+	}
 	asked := alreadyAskedExternalIDs(queue)
 	for _, d := range drivers {
-		text, extID, askVia, ok := d.PollQuestion(ctx, ch, conv, asked[d.Name()])
+		var r nextQuestionResponse
+		var ok bool
+		if fp, hasFull := d.(fullPoller); hasFull {
+			r, ok = fp.PollQuestionFull(ctx, ch, conv, asked[d.Name()])
+		} else {
+			var text, extID, askVia string
+			text, extID, askVia, ok = d.PollQuestion(ctx, ch, conv, asked[d.Name()])
+			r = nextQuestionResponse{ID: extID, Text: text, AskVia: askVia}
+		}
 		if !ok {
 			continue
 		}
 		queue.SetSpeaker(d.Name())
-		qid := queue.AddQuestion(d.Name(), extID, text, askVia)
+		qid := queue.AddQuestion(d.Name(), r.ID, r.Text, r.AskVia, r.Chips)
 		if err := saveQueue(conv.ID, queue); err != nil {
 			return handoff.QueuedQuestion{}, false, err
 		}

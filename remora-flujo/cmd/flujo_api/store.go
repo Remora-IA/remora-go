@@ -33,14 +33,15 @@ type Conversation struct {
 // referencia la pregunta en la cola (handoff.QuestionsQueue).
 // Resources son inputs no-textuales del usuario (imágenes, archivos).
 type Message struct {
-	ID         string             `json:"id"`
-	Role       string             `json:"role"`
-	Framework  string             `json:"framework,omitempty"`
-	Content    string             `json:"content"`
-	QuestionID string             `json:"question_id,omitempty"`
-	AskVia     string             `json:"ask_via,omitempty"`
-	Resources  []MessageResource  `json:"resources,omitempty"`
-	Timestamp  time.Time          `json:"timestamp"`
+	ID              string            `json:"id"`
+	Role            string            `json:"role"`
+	Framework       string            `json:"framework,omitempty"`
+	Content         string            `json:"content"`
+	QuestionID      string            `json:"question_id,omitempty"`
+	AskVia          string            `json:"ask_via,omitempty"`
+	SuggestedChips  []string          `json:"suggested_chips,omitempty"`
+	Resources       []MessageResource `json:"resources,omitempty"`
+	Timestamp       time.Time         `json:"timestamp"`
 }
 
 // MessageResource es un recurso adjunto al mensaje del usuario. Path es

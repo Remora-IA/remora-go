@@ -150,6 +150,10 @@ func main() {
 	// Email sending (SMTP via hosting)
 	r.HandleFunc(apiBase+"/send-email", srv.handleSendEmail).Methods("POST", "OPTIONS")
 
+	// Configuración pública (dev mode, profile activo, etc). El frontend lo
+	// consulta al bootear para saber si pintar el badge de modo dev.
+	r.HandleFunc(apiBase+"/config", srv.handleConfig).Methods("GET", "OPTIONS")
+
 	// Frontend estático embebido
 	// GET / → sirve index.html
 	r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -646,6 +650,9 @@ type sendEmailResp struct {
 	MissingCapability string `json:"missing_capability,omitempty"`
 	ProviderHint      string `json:"provider_hint,omitempty"`
 	Error             string `json:"error,omitempty"`
+	// DevRewritten indica que el `to` fue reescrito al destinatario dev.
+	DevRewritten bool   `json:"dev_rewritten,omitempty"`
+	OriginalTo   string `json:"original_to,omitempty"`
 }
 
 // envBootstrapOnce migra credenciales SMTP de env vars al vault una sola vez
@@ -684,6 +691,35 @@ func bootstrapSMTPFromEnvIfNeeded(convID string) {
 	}
 }
 
+// devModeEnabled devuelve true si el deployment actual está en modo dev.
+// Criterios (OR):
+//   - REMORA_DEV_MODE=true explícito
+//   - el servicio se llama *-dev (heurística Cloud Run via K_SERVICE)
+func devModeEnabled() bool {
+	if v := strings.ToLower(os.Getenv("REMORA_DEV_MODE")); v == "true" || v == "1" || v == "yes" {
+		return true
+	}
+	if strings.HasSuffix(os.Getenv("K_SERVICE"), "-dev") {
+		return true
+	}
+	return false
+}
+
+func devRecipient() string {
+	return envOr("TEST_EMAIL_RECIPIENT", "tom3bs@gmail.com")
+}
+
+// handleConfig expone configuración pública al frontend: profile activo,
+// dev mode on/off, destinatario de redirect. Es público (no filtra secretos).
+func (s *server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	writeOK(w, map[string]interface{}{
+		"profile":       envOr("REMORA_PROFILE", ""),
+		"dev_mode":      devModeEnabled(),
+		"dev_recipient": devRecipient(),
+		"runtime":       s.runtimeInfo,
+	})
+}
+
 func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 	var req sendEmailReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -699,6 +735,26 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.ConvID == "" {
 		req.ConvID = "default"
+	}
+
+	// Modo dev: reescribir destinatario a tom3bs@gmail.com (o lo que diga
+	// TEST_EMAIL_RECIPIENT) y dejar rastro del destinatario original en el
+	// subject para que el operador vea a quién se hubiera enviado en prod.
+	devRewritten := false
+	originalTo := req.To
+	if devModeEnabled() {
+		dev := devRecipient()
+		if dev != "" && req.To != dev {
+			req.To = dev
+			devRewritten = true
+		}
+		if originalTo == "" {
+			originalTo = "(sin destinatario)"
+		}
+		prefix := "[DEV → " + originalTo + "] "
+		if !strings.HasPrefix(req.Subject, "[DEV") {
+			req.Subject = prefix + req.Subject
+		}
 	}
 
 	bootstrapSMTPFromEnvIfNeeded(req.ConvID)
@@ -748,6 +804,10 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	msResp.Subject = req.Subject
+	if devRewritten {
+		msResp.DevRewritten = true
+		msResp.OriginalTo = originalTo
+	}
 	writeOK(w, msResp)
 }
 

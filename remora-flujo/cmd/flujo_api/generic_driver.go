@@ -180,6 +180,31 @@ func encodeRecentHistory(convID, currentQuestionID string) string {
 	return base64.RawURLEncoding.EncodeToString(raw)
 }
 
+// PollQuestionFull devuelve el nextQuestionResponse completo incluyendo Chips.
+// Usar cuando se necesita acceder a campos opcionales que PollQuestion descarta.
+func (g *genericDriver) PollQuestionFull(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (nextQuestionResponse, bool) {
+	cmdName := g.manifest.UserInput.NextQuestionCmd
+	if cmdName == "" {
+		cmdName = "next-question"
+	}
+	if _, ok := g.manifest.Commands[cmdName]; !ok {
+		return nextQuestionResponse{}, false
+	}
+	args := g.fullArgs([]string{cmdName})
+	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
+	if err != nil || !resp.Success {
+		return nextQuestionResponse{}, false
+	}
+	r, ok := parseNextQuestion(resp.Stdout)
+	if !ok || alreadyAsked[r.ID] {
+		return nextQuestionResponse{}, false
+	}
+	if r.AskVia == "" {
+		r.AskVia = g.manifest.UserInput.AskVia
+	}
+	return r, true
+}
+
 func (g *genericDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, bool) {
 	cmdName := g.manifest.UserInput.NextQuestionCmd
 	if cmdName == "" {

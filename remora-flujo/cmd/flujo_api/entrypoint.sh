@@ -5,6 +5,11 @@ echo "=== Remora Flujo API + Channel ==="
 echo "Channel URL: $CHANNEL_URL"
 echo "LLM Providers: Minimax=${MINIMAX_API_KEY:+set} Groq=${GROQ_API_KEY:+set}"
 
+# Configurar perfil por defecto (puede ser sobreescrito en deploy)
+export REMORA_PROFILE_PATH="${REMORA_PROFILE_PATH:-/workspace/profiles}"
+export REMORA_PROFILE="${REMORA_PROFILE:-generic}"
+echo "Profile: $REMORA_PROFILE (from $REMORA_PROFILE_PATH)"
+
 # Validar API keys
 if [ -z "$CHANNEL_API_KEYS" ] && [ -z "$CHANNEL_API_KEY" ]; then
     echo "ERROR: CHANNEL_API_KEYS or CHANNEL_API_KEY required"

@@ -5,12 +5,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"channel/adapter"
 	"channel/manifest"
 )
+
+// keysOfManifests devuelve las llaves de un map[string]*manifest.Manifest
+// ordenadas (solo para logs).
+func keysOfManifests(m map[string]*manifest.Manifest) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
 
 // FrameworkDriver es el adaptador entre la API y un framework concreto.
 //
@@ -71,7 +85,30 @@ func initDriverRegistry(rootDir string, logger *log.Logger) (loaded map[string]*
 	loaded = map[string]*manifest.Manifest{}
 	skipped = map[string]error{}
 
+	// DEBUG: listar rootDir y chequear manifests esperados
+	logger.Printf("DEBUG discover rootDir=%q", rootDir)
+	if entries, err := os.ReadDir(rootDir); err == nil {
+		names := []string{}
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), "framework-") {
+				manPath := filepath.Join(rootDir, e.Name(), "framework.manifest.json")
+				st, serr := os.Stat(manPath)
+				names = append(names, fmt.Sprintf("%s{dir=%v,manifest_exists=%v,stat_err=%v,size=%d}",
+					e.Name(), e.IsDir(), serr == nil, serr, func() int64 {
+						if st != nil {
+							return st.Size()
+						}
+						return -1
+					}()))
+			}
+		}
+		logger.Printf("DEBUG rootDir framework-* entries: %v", names)
+	} else {
+		logger.Printf("DEBUG ReadDir(%s) error: %v", rootDir, err)
+	}
+
 	manifests, derrs := manifest.Discover(rootDir)
+	logger.Printf("DEBUG manifest.Discover returned %d manifests: %v", len(manifests), keysOfManifests(manifests))
 	for _, e := range derrs {
 		logger.Printf("manifest discover warn: %v", e)
 	}
@@ -148,9 +185,10 @@ func driversFor(conv *Conversation) []FrameworkDriver {
 // nextQuestionResponse es el contrato JSON común de `next-question` entre
 // frameworks. Campos opcionales se ignoran si están vacíos.
 type nextQuestionResponse struct {
-	ID     string `json:"id"`
-	Text   string `json:"text"`
-	AskVia string `json:"ask_via"`
+	ID     string   `json:"id"`
+	Text   string   `json:"text"`
+	AskVia string   `json:"ask_via"`
+	Chips  []string `json:"chips,omitempty"`
 }
 
 func parseNextQuestion(stdout string) (nextQuestionResponse, bool) {
