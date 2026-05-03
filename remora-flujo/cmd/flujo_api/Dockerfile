@@ -54,6 +54,8 @@ COPY framework-hosting/frameworkhosting /workspace/framework-hosting/frameworkho
 COPY framework-hosting/framework.manifest.json /workspace/framework-hosting/framework.manifest.json
 COPY framework-mensajero/frameworkmensajero /workspace/framework-mensajero/frameworkmensajero
 COPY framework-mensajero/framework.manifest.json /workspace/framework-mensajero/framework.manifest.json
+COPY framework-contactos/frameworkcontactos /workspace/framework-contactos/frameworkcontactos
+COPY framework-contactos/framework.manifest.json /workspace/framework-contactos/framework.manifest.json
 COPY profiles /workspace/profiles
 COPY remora-flujo/cmd/flujo_api/entrypoint.sh /entrypoint.sh
 
@@ -64,6 +66,7 @@ RUN chmod +x /entrypoint.sh /channel /flujo_api \
       /workspace/framework-foco/foco \
       /workspace/framework-hosting/frameworkhosting \
       /workspace/framework-mensajero/frameworkmensajero \
+      /workspace/framework-contactos/frameworkcontactos \
     && mkdir -p /workspace /sessions /conversations /frameworks \
       /temp/foco /temp/mecanico \
       /workspace/channel/bin \
@@ -71,7 +74,8 @@ RUN chmod +x /entrypoint.sh /channel /flujo_api \
       /workspace/framework-foco/temp/foco \
       /workspace/framework-sabio/temp \
       /workspace/framework-hosting/temp \
-      /workspace/framework-mensajero/temp
+      /workspace/framework-mensajero/temp \
+      /workspace/profiles/cobranza-chile
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]

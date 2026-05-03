@@ -45,6 +45,19 @@ for i in $(seq 1 30); do
     sleep 0.2
 done
 
+# Seed de contactos por perfil. Si existe profiles/<perfil>/contacts.seed.csv
+# y aún no hay contacts.db, lo importamos. Esto vuelve idempotente el boot:
+# en la primera revisión se siembra, en las siguientes ya está hecho.
+PROFILE_DIR="$REMORA_PROFILE_PATH/$REMORA_PROFILE"
+CONTACTS_SEED="$PROFILE_DIR/contacts.seed.csv"
+CONTACTS_DB="$PROFILE_DIR/contacts.db"
+if [ -f "$CONTACTS_SEED" ] && [ ! -s "$CONTACTS_DB" ]; then
+    echo "Sembrando contactos desde $CONTACTS_SEED..."
+    /workspace/framework-contactos/frameworkcontactos import-csv \
+        --profile "$REMORA_PROFILE" \
+        --file "$CONTACTS_SEED" || echo "WARN: no se pudo sembrar contactos (continuamos)"
+fi
+
 echo "Starting Flujo API on :${FLUJO_API_PORT_OUTER:-8080}..."
 # Iniciar Flujo API
 exec /flujo_api

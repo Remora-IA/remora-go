@@ -637,6 +637,10 @@ type sendEmailReq struct {
 	Subject string `json:"subject"`
 	Body    string `json:"body"`
 	To      string `json:"to,omitempty"`
+	// EntityType + EntityRef permiten al backend resolver el destinatario
+	// vía framework-contactos cuando `To` no viene en el request.
+	EntityType string `json:"entity_type,omitempty"`
+	EntityRef  string `json:"entity_ref,omitempty"`
 	Channel string `json:"channel,omitempty"`
 	ConvID  string `json:"conv_id,omitempty"`
 }
@@ -735,6 +739,34 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.ConvID == "" {
 		req.ConvID = "default"
+	}
+
+	// Resolver destinatario vía framework-contactos si no vino `to` en el
+	// request pero sí vino entity_type+entity_ref. Si tampoco hay contacto,
+	// devolvemos 412 con provider_hint=contactos para que el frontend
+	// dispare el flujo de captura/import.
+	if req.To == "" && req.EntityType != "" && req.EntityRef != "" {
+		res, err := contactosLookup(req.EntityType, req.EntityRef, req.Channel)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, "contactos lookup: "+err.Error())
+			return
+		}
+		if res.Found {
+			req.To = res.Value
+		} else {
+			writeJSON(w, http.StatusPreconditionFailed, APIResponse{
+				Success: false,
+				Data: map[string]interface{}{
+					"missing_capability": res.MissingCapability,
+					"provider_hint":     res.ProviderHint,
+					"entity_type":       req.EntityType,
+					"entity_ref":        req.EntityRef,
+					"channel":           req.Channel,
+				},
+				Error: "contacto faltante; cargá email vía framework-contactos",
+			})
+			return
+		}
 	}
 
 	// Modo dev: reescribir destinatario a tom3bs@gmail.com (o lo que diga

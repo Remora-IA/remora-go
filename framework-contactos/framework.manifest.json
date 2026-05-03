@@ -1,0 +1,74 @@
+{
+  "name": "contactos",
+  "version": "0.1.0",
+  "description": "Gestor canónico de contactos por entidad y canal. Mantiene una tabla estándar (entity_type, entity_ref, channel, value, source, verified_at) por perfil y expone capabilities contact.lookup / contact.store / contact.import. Es agnóstico al negocio: cualquier framework consumidor (mensajero, redactor) pregunta por el contacto de una entidad sin saber de dónde vino el dato.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkcontactos", "./cmd/frameworkcontactos"]
+  },
+  "binary": {
+    "command": "./frameworkcontactos",
+    "args_prefix": []
+  },
+  "cwd": "framework-contactos",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "none",
+    "capabilities": []
+  },
+  "commands": {
+    "next-question": {
+      "description": "No conversa: idle por defecto",
+      "args": ["next-question", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "ingest-answer": {
+      "description": "No-op por compatibilidad con el contrato conversacional",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--conv-id", "{params.conv_id}"],
+      "params": ["question_id", "answer", "conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "lookup": {
+      "description": "Busca el contacto preferido de una entidad por canal. Imprime JSON {found, value?, source?, verified_at?, missing_capability?}.",
+      "args": ["lookup", "--profile", "{params.profile}", "--entity-type", "{params.entity_type}", "--entity-ref", "{params.entity_ref}", "--channel", "{params.channel}"],
+      "params": ["profile", "entity_type", "entity_ref", "channel"],
+      "defaults": {"channel": "email"}
+    },
+    "store": {
+      "description": "Inserta o actualiza un contacto (upsert). Imprime JSON {success, error?}.",
+      "args": ["store", "--profile", "{params.profile}", "--entity-type", "{params.entity_type}", "--entity-ref", "{params.entity_ref}", "--channel", "{params.channel}", "--value", "{params.value}", "--source", "{params.source}"],
+      "params": ["profile", "entity_type", "entity_ref", "channel", "value", "source"],
+      "defaults": {"channel": "email", "source": "manual"}
+    },
+    "list-missing": {
+      "description": "Lista entidades de un tipo que no tienen contacto en el canal pedido. Imprime JSON {missing: [{entity_ref, name?}]}.",
+      "args": ["list-missing", "--profile", "{params.profile}", "--entity-type", "{params.entity_type}", "--channel", "{params.channel}"],
+      "params": ["profile", "entity_type", "channel"],
+      "defaults": {"channel": "email"}
+    },
+    "import-csv": {
+      "description": "Importa contactos desde CSV con headers entity_type,entity_ref,channel,value[,source]. Imprime JSON {imported, skipped, errors}.",
+      "args": ["import-csv", "--profile", "{params.profile}", "--file", "{params.file}"],
+      "params": ["profile", "file"]
+    }
+  },
+  "user_input": {
+    "supported": false
+  },
+  "state": {
+    "dir": "data",
+    "files": ["contacts_*.db"]
+  },
+  "capabilities_semantic": {
+    "tags": ["contacts", "directory", "lookup", "email", "phone", "whatsapp"],
+    "intent_examples": [
+      "buscar email del cliente",
+      "agregar contacto",
+      "qué contactos faltan"
+    ],
+    "produces": ["contact.lookup", "contact.store"],
+    "requires": []
+  }
+}
