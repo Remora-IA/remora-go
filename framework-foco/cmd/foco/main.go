@@ -2426,6 +2426,17 @@ func runQuery(args []string) error {
 }
 
 func runPriorities() error {
+	// 1. Preferir el ledger event-sourced (framework-tareas). Si hay tareas
+	//    pendientes, son la verdad: Foco no debe regenerar prioridades desde
+	//    cero ignorando trabajo ya en curso. Solo si el ledger está vacío
+	//    (primer arranque o tras reset) se hace fallback al SELECT sobre
+	//    panalbit.db.
+	if items, err := queryTaskLedger(); err != nil {
+		fmt.Fprintf(os.Stderr, "[foco] task ledger error (continuando con fallback SQL): %v\n", err)
+	} else if len(items) > 0 {
+		return emitPriorityList(items, "ledger")
+	}
+
 	dbPath := os.Getenv("FOCO_DB")
 	if dbPath == "" {
 		dbPath = "../framework-indexa/data/panalbit.db"
@@ -2477,22 +2488,28 @@ func runPriorities() error {
 		return nil
 	}
 
+	return emitPriorityList(items, "panalbit")
+}
+
+// emitPriorityList serializa la lista de prioridades a JSON + markdown y la
+// persiste en temp/foco/last_priority_list.json. `source` indica de dónde
+// vinieron los items ("ledger" = framework-tareas, "panalbit" = fallback SQL).
+func emitPriorityList(items []priorityItem, source string) error {
 	list := map[string]interface{}{
 		"type":         "priority_list",
 		"generated_at": time.Now().Format(time.RFC3339),
 		"profile":      "cobranza-chile",
+		"source":       source,
 		"items":        items,
 		"count":        len(items),
 	}
 
 	jsonData, _ := json.MarshalIndent(list, "", "  ")
 
-	// Guardar en state
 	stateDir := "temp/foco"
 	_ = os.MkdirAll(stateDir, 0755)
 	_ = os.WriteFile(filepath.Join(stateDir, "last_priority_list.json"), jsonData, 0644)
 
-	// Formato legible (markdown) para modo CLI directo.
 	fmt.Println("**Prioridades de cobranza — hoy**")
 	fmt.Println()
 	fmt.Println("| # | Deudor | Saldo | Mora | Score |")
@@ -2502,7 +2519,6 @@ func runPriorities() error {
 			item.Rank, item.Deudor, formatMoney(item.SaldoTotal), item.DiasMoraMax, item.Score)
 	}
 	fmt.Println()
-	// Mostrar solo la acción del deudor con mayor prioridad (#1)
 	if len(items) > 0 {
 		fmt.Println("**Acción inmediata**")
 		fmt.Println()
