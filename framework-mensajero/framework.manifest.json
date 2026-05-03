@@ -11,7 +11,7 @@
     "args_prefix": []
   },
   "cwd": "framework-mensajero",
-  "execution_mode": "sync_chain",
+  "execution_mode": "async_trigger",
   "requires_infra": [],
   "model": {
     "provider": "none",
@@ -44,11 +44,7 @@
     }
   },
   "user_input": {
-    "supported": true,
-    "ask_via": "",
-    "modes": ["short_answer"],
-    "next_question_cmd": "next-question",
-    "ingest_answer_cmd": "ingest-answer"
+    "supported": false
   },
   "state": {
     "dir": "temp",

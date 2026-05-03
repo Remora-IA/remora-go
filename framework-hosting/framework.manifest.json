@@ -11,7 +11,7 @@
     "args_prefix": []
   },
   "cwd": "framework-hosting",
-  "execution_mode": "sync_chain",
+  "execution_mode": "async_trigger",
   "requires_infra": [],
   "model": {
     "provider": "none",
