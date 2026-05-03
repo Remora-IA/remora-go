@@ -123,6 +123,21 @@ Usar cuando el humano diga "actualiza main". En Charlie eso significa:
 reparado, validado y publicado. No preguntes si quiere mergear o hacer otra
 cosa: ejecuta este comando.
 
+### `go run ./cmd/charlie clean-traces [--apply] [--root PATH]` (v0.1.11+)
+
+Usar cuando el humano pida "limpiar logs", "borrar traces", "limpiar basura
+de paladin" o similar. Sin `--apply` lista los archivos que matchean. Con
+`--apply` los borra del filesystem.
+
+Patrones cubiertos (lista cerrada, conservadora):
+- `trace_pal_*.json` (traces de Paladin)
+- `trace_gf_*.json` (traces de IdealFlow / Bravo)
+- `.DS_Store` (junk de macOS)
+
+NUNCA toca: `state.json`, `last_*.json`, `*.enc`, `applied.jsonl`,
+`sessions/`, `vault_data/`, `*.db`. Si el humano pide borrar algo de eso,
+rechaza la peticion y reporta por nombre.
+
 ### `go run ./cmd/charlie validate`
 
 Usar antes de cerrar. Si falla, reporta el error y no propongas commit.

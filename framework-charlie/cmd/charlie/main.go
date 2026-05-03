@@ -181,6 +181,26 @@ func main() {
 			os.Exit(2)
 		}
 		return
+	case "clean-traces":
+		apply := false
+		root := ".."
+		for i := 2; i < len(os.Args); i++ {
+			if os.Args[i] == "--apply" {
+				apply = true
+				continue
+			}
+			if os.Args[i] == "--root" && i+1 < len(os.Args) {
+				root = os.Args[i+1]
+				continue
+			}
+		}
+		res, err := charlie.CleanTraces(root, apply)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(charlie.FormatCleanTraces(res))
+		return
 	case "publish-main":
 		apply := len(os.Args) > 2 && os.Args[2] == "--apply"
 		var plan *charlie.PublishMainPlan
@@ -262,6 +282,10 @@ USO:
                   Publica o actualiza el tag remoto con lease
   charlie publish-main [--apply]
                   Actualiza main para que sea copia exacta de draft
+  charlie clean-traces [--apply] [--root PATH] (v0.1.11)
+                  Lista (o borra con --apply) archivos regenerables seguros:
+                  trace_pal_*.json, trace_gf_*.json, .DS_Store. NUNCA toca
+                  state, secrets, applied.jsonl, sessions ni databases.
 
 CONTRATO:
   Charlie no ejecuta git manual. Los comandos del framework pueden aplicar

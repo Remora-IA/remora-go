@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] - 2026-05-03
+
+> **Release**: expandir charlie
+
+### Charlie
+
+- **framework-charlie/INITIAL_PROMPT.md**: +15
+- **charlie/clean.go**: archivo nuevo
+- **charlie/main.go**: +24
+
+### Repo
+
+- **.gitignore**: -3
+- **Makefile**: archivo nuevo
+- **scripts/bootstrap.sh**: archivo nuevo
+
 ## [0.1.10] - 2026-05-03
 
 > **Release**: profesionalizar repo (Fase 1)

@@ -53,9 +53,6 @@ remora-flujo/agentrpc
 remora-flujo/cmd/flujo_api/flujo_api
 remora-flujo/cmd/flujo_api/channel
 
-# Cualquier binario que aparezca en cmd/ con el mismo nombre que el dir
-**/cmd/*/*[!.go]
-
 # Go build/test outputs
 *.test
 *.out
