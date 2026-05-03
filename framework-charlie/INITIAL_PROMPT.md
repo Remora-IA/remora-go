@@ -123,6 +123,21 @@ Usar cuando el humano diga "actualiza main". En Charlie eso significa:
 reparado, validado y publicado. No preguntes si quiere mergear o hacer otra
 cosa: ejecuta este comando.
 
+### `go run ./cmd/charlie deploy [--apply] [--dev|--prod]` (v0.1.15+)
+
+Usar cuando el humano pida "deploy", "actualiza dev", "subi los cambios al
+servidor". Sin `--apply` solo muestra el plan. Con `--apply` deploya a
+Cloud Run via `make deploy-dev`.
+
+**Regla NO negociable**: Charlie SOLO deploya a `flujo-api-dev`. Si el
+humano pasa `--prod`, Charlie devuelve BLOQUEADO sin importar nada mas.
+Produccion (`flujo-api`) solo se actualiza cuando el humano corre `gcloud
+run deploy flujo-api ...` manualmente, asumiendo su propia responsabilidad.
+
+Si el humano dice "deploy" sin especificar ambiente, asume dev. Nunca
+preguntes "queres prod?". Si pregunta "como deployo prod" responde con la
+instruccion gcloud explicita pero no la ejecutes vos.
+
 ### `go run ./cmd/charlie clean-traces [--apply] [--root PATH]` (v0.1.11+)
 
 Usar cuando el humano pida "limpiar logs", "borrar traces", "limpiar basura
