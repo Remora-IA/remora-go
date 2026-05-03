@@ -52,10 +52,11 @@ if command -v docker >/dev/null 2>&1; then
     --cpu=2 \
     --timeout=300s \
     --max-instances=10 \
-    --set-env-vars="PORT=8080,CHANNEL_PORT=8765,CHANNEL_URL=http://localhost:8765,CHANNEL_BASE_DIR=/workspace,REMORA_ROOT=/workspace,CHANNEL_API_KEY=${CHANNEL_API_KEY},CHANNEL_API_KEYS=${CHANNEL_API_KEY}" \
+    --set-env-vars="PORT=8080,CHANNEL_PORT=8765,CHANNEL_URL=http://localhost:8765,CHANNEL_BASE_DIR=/workspace,REMORA_ROOT=/workspace,CHANNEL_API_KEY=${CHANNEL_API_KEY},CHANNEL_API_KEYS=${CHANNEL_API_KEY},REMORA_VAULT_DIR=/workspace/channel/vault_data" \
     $([ -n "$MINIMAX_API_KEY" ] && echo "--set-env-vars=MINIMAX_API_KEY=${MINIMAX_API_KEY}") \
     $([ -n "$GROQ_API_KEY" ] && echo "--set-env-vars=GROQ_API_KEY=${GROQ_API_KEY}") \
-    $([ -n "$GEMINI_API_KEY" ] && echo "--set-env-vars=GEMINI_API_KEY=${GEMINI_API_KEY}")
+    $([ -n "$GEMINI_API_KEY" ] && echo "--set-env-vars=GEMINI_API_KEY=${GEMINI_API_KEY}") \
+    $([ -n "$REMORA_VAULT_KEY" ] && echo "--set-env-vars=REMORA_VAULT_KEY=${REMORA_VAULT_KEY}")
 else
   echo "Docker not found. Using Cloud Build instead..."
   cd "${REPO_ROOT}"
@@ -74,21 +75,35 @@ else
   echo "Image tag: ${SHORT_SHA}"
   gcloud builds submit --config=cloudbuild.yaml --substitutions="${SUST}"
 
-  # Cloud Build deploya con las keys básicas. Si hay extras (GROQ/MINIMAX) no
-  # cubiertas por cloudbuild.yaml, hacer update del servicio.
-  EXTRA=""
-  [ -n "$MINIMAX_API_KEY" ] && EXTRA="${EXTRA}MINIMAX_API_KEY=${MINIMAX_API_KEY},"
-  [ -n "$GROQ_API_KEY" ]    && EXTRA="${EXTRA}GROQ_API_KEY=${GROQ_API_KEY},"
-  [ -n "$GEMINI_API_KEY" ]  && EXTRA="${EXTRA}GEMINI_API_KEY=${GEMINI_API_KEY},"
+  # cloudbuild.yaml SOLO compila y pushea la imagen a GCR; NO hace deploy a
+  # Cloud Run. Acá forzamos que el servicio apunte a la imagen recién pusheada
+  # (tag :${SHORT_SHA}) y de paso seteamos/actualizamos las env vars.
+  REMORA_PROFILE="${REMORA_PROFILE:-cobranza-chile}"
+  CHANNEL_EXEC_TIMEOUT="${CHANNEL_EXEC_TIMEOUT:-120s}"
+  EXTRA="CHANNEL_PORT=8765,CHANNEL_URL=http://localhost:8765,CHANNEL_BASE_DIR=/workspace,REMORA_ROOT=/workspace,CHANNEL_API_KEY=${CHANNEL_API_KEY},CHANNEL_API_KEYS=${CHANNEL_API_KEY},REMORA_PROFILE=${REMORA_PROFILE},REMORA_PROFILE_PATH=/workspace/profiles,CHANNEL_EXEC_TIMEOUT=${CHANNEL_EXEC_TIMEOUT},REMORA_VAULT_DIR=/workspace/channel/vault_data"
+  [ -n "$MINIMAX_API_KEY" ]     && EXTRA="${EXTRA},MINIMAX_API_KEY=${MINIMAX_API_KEY}"
+  [ -n "$GROQ_API_KEY" ]        && EXTRA="${EXTRA},GROQ_API_KEY=${GROQ_API_KEY}"
+  [ -n "$GEMINI_API_KEY" ]      && EXTRA="${EXTRA},GEMINI_API_KEY=${GEMINI_API_KEY}"
+  [ -n "$REMORA_VAULT_KEY" ]    && EXTRA="${EXTRA},REMORA_VAULT_KEY=${REMORA_VAULT_KEY}"
+  [ -n "$HOSTING_VAULT_KEY" ]   && EXTRA="${EXTRA},HOSTING_VAULT_KEY=${HOSTING_VAULT_KEY}"
+  [ -n "$SMTP_HOST" ]           && EXTRA="${EXTRA},SMTP_HOST=${SMTP_HOST}"
+  [ -n "$SMTP_PORT" ]           && EXTRA="${EXTRA},SMTP_PORT=${SMTP_PORT}"
+  [ -n "$SMTP_USER" ]           && EXTRA="${EXTRA},SMTP_USER=${SMTP_USER}"
+  [ -n "$SMTP_PASS" ]           && EXTRA="${EXTRA},SMTP_PASS=${SMTP_PASS}"
+  [ -n "$SMTP_FROM" ]           && EXTRA="${EXTRA},SMTP_FROM=${SMTP_FROM}"
+  [ -n "$TEST_EMAIL_RECIPIENT" ] && EXTRA="${EXTRA},TEST_EMAIL_RECIPIENT=${TEST_EMAIL_RECIPIENT}"
 
-  if [ -n "$EXTRA" ]; then
-    EXTRA="${EXTRA%,}"
-    echo "=== Updating Cloud Run with additional API keys ==="
-    gcloud run services update "${SERVICE_NAME}" \
-      --region="${REGION}" \
-      --platform=managed \
-      --update-env-vars="${EXTRA}"
-  fi
+  echo "=== Deploying new image to Cloud Run: ${IMAGE}:${SHORT_SHA} ==="
+  gcloud run deploy "${SERVICE_NAME}" \
+    --image="${IMAGE}:${SHORT_SHA}" \
+    --region="${REGION}" \
+    --platform=managed \
+    --allow-unauthenticated \
+    --memory=1Gi \
+    --cpu=2 \
+    --timeout=300s \
+    --max-instances=10 \
+    --set-env-vars="${EXTRA}"
 fi
 
 echo ""

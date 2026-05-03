@@ -81,6 +81,46 @@ steps:
     id: 'build-sabio'
     waitFor: ['-']
 
+  # Build framework-foco
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-foco && go build -o foco ./cmd/foco
+    id: 'build-foco'
+    waitFor: ['-']
+
+  # Build framework-hosting
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-hosting && go build -o frameworkhosting ./cmd/frameworkhosting
+    id: 'build-hosting'
+    waitFor: ['-']
+
+  # Build vault CLI
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd channel && go build -o bin/vault ./cmd/vault
+    id: 'build-vault'
+    waitFor: ['-']
+
+  # Build framework-mensajero
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-mensajero && go build -o frameworkmensajero ./cmd/frameworkmensajero
+    id: 'build-mensajero'
+    waitFor: ['-']
+
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -101,6 +141,10 @@ steps:
       - 'build-auditor'
       - 'build-indexa'
       - 'build-sabio'
+      - 'build-foco'
+      - 'build-hosting'
+      - 'build-vault'
+      - 'build-mensajero'
 
   # Push to GCR
   - name: 'gcr.io/cloud-builders/docker'

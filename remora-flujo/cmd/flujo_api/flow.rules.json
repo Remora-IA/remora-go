@@ -3,6 +3,17 @@
   "description": "Reglas de composición",
   "rules": [
     {
+      "id": "sabio_after_foco_priorities",
+      "description": "En cobranza: cuando el usuario responde al mensaje de prioridades de Foco, Sabio provee la vista 360° del deudor seleccionado.",
+      "when": {
+        "frameworks_active_all": ["foco", "sabio"],
+        "user_answer_count_min": 1
+      },
+      "then": {
+        "prepend_speaker": "sabio"
+      }
+    },
+    {
       "id": "alfa_takes_over_after_2_echo_answers",
       "description": "",
       "when": {
@@ -29,6 +40,24 @@
       "then": {
         "prepend_speaker": "alfa",
         "preprocess": "vision"
+      }
+    },
+    {
+      "id": "ensure_credentials_smtp_before_send",
+      "description": "Regla GENÉRICA (no específica de cobranza): si el usuario quiere que se envíe un mensaje por email/sms/whatsapp y el vault no tiene la capability credentials.<channel>, el orquestador delega el turno al framework que la produce para que la provisione. La resolución productor↔capability se hace leyendo manifests (capabilities_semantic.produces); este flow.rules.json no menciona nombres de framework específicos del provisioner.",
+      "when": {
+        "user_intent_any": [
+          "send_message",
+          "enviar email",
+          "mandar correo",
+          "send the email",
+          "send message"
+        ],
+        "capability_missing": "credentials.smtp"
+      },
+      "then": {
+        "delegate_to_provider_of": "credentials.smtp",
+        "note": "El frontend recibe HTTP 412 con missing_capability + provider_hint y dispara el provisioning conversacional."
       }
     }
   ]

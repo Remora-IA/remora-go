@@ -17,11 +17,25 @@ ENV CHANNEL_API_KEYS=${CHANNEL_API_KEYS:-${CHANNEL_API_KEY}}
 ENV MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
 ENV GROQ_API_KEY=${GROQ_API_KEY:-}
 ENV GEMINI_API_KEY=${GEMINI_API_KEY:-}
+ENV SMTP_HOST=${SMTP_HOST:-mail.patriciastocker.com}
+ENV SMTP_PORT=${SMTP_PORT:-587}
+ENV SMTP_USER=${SMTP_USER:-}
+ENV SMTP_PASS=${SMTP_PASS:-}
+ENV SMTP_FROM=${SMTP_FROM:-}
+ENV TEST_EMAIL_RECIPIENT=${TEST_EMAIL_RECIPIENT:-tom3bs@gmail.com}
+ENV REMORA_VAULT_KEY=${REMORA_VAULT_KEY:-}
+ENV REMORA_VAULT_DIR=/workspace/channel/vault_data
+ENV REMORA_ROOT=/workspace
 
 WORKDIR /
 
 COPY remora-flujo/cmd/flujo_api/flujo_api /flujo_api
 COPY remora-flujo/cmd/flujo_api/channel /channel
+COPY remora-flujo/cmd/flujo_api/flow.rules.json /cmd/flujo_api/flow.rules.json
+
+# Vault
+COPY channel/bin/vault /workspace/channel/bin/vault
+
 COPY framework-echo/frameworkecho /frameworks/frameworkecho
 COPY framework-alfa/frameworkalfa /frameworks/frameworkalfa
 COPY framework-auditor/frameworkauditor /workspace/framework-auditor/frameworkauditor
@@ -34,11 +48,30 @@ COPY framework-sabio/framework.manifest.json /workspace/framework-sabio/framewor
 COPY framework-indexa/framework.manifest.json /workspace/framework-indexa/framework.manifest.json
 COPY framework-echo /workspace/framework-echo
 COPY framework-alfa /workspace/framework-alfa
-COPY framework-foco /workspace/framework-foco
+COPY framework-foco/foco /workspace/framework-foco/foco
+COPY framework-foco/framework.manifest.json /workspace/framework-foco/framework.manifest.json
+COPY framework-hosting/frameworkhosting /workspace/framework-hosting/frameworkhosting
+COPY framework-hosting/framework.manifest.json /workspace/framework-hosting/framework.manifest.json
+COPY framework-mensajero/frameworkmensajero /workspace/framework-mensajero/frameworkmensajero
+COPY framework-mensajero/framework.manifest.json /workspace/framework-mensajero/framework.manifest.json
 COPY profiles /workspace/profiles
 COPY remora-flujo/cmd/flujo_api/entrypoint.sh /entrypoint.sh
 
-RUN chmod +x /entrypoint.sh /channel /flujo_api /workspace/framework-indexa/frameworkindexa /workspace/framework-sabio/frameworksabio /workspace/framework-foco/foco && mkdir -p /workspace /sessions /conversations /frameworks /temp/foco /temp/mecanico
+RUN chmod +x /entrypoint.sh /channel /flujo_api \
+      /workspace/channel/bin/vault \
+      /workspace/framework-indexa/frameworkindexa \
+      /workspace/framework-sabio/frameworksabio \
+      /workspace/framework-foco/foco \
+      /workspace/framework-hosting/frameworkhosting \
+      /workspace/framework-mensajero/frameworkmensajero \
+    && mkdir -p /workspace /sessions /conversations /frameworks \
+      /temp/foco /temp/mecanico \
+      /workspace/channel/bin \
+      /workspace/channel/vault_data \
+      /workspace/framework-foco/temp/foco \
+      /workspace/framework-sabio/temp \
+      /workspace/framework-hosting/temp \
+      /workspace/framework-mensajero/temp
 
 EXPOSE 8080
 ENTRYPOINT ["/entrypoint.sh"]

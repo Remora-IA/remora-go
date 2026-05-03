@@ -1,0 +1,67 @@
+{
+  "name": "mensajero",
+  "version": "0.1.0",
+  "description": "Envía mensajes salientes por cualquier canal (email/sms/whatsapp). Es agnóstico al negocio: recibe un draft (subject+body+to+channel) y credenciales canónicas del vault, y ejecuta el envío. No genera contenido (eso es trabajo de redactor/mecánico) ni gestiona credenciales (eso es trabajo de hosting u otros provisioners).",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkmensajero", "./cmd/frameworkmensajero"]
+  },
+  "binary": {
+    "command": "./frameworkmensajero",
+    "args_prefix": []
+  },
+  "cwd": "framework-mensajero",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "model": {
+    "provider": "none",
+    "capabilities": []
+  },
+  "commands": {
+    "next-question": {
+      "description": "Devuelve confirmación de envíos pendientes (idle por defecto)",
+      "args": ["next-question", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "ingest-answer": {
+      "description": "No-op por compatibilidad con el contrato conversacional",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--conv-id", "{params.conv_id}"],
+      "params": ["question_id", "answer", "conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "can-send": {
+      "description": "Verifica si hay credenciales para el canal pedido. Imprime JSON {available, missing_capability?, provider_hint?}",
+      "args": ["can-send", "--channel", "{params.channel}", "--conv-id", "{params.conv_id}"],
+      "params": ["channel", "conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "send": {
+      "description": "Envía un mensaje. Lee credenciales.{channel} del vault. Imprime JSON {success, message_id?, error?}.",
+      "args": ["send", "--channel", "{params.channel}", "--to", "{params.to}", "--subject", "{params.subject}", "--body-b64", "{params.body_b64}", "--conv-id", "{params.conv_id}"],
+      "params": ["channel", "to", "subject", "body_b64", "conv_id"],
+      "defaults": {"conv_id": "", "subject": "", "to": ""}
+    }
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "state": {
+    "dir": "temp",
+    "files": ["state_*.json", "sent_*.jsonl"]
+  },
+  "capabilities_semantic": {
+    "tags": ["messaging", "send", "smtp", "email", "outbound"],
+    "intent_examples": [
+      "enviar este email",
+      "mandar el mensaje",
+      "send the draft"
+    ],
+    "produces": ["message.sent", "action.email_send"],
+    "requires": ["credentials.smtp"]
+  }
+}

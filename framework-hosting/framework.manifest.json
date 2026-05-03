@@ -1,0 +1,90 @@
+{
+  "name": "hosting",
+  "version": "0.1.0-poc",
+  "description": "Conecta al panel de hosting del usuario (cPanel UAPI) y opera sobre email/DNS/archivos vía HTTPS. POC: connect + list-emails.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkhosting", "./cmd/frameworkhosting"]
+  },
+  "binary": {
+    "command": "./frameworkhosting",
+    "args_prefix": []
+  },
+  "cwd": "framework-hosting",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "model": {
+    "provider": "none",
+    "capabilities": []
+  },
+  "commands": {
+    "next-question": {
+      "description": "Devuelve el saludo inicial o la respuesta pendiente",
+      "args": ["next-question", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "ingest-answer": {
+      "description": "Procesa input del usuario: 'conectar host user pass' | 'listar correos'",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--conv-id", "{params.conv_id}"],
+      "params": ["question_id", "answer", "conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "connect": {
+      "description": "Verifica login al panel y guarda credenciales encriptadas",
+      "args": ["connect", "--host", "{params.host}", "--user", "{params.user}", "--pass", "{params.pass}", "--conv-id", "{params.conv_id}"],
+      "params": ["host", "user", "pass", "conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "list-emails": {
+      "description": "Lista cuentas de email del dominio (Email/list_pops)",
+      "args": ["list-emails", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "provision-smtp": {
+      "description": "Crea un buzón email vía cPanel UAPI y persiste credenciales.smtp en el vault compartido",
+      "args": ["provision-smtp", "--mailbox", "{params.mailbox}", "--domain", "{params.domain}", "--password", "{params.password}", "--default-to", "{params.default_to}", "--conv-id", "{params.conv_id}"],
+      "params": ["mailbox", "domain", "password", "default_to", "conv_id"],
+      "defaults": {"password": "", "default_to": "", "conv_id": ""}
+    },
+    "import-smtp": {
+      "description": "Importa credenciales SMTP existentes (sin tocar cPanel) y las guarda en el vault como credentials.smtp",
+      "args": ["import-smtp", "--host", "{params.host}", "--port", "{params.port}", "--user", "{params.user}", "--pass", "{params.pass}", "--from", "{params.from}", "--default-to", "{params.default_to}", "--conv-id", "{params.conv_id}"],
+      "params": ["host", "port", "user", "pass", "from", "default_to", "conv_id"],
+      "defaults": {"port": "587", "from": "", "default_to": "", "conv_id": ""}
+    },
+    "has-smtp": {
+      "description": "Devuelve {available: bool, capability: 'credentials.smtp'}",
+      "args": ["has-smtp", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "genkey": {
+      "description": "Genera una clave AES-256 para HOSTING_VAULT_KEY",
+      "args": ["genkey"],
+      "params": []
+    }
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "state": {
+    "dir": "temp",
+    "files": ["state.json", "creds_*.enc"]
+  },
+  "capabilities_semantic": {
+    "tags": ["hosting", "cpanel", "email", "dns"],
+    "intent_examples": [
+      "conectar a mi hosting",
+      "listar las cuentas de correo",
+      "qué emails tengo en mi dominio"
+    ],
+    "produces": ["email_account_list", "credentials.smtp", "credentials.cpanel"],
+    "requires": ["credentials.cpanel"]
+  }
+}

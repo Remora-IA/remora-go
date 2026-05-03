@@ -31,11 +31,16 @@ package main
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"channel/adapter"
@@ -139,6 +144,9 @@ func main() {
 
 	// Models available for selection
 	r.HandleFunc(apiBase+"/models", srv.listModels).Methods("GET", "OPTIONS")
+
+	// Email sending (SMTP via hosting)
+	r.HandleFunc(apiBase+"/send-email", srv.handleSendEmail).Methods("POST", "OPTIONS")
 
 	// Frontend estático embebido
 	// GET / → sirve index.html
@@ -313,20 +321,95 @@ func (s *server) createConversation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Pedir primera pregunta sin respuesta previa.
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, "", nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
-	}
-	first := initialFrameworkMessage(conv, q, ok)
-	if first != nil {
-		_ = appendMessage(conv.ID, *first)
+	var first *Message
+
+	if os.Getenv("REMORA_PROFILE") == "cobranza-chile" && contains(req.Frameworks, "foco") {
+		// En modo cobranza, Foco habla primero con prioridades automáticas.
+		// No llamamos runLoop para evitar que Sabio inyecte su saludo en el historial.
+		first = s.triggerFocoFirst(ch, conv)
+		if first != nil {
+			_ = appendMessage(conv.ID, *first)
+		}
+	} else {
+		// Flujo normal: primera pregunta sin respuesta previa.
+		q, ok, err := runLoop(ctx, ch, conv, s.rules, "", nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
+		}
+		first = initialFrameworkMessage(conv, q, ok)
+		if first != nil {
+			_ = appendMessage(conv.ID, *first)
+		}
 	}
 
 	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: map[string]interface{}{
 		"conversation":    conv,
 		"first_question":  first,
 	}})
+}
+
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
+// triggerFocoFirst llama a foco para que dé las prioridades automáticamente
+func (s *server) triggerFocoFirst(ch *adapter.Client, conv *Conversation) *Message {
+	// Usar el driver de foco directamente
+	for _, d := range driversFor(conv) {
+		if d.Name() == "foco" {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			
+			// Simular que el usuario preguntó "¿qué hago hoy?"
+			qctx := QueuedAnswerCtx{
+				Answer:       "iniciar día - mostrar prioridades",
+				QuestionText: "(inicio de sesión)",
+			}
+			if err := d.IngestAnswer(ctx, ch, conv, qctx); err != nil {
+				fmt.Printf("[flujo_api] foco ingest error: %v\n", err)
+			}
+			
+			// Pedir la pregunta de foco (que será las prioridades)
+			// Usar PollQuestionFull si está disponible para capturar chips.
+			type fullPoller interface {
+				PollQuestionFull(context.Context, *adapter.Client, *Conversation, map[string]bool) (nextQuestionResponse, bool)
+			}
+			if fp, hasFull := d.(fullPoller); hasFull {
+				r, ok := fp.PollQuestionFull(ctx, ch, conv, nil)
+				if ok && r.Text != "" {
+					return &Message{
+						ID:             generateMessageID(),
+						Role:           "framework",
+						Framework:      "foco",
+						Content:        r.Text,
+						QuestionID:     r.ID,
+						AskVia:         r.AskVia,
+						SuggestedChips: r.Chips,
+						Timestamp:      time.Now(),
+					}
+				}
+			} else {
+				text, extID, askVia, ok := d.PollQuestion(ctx, ch, conv, nil)
+				if ok && text != "" {
+					return &Message{
+						ID:          generateMessageID(),
+						Role:        "framework",
+						Framework:   "foco",
+						Content:     text,
+						QuestionID:  extID,
+						AskVia:      askVia,
+						Timestamp:   time.Now(),
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func (s *server) getConversation(w http.ResponseWriter, r *http.Request) {
@@ -432,13 +515,14 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	frameworkMsg := Message{
-		ID:         generateMessageID(),
-		Role:       "framework",
-		Framework:  q.Framework,
-		Content:    q.Text,
-		QuestionID: q.ID,
-		AskVia:     q.AskVia,
-		Timestamp:  time.Now(),
+		ID:             generateMessageID(),
+		Role:           "framework",
+		Framework:      q.Framework,
+		Content:        q.Text,
+		QuestionID:     q.ID,
+		AskVia:         q.AskVia,
+		SuggestedChips: q.Chips,
+		Timestamp:      time.Now(),
 	}
 	if err := appendMessage(id, frameworkMsg); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
@@ -495,6 +579,186 @@ func initialFrameworkMessage(conv *Conversation, q handoff.QueuedQuestion, ok bo
 		AskVia:     q.AskVia,
 		Timestamp:  time.Now(),
 	}
+}
+
+// ============================================
+// MESSAGE SEND ENDPOINT (genérico, agnóstico al negocio)
+// ============================================
+//
+// El API NO conoce SMTP, IMAP, Twilio ni cualquier protocolo. Delega el
+// envío al framework `mensajero` (binario CLI) que lee credentials.<channel>
+// del vault compartido. Si la capability no existe, devuelve 412 con un
+// hint de qué framework la provee, y el frontend puede ofrecer el setup.
+//
+// Contrato HTTP:
+//
+//	POST /api/v1/send-email
+//	  body: {subject, body, to?, channel?, conv_id?}
+//	  channel default: "email"  conv_id default: "default"
+//	200 {success:true, message_id, to, channel}
+//	412 {success:false, missing_capability, provider_hint}  (vault vacío)
+//	500 {success:false, error}                              (fallo del envío)
+
+type sendEmailReq struct {
+	Subject string `json:"subject"`
+	Body    string `json:"body"`
+	To      string `json:"to,omitempty"`
+	Channel string `json:"channel,omitempty"`
+	ConvID  string `json:"conv_id,omitempty"`
+}
+
+type sendEmailResp struct {
+	Success           bool   `json:"success"`
+	Channel           string `json:"channel,omitempty"`
+	To                string `json:"to,omitempty"`
+	MessageID         string `json:"message_id,omitempty"`
+	Subject           string `json:"subject,omitempty"`
+	MissingCapability string `json:"missing_capability,omitempty"`
+	ProviderHint      string `json:"provider_hint,omitempty"`
+	Error             string `json:"error,omitempty"`
+}
+
+// envBootstrapOnce migra credenciales SMTP de env vars al vault una sola vez
+// (back-compat con el deploy actual que usa SMTP_USER/SMTP_PASS en Cloud
+// Run). Si el vault ya tiene credentials.smtp para la conv, no hace nada.
+var envBootstrapOnce sync.Map // key: convID → bool
+
+func bootstrapSMTPFromEnvIfNeeded(convID string) {
+	if _, done := envBootstrapOnce.LoadOrStore(convID, true); done {
+		return
+	}
+	if vaultHasFromAPI(convID, "credentials.smtp") {
+		return
+	}
+	user := os.Getenv("SMTP_USER")
+	pass := os.Getenv("SMTP_PASS")
+	if user == "" || pass == "" {
+		return
+	}
+	bundle := map[string]string{
+		"host":       envOr("SMTP_HOST", "mail.patriciastocker.com"),
+		"port":       envOr("SMTP_PORT", "587"),
+		"user":       user,
+		"pass":       pass,
+		"from":       envOr("SMTP_FROM", user),
+		"default_to": envOr("TEST_EMAIL_RECIPIENT", "tom3bs@gmail.com"),
+	}
+	data, _ := json.Marshal(bundle)
+	cmd := exec.Command(vaultBinPath(), "set", "--conv", convOrDefault(convID), "--key", "credentials.smtp", "--stdin")
+	cmd.Env = os.Environ()
+	cmd.Stdin = strings.NewReader(string(data))
+	if out, err := cmd.CombinedOutput(); err != nil {
+		log.Printf("bootstrap SMTP→vault: %v (%s)", err, string(out))
+	} else {
+		log.Printf("bootstrap SMTP→vault: ok (conv=%s)", convOrDefault(convID))
+	}
+}
+
+func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
+	var req sendEmailReq
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "body inválido")
+		return
+	}
+	if req.Subject == "" && req.Body == "" {
+		writeErr(w, http.StatusBadRequest, "subject o body requerido")
+		return
+	}
+	if req.Channel == "" {
+		req.Channel = "email"
+	}
+	if req.ConvID == "" {
+		req.ConvID = "default"
+	}
+
+	bootstrapSMTPFromEnvIfNeeded(req.ConvID)
+
+	binPath, cwd, err := resolveMensajero()
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	bodyB64 := base64.StdEncoding.EncodeToString([]byte(req.Body))
+	args := []string{"send",
+		"--channel", req.Channel,
+		"--to", req.To,
+		"--subject", req.Subject,
+		"--body-b64", bodyB64,
+		"--conv-id", req.ConvID,
+	}
+	cmd := exec.Command(binPath, args...)
+	cmd.Dir = cwd
+	cmd.Env = os.Environ()
+	out, runErr := cmd.Output()
+
+	// Mensajero siempre imprime JSON en stdout, incluso en error.
+	var msResp sendEmailResp
+	if jerr := json.Unmarshal(out, &msResp); jerr != nil {
+		stderr := ""
+		if exitErr, ok := runErr.(*exec.ExitError); ok {
+			stderr = string(exitErr.Stderr)
+		}
+		writeErr(w, http.StatusInternalServerError,
+			fmt.Sprintf("mensajero respuesta inválida: %v stderr=%s out=%s", jerr, stderr, string(out)))
+		return
+	}
+
+	if msResp.MissingCapability != "" {
+		// 412 Precondition Failed: el cliente debe ejecutar provisioning.
+		writeJSON(w, http.StatusPreconditionFailed, APIResponse{
+			Success: false,
+			Data:    msResp,
+			Error:   "credenciales faltantes; ejecutá provisioning con el framework " + msResp.ProviderHint,
+		})
+		return
+	}
+	if !msResp.Success {
+		writeErr(w, http.StatusInternalServerError, "error enviando: "+msResp.Error)
+		return
+	}
+	msResp.Subject = req.Subject
+	writeOK(w, msResp)
+}
+
+// resolveMensajero localiza el binario `frameworkmensajero` y su cwd.
+// Resolución: env REMORA_MENSAJERO_BIN, o ../framework-mensajero/frameworkmensajero
+// relativo a REMORA_ROOT.
+func resolveMensajero() (string, string, error) {
+	root := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
+	cwd := filepath.Join(root, "framework-mensajero")
+	bin := os.Getenv("REMORA_MENSAJERO_BIN")
+	if bin == "" {
+		bin = filepath.Join(cwd, "frameworkmensajero")
+	}
+	if _, err := os.Stat(bin); err != nil {
+		return "", "", fmt.Errorf("framework-mensajero no encontrado en %s: %w", bin, err)
+	}
+	return bin, cwd, nil
+}
+
+// vaultBinPath localiza el binario vault.
+func vaultBinPath() string {
+	if v := os.Getenv("REMORA_VAULT_BIN"); v != "" {
+		return v
+	}
+	root := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
+	return filepath.Join(root, "channel", "bin", "vault")
+}
+
+// vaultHasFromAPI hace exit-code-check sin desencriptar.
+func vaultHasFromAPI(convID, key string) bool {
+	cmd := exec.Command(vaultBinPath(), "has", "--conv", convOrDefault(convID), "--key", key)
+	cmd.Env = os.Environ()
+	return cmd.Run() == nil
+}
+
+func convOrDefault(c string) string {
+	c = strings.TrimSpace(c)
+	if c == "" {
+		return "default"
+	}
+	return c
 }
 
 func knownFrameworks() []string {
@@ -699,13 +963,14 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	frameworkMsg := Message{
-		ID:         generateMessageID(),
-		Role:       "framework",
-		Framework:  q.Framework,
-		Content:    q.Text,
-		QuestionID: q.ID,
-		AskVia:     q.AskVia,
-		Timestamp:  time.Now(),
+		ID:             generateMessageID(),
+		Role:           "framework",
+		Framework:      q.Framework,
+		Content:        q.Text,
+		QuestionID:     q.ID,
+		AskVia:         q.AskVia,
+		SuggestedChips: q.Chips,
+		Timestamp:      time.Now(),
 	}
 	if err := appendMessage(id, frameworkMsg); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
