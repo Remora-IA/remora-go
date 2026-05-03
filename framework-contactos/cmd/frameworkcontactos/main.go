@@ -274,7 +274,10 @@ func cmdListMissing(args []string) {
 		entityQuery = fmt.Sprintf("SELECT id, name FROM %ss ORDER BY name LIMIT 500", *entityType)
 	}
 
-	edb, err := sql.Open("sqlite", entityDB)
+	// La entityDB (panalbit.db en modo cobranza) es READ-ONLY por contrato
+	// (ARCHITECTURE.md §3-4). Forzamos mode=ro para que cualquier escritura
+	// accidental falle a nivel de SQLite.
+	edb, err := sql.Open("sqlite", "file:"+entityDB+"?mode=ro&_pragma=query_only(true)")
 	if err != nil {
 		writeErr("open entity db: " + err.Error())
 		os.Exit(1)

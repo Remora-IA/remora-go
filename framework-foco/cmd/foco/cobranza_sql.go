@@ -37,7 +37,11 @@ var cobrablesStates = []string{
 // ranqueados por saldo y días de mora. Usa charges (estado impago) + milestones
 // (monto) + clients (nombre).
 func queryRealPriorities(dbPath string) ([]priorityItem, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	// panalbit.db es READ-ONLY por contrato (ARCHITECTURE.md §3-4). Forzamos
+	// mode=ro + query_only para que cualquier INSERT/UPDATE/DELETE accidental
+	// falle a nivel de SQLite, no a nivel de revisión humana.
+	dsn := "file:" + dbPath + "?mode=ro&_pragma=query_only(true)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("abrir db: %w", err)
 	}
