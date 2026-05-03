@@ -1,0 +1,110 @@
+# =============================================================================
+# Remora Go - .gitignore
+# =============================================================================
+# Regla general: en este repo se versiona SOLO codigo fuente y configuracion.
+# Todo lo demas (build artifacts, runtime state, secrets, logs) NO va al repo.
+#
+# Si tu archivo no esta tracked y "git status" lo muestra, agrega su patron
+# aqui en lugar de hacer "git add -f".
+# =============================================================================
+
+# --- macOS / editores -------------------------------------------------------
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# --- Build artifacts (binarios compilados) ----------------------------------
+# Los binarios se regeneran con `go build` o Cloud Build. NUNCA versionar.
+bin/
+**/bin/
+
+# Binarios por framework (mismo nombre que el paquete)
+channel/channel
+channel/channel-new
+channel/orchestrator
+channel/cmd/channel/channel
+channel/cmd/vault/vault
+framework-alfa/frameworkalfa
+framework-auditor/frameworkauditor
+framework-charlie/charlie
+framework-contactos/frameworkcontactos
+framework-echo/frameworkecho
+framework-excel/frameworkexcel
+framework-foco/foco
+framework-foco/foco_state.json
+framework-gmail/framework-gmail
+framework-gmail/frameworkgmail
+framework-hosting/frameworkhosting
+framework-indexa/frameworkindexa
+framework-indexa/panalbit-sync
+framework-mecanico/frameworkmecanico
+framework-mensajero/frameworkmensajero
+framework-paladin/bin/
+framework-quine/quine
+framework-sabio/frameworksabio
+framework-tareas/frameworktareas
+remora-flujo/flujo
+remora-flujo/flujo_api
+remora-flujo/flujo_test
+remora-flujo/agentrpc
+remora-flujo/cmd/flujo_api/flujo_api
+remora-flujo/cmd/flujo_api/channel
+
+# Cualquier binario que aparezca en cmd/ con el mismo nombre que el dir
+**/cmd/*/*[!.go]
+
+# Go build/test outputs
+*.test
+*.out
+coverage.out
+coverage.html
+
+# --- Runtime state (datos por instancia, no compartidos) --------------------
+# Cada framework escribe estado/cache aqui. Cada deploy parte limpio.
+temp/
+**/temp/
+
+# --- Logs y traces ----------------------------------------------------------
+# Regenerables. Nunca aportan valor versionarlos.
+trace_pal_*.json
+trace_gf_*.json
+*.log
+
+# Sessions del orquestador (logs por conversacion)
+sessions/
+
+# --- Secrets (NUNCA versionar) ----------------------------------------------
+# Variables de entorno: usar .env.example como template, nunca .env real.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Credenciales encriptadas (incluso encriptadas, no van al repo)
+*.enc
+creds_*.enc
+
+# Vault local
+channel/vault_data/
+**/vault_data/
+
+# --- Bases de datos (data del cliente, no versionable) ----------------------
+# panalbit.db, profiles/*/data.db, etc. SQLite con datos reales del cliente.
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# --- Charlie internals ------------------------------------------------------
+framework-charlie/temp/
+framework-charlie/temp/applied.jsonl
+framework-charlie/temp/paladin/
+
+# --- Auditor / Mecanico working data ---------------------------------------
+framework-auditor/data/working.json
+framework-auditor/data/findings.json
+framework-mecanico/data/applied.jsonl
+framework-mecanico/data/proposals.json

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-05-03
+
+> **Release**: profesionalizar repo (Fase 1)
+
+### Repo
+
+- **.gitignore**: archivo nuevo (regla unica: solo codigo fuente)
+- **.env.example**: archivo nuevo (plantilla env vars para local + prod)
+- **README.md**: archivo nuevo (onboarding 5 pasos + convenciones)
+
+### Limpieza (untrack)
+
+- **8 .DS_Store**: removidos del index (macOS junk)
+- **5 binarios compilados**: removidos (channel, frameworkecho, frameworksabio, flujo_api, flujo_api/channel)
+- **framework-indexa/data/panalbit.db**: removido (data del cliente, no versionable)
+- **framework-paladin/.env**: removido (patron de leak, ahora .env.example es el template)
+- **22 archivos en temp/**: removidos (traces de paladin + uploads regenerables)
+
 ## [0.1.9] - 2026-05-03
 
 > **Release**: expandir flujo
