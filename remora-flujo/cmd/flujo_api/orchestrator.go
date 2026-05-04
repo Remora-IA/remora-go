@@ -118,7 +118,8 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		// cliente hablar sin depender de history parsing. Commit B.
 		if task := activeTaskContext(); task != nil {
 			if ctxLine := buildActiveTaskLine(enrichedAnswer, task); ctxLine != "" {
-				enrichedAnswer = ctxLine + "\n\n" + enrichedAnswer
+				// Un solo espacio: Channel rechaza \n como unsafe arg (Axioma 4.3).
+				enrichedAnswer = ctxLine + enrichedAnswer
 				enrichSpan.Var("active_task_injected", task.Title)
 				enrichSpan.Decision("inject_active_task",
 					fmt.Sprintf("ledger tiene task activa (%s); inyectada como contexto", task.Title))

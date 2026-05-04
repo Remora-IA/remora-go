@@ -112,9 +112,9 @@ func tareasBinPath() string {
 // la primera interacción tipo "Gestionar: X" que el enrichment posterior
 // va a manejar con más detalle).
 //
-// Formato: un tag legible por el framework que lo recibe como parte del
-// answer, pero prefijado con [active_task: ...] para que sea identificable
-// y skippable por prompts estrictos.
+// Formato: prosa natural sin metacaracteres. El Channel rechaza `[]`, `"`,
+// `\n`, `|`, `;`, `` ` ``, `<`, `>` (Axioma 4.3 sanitización de paths), así
+// que la inyección debe ser texto plano.
 func buildActiveTaskLine(userAnswer string, task *ActiveTask) string {
 	if task == nil || task.Title == "" {
 		return ""
@@ -126,9 +126,31 @@ func buildActiveTaskLine(userAnswer string, task *ActiveTask) string {
 	}
 	// Si el userAnswer ya contiene el nombre del deudor literal, no
 	// necesitamos inyectar contexto.
-	if task.Title != "" && strings.Contains(strings.ToLower(userAnswer), strings.ToLower(task.Title)) {
+	if strings.Contains(strings.ToLower(userAnswer), strings.ToLower(task.Title)) {
 		return ""
 	}
-	return "[contexto_activo: cliente=\"" + task.Title + "\" entity_ref=" + task.EntityRef +
-		" action=" + task.Action + "]"
+	// Sanitizamos el título por si traía metacaracteres. Los reemplazos
+	// son conservadores: el nombre del cliente en un ledger casi nunca
+	// tiene estos chars, pero defendemos igual.
+	clean := sanitizeForArg(task.Title)
+	if clean == "" {
+		return ""
+	}
+	return "Contexto: el usuario está trabajando sobre el cliente " + clean +
+		" (ref " + sanitizeForArg(task.EntityRef) + ", acción " +
+		sanitizeForArg(task.Action) + "). "
+}
+
+// sanitizeForArg elimina caracteres que el Channel rechaza en args
+// (Axioma 4.3). Reemplaza por espacio cuando aparecen.
+func sanitizeForArg(s string) string {
+	replacer := strings.NewReplacer(
+		"\n", " ", "\r", " ",
+		"|", " ", ";", " ",
+		"`", " ", "$(", " ",
+		"&&", " ", "||", " ",
+		">", " ", "<", " ",
+		"..", " ",
+	)
+	return strings.TrimSpace(replacer.Replace(s))
 }
