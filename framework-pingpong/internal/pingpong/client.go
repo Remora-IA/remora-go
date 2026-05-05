@@ -19,6 +19,7 @@ type Step struct {
 	ID          int    `json:"id"`
 	Instruction string `json:"instruction"`
 	Done        bool   `json:"done"`
+	FailCount   int    `json:"fail_count,omitempty"`
 }
 
 // QA representa un registro de pregunta-respuesta
@@ -54,6 +55,7 @@ type Progress struct {
 	Checkpoint   string    `json:"checkpoint,omitempty"`     // Snapshot del archivo al pasar el último mini-test
 	CheckpointFile string  `json:"checkpointFile,omitempty"` // Path original del checkpoint
 	CompletedAll bool      `json:"completedAll"` // Si completó todos los pasos
+	LastVerifyDecls []string `json:"lastVerifyDecls,omitempty"` // Decl names at last scan/verify for rewrite detection
 }
 
 // Result representa el resultado de una operacion.
@@ -61,6 +63,14 @@ type Result struct {
 	Success bool        `json:"success"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
+}
+
+// ScanResult wraps Progress with additional scan analysis fields.
+type ScanResult struct {
+	*Progress
+	CompileOK  bool     `json:"compile_ok"`
+	CompileLog string   `json:"compile_log,omitempty"`
+	Noise      []string `json:"noise,omitempty"`
 }
 
 // Client es el cliente principal del framework.
@@ -478,6 +488,118 @@ func (c *Client) Run(filePath string, stdin string, expected string) (*Result, e
 	}, nil
 }
 
+// Clean removes noisy declarations (code that doesn't map to any step) from the user's file.
+// If explicitNames is non-empty, removes those specific declarations (fallback mode).
+// Otherwise auto-detects noise by name-matching against step instructions.
+// It ONLY deletes lines — never adds or modifies code. Safe for the AI to invoke.
+func (c *Client) Clean(filePath string, explicitNames []string) (*Result, error) {
+	childCtx := c.ctx.Child("Clean")
+	defer childCtx.End()
+
+	p, err := c.loadOrCreate()
+	if err != nil {
+		return nil, err
+	}
+	if !p.Active {
+		return nil, fmt.Errorf("no hay proyecto activo")
+	}
+	if filePath == "" {
+		return nil, fmt.Errorf("clean requiere --file <archivo>")
+	}
+
+	var targets []string
+	if len(explicitNames) > 0 {
+		targets = explicitNames
+	} else {
+		targets = DetectNoiseNames(filePath, p.Steps)
+	}
+
+	if len(targets) == 0 {
+		return &Result{
+			Success: true,
+			Message: "No se detectó ruido para limpiar.",
+		}, nil
+	}
+
+	removed, rerr := RemoveDeclarations(filePath, targets)
+	if rerr != nil {
+		return nil, rerr
+	}
+
+	// Update declaration baseline so rewrite guard doesn't trigger on this clean.
+	p.LastVerifyDecls = ExtractDeclNames(filePath)
+	_ = c.saveProgress(p)
+
+	childCtx.Decision("clean", fmt.Sprintf("removed %v", removed))
+	return &Result{
+		Success: true,
+		Message: fmt.Sprintf("Limpieza: se eliminaron %d declaraciones: %s. Solo se borraron líneas, no se agregó código.",
+			len(removed), strings.Join(removed, ", ")),
+		Data: map[string]interface{}{
+			"removed": removed,
+		},
+	}, nil
+}
+
+// Peek returns a small window of source code around a specific line.
+// The AI uses this to get targeted context without reading the full file.
+func (c *Client) Peek(filePath string, line int, radius int) (*Result, error) {
+	if filePath == "" {
+		return nil, fmt.Errorf("peek requiere --file <archivo>")
+	}
+	if line < 1 {
+		return nil, fmt.Errorf("peek requiere --line <número> (positivo)")
+	}
+	if radius < 1 {
+		radius = 3
+	}
+	if radius > 10 {
+		radius = 10
+	}
+
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer %s: %w", abs, err)
+	}
+
+	lines := strings.Split(string(src), "\n")
+	total := len(lines)
+	start := line - radius
+	if start < 1 {
+		start = 1
+	}
+	end := line + radius
+	if end > total {
+		end = total
+	}
+
+	width := len(fmt.Sprintf("%d", end))
+	var snippet []string
+	for i := start; i <= end; i++ {
+		prefix := "  "
+		if i == line {
+			prefix = "→ "
+		}
+		snippet = append(snippet, fmt.Sprintf("%s%*d | %s", prefix, width, i, lines[i-1]))
+	}
+
+	return &Result{
+		Success: true,
+		Message: fmt.Sprintf("Líneas %d–%d de %d (total %d líneas):", start, end, total, total),
+		Data: map[string]interface{}{
+			"snippet":    snippet,
+			"line":       line,
+			"total":      total,
+			"range_from": start,
+			"range_to":   end,
+		},
+	}, nil
+}
+
 // Reset reinicia el proyecto incluyendo traces
 func (c *Client) Reset() (*Result, error) {
 	childCtx := c.ctx.Child("Reset")
@@ -556,6 +678,222 @@ func (c *Client) SetSteps(stepsArg string) (*Result, error) {
 		Success: true,
 		Message: fmt.Sprintf("Pasos registrados. Mini-test 1: %v", pendingTest),
 		Data:    steps,
+	}, nil
+}
+
+// Subdivide reemplaza un paso por varios sub-pasos más granulares.
+// Renumera todos los pasos secuencialmente y recalcula el batch actual.
+// Uso: cuando el usuario se traba en un paso, la IA lo parte en sub-pasos
+// más concretos sin tocar el resto del plan.
+func (c *Client) Subdivide(stepID int, substepsArg string) (*Result, error) {
+	childCtx := c.ctx.Child("Subdivide")
+	defer childCtx.End()
+
+	p, err := c.loadOrCreate()
+	if err != nil {
+		return nil, err
+	}
+	if !p.Active {
+		return nil, fmt.Errorf("no hay proyecto activo. Usa 'start --goal' primero")
+	}
+	if p.InMinitest {
+		return nil, fmt.Errorf("no se puede subdividir durante un mini-test")
+	}
+
+	// Parsear sub-pasos
+	parts := strings.Split(substepsArg, ";")
+	var substeps []string
+	for _, s := range parts {
+		s = strings.TrimSpace(s)
+		if s != "" {
+			substeps = append(substeps, s)
+		}
+	}
+	if len(substeps) < 2 {
+		return nil, fmt.Errorf("subdivide requiere al menos 2 sub-pasos")
+	}
+
+	// Buscar el paso a subdividir
+	idx := -1
+	for i, s := range p.Steps {
+		if s.ID == stepID {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return nil, fmt.Errorf("paso %d no encontrado", stepID)
+	}
+	if p.Steps[idx].Done {
+		return nil, fmt.Errorf("paso %d ya completado, no se puede subdividir", stepID)
+	}
+
+	oldInstruction := p.Steps[idx].Instruction
+
+	// Construir nueva lista: anteriores + sub-pasos + posteriores
+	var newSteps []Step
+	newSteps = append(newSteps, p.Steps[:idx]...)
+	for _, sub := range substeps {
+		newSteps = append(newSteps, Step{Instruction: sub, Done: false})
+	}
+	newSteps = append(newSteps, p.Steps[idx+1:]...)
+
+	// Renumerar secuencialmente
+	for i := range newSteps {
+		newSteps[i].ID = i + 1
+	}
+
+	p.Steps = newSteps
+	p.CurrentStep = idx + 1 // ID del primer sub-paso (1-based)
+
+	// Recalcular batch
+	batchSize := p.BatchSize
+	if batchSize == 0 {
+		batchSize = 3
+	}
+	p.BatchIndex = (idx / batchSize) + 1
+	batchStart, batchEnd := batchRange(p.BatchIndex, batchSize, len(p.Steps))
+	var pending []string
+	for i := batchStart; i < batchEnd; i++ {
+		pending = append(pending, p.Steps[i].Instruction)
+	}
+	p.PendingTest = pending
+	p.InTest = true
+
+	if err := c.saveProgress(p); err != nil {
+		return nil, err
+	}
+
+	childCtx.Decision("paso-subdividido", fmt.Sprintf("'%s' → %d sub-pasos", oldInstruction, len(substeps)))
+
+	return &Result{
+		Success: true,
+		Message: fmt.Sprintf("Paso %d subdividido en %d sub-pasos. Paso actual: %d (%s)",
+			stepID, len(substeps), p.CurrentStep, newSteps[idx].Instruction),
+		Data: p,
+	}, nil
+}
+
+// Scan verifica todos los pasos contra un archivo existente y auto-avanza
+// los que ya están cumplidos. Útil cuando el usuario ya tiene código previo
+// y no debe repetir pasos que ya hizo.
+// Salta los mini-tests de batches anteriores (son trabajo previo, no actual).
+func (c *Client) Scan(filePath string) (*Result, error) {
+	childCtx := c.ctx.Child("Scan")
+	defer childCtx.End()
+
+	p, err := c.loadOrCreate()
+	if err != nil {
+		return nil, err
+	}
+	if !p.Active {
+		return nil, fmt.Errorf("no hay proyecto activo. Usa 'start --goal' primero")
+	}
+	if filePath == "" {
+		return nil, fmt.Errorf("scan requiere --file <archivo>")
+	}
+	if len(p.Steps) <= 1 {
+		return nil, fmt.Errorf("primero registrá los pasos con set-steps. Orden: start → set-steps → scan")
+	}
+
+	batchSize := p.BatchSize
+	if batchSize == 0 {
+		batchSize = 3
+	}
+
+	var passed []int
+	for i := range p.Steps {
+		if p.Steps[i].Done {
+			passed = append(passed, p.Steps[i].ID)
+			continue
+		}
+		report, verr := VerifyFileLenient(filePath, p.Steps[i])
+		if verr != nil {
+			continue
+		}
+		if !report.Passed {
+			continue
+		}
+		p.Steps[i].Done = true
+		p.Steps[i].FailCount = 0
+		passed = append(passed, p.Steps[i].ID)
+	}
+
+	// Buscar el primer paso no cumplido
+	firstUndone := -1
+	for i := range p.Steps {
+		if !p.Steps[i].Done {
+			firstUndone = i
+			break
+		}
+	}
+
+	// Save declaration names for rewrite detection in verify
+	p.LastVerifyDecls = ExtractDeclNames(filePath)
+
+	// Post-scan analysis: compile check + noise detection
+	compileOK, compileLog, noise := ScanAnalysis(filePath, p.Steps)
+
+	if firstUndone == -1 {
+		p.CompletedAll = true
+		p.Active = false
+		_ = c.saveProgress(p)
+		childCtx.Decision("scan-completo", fmt.Sprintf("%d pasos, todos cumplidos", len(p.Steps)))
+		msg := "Scan: todos los pasos ya están cumplidos. Pasá a la fase final (run)."
+		if !compileOK {
+			msg += fmt.Sprintf(" ⚠️ ADVERTENCIA: el código no compila: %s", compileLog)
+		}
+		if len(noise) > 0 {
+			msg += fmt.Sprintf(" ⚠️ Código no relacionado: %s", strings.Join(noise, "; "))
+		}
+		return &Result{
+			Success: true,
+			Message: msg,
+			Data:    &ScanResult{Progress: p, CompileOK: compileOK, CompileLog: compileLog, Noise: noise},
+		}, nil
+	}
+
+	// Avanzar batch al que corresponde el primer paso pendiente
+	p.CurrentStep = p.Steps[firstUndone].ID
+	newBatchIndex := (firstUndone / batchSize) + 1
+	p.BatchIndex = newBatchIndex
+
+	// Checkpoint del archivo actual si avanzamos batches
+	if newBatchIndex > 1 {
+		if content, rerr := os.ReadFile(filePath); rerr == nil {
+			p.Checkpoint = string(content)
+			p.CheckpointFile = filePath
+		}
+	}
+
+	// Actualizar pending test del batch actual
+	batchStart, batchEnd := batchRange(p.BatchIndex, batchSize, len(p.Steps))
+	var pending []string
+	for i := batchStart; i < batchEnd; i++ {
+		pending = append(pending, p.Steps[i].Instruction)
+	}
+	p.PendingTest = pending
+	p.InTest = true
+	p.InMinitest = false
+
+	_ = c.saveProgress(p)
+
+	step := p.Steps[firstUndone]
+	childCtx.Decision("scan-avanzado", fmt.Sprintf("%d cumplidos, continuar paso %d", len(passed), step.ID))
+
+	msg := fmt.Sprintf("Scan: %d pasos ya cumplidos. Continuá con el paso %d: %s",
+		len(passed), step.ID, step.Instruction)
+	if !compileOK {
+		msg += fmt.Sprintf(" ⚠️ ADVERTENCIA: el código no compila: %s", compileLog)
+	}
+	if len(noise) > 0 {
+		msg += fmt.Sprintf(" ⚠️ Código no relacionado: %s", strings.Join(noise, "; "))
+	}
+
+	return &Result{
+		Success: true,
+		Message: msg,
+		Data:    &ScanResult{Progress: p, CompileOK: compileOK, CompileLog: compileLog, Noise: noise},
 	}, nil
 }
 
@@ -640,10 +978,11 @@ func (c *Client) Verify(filePath string) (*Result, error) {
 			p.InTest = true
 			_ = c.saveProgress(p)
 			childCtx.Decision("minitest-pasado", fmt.Sprintf("batch %d", p.BatchIndex-1))
+			firstStep := p.Steps[newStart]
 			return &Result{
 				Success: true,
-				Message: fmt.Sprintf("✓ Mini-test %d pasado. Siguiente batch (Mini-test %d): %v",
-					p.BatchIndex-1, p.BatchIndex, pending),
+				Message: fmt.Sprintf("✓ Mini-test %d pasado. Continuá con el paso %d: %s",
+					p.BatchIndex-1, firstStep.ID, firstStep.Instruction),
 				Data: p,
 			}, nil
 		}
@@ -680,24 +1019,92 @@ func (c *Client) Verify(filePath string) (*Result, error) {
 		return nil, fmt.Errorf("no hay paso actual (currentStep=%d)", p.CurrentStep)
 	}
 
+	// Rewrite guard: detect if the file was wholesale replaced since last scan/verify.
+	// A legitimate edit adds 1-2 declarations per step. A rewrite removes many and adds new ones.
+	if len(p.LastVerifyDecls) > 0 {
+		currentDecls := ExtractDeclNames(filePath)
+		lastSet := make(map[string]bool)
+		for _, n := range p.LastVerifyDecls {
+			lastSet[n] = true
+		}
+		currentSet := make(map[string]bool)
+		for _, n := range currentDecls {
+			currentSet[n] = true
+		}
+
+		var removed int
+		var newNames []string
+		for _, n := range p.LastVerifyDecls {
+			if n == "main" || n == "init" {
+				continue
+			}
+			if !currentSet[n] {
+				removed++
+			}
+		}
+		for _, n := range currentDecls {
+			if n == "main" || n == "init" {
+				continue
+			}
+			if !lastSet[n] {
+				newNames = append(newNames, n)
+			}
+		}
+
+		if removed >= 2 && len(newNames) >= 1 {
+			// Likely a wholesale rewrite — don't update LastVerifyDecls so it triggers again.
+			childCtx.Decision("rewrite-detectado", fmt.Sprintf("removed=%d new=%v", removed, newNames))
+			return &Result{
+				Success: false,
+				Message: fmt.Sprintf("⚠️ Reescritura detectada: desaparecieron %d declaraciones y aparecieron nuevas (%s). "+
+					"Si la IA editó el archivo, revertí los cambios — solo el usuario escribe código. "+
+					"Si el usuario lo hizo, ejecutá './pingpong scan --file %s' para re-evaluar el progreso.",
+					removed, strings.Join(newNames, ", "), filePath),
+				Data: map[string]interface{}{
+					"rewrite_detected": true,
+					"new_declarations": newNames,
+					"removed_count":    removed,
+				},
+			}, nil
+		}
+
+		// No rewrite: update baseline for next verify.
+		p.LastVerifyDecls = currentDecls
+	}
+
 	report, verr := VerifyFile(filePath, current)
 	if verr != nil {
 		return nil, verr
 	}
 
 	if !report.Passed {
-		childCtx.Decision("paso-no-cumplido", fmt.Sprintf("step %d: %s", current.ID, report.Missing))
+		// Incrementar fail_count del paso actual
+		for i := range p.Steps {
+			if p.Steps[i].ID == current.ID {
+				p.Steps[i].FailCount++
+				current = p.Steps[i]
+				break
+			}
+		}
+		_ = c.saveProgress(p)
+
+		msg := fmt.Sprintf("✗ Paso %d incompleto: %s", current.ID, report.Missing)
+		if current.FailCount >= 3 {
+			msg += fmt.Sprintf(" [fail_count=%d → considerá subdividir este paso con ./pingpong subdivide]", current.FailCount)
+		}
+		childCtx.Decision("paso-no-cumplido", fmt.Sprintf("step %d (fail %d): %s", current.ID, current.FailCount, report.Missing))
 		return &Result{
 			Success: false,
-			Message: fmt.Sprintf("✗ Paso %d incompleto: %s", current.ID, report.Missing),
+			Message: msg,
 			Data:    report,
 		}, nil
 	}
 
-	// Marcar paso done y avanzar currentStep.
+	// Marcar paso done, resetear fail_count, y avanzar currentStep.
 	for i := range p.Steps {
 		if p.Steps[i].ID == current.ID {
 			p.Steps[i].Done = true
+			p.Steps[i].FailCount = 0
 			break
 		}
 	}

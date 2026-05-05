@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18] - 2026-05-05
+
+> **Release**: actualizar proyecto
+
+### Repo
+
+- **framework-pingpong/pingpong**: configuracion
+- **framework-pingpong/pingpong_progress.json**: +23 / -29
+- **framework-pingpong/INITIAL_PROMPT.md**: +160 / -12
+- **framework-pingpong/main.go**: funciones: cmdSubdivide, cmdClean, cmdPeek, cmdScan
+- **pingpong/client.go**: funciones: (c *Client) Clean, (c *Client) Peek, (c *Client) Subdivide, (c *Client) Scan | tipos: ScanResult
+- **pingpong/verifier.go**: funciones: extractSnippet, VerifyFileLenient, DetectNoiseNames, RemoveDeclarations | tipos: removal, declInfo
+- **servidor-rpc/cliente.go**: archivo nuevo
+- **servidor-rpc/main.go**: funciones: main | tipos: Args, Reply, Servicio
+- **framework-pingpong/main.go**: codigo modificado
+- **servidor-rpc/server.go**: codigo modificado
+
 ## [0.1.17] - 2026-05-05
 
 > **Release**: expandir flujo, paladin, quine

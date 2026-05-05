@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"framework-pingpong/internal/paladin"
@@ -29,6 +30,14 @@ func main() {
 		cmdStart(os.Args[2:])
 	case "set-steps":
 		cmdSetSteps(os.Args[2:])
+	case "subdivide":
+		cmdSubdivide(os.Args[2:])
+	case "scan":
+		cmdScan(os.Args[2:])
+	case "clean":
+		cmdClean(os.Args[2:])
+	case "peek":
+		cmdPeek(os.Args[2:])
 	case "verify":
 		cmdVerify(os.Args[2:])
 	case "run":
@@ -61,6 +70,13 @@ USO:
   ./pingpong init                         Inicializar proyecto
   ./pingpong start --goal "<objetivo>"    Iniciar sesión
   ./pingpong set-steps --steps "p1;p2;p3" Registrar pasos (la IA los define)
+  ./pingpong subdivide --step <id> --substeps "s1;s2;s3"
+                                          Subdividir un paso en sub-pasos más granulares
+  ./pingpong scan --file path.go           Escanear archivo existente y auto-avanzar pasos cumplidos
+  ./pingpong clean --file path.go [--remove "A;B"]
+                                          Eliminar declaraciones ruidosas (solo borra, nunca agrega)
+  ./pingpong peek --file path.go --line N [--radius 3]
+                                          Ver líneas alrededor de una línea específica
   ./pingpong verify --file path.go        Verificar paso actual (syntax + type-check + AST)
   ./pingpong run --file path.go [--stdin "..."] [--expect "..."]
                                           Compilar y ejecutar en sandbox (10s timeout)
@@ -126,6 +142,109 @@ func cmdSetSteps(args []string) {
 
 	client := pingpong.New()
 	result, err := client.SetSteps(steps)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdSubdivide(args []string) {
+	trace := paladin.NewTrace("Subdivide")
+	defer trace.Flush()
+
+	stepStr := extractFlag(args, "--step")
+	substeps := extractFlag(args, "--substeps")
+
+	if stepStr == "" || substeps == "" {
+		fmt.Println("Error: necesitas --step <id> --substeps \"sub1;sub2;sub3\"")
+		os.Exit(1)
+	}
+
+	var stepID int
+	if _, err := fmt.Sscanf(stepStr, "%d", &stepID); err != nil {
+		fmt.Printf("Error: ID inválido: %s\n", stepStr)
+		os.Exit(1)
+	}
+
+	client := pingpong.New()
+	result, err := client.Subdivide(stepID, substeps)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdClean(args []string) {
+	trace := paladin.NewTrace("Clean")
+	defer trace.Flush()
+
+	file := extractFlag(args, "--file")
+	removeStr := extractFlag(args, "--remove")
+
+	var explicitNames []string
+	if removeStr != "" {
+		for _, n := range strings.Split(removeStr, ";") {
+			n = strings.TrimSpace(n)
+			if n != "" {
+				explicitNames = append(explicitNames, n)
+			}
+		}
+	}
+
+	client := pingpong.New()
+	result, err := client.Clean(file, explicitNames)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdPeek(args []string) {
+	file := extractFlag(args, "--file")
+	lineStr := extractFlag(args, "--line")
+	radiusStr := extractFlag(args, "--radius")
+
+	line := 1
+	if lineStr != "" {
+		if v, err := strconv.Atoi(lineStr); err == nil {
+			line = v
+		}
+	}
+	radius := 3
+	if radiusStr != "" {
+		if v, err := strconv.Atoi(radiusStr); err == nil {
+			radius = v
+		}
+	}
+
+	client := pingpong.New()
+	result, err := client.Peek(file, line, radius)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdScan(args []string) {
+	trace := paladin.NewTrace("Scan")
+	defer trace.Flush()
+
+	file := extractFlag(args, "--file")
+
+	client := pingpong.New()
+	result, err := client.Scan(file)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)

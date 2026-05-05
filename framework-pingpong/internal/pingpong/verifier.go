@@ -9,6 +9,8 @@ import (
 	"go/types"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -32,6 +34,41 @@ type VerifyReport struct {
 	Passed      bool     `json:"passed"`
 	Missing     string   `json:"missing,omitempty"`
 	Evidence    []string `json:"evidence,omitempty"`
+	Snippet     []string `json:"snippet,omitempty"`
+}
+
+// extractSnippet extracts lines around an error line from source code.
+// errMsg must contain "file:LINE:COL: msg" format.
+// Returns formatted lines like "  12 |   code" with "→ 14 |   code" for the error line.
+func extractSnippet(src []byte, errMsg string, radius int) []string {
+	parts := strings.SplitN(errMsg, ":", 4)
+	if len(parts) < 3 {
+		return nil
+	}
+	lineNum, err := strconv.Atoi(parts[1])
+	if err != nil || lineNum < 1 {
+		return nil
+	}
+	lines := strings.Split(string(src), "\n")
+	start := lineNum - radius
+	if start < 1 {
+		start = 1
+	}
+	end := lineNum + radius
+	if end > len(lines) {
+		end = len(lines)
+	}
+
+	width := len(fmt.Sprintf("%d", end))
+	var snippet []string
+	for i := start; i <= end; i++ {
+		prefix := "  "
+		if i == lineNum {
+			prefix = "→ "
+		}
+		snippet = append(snippet, fmt.Sprintf("%s%*d | %s", prefix, width, i, lines[i-1]))
+	}
+	return snippet
 }
 
 // inferExpectation convierte el texto declarativo de un paso en una expectativa AST.
@@ -43,26 +80,41 @@ func inferExpectation(step Step) Expectation {
 	switch {
 	case strings.Contains(t, "función main") || strings.Contains(t, "funcion main") || strings.Contains(t, "func main"):
 		e.Kind, e.Name = "func", "main"
+	case strings.Contains(t, "método") || strings.Contains(t, "metodo") || strings.Contains(t, "receiver"):
+		e.Kind = "method"
 	case strings.Contains(t, "función ") || strings.Contains(t, "funcion "):
 		e.Kind = "func"
 		e.Name = extractName(step.Instruction, []string{"función ", "funcion ", "func "})
+	case strings.Contains(t, "struct") || strings.Contains(t, "estructura"):
+		e.Kind = "struct"
+	case strings.Contains(t, "importar") || strings.Contains(t, "import"):
+		e.Kind = "import"
 	case strings.Contains(t, "array ") || strings.Contains(t, "slice "):
 		e.Kind = "slice"
-		e.Name = extractName(step.Instruction, []string{"array ", "slice "})
 	case strings.Contains(t, "mapa ") || strings.Contains(t, "map "):
 		e.Kind = "map"
-		e.Name = extractName(step.Instruction, []string{"mapa ", "map "})
 	case strings.Contains(t, "variable "):
 		e.Kind = "var"
-		e.Name = extractName(step.Instruction, []string{"variable "})
 	case strings.Contains(t, "retornar") || strings.Contains(t, "return"):
 		e.Kind = "return"
 	case strings.Contains(t, "búsqueda") || strings.Contains(t, "busqueda") ||
 		strings.Contains(t, "loop") || strings.Contains(t, "iterar") ||
 		strings.Contains(t, "implementar"):
 		e.Kind = "for"
+	case strings.Contains(t, "registrar") || strings.Contains(t, "register"):
+		e.Kind = "call"
+		e.Name = "Register"
+	case strings.Contains(t, "listener") || strings.Contains(t, "listen") || strings.Contains(t, "escuche") || strings.Contains(t, "escuchar"):
+		e.Kind = "call"
+		e.Name = "Listen"
+	case strings.Contains(t, "accept") || strings.Contains(t, "aceptar") || strings.Contains(t, "acceptar"):
+		e.Kind = "call"
+		e.Name = "Accept"
+	case strings.Contains(t, "bloquear") || strings.Contains(t, "mantener") || strings.Contains(t, "servidor corriendo"):
+		e.Kind = "call"
+		e.Name = "Accept"
 	default:
-		e.Kind = "any"
+		e.Kind = "unknown"
 	}
 	return e
 }
@@ -111,9 +163,11 @@ func extractName(text string, prefixes []string) string {
 	return ""
 }
 
-// VerifyFile parsea el archivo Go y evalúa si el paso actual está cumplido.
-// No interpreta, no opina — solo inspecciona el AST.
-func VerifyFile(path string, currentStep Step) (*VerifyReport, error) {
+// VerifyFileLenient es como VerifyFile pero omite el type-check.
+// Se usa en Scan para detectar progreso en archivos parcialmente escritos
+// donde hay variables/imports sin usar que bloquearían el type-checker.
+// El type-check se aplica después en el flujo normal de verify.
+func VerifyFileLenient(path string, currentStep Step) (*VerifyReport, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
@@ -139,6 +193,313 @@ func VerifyFile(path string, currentStep Step) (*VerifyReport, error) {
 		return rep, nil
 	}
 	rep.SyntaxOK = true
+	rep.CompileOK = true // optimista: se verificará en el flujo normal
+
+	exp := inferExpectation(currentStep)
+	rep.Passed, rep.Missing, rep.Evidence = evaluate(file, fset, exp)
+	return rep, nil
+}
+
+// DetectNoiseNames returns names of declarations that don't correspond to any step.
+// Uses name matching: a declaration is noise if its name doesn't appear in any step instruction.
+func DetectNoiseNames(filePath string, steps []Step) []string {
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil
+	}
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		return nil
+	}
+	fset := token.NewFileSet()
+	file, perr := parser.ParseFile(fset, abs, src, parser.AllErrors)
+	if perr != nil {
+		return nil
+	}
+
+	var declNames []string
+	for _, d := range file.Decls {
+		switch x := d.(type) {
+		case *ast.FuncDecl:
+			if x.Name.Name == "main" || x.Name.Name == "init" {
+				continue
+			}
+			declNames = append(declNames, x.Name.Name)
+		case *ast.GenDecl:
+			if x.Tok == token.TYPE {
+				for _, spec := range x.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					declNames = append(declNames, ts.Name.Name)
+				}
+			}
+		}
+	}
+
+	var noiseNames []string
+	for _, name := range declNames {
+		nameLower := strings.ToLower(name)
+		matched := false
+		for _, s := range steps {
+			if strings.Contains(strings.ToLower(s.Instruction), nameLower) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			noiseNames = append(noiseNames, name)
+		}
+	}
+	return noiseNames
+}
+
+// RemoveDeclarations removes named declarations from a Go source file.
+// Only deletes lines — never adds or modifies code. Returns names actually removed.
+func RemoveDeclarations(filePath string, names []string) ([]string, error) {
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil, err
+	}
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, err
+	}
+
+	fset := token.NewFileSet()
+	file, perr := parser.ParseFile(fset, abs, src, parser.AllErrors)
+	if perr != nil {
+		return nil, fmt.Errorf("parse error: %w", perr)
+	}
+
+	nameSet := make(map[string]bool)
+	for _, n := range names {
+		nameSet[n] = true
+	}
+
+	type removal struct {
+		name      string
+		startLine int
+		endLine   int
+	}
+	var removals []removal
+
+	for _, d := range file.Decls {
+		var name string
+		switch x := d.(type) {
+		case *ast.FuncDecl:
+			name = x.Name.Name
+		case *ast.GenDecl:
+			if x.Tok == token.TYPE {
+				for _, spec := range x.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					name = ts.Name.Name
+				}
+			}
+		}
+		if name != "" && nameSet[name] {
+			startLine := fset.Position(d.Pos()).Line
+			endLine := fset.Position(d.End()).Line
+			removals = append(removals, removal{name, startLine, endLine})
+		}
+	}
+
+	if len(removals) == 0 {
+		return nil, nil
+	}
+
+	// Sort by start line descending — remove from bottom to preserve line numbers.
+	sort.Slice(removals, func(i, j int) bool {
+		return removals[i].startLine > removals[j].startLine
+	})
+
+	lines := strings.Split(string(src), "\n")
+	var removed []string
+	for _, r := range removals {
+		start := r.startLine - 1 // 0-based
+		end := r.endLine         // exclusive, 0-based
+		if start < 0 || end > len(lines) {
+			continue
+		}
+		// Also remove trailing blank lines after the declaration.
+		for end < len(lines) && strings.TrimSpace(lines[end]) == "" {
+			end++
+		}
+		lines = append(lines[:start], lines[end:]...)
+		removed = append(removed, r.name)
+	}
+
+	result := strings.Join(lines, "\n")
+	if err := os.WriteFile(abs, []byte(result), 0644); err != nil {
+		return nil, fmt.Errorf("write error: %w", err)
+	}
+	return removed, nil
+}
+
+// ExtractDeclNames returns the names of all top-level declarations
+// (functions, methods, type declarations) in the Go source file.
+// Used for rewrite detection: comparing declarations across verify calls.
+func ExtractDeclNames(filePath string) []string {
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		return nil
+	}
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		return nil
+	}
+	fset := token.NewFileSet()
+	file, perr := parser.ParseFile(fset, abs, src, parser.AllErrors)
+	if perr != nil {
+		return nil
+	}
+
+	var names []string
+	for _, d := range file.Decls {
+		switch x := d.(type) {
+		case *ast.FuncDecl:
+			names = append(names, x.Name.Name)
+		case *ast.GenDecl:
+			if x.Tok == token.TYPE {
+				for _, spec := range x.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					names = append(names, ts.Name.Name)
+				}
+			}
+		}
+	}
+	return names
+}
+
+// ScanAnalysis runs post-scan analysis on the user's file:
+// 1. Type-check (compile): catches field mismatches, undefined symbols, etc.
+// 2. Noise detection: finds declarations that don't map to any step.
+func ScanAnalysis(filePath string, steps []Step) (compileOK bool, compileLog string, noise []string) {
+	abs, err := filepath.Abs(filePath)
+	if err != nil {
+		return false, err.Error(), nil
+	}
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		return false, err.Error(), nil
+	}
+
+	fset := token.NewFileSet()
+	file, perr := parser.ParseFile(fset, abs, src, parser.AllErrors)
+	if perr != nil {
+		return false, shortenTypeError(firstLine(perr.Error())), nil
+	}
+
+	// 1. Type-check
+	compileOK = true
+	if typeErr := runTypeCheck(fset, file); typeErr != "" {
+		compileOK = false
+		compileLog = typeErr
+	}
+
+	// 2. Noise detection: count declarations vs step expectations.
+	// Collect all non-trivial declarations (skip main/init).
+	type declInfo struct {
+		kind string // "func", "method", "struct"
+		name string
+	}
+	var decls []declInfo
+	for _, d := range file.Decls {
+		switch x := d.(type) {
+		case *ast.FuncDecl:
+			if x.Name.Name == "main" || x.Name.Name == "init" {
+				continue
+			}
+			if x.Recv != nil {
+				decls = append(decls, declInfo{kind: "method", name: x.Name.Name})
+			} else {
+				decls = append(decls, declInfo{kind: "func", name: x.Name.Name})
+			}
+		case *ast.GenDecl:
+			if x.Tok == token.TYPE {
+				for _, spec := range x.Specs {
+					ts, ok := spec.(*ast.TypeSpec)
+					if !ok {
+						continue
+					}
+					if _, ok := ts.Type.(*ast.StructType); ok {
+						decls = append(decls, declInfo{kind: "struct", name: ts.Name.Name})
+					}
+				}
+			}
+		}
+	}
+
+	// Count how many steps expect each declaration kind.
+	wantByKind := map[string]int{}
+	for _, s := range steps {
+		exp := inferExpectation(s)
+		switch exp.Kind {
+		case "struct", "method", "func":
+			wantByKind[exp.Kind]++
+		}
+	}
+
+	// Group declarations by kind.
+	haveByKind := map[string][]string{}
+	for _, d := range decls {
+		haveByKind[d.kind] = append(haveByKind[d.kind], d.name)
+	}
+
+	// Report excess declarations as noise.
+	for kind, names := range haveByKind {
+		want := wantByKind[kind]
+		if len(names) > want {
+			excess := names[want:]
+			for _, name := range excess {
+				label := kind
+				if kind == "method" {
+					label = "método"
+				}
+				noise = append(noise, fmt.Sprintf("%s %s — no corresponde a ningún paso del objetivo", label, name))
+			}
+		}
+	}
+
+	return compileOK, compileLog, noise
+}
+
+// VerifyFile parsea el archivo Go y evalúa si el paso actual está cumplido.
+// No interpreta, no opina — solo inspecciona el AST.
+func VerifyFile(path string, currentStep Step) (*VerifyReport, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	src, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo leer %s: %w", abs, err)
+	}
+
+	rep := &VerifyReport{
+		File:     abs,
+		StepID:   currentStep.ID,
+		StepText: currentStep.Instruction,
+	}
+
+	fset := token.NewFileSet()
+	file, perr := parser.ParseFile(fset, abs, src, parser.AllErrors)
+	if perr != nil {
+		rep.SyntaxOK = false
+		rep.SyntaxError = perr.Error()
+		rep.Passed = false
+		rep.Missing = firstLine(perr.Error())
+		rep.Snippet = extractSnippet(src, perr.Error(), 3)
+		return rep, nil
+	}
+	rep.SyntaxOK = true
 
 	// Type-check con go/types. Catch errores de scope, variables no declaradas,
 	// tipos incompatibles, retornos inválidos, etc. No requiere compilar ni red.
@@ -146,7 +507,8 @@ func VerifyFile(path string, currentStep Step) (*VerifyReport, error) {
 		rep.CompileOK = false
 		rep.CompileLog = typeErr
 		rep.Passed = false
-		rep.Missing = typeErr
+		rep.Missing = typeErr + sourceLine(typeErr, src)
+		rep.Snippet = extractSnippet(src, typeErr, 3)
 		return rep, nil
 	}
 	rep.CompileOK = true
@@ -175,6 +537,30 @@ func runTypeCheck(fset *token.FileSet, file *ast.File) string {
 	}
 	// Formatear: "/abs/path:line:col: msg" → "file.go:line:col: msg"
 	return shortenTypeError(firstErr)
+}
+
+// sourceLine extrae el número de línea de un error tipo "file.go:LINE:col: msg"
+// y devuelve la línea de código correspondiente, precedida por " | → ".
+// Esto permite que la IA vea qué escribió realmente el usuario.
+func sourceLine(typeErr string, src []byte) string {
+	// Formato: "file.go:LINE:COL: msg"
+	parts := strings.SplitN(typeErr, ":", 4)
+	if len(parts) < 3 {
+		return ""
+	}
+	lineNum, err := strconv.Atoi(parts[1])
+	if err != nil || lineNum < 1 {
+		return ""
+	}
+	lines := strings.Split(string(src), "\n")
+	if lineNum > len(lines) {
+		return ""
+	}
+	line := strings.TrimSpace(lines[lineNum-1])
+	if line == "" {
+		return ""
+	}
+	return " | → " + line
 }
 
 func shortenTypeError(e string) string {
@@ -293,9 +679,95 @@ func evaluate(file *ast.File, fset *token.FileSet, exp Expectation) (bool, strin
 		}
 		return false, "no se encontró ningún return", ev
 
+	case "struct":
+		for _, d := range file.Decls {
+			gd, ok := d.(*ast.GenDecl)
+			if !ok || gd.Tok != token.TYPE {
+				continue
+			}
+			for _, spec := range gd.Specs {
+				ts, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+				if _, ok := ts.Type.(*ast.StructType); ok {
+					if exp.Name == "" || strings.EqualFold(ts.Name.Name, exp.Name) {
+						ev = append(ev, fmt.Sprintf("struct %s at %s", ts.Name.Name, posOf(fset, ts.Pos())))
+						return true, "", ev
+					}
+				}
+			}
+		}
+		// También buscar structs dentro de funciones (menos ideal pero el usuario puede hacerlo)
+		var found bool
+		ast.Inspect(file, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if !ok {
+				return true
+			}
+			if _, ok := ts.Type.(*ast.StructType); ok {
+				if exp.Name == "" || strings.EqualFold(ts.Name.Name, exp.Name) {
+					ev = append(ev, fmt.Sprintf("struct %s at %s", ts.Name.Name, posOf(fset, ts.Pos())))
+					found = true
+					return false
+				}
+			}
+			return true
+		})
+		if found {
+			return true, "", ev
+		}
+		if exp.Name != "" {
+			return false, fmt.Sprintf("no se encontró struct '%s'", exp.Name), ev
+		}
+		return false, "no se encontró ningún struct", ev
+
+	case "import":
+		if len(file.Imports) > 0 {
+			for _, imp := range file.Imports {
+				ev = append(ev, fmt.Sprintf("import %s", imp.Path.Value))
+			}
+			return true, "", ev
+		}
+		return false, "no se encontró ningún import", ev
+
+	case "method":
+		for _, d := range file.Decls {
+			fd, ok := d.(*ast.FuncDecl)
+			if !ok || fd.Recv == nil || len(fd.Recv.List) == 0 {
+				continue
+			}
+			ev = append(ev, fmt.Sprintf("method %s at %s", fd.Name.Name, posOf(fset, fd.Pos())))
+			return true, "", ev
+		}
+		return false, "no se encontró ningún método con receiver", ev
+
+	case "call":
+		var found bool
+		ast.Inspect(file, func(n ast.Node) bool {
+			ce, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			callName := callExprName(ce)
+			if exp.Name == "" || strings.Contains(callName, exp.Name) {
+				ev = append(ev, fmt.Sprintf("call %s at %s", callName, posOf(fset, ce.Pos())))
+				found = true
+				return false
+			}
+			return true
+		})
+		if found {
+			return true, "", ev
+		}
+		if exp.Name != "" {
+			return false, fmt.Sprintf("no se encontró llamada a '%s'", exp.Name), ev
+		}
+		return false, "no se encontró la llamada esperada", ev
+
 	default:
-		// paso genérico: basta con que el archivo parsee.
-		return true, "", []string{"syntax OK"}
+		// Paso no reconocido: NO auto-aprobar. Reportar que no se puede verificar.
+		return false, fmt.Sprintf("el verifier no sabe cómo verificar este paso: '%s'. Si compiló correctamente, usá 'done --step %d' para marcarlo manualmente", exp.StepText, exp.StepID), ev
 	}
 }
 
@@ -455,6 +927,21 @@ func rhsMatchesKind(e ast.Expr, kind string) bool {
 		}
 	}
 	return false
+}
+
+// callExprName extrae el nombre de la función/método de un CallExpr.
+// Maneja: pkg.Func → "pkg.Func", obj.Method → "obj.Method", plain → "func".
+func callExprName(ce *ast.CallExpr) string {
+	switch fn := ce.Fun.(type) {
+	case *ast.SelectorExpr:
+		if id, ok := fn.X.(*ast.Ident); ok {
+			return id.Name + "." + fn.Sel.Name
+		}
+		return fn.Sel.Name
+	case *ast.Ident:
+		return fn.Name
+	}
+	return ""
 }
 
 func posOf(fset *token.FileSet, p token.Pos) string {
