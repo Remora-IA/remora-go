@@ -1,0 +1,22 @@
+{
+  "goal": "two sum leetcode",
+  "currentStep": 1,
+  "steps": [
+    {
+      "id": 1,
+      "instruction": "Analizar el objetivo y crear plan inicial",
+      "done": false
+    },
+    {
+      "id": 2,
+      "instruction": "Implementar primer componente",
+      "done": false
+    },
+    {
+      "id": 3,
+      "instruction": "Verificar funcionamiento",
+      "done": false
+    }
+  ],
+  "startedAt": "2026-05-05T05:28:59.09549-04:00"
+}

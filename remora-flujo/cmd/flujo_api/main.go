@@ -584,6 +584,11 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if wantsSSE(r) {
+		s.postMessageSSE(w, r, conv, req)
+		return
+	}
+
 	// 1. Copiar recursos al directorio de la conversación para trazabilidad.
 	copiedResources, cerr := storeResources(conv.ID, req.Resources)
 	if cerr != nil {
@@ -652,6 +657,141 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// postMessageSSE es el handler de streaming. Emite eventos SSE en vivo
+// mientras los frameworks ejecutan tool calls. Termina con un evento "done".
+func (s *server) postMessageSSE(w http.ResponseWriter, r *http.Request, conv *Conversation, req sendMessageRequest) {
+	sse, err := newSSEWriter(w)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	// Persistir recursos y mensaje user (igual que el path normal).
+	copiedResources, cerr := storeResources(conv.ID, req.Resources)
+	if cerr != nil {
+		sse.emit("error", map[string]string{"error": cerr.Error()})
+		return
+	}
+	userMsg := Message{
+		ID:        generateMessageID(),
+		Role:      "user",
+		Content:   req.Content,
+		Resources: copiedResources,
+		Timestamp: time.Now(),
+	}
+	if err := appendMessage(conv.ID, userMsg); err != nil {
+		sse.emit("error", map[string]string{"error": err.Error()})
+		return
+	}
+	conv.UserAnswerCount++
+	_ = saveConv(conv)
+
+	sse.emit("user_message", userMsg)
+
+	// Arranca tailers en paralelo, uno por framework de la conv.
+	// Solo arquitecto/critico tienen live JSONL emitido por ahora; los demás
+	// frameworks devuelven {} sin emitir nada y el tailer simplemente no
+	// recibe eventos (no es error).
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	events := make(chan map[string]any, 64)
+	var tailerWG sync.WaitGroup
+	remoraRoot := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
+	for _, fw := range conv.Frameworks {
+		path := liveFilePath(remoraRoot, fw, conv.ID)
+		tailerWG.Add(1)
+		go func(framework, path string) {
+			defer tailerWG.Done()
+			tailLiveFile(ctx, path, events)
+		}(fw, path)
+	}
+
+	// Goroutine que ejecuta el runLoop pesado.
+	type loopResult struct {
+		q   handoff.QueuedQuestion
+		ok  bool
+		err error
+	}
+	resultCh := make(chan loopResult, 1)
+	loopCtx, loopCancel := context.WithTimeout(context.Background(), 180*time.Second)
+	defer loopCancel()
+	go func() {
+		ch := s.scoped(conv.ID)
+		_, _ = ch.ExecuteCommand(loopCtx, "echo", []string{"user_input:", req.Content, "resources:", fmt.Sprintf("%d", len(copiedResources))}, "")
+		q, ok, lerr := runLoop(loopCtx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
+		resultCh <- loopResult{q: q, ok: ok, err: lerr}
+	}()
+
+	// Consumer: bombea eventos al SSE y espera que el runLoop termine.
+	var result loopResult
+	loopDone := false
+	for !loopDone {
+		select {
+		case evt, ok := <-events:
+			if !ok {
+				continue
+			}
+			t, _ := evt["type"].(string)
+			sse.emit(t, evt)
+		case result = <-resultCh:
+			loopDone = true
+		case <-r.Context().Done():
+			loopCancel()
+			cancel()
+			return
+		}
+	}
+
+	// El loop terminó: dar 200ms para que los tailers drenen los últimos
+	// eventos pendientes (assistant_final, turn_end).
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	go func() {
+		<-drainCtx.Done()
+		cancel()
+	}()
+	for {
+		select {
+		case evt := <-events:
+			if evt == nil {
+				goto finalize
+			}
+			t, _ := evt["type"].(string)
+			sse.emit(t, evt)
+		case <-drainCtx.Done():
+			goto finalize
+		}
+	}
+finalize:
+	drainCancel()
+	tailerWG.Wait()
+
+	if result.err != nil {
+		sse.emit("error", map[string]string{"error": result.err.Error()})
+		sse.emit("done", map[string]bool{"idle": true})
+		return
+	}
+
+	if !result.ok {
+		sse.emit("done", map[string]bool{"idle": true})
+		return
+	}
+
+	frameworkMsg := Message{
+		ID:             generateMessageID(),
+		Role:           "framework",
+		Framework:      result.q.Framework,
+		Content:        result.q.Text,
+		QuestionID:     result.q.ID,
+		AskVia:         result.q.AskVia,
+		SuggestedChips: result.q.Chips,
+		Timestamp:      time.Now(),
+	}
+	_ = appendMessage(conv.ID, frameworkMsg)
+	sse.emit("framework_message", frameworkMsg)
+	sse.emit("done", map[string]bool{"idle": false})
+}
+
 func (s *server) getQueue(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	if _, err := loadConv(id); err != nil {
@@ -682,7 +822,7 @@ func initialFrameworkMessage(conv *Conversation, q handoff.QueuedQuestion, ok bo
 			ID:        generateMessageID(),
 			Role:      "framework",
 			Framework: conv.Frameworks[0],
-			Content:   "Conversación iniciada. Cuéntame por qué proceso quieres empezar.",
+			Content:   "¿En qué querés trabajar? Escribí tu intención o el path del repo a analizar.",
 			Timestamp: time.Now(),
 		}
 	}

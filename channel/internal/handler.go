@@ -76,9 +76,10 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 	var resp Response
 	var logCmd string
 	var logArgs []string
+	sessionID := r.Header.Get("X-Session-ID")
 	switch req.Method {
 	case "execute_command":
-		resp, logCmd, logArgs = h.executeCommand(&req, start)
+		resp, logCmd, logArgs = h.executeCommand(&req, sessionID, start)
 	case "read_file":
 		resp = h.readFile(&req, start)
 	case "write_file":
@@ -114,7 +115,10 @@ func (h *Handler) writeError(w http.ResponseWriter, errMsg string, start time.Ti
 }
 
 // execute_command: { command: string, args?: []string, cwd?: string } (Axiomas 4, 5, 7, 8)
-func (h *Handler) executeCommand(req *JSONRPCRequest, start time.Time) (Response, string, []string) {
+// sessionID viene del header X-Session-ID y se propaga como REMORA_CONV_ID al
+// proceso hijo, así los frameworks pueden escribir eventos live scope-ados
+// a la conversación.
+func (h *Handler) executeCommand(req *JSONRPCRequest, sessionID string, start time.Time) (Response, string, []string) {
 	command, ok := req.Params["command"].(string)
 	if !ok || command == "" {
 		return NewErrorResponse("params.command must be a non-empty string", time.Since(start)), "", nil
@@ -157,7 +161,12 @@ func (h *Handler) executeCommand(req *JSONRPCRequest, start time.Time) (Response
 		return NewErrorResponse(errMsg, time.Since(start)), command, commandArgs
 	}
 
-	exitCode, stdout, stderr, err := ExecuteCommand(command, commandArgs, cwd, h.Timeout)
+	// Propagar conv_id al framework hijo vía env.
+	var extraEnv map[string]string
+	if sessionID != "" {
+		extraEnv = map[string]string{"REMORA_CONV_ID": sessionID}
+	}
+	exitCode, stdout, stderr, err := ExecuteCommandWithEnv(command, commandArgs, cwd, extraEnv, h.Timeout)
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			return NewErrorResponse("timeout exceeded", time.Since(start)), command, commandArgs

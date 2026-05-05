@@ -1,0 +1,87 @@
+{
+  "name": "critico",
+  "version": "1.0.0",
+  "description": "Framework adversarial para evaluar propuestas de cambio en codebases. No dice 'si' por defecto.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "frameworkcritico", "./cmd/frameworkcritico"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/frameworkcritico"]
+  },
+  "cwd": "framework-critico",
+  "outputs": [
+    {
+      "name": "evaluation",
+      "format": "critico.eval.v1",
+      "path": "framework-critico/temp/evaluation.json",
+      "description": "Evaluacion de propuesta: riesgos, contradicciones, asunciones no verificadas"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "repo_model",
+      "format": "arquitecto.model.v1",
+      "required": false,
+      "description": "Modelo indexado del repo desde Arquitecto"
+    }
+  ],
+  "commands": {
+    "init": {
+      "description": "Inicializa sesion de evaluacion",
+      "args": ["init", "--session-id", "{params.session_id}"],
+      "params": ["session_id"]
+    },
+    "evaluate": {
+      "description": "Evalua una propuesta contra el modelo del repo",
+      "args": ["evaluate", "--proposal", "{params.proposal}", "--context", "{inputs.repo_model}", "--severity", "{params.severity}"],
+      "params": ["proposal", "severity"],
+      "defaults": { "severity": "normal", "repo_model": "" }
+    },
+    "challenge": {
+      "description": "Cuestiona una asuncion especifica",
+      "args": ["challenge", "--assumption", "{params.assumption}", "--evidence", "{params.evidence}"],
+      "params": ["assumption", "evidence"]
+    },
+    "status": { "args": ["status"] },
+    "readiness": { "args": ["readiness"] },
+    "next-question": { "args": ["next-question"] },
+    "ingest-answer": {
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"],
+      "defaults": { "question_id": "" }
+    }
+  },
+  "asks_human": {
+    "via": "questions_to_ask_field",
+    "description": "Critico pregunta por evidencia que contradiga o apoye una asuncion"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer", "resource_upload"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "minimax",
+    "name": "MiniMax-M2.7",
+    "env_key": "MINIMAX_API_KEY",
+    "capabilities": ["text"],
+    "base_url": "https://api.minimax.io/anthropic/v1/messages"
+  },
+  "capabilities_semantic": {
+    "tags": ["code-review", "risk-analysis", "adversarial"],
+    "intent_examples": [
+      "quiero refactorizar esto",
+      "quiero mover esta funcion",
+      "es seguro cambiar esto",
+      "que riesgos tiene esta propuesta",
+      "critica mi idea",
+      "que puede salir mal"
+    ],
+    "produces": ["evaluation:critico.eval.v1"],
+    "requires": ["repo_model:arquitecto.model.v1"]
+  }
+}

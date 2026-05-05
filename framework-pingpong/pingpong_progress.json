@@ -1,0 +1,65 @@
+{
+  "goal": "Servidor RPC en Go",
+  "currentStep": 1,
+  "steps": [
+    {
+      "id": 1,
+      "instruction": "Crear estructura del proyecto con archivo main.go y archivo server.go",
+      "done": false
+    },
+    {
+      "id": 2,
+      "instruction": "Crear archivo main.go que importará y ejecutará el servidor",
+      "done": false
+    },
+    {
+      "id": 3,
+      "instruction": "Crear estructura para definir el servicio RPC con sus métodos",
+      "done": false
+    },
+    {
+      "id": 4,
+      "instruction": "Crear función main en server.go que registre el servicio y escuche en un puerto",
+      "done": false
+    },
+    {
+      "id": 5,
+      "instruction": "Crear función para iniciar el servidor y aceptar conexiones entrantes",
+      "done": false
+    },
+    {
+      "id": 6,
+      "instruction": "Crear funciones de ayuda para registrar el servicio RPC",
+      "done": false
+    },
+    {
+      "id": 7,
+      "instruction": "Agregar manejo de errores para la conexión del servidor",
+      "done": false
+    },
+    {
+      "id": 8,
+      "instruction": "Agregar lógica para detener el servidor limpiamente",
+      "done": false
+    }
+  ],
+  "qaLog": [],
+  "signals": [],
+  "startedAt": "2026-05-05T11:30:00.15804-04:00",
+  "active": true,
+  "batchSize": 3,
+  "batchIndex": 1,
+  "pendingTest": [
+    "Crear estructura del proyecto con archivo main.go y archivo server.go",
+    "Crear archivo main.go que importará y ejecutará el servidor",
+    "Crear estructura para definir el servicio RPC con sus métodos"
+  ],
+  "miniTest": [
+    "Implementa la solución básica",
+    "Agrega validación de errores",
+    "Escribe casos de prueba"
+  ],
+  "inTest": true,
+  "inMinitest": false,
+  "completedAll": false
+}

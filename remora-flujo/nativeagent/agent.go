@@ -101,45 +101,60 @@ func New(options Options) (*Agent, error) {
 }
 
 func resolveProvider(options Options, envFiles []string) (string, string, string, string, error) {
-	provider := strings.ToLower(strings.TrimSpace(options.Provider))
-	providerSource := "options.Provider"
-	if provider == "" {
-		provider = strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER")))
-		providerSource = "REMORA_LLM_PROVIDER"
-	}
-	if provider == "" {
-		if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
-			provider = providerGroq
-			providerSource = "groq key presente"
-		} else {
-			provider = providerMiniMax
-			providerSource = "groq key ausente; fallback a minimax"
-		}
+	explicit := strings.ToLower(options.Provider)
+	if explicit == "" {
+		explicit = strings.ToLower(os.Getenv("REMORA_LLM_PROVIDER"))
 	}
 
-	switch provider {
-	case providerGroq:
-		apiKey := strings.TrimSpace(options.APIKey)
-		if apiKey == "" {
-			apiKey = firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY")
-		}
-		if apiKey == "" {
-			return "", "", "", "", fmt.Errorf("falta GROQ_API_KEY o REMORA_GROQ_API_KEY para usar Groq; env_files=%s", strings.Join(envFiles, ","))
-		}
-		model := firstNonEmpty(options.Model, os.Getenv("REMORA_GROQ_MODEL"), defaultGroqModel)
-		return providerGroq, apiKey, model, fmt.Sprintf("%s; env_files=%s", providerSource, strings.Join(envFiles, ",")), nil
+	switch explicit {
 	case providerMiniMax:
 		apiKey := strings.TrimSpace(options.APIKey)
 		if apiKey == "" {
 			apiKey = firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY")
 		}
 		if apiKey == "" {
-			return "", "", "", "", fmt.Errorf("groq no configurado y falta MINIMAX_API_KEY/REMORA_MINIMAX_API_KEY; env_files=%s", strings.Join(envFiles, ","))
+			return "", "", "", "", fmt.Errorf("REMORA_LLM_PROVIDER=minimax pero falta MINIMAX_API_KEY/REMORA_MINIMAX_API_KEY; env_files=%s", strings.Join(envFiles, ","))
 		}
 		model := firstNonEmpty(options.Model, os.Getenv("REMORA_MINIMAX_MODEL"), defaultMiniMaxModel)
-		return providerMiniMax, apiKey, model, fmt.Sprintf("%s; env_files=%s", providerSource, strings.Join(envFiles, ",")), nil
+		return providerMiniMax, apiKey, model, fmt.Sprintf("explicit; env_files=%s", strings.Join(envFiles, ",")), nil
+	case providerGroq:
+		apiKey := strings.TrimSpace(options.APIKey)
+		if apiKey == "" {
+			apiKey = firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY")
+		}
+		if apiKey == "" {
+			return "", "", "", "", fmt.Errorf("REMORA_LLM_PROVIDER=groq pero falta GROQ_API_KEY/REMORA_GROQ_API_KEY; env_files=%s", strings.Join(envFiles, ","))
+		}
+		model := firstNonEmpty(options.Model, os.Getenv("REMORA_GROQ_MODEL"), defaultGroqModel)
+		return providerGroq, apiKey, model, fmt.Sprintf("explicit; env_files=%s", strings.Join(envFiles, ",")), nil
 	default:
-		return "", "", "", "", fmt.Errorf("proveedor LLM no soportado: %s", provider)
+		// Auto-detect: preferir MiniMax (coding plan) si hay key, fallback a Groq
+		provider := ""
+		providerSource := ""
+		if firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY") != "" {
+			provider = providerMiniMax
+			providerSource = "minimax key presente"
+		} else if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
+			provider = providerGroq
+			providerSource = "minimax key ausente; fallback a groq"
+		}
+		if provider == providerMiniMax {
+			apiKey := strings.TrimSpace(options.APIKey)
+			if apiKey == "" {
+				apiKey = firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY")
+			}
+			model := firstNonEmpty(options.Model, os.Getenv("REMORA_MINIMAX_MODEL"), defaultMiniMaxModel)
+			return providerMiniMax, apiKey, model, fmt.Sprintf("%s; env_files=%s", providerSource, strings.Join(envFiles, ",")), nil
+		}
+		if provider == providerGroq {
+			apiKey := strings.TrimSpace(options.APIKey)
+			if apiKey == "" {
+				apiKey = firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY")
+			}
+			model := firstNonEmpty(options.Model, os.Getenv("REMORA_GROQ_MODEL"), defaultGroqModel)
+			return providerGroq, apiKey, model, fmt.Sprintf("%s; env_files=%s", providerSource, strings.Join(envFiles, ",")), nil
+		}
+		return "", "", "", "", fmt.Errorf("falta MINIMAX_API_KEY/REMORA_MINIMAX_API_KEY y GROQ_API_KEY/REMORA_GROQ_API_KEY; env_files=%s", strings.Join(envFiles, ","))
 	}
 }
 

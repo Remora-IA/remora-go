@@ -701,6 +701,8 @@ func cmdUse(args []string) {
 	// Pasar el archivo de prompt con @ como argumento a pi
 	// Esto funciona tanto en modo interactivo como --print
 	cmd := exec.Command("pi", "--no-session", "@"+initialPromptPath)
+	// Desactivar traces para que pi no pueda leer historial de traces
+	cmd.Env = append(os.Environ(), "DISABLE_TRACES=1")
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

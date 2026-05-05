@@ -1,0 +1,58 @@
+{
+  "name": "paladin",
+  "version": "1.0.0",
+  "description": "Framework de tracing semantico para Go. Audita repos, explica traces, compara ideal vs real.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "frameworkpaladin", "./cmd/paladin"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/paladin"]
+  },
+  "cwd": "framework-paladin",
+  "execution_mode": "async_trigger",
+  "outputs": [
+    {
+      "name": "audit_report",
+      "format": "paladin.audit.v1",
+      "path": "framework-paladin/temp/audit_result.json",
+      "description": "Reporte de auditoria de cobertura semantica"
+    }
+  ],
+  "inputs": [],
+  "commands": {
+    "audit": {
+      "description": "Audita un repo evaluando uso de Paladin",
+      "args": ["audit", "{params.path}"],
+      "params": ["path"],
+      "defaults": { "path": "." }
+    },
+    "explain": {
+      "description": "Explica un trace semantico",
+      "args": ["explain", "{params.trace_path}"],
+      "params": ["trace_path"]
+    },
+    "status": { "args": ["status"] },
+    "readiness": { "args": ["readiness"] }
+  },
+  "user_input": {
+    "supported": false,
+    "ask_via": "",
+    "modes": [],
+    "next_question_cmd": "",
+    "ingest_answer_cmd": ""
+  },
+  "capabilities_semantic": {
+    "tags": ["tracing", "audit", "semantic-analysis"],
+    "intent_examples": [
+      "audita este repo",
+      "explica este trace",
+      "que reglas fallaron",
+      "quien hace handoffs",
+      "hay violaciones en el flujo"
+    ],
+    "produces": ["audit_report:paladin.audit.v1", "trace_explanation"],
+    "requires": []
+  }
+}

@@ -3,6 +3,18 @@
   "description": "Reglas de composición. Solo overrides finos. El routing 'quién habla' se resuelve por capabilities (capabilities_semantic.intent_examples vía intent.go). Reglas name-based marcadas deprecated por ARCHITECTURE.md regla 3.",
   "rules": [
     {
+      "id": "programming_architecto_first",
+      "description": "En sesiones de programacion (frameworks arquitecto+critico activos), Arquitecto habla primero para indexar/entender el repo.",
+      "when": {
+        "frameworks_active_all": ["arquitecto", "critico"],
+        "user_answer_count_min": 0,
+        "user_answer_count_max": 0
+      },
+      "then": {
+        "prepend_speaker": "arquitecto"
+      }
+    },
+    {
       "id": "sabio_after_foco_priorities",
       "deprecated": true,
       "description": "@deprecated: name-based. Reemplazada por intent.classifyIntent matcheando 'gestionar:'/'analizar al cliente' contra sabio.capabilities_semantic.intent_examples.",

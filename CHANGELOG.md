@@ -5,6 +5,84 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.17] - 2026-05-05
+
+> **Release**: expandir flujo, paladin, quine
+
+### Paladin
+
+- **framework-paladin/framework.manifest.json**: archivo nuevo
+- **framework-paladin/frameworkpaladin**: archivo nuevo
+
+### Quine
+
+- **quine/main.go**: +2
+
+### Flujo
+
+- **remora-flujo/.remora_session**: archivo nuevo
+- **flujo_api/flow.rules.json**: +12
+- **flujo_api/main.go**: funciones: (s *server) postMessageSSE | tipos: loopResult
+- **flujo_api/streaming.go**: archivo nuevo
+- **nativeagent/agent.go**: +41 / -26
+- **frontends/serve.go**: -2
+
+### Repo
+
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (remora/main.go)
+- **framework-arquitecto/framework.manifest.json**: archivo nuevo
+- **framework-arquitecto/frameworkarquitecto**: archivo nuevo
+- **framework-arquitecto/go.mod**: archivo nuevo
+- **framework-critico/framework.manifest.json**: archivo nuevo
+- **framework-critico/frameworkcritico**: archivo nuevo
+- **framework-critico/go.mod**: archivo nuevo
+- **framework-pingpong/0**: archivo nuevo
+- **framework-pingpong/Makefile**: archivo nuevo
+- **framework-pingpong/framework-pingpong**: archivo nuevo
+- **framework-pingpong/go.mod**: archivo nuevo
+- **framework-pingpong/pingpong**: archivo nuevo
+- **framework-pingpong/pingpong_progress.json**: archivo nuevo
+- **framework-pingpong/progress.json**: archivo nuevo
+- **framework-pingpong/two_sum**: archivo nuevo
+- **remora-cli/.remora_session**: archivo nuevo
+- **remora-cli/go.mod**: archivo nuevo
+- **remora-cli/remora**: archivo nuevo
+- **scripts/dev-local.sh**: archivo nuevo
+- **scripts/install-remora.sh**: archivo nuevo
+- **HANDOFF_PROMPT.md**: archivo nuevo
+- **framework-arquitecto/AGENTS.md**: archivo nuevo
+- **framework-arquitecto/INITIAL_PROMPT.md**: archivo nuevo
+- **framework-arquitecto/README.md**: archivo nuevo
+- **framework-critico/AGENTS.md**: archivo nuevo
+- **framework-critico/INITIAL_PROMPT.md**: archivo nuevo
+- **framework-critico/README.md**: archivo nuevo
+- **framework-pingpong/AGENTS.md**: archivo nuevo
+- **framework-pingpong/INITIAL_PROMPT.md**: archivo nuevo
+- **framework-pingpong/README.md**: archivo nuevo
+- **framework-pingpong/WHY.md**: archivo nuevo
+- **internal/handler.go**: funciones: (h *Handler) executeCommand
+- **frameworkarquitecto/llm.go**: archivo nuevo
+- **frameworkarquitecto/llm_minimax.go**: archivo nuevo
+- **frameworkarquitecto/llm_stream.go**: archivo nuevo
+- **frameworkarquitecto/main.go**: archivo nuevo
+- **frameworkarquitecto/tools.go**: archivo nuevo
+- **frameworkcritico/main.go**: archivo nuevo
+- **framework-pingpong/main.go**: archivo nuevo
+- **pingpong/client.go**: archivo nuevo
+- **pingpong/runner.go**: archivo nuevo
+- **pingpong/verifier.go**: archivo nuevo
+- **internal/exec.go**: funciones: ExecuteCommandWithEnv
+- **internal/whitelist.go**: +3 / -1
+- **framework-pingpong/main.go**: archivo nuevo
+- **framework-pingpong/palindrome.go**: funciones: main
+- **framework-pingpong/roman_to_integer.go**: archivo nuevo
+- **servidor-rpc/main.go**: archivo nuevo
+- **servidor-rpc/server.go**: archivo nuevo
+- **framework-pingpong/two_sum.go**: archivo nuevo
+- **pingpong/client_test.go**: archivo nuevo
+- **pingpong/runner_test.go**: archivo nuevo
+- **pingpong/verifier_strict_test.go**: archivo nuevo
+
 ## [0.1.16] - 2026-05-03
 
 > **Release**: expandir charlie
