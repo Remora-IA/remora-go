@@ -1,0 +1,66 @@
+{
+  "goal": "Crear una red RPC en Go con servidor y cliente",
+  "currentStep": 6,
+  "steps": [
+    {
+      "id": 1,
+      "file": "servidor.go",
+      "instruction": "Crear función main del servidor",
+      "done": true
+    },
+    {
+      "id": 2,
+      "file": "servidor.go",
+      "instruction": "Definir estructura Args con campos exportados para recibir parámetros",
+      "done": true
+    },
+    {
+      "id": 3,
+      "file": "servidor.go",
+      "instruction": "Definir estructura Reply con campos exportados para retornar el resultado",
+      "done": true
+    },
+    {
+      "id": 4,
+      "file": "servidor.go",
+      "instruction": "Crear tipo Servicio con método que procese Args y devuelva Reply",
+      "done": true
+    },
+    {
+      "id": 5,
+      "file": "servidor.go",
+      "instruction": "En la función main, registrar el servicio y escuchar en un puerto",
+      "done": true
+    },
+    {
+      "id": 6,
+      "file": "cliente.go",
+      "instruction": "Crear función main del cliente",
+      "done": false
+    },
+    {
+      "id": 7,
+      "file": "cliente.go",
+      "instruction": "Conectar al servidor RPC en el puerto del servidor",
+      "done": false
+    },
+    {
+      "id": 8,
+      "file": "cliente.go",
+      "instruction": "Llamar al método RPC e imprimir el resultado",
+      "done": false
+    }
+  ],
+  "qaLog": [],
+  "signals": [],
+  "startedAt": "2026-05-06T14:54:19.754467-04:00",
+  "active": true,
+  "batchSize": 3,
+  "batchIndex": 2,
+  "passedBatches": 1,
+  "miniTestAttempts": 0,
+  "inMinitest": false,
+  "checkpoints": {
+    "servidor.go": "package main \n\n\n\ntype Args struct {\n\tNum1 int\n\tNum2 int\n\n}\n\ntype Reply struct {\n\tResultado int \n}\n\n\n\nfunc main(){\n\n\t\n}"
+  }
+}

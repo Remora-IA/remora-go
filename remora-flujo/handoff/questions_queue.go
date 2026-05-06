@@ -32,12 +32,13 @@ type QuestionsQueue struct {
 // QueuedQuestion es una pregunta de un framework hacia el usuario.
 type QueuedQuestion struct {
 	ID         string    `json:"id"`
-	Framework  string    `json:"framework"`              // "echo", "alfa", "whatsapp", ...
-	ExternalID string    `json:"external_id,omitempty"`  // ID nativo del framework, ej "th_001", "oq_001"
+	Framework  string    `json:"framework"`             // "echo", "alfa", "whatsapp", ...
+	ExternalID string    `json:"external_id,omitempty"` // ID nativo del framework, ej "th_001", "oq_001"
 	Text       string    `json:"text"`
-	AskVia     string    `json:"ask_via,omitempty"`      // "" = directa | "echo" = reformula vía Echo
-	Chips      []string  `json:"chips,omitempty"`        // Respuestas sugeridas para el usuario
-	Status     string    `json:"status"`                 // pending | asked | answered
+	Reasoning  string    `json:"reasoning,omitempty"` // Razonamiento interno del framework (no visible al usuario directamente)
+	AskVia     string    `json:"ask_via,omitempty"`   // "" = directa | "echo" = reformula vía Echo
+	Chips      []string  `json:"chips,omitempty"`     // Respuestas sugeridas para el usuario
+	Status     string    `json:"status"`              // pending | asked | answered
 	Answer     string    `json:"answer,omitempty"`
 	AskedAt    time.Time `json:"asked_at,omitempty"`
 	AnsweredAt time.Time `json:"answered_at,omitempty"`
@@ -143,6 +144,11 @@ func (q *QuestionsQueue) migrateLegacy() {
 // ID interno de cola. externalID es opcional: si está set, se persiste para
 // que el driver dueño pueda mapear de vuelta al ID nativo del framework.
 func (q *QuestionsQueue) AddQuestion(framework, externalID, text, askVia string, chips ...[]string) string {
+	return q.AddQuestionWithReasoning(framework, externalID, text, "", askVia, chips...)
+}
+
+// AddQuestionWithReasoning encola una pregunta incluyendo el razonamiento interno del framework.
+func (q *QuestionsQueue) AddQuestionWithReasoning(framework, externalID, text, reasoning, askVia string, chips ...[]string) string {
 	if framework == "" {
 		framework = q.CurrentSpeaker
 	}
@@ -156,6 +162,7 @@ func (q *QuestionsQueue) AddQuestion(framework, externalID, text, askVia string,
 		Framework:  framework,
 		ExternalID: externalID,
 		Text:       text,
+		Reasoning:  reasoning,
 		AskVia:     askVia,
 		Chips:      c,
 		Status:     QuestionPending,

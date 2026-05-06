@@ -73,6 +73,14 @@ func (g *genericDriver) fullArgs(cmdArgs []string) []string {
 	return out
 }
 
+func (g *genericDriver) resolveCommandArgs(cmd manifest.Command, params map[string]string) ([]string, error) {
+	args, err := cmd.ResolveArgs(params, frameworkIOPaths(g.rootDir, g.manifest.Inputs), frameworkIOPaths(g.rootDir, g.manifest.Outputs))
+	if err != nil {
+		return nil, err
+	}
+	return g.fullArgs(args), nil
+}
+
 // Init: por ahora no-op. Frameworks que necesiten bootstrap deben tener
 // un driver custom (como echo) hasta que el manifest exprese init.
 func (g *genericDriver) Init(ctx context.Context, ch *adapter.Client, conv *Conversation) error {
@@ -91,10 +99,12 @@ func (g *genericDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, co
 		// para no romper el chain.
 		return nil
 	}
-	cmdArgs := []string{
-		cmdName,
-		"--question-id", qctx.ExternalID,
-		"--answer", qctx.Answer,
+	params := map[string]string{
+		"conv_id":              conv.ID,
+		"conversation_id":      conv.ID,
+		"question_id":          qctx.ExternalID,
+		"internal_question_id": qctx.QuestionID,
+		"answer":               qctx.Answer,
 	}
 	// Si el manifest declara soporte de historial, lo serializamos y lo
 	// pasamos como --history <base64-url-safe>. Esto resuelve referencias
@@ -105,11 +115,12 @@ func (g *genericDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, co
 	// metacaracteres de shell en los args (axioma 4.3). El framework decide
 	// cómo decodificar.
 	if commandHasParam(cmd, "history") {
-		if hb := encodeRecentHistory(conv.ID, qctx.QuestionID); hb != "" {
-			cmdArgs = append(cmdArgs, "--history", hb)
-		}
+		params["history"] = encodeRecentHistory(conv.ID, qctx.QuestionID)
 	}
-	args := g.fullArgs(cmdArgs)
+	args, err := g.resolveCommandArgs(cmd, params)
+	if err != nil {
+		return fmt.Errorf("%s ingest-answer args: %w", g.manifest.Name, err)
+	}
 	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
 	if err != nil {
 		return fmt.Errorf("%s ingest-answer: %w", g.manifest.Name, err)
@@ -190,7 +201,14 @@ func (g *genericDriver) PollQuestionFull(ctx context.Context, ch *adapter.Client
 	if _, ok := g.manifest.Commands[cmdName]; !ok {
 		return nextQuestionResponse{}, false
 	}
-	args := g.fullArgs([]string{cmdName})
+	cmd := g.manifest.Commands[cmdName]
+	args, err := g.resolveCommandArgs(cmd, map[string]string{
+		"conv_id":         conv.ID,
+		"conversation_id": conv.ID,
+	})
+	if err != nil {
+		return nextQuestionResponse{}, false
+	}
 	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
 	if err != nil || !resp.Success {
 		return nextQuestionResponse{}, false
@@ -205,29 +223,36 @@ func (g *genericDriver) PollQuestionFull(ctx context.Context, ch *adapter.Client
 	return r, true
 }
 
-func (g *genericDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, bool) {
+func (g *genericDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, string, bool) {
 	cmdName := g.manifest.UserInput.NextQuestionCmd
 	if cmdName == "" {
 		cmdName = "next-question"
 	}
 	if _, ok := g.manifest.Commands[cmdName]; !ok {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
-	args := g.fullArgs([]string{cmdName})
+	cmd := g.manifest.Commands[cmdName]
+	args, err := g.resolveCommandArgs(cmd, map[string]string{
+		"conv_id":         conv.ID,
+		"conversation_id": conv.ID,
+	})
+	if err != nil {
+		return "", "", "", "", false
+	}
 	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
 	if err != nil || !resp.Success {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	r, ok := parseNextQuestion(resp.Stdout)
 	if !ok {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	if alreadyAsked[r.ID] {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	askVia := r.AskVia
 	if askVia == "" {
 		askVia = g.manifest.UserInput.AskVia
 	}
-	return r.Text, r.ID, askVia, true
+	return r.Text, r.Reasoning, r.ID, askVia, true
 }

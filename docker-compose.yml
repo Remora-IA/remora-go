@@ -1,0 +1,71 @@
+services:
+  channel:
+    build:
+      context: .
+      dockerfile: channel/Dockerfile
+    ports:
+      - "8765:8765"
+    environment:
+      - CHANNEL_PORT=8765
+      - CHANNEL_BASE_DIR=/workspace
+      - CHANNEL_API_KEYS=test-key-001
+    volumes:
+      - .:/workspace:cached
+      - channel-sessions:/workspace/sessions
+    networks:
+      - remora-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8765/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  flujo-api:
+    build:
+      context: .
+      dockerfile: remora-flujo/cmd/flujo_api/Dockerfile.dev
+    ports:
+      - "8080:8080"
+    environment:
+      - FLUJO_API_PORT=8080
+      - CHANNEL_URL=http://channel:8765
+      - CHANNEL_API_KEY=test-key-001
+      - CHANNEL_BASE_DIR=/workspace
+      - REMORA_ROOT=/workspace
+      - REMORA_PROFILE=general
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - SMTP_HOST=${SMTP_HOST:-mail.patriciastocker.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_FROM=${SMTP_FROM:-}
+      - TEST_EMAIL_RECIPIENT=${TEST_EMAIL_RECIPIENT:-tom3bs@gmail.com}
+      - REMORA_VAULT_KEY=${REMORA_VAULT_KEY:-}
+      - REMORA_VAULT_DIR=/workspace/channel/vault_data
+      - REMORA_DEV_MODE=true
+    volumes:
+      - .:/workspace:cached
+      - channel-sessions:/workspace/sessions
+      - flujo-conversations:/workspace/conversations
+    networks:
+      - remora-net
+    depends_on:
+      channel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+networks:
+  remora-net:
+    driver: bridge
+
+volumes:
+  channel-sessions:
+  flujo-conversations:

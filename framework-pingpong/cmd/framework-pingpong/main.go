@@ -22,12 +22,21 @@ func main() {
 	defer trace.Flush()
 
 	ctx.Var("command", os.Args[1])
+	applyDirFlag(os.Args[2:])
 
 	switch os.Args[1] {
 	case "init":
 		cmdInit(os.Args[2:])
 	case "start":
 		cmdStart(os.Args[2:])
+	case "configure":
+		cmdConfigure(os.Args[2:])
+	case "next":
+		cmdNext(os.Args[2:])
+	case "check":
+		cmdCheck(os.Args[2:])
+	case "accept":
+		cmdAccept(os.Args[2:])
 	case "set-steps":
 		cmdSetSteps(os.Args[2:])
 	case "subdivide":
@@ -38,6 +47,12 @@ func main() {
 		cmdClean(os.Args[2:])
 	case "peek":
 		cmdPeek(os.Args[2:])
+	case "search":
+		cmdSearch(os.Args[2:])
+	case "symbols":
+		cmdSymbols(os.Args[2:])
+	case "inspect":
+		cmdInspect(os.Args[2:])
 	case "verify":
 		cmdVerify(os.Args[2:])
 	case "run":
@@ -68,27 +83,44 @@ func usage() {
 
 USO:
   ./pingpong init                         Inicializar proyecto
-  ./pingpong start --goal "<objetivo>"    Iniciar sesión
+  ./pingpong start --goal "<objetivo>" [--dir path]
+                                          Iniciar sesión
+  ./pingpong configure --root path --files a.go,b.go
+                                          Fijar scope de archivos del ejercicio
+  ./pingpong next                         Mostrar el próximo mensaje autoritativo para el usuario
+  ./pingpong check [--lang go|python|javascript]
+                                          Revisar el paso actual sin elegir IDs
+  ./pingpong accept                       Aceptar el paso actual y avanzar sin elegir IDs
   ./pingpong set-steps --steps "p1;p2;p3" Registrar pasos (la IA los define)
   ./pingpong subdivide --step <id> --substeps "s1;s2;s3"
                                           Subdividir un paso en sub-pasos más granulares
-  ./pingpong scan --file path.go           Escanear archivo existente y auto-avanzar pasos cumplidos
-  ./pingpong clean --file path.go [--remove "A;B"]
-                                          Eliminar declaraciones ruidosas (solo borra, nunca agrega)
+  ./pingpong scan [--auto] [--file path.go] [--lang go|python|javascript]
+                                          Escanear archivo existente con compile check
+  ./pingpong clean --file path.go --from N --to M [--lang go|python|javascript]
+                                          Borrar quirúrgicamente un rango de líneas (solo borra)
   ./pingpong peek --file path.go --line N [--radius 3]
                                           Ver líneas alrededor de una línea específica
-  ./pingpong verify --file path.go        Verificar paso actual (syntax + type-check + AST)
-  ./pingpong run --file path.go [--stdin "..."] [--expect "..."]
+  ./pingpong search --query "texto" [--file path.go|--root .] [--max 20]
+                                          Buscar evidencia textual en archivo o repo
+  ./pingpong symbols [--file path.go|--root .]
+                                          Listar símbolos Go: structs, tipos, funcs, métodos
+  ./pingpong inspect [--file path.go]
+                                          Inspeccionar evidencia del paso actual
+  ./pingpong verify --file path.go [--lang go|python|javascript]
+                                          Verificar compilación y entregar contexto para juicio IA
+  ./pingpong run --file path.go [--lang go|python|javascript] [--stdin "..."] [--expect "..."]
                                           Compilar y ejecutar en sandbox (10s timeout)
   ./pingpong done --step <id>             Marcar paso completado
   ./pingpong status                       Ver progreso actual
   ./pingpong reset                        Reiniciar proyecto
 
-FLUJO:
+FLUJO 80-20:
   1. start --goal "objetivo" → set-steps → pasos declarativos
-  2. verify paso a paso → mini-tests cada 3 pasos
-  3. Al completar todos los pasos, run con casos de prueba
-  4. Solo declarar completado si run pasa con output correcto
+  2. next → decir data.say literal
+  3. check → la IA juzga solo el paso actual
+  4. accept si corresponde; si no, feedback conceptual
+  5. Al completar todos los pasos, run con casos de prueba
+  6. Solo declarar completado si run pasa con output correcto
 `)
 }
 
@@ -121,6 +153,63 @@ func cmdStart(args []string) {
 
 	client := pingpong.New()
 	result, err := client.Start(goal, steps)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdConfigure(args []string) {
+	root := extractFlag(args, "--root")
+	files := extractFlag(args, "--files")
+	if files == "" {
+		fmt.Println("Error: necesitas --files archivo1,archivo2")
+		os.Exit(1)
+	}
+
+	client := newClient(args)
+	result, err := client.Configure(root, files)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdNext(args []string) {
+	client := newClient(args)
+	result, err := client.Next()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdCheck(args []string) {
+	file := extractFlag(args, "--file")
+
+	client := newClient(args)
+	result, err := client.Check(file)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdAccept(args []string) {
+	client := newClient(args)
+	result, err := client.Accept()
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -185,20 +274,22 @@ func cmdClean(args []string) {
 	defer trace.Flush()
 
 	file := extractFlag(args, "--file")
-	removeStr := extractFlag(args, "--remove")
+	fromStr := extractFlag(args, "--from")
+	toStr := extractFlag(args, "--to")
 
-	var explicitNames []string
-	if removeStr != "" {
-		for _, n := range strings.Split(removeStr, ";") {
-			n = strings.TrimSpace(n)
-			if n != "" {
-				explicitNames = append(explicitNames, n)
-			}
-		}
+	from, err := strconv.Atoi(fromStr)
+	if err != nil {
+		fmt.Println("Error: necesitas --from <línea>")
+		os.Exit(1)
+	}
+	to, err := strconv.Atoi(toStr)
+	if err != nil {
+		fmt.Println("Error: necesitas --to <línea>")
+		os.Exit(1)
 	}
 
-	client := pingpong.New()
-	result, err := client.Clean(file, explicitNames)
+	client := newClient(args)
+	result, err := client.Clean(file, from, to)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -237,14 +328,67 @@ func cmdPeek(args []string) {
 	fmt.Println(string(data))
 }
 
+func cmdSearch(args []string) {
+	query := extractFlag(args, "--query")
+	file := extractFlag(args, "--file")
+	root := extractFlag(args, "--root")
+	maxStr := extractFlag(args, "--max")
+	max := 20
+	if maxStr != "" {
+		if v, err := strconv.Atoi(maxStr); err == nil {
+			max = v
+		}
+	}
+
+	client := newClient(args)
+	result, err := client.Search(file, root, query, max)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdSymbols(args []string) {
+	file := extractFlag(args, "--file")
+	root := extractFlag(args, "--root")
+
+	client := newClient(args)
+	result, err := client.Symbols(file, root)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdInspect(args []string) {
+	file := extractFlag(args, "--file")
+
+	client := newClient(args)
+	result, err := client.Inspect(file)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
 func cmdScan(args []string) {
 	trace := paladin.NewTrace("Scan")
 	defer trace.Flush()
 
 	file := extractFlag(args, "--file")
+	auto := hasFlag(args, "--auto")
 
-	client := pingpong.New()
-	result, err := client.Scan(file)
+	client := newClient(args)
+	result, err := client.Scan(file, auto)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -260,7 +404,7 @@ func cmdVerify(args []string) {
 
 	file := extractFlag(args, "--file")
 
-	client := pingpong.New()
+	client := newClient(args)
 	result, err := client.Verify(file)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -284,7 +428,7 @@ func cmdRun(args []string) {
 		os.Exit(1)
 	}
 
-	client := pingpong.New()
+	client := newClient(args)
 	result, err := client.Run(file, stdin, expected)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
@@ -421,4 +565,37 @@ func extractFlag(args []string, flag string) string {
 		}
 	}
 	return ""
+}
+
+func hasFlag(args []string, flag string) bool {
+	for _, arg := range args {
+		if arg == flag {
+			return true
+		}
+	}
+	return false
+}
+
+func newClient(args []string) *pingpong.Client {
+	langName := extractFlag(args, "--lang")
+	if langName == "" {
+		langName = "go"
+	}
+	lang, ok := pingpong.DefaultLangConfigs[langName]
+	if !ok {
+		fmt.Printf("Error: lenguaje no soportado: %s\n", langName)
+		os.Exit(1)
+	}
+	return pingpong.NewWithTrace("framework-pingpong", lang)
+}
+
+func applyDirFlag(args []string) {
+	dir := extractFlag(args, "--dir")
+	if dir == "" {
+		return
+	}
+	if err := os.Chdir(dir); err != nil {
+		fmt.Printf("Error: no se pudo entrar a --dir %s: %v\n", dir, err)
+		os.Exit(1)
+	}
 }

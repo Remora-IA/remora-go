@@ -4,7 +4,6 @@ go 1.25.0
 
 require (
 	channel v0.0.0
-	framework-indexa v0.0.0
 	modernc.org/sqlite v1.34.5
 )
 
@@ -19,7 +18,5 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace framework-indexa => ../framework-indexa
 
 replace channel => ../channel

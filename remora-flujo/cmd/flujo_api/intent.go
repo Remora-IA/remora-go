@@ -96,3 +96,21 @@ func providerOfModelCapability(cap string, manifests map[string]*manifest.Manife
 	}
 	return ""
 }
+
+func providerOfProducedCapability(cap string, manifests map[string]*manifest.Manifest, active []string) string {
+	if cap == "" {
+		return ""
+	}
+	for _, name := range active {
+		m, ok := manifests[name]
+		if !ok || m == nil {
+			continue
+		}
+		for _, produced := range m.CapabilitiesSemantic.Produces {
+			if strings.EqualFold(produced, cap) {
+				return name
+			}
+		}
+	}
+	return ""
+}

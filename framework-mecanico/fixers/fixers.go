@@ -16,41 +16,41 @@ import (
 	"strings"
 	"time"
 
-	"framework-auditor/checks"
+	"framework-mecanico/internal/auditdata"
 )
 
 // Proposal es un plan de fix concreto, derivado de un Finding.
 type Proposal struct {
-	ID            string      `json:"id"`              // P-001
-	FindingID     string      `json:"finding_id"`      // F-001
-	Rule          string      `json:"rule"`            // empty_required, etc.
+	ID            string      `json:"id"`         // P-001
+	FindingID     string      `json:"finding_id"` // F-001
+	Rule          string      `json:"rule"`       // empty_required, etc.
 	Endpoint      string      `json:"endpoint"`
 	RecordID      string      `json:"record_id"`
 	Field         string      `json:"field"`
-	Strategy      string      `json:"strategy"`        // derive_from_related, set_null, next_sequence
+	Strategy      string      `json:"strategy"` // derive_from_related, set_null, next_sequence
 	CurrentValue  interface{} `json:"current_value"`
 	ProposedValue interface{} `json:"proposed_value"`
-	Rationale     string      `json:"rationale"`       // explicación humana de por qué este valor
-	RequiresUser  bool        `json:"requires_user"`   // si el fix necesita confirmación adicional
+	Rationale     string      `json:"rationale"`     // explicación humana de por qué este valor
+	RequiresUser  bool        `json:"requires_user"` // si el fix necesita confirmación adicional
 	CreatedAt     time.Time   `json:"created_at"`
 }
 
 // AppliedRecord es el snapshot que se appendea a applied.jsonl al aplicar.
 type AppliedRecord struct {
-	ProposalID    string      `json:"proposal_id"`
-	FindingID     string      `json:"finding_id"`
-	Endpoint      string      `json:"endpoint"`
-	RecordID      string      `json:"record_id"`
-	Field         string      `json:"field"`
-	Before        interface{} `json:"before"`
-	After         interface{} `json:"after"`
-	Strategy      string      `json:"strategy"`
-	AppliedAt     time.Time   `json:"applied_at"`
+	ProposalID string      `json:"proposal_id"`
+	FindingID  string      `json:"finding_id"`
+	Endpoint   string      `json:"endpoint"`
+	RecordID   string      `json:"record_id"`
+	Field      string      `json:"field"`
+	Before     interface{} `json:"before"`
+	After      interface{} `json:"after"`
+	Strategy   string      `json:"strategy"`
+	AppliedAt  time.Time   `json:"applied_at"`
 }
 
 // ProposeForFinding genera una propuesta de fix a partir de un Finding.
 // Devuelve nil si no hay estrategia automatizable para esa regla/finding.
-func ProposeForFinding(f checks.Finding, ds *checks.Dataset, idx int) *Proposal {
+func ProposeForFinding(f auditdata.Finding, ds *auditdata.Dataset, idx int) *Proposal {
 	if !f.AutoFixable {
 		return nil
 	}
@@ -68,7 +68,7 @@ func ProposeForFinding(f checks.Finding, ds *checks.Dataset, idx int) *Proposal 
 
 // proposeDeriveFromRelated cubre los casos donde un campo se puede derivar
 // de un registro relacionado (ej: agreements.name desde clients.name).
-func proposeDeriveFromRelated(f checks.Finding, ds *checks.Dataset, idx int) *Proposal {
+func proposeDeriveFromRelated(f auditdata.Finding, ds *auditdata.Dataset, idx int) *Proposal {
 	rec := findRecord(ds, f.Endpoint, f.RecordID)
 	if rec == nil {
 		return nil
@@ -108,7 +108,7 @@ func proposeDeriveFromRelated(f checks.Finding, ds *checks.Dataset, idx int) *Pr
 }
 
 // proposeSetNull para sentinels de fecha tipo "0000-00-00".
-func proposeSetNull(f checks.Finding, ds *checks.Dataset, idx int) *Proposal {
+func proposeSetNull(f auditdata.Finding, ds *auditdata.Dataset, idx int) *Proposal {
 	rec := findRecord(ds, f.Endpoint, f.RecordID)
 	if rec == nil {
 		return nil
@@ -120,7 +120,7 @@ func proposeSetNull(f checks.Finding, ds *checks.Dataset, idx int) *Proposal {
 
 // proposeNextSequence: para campos numéricos correlativos (ej. número de factura)
 // reasignamos el siguiente número disponible en la misma serie.
-func proposeNextSequence(f checks.Finding, ds *checks.Dataset, idx int) *Proposal {
+func proposeNextSequence(f auditdata.Finding, ds *auditdata.Dataset, idx int) *Proposal {
 	rec := findRecord(ds, f.Endpoint, f.RecordID)
 	if rec == nil {
 		return nil
@@ -152,7 +152,7 @@ func proposeNextSequence(f checks.Finding, ds *checks.Dataset, idx int) *Proposa
 	return newProposal(f, idx, "next_sequence", rec[f.Field], proposed, rationale, true)
 }
 
-func newProposal(f checks.Finding, idx int, strategy string, current, proposed interface{}, rationale string, reqUser bool) *Proposal {
+func newProposal(f auditdata.Finding, idx int, strategy string, current, proposed interface{}, rationale string, reqUser bool) *Proposal {
 	return &Proposal{
 		ID:            fmt.Sprintf("P-%03d", idx),
 		FindingID:     f.ID,
@@ -172,7 +172,7 @@ func newProposal(f checks.Finding, idx int, strategy string, current, proposed i
 // Apply muta el dataset según la propuesta y appendea audit log.
 // Devuelve el AppliedRecord persistido.
 func Apply(p Proposal, dsPath, appliedLogPath string) (*AppliedRecord, error) {
-	ds, err := checks.LoadDataset(dsPath)
+	ds, err := auditdata.LoadDataset(dsPath)
 	if err != nil {
 		return nil, fmt.Errorf("load dataset: %w", err)
 	}
@@ -288,7 +288,7 @@ func SortedProposals(in []Proposal) []Proposal {
 
 // ---------- helpers ----------
 
-func findRecord(ds *checks.Dataset, endpoint, recordID string) map[string]interface{} {
+func findRecord(ds *auditdata.Dataset, endpoint, recordID string) map[string]interface{} {
 	for _, r := range ds.Endpoints[endpoint] {
 		if asString(r["id"]) == recordID {
 			return r

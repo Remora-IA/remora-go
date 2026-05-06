@@ -33,15 +33,32 @@ type Conversation struct {
 // referencia la pregunta en la cola (handoff.QuestionsQueue).
 // Resources son inputs no-textuales del usuario (imágenes, archivos).
 type Message struct {
-	ID              string            `json:"id"`
-	Role            string            `json:"role"`
-	Framework       string            `json:"framework,omitempty"`
-	Content         string            `json:"content"`
-	QuestionID      string            `json:"question_id,omitempty"`
-	AskVia          string            `json:"ask_via,omitempty"`
-	SuggestedChips  []string          `json:"suggested_chips,omitempty"`
-	Resources       []MessageResource `json:"resources,omitempty"`
-	Timestamp       time.Time         `json:"timestamp"`
+	ID             string            `json:"id"`
+	Role           string            `json:"role"`
+	Framework      string            `json:"framework,omitempty"`
+	Content        string            `json:"content"`
+	Reasoning      string            `json:"reasoning,omitempty"`
+	Status         string            `json:"status,omitempty"`
+	Artifacts      []MessageArtifact `json:"artifacts,omitempty"`
+	Events         []MessageEvent    `json:"events,omitempty"`
+	QuestionID     string            `json:"question_id,omitempty"`
+	AskVia         string            `json:"ask_via,omitempty"`
+	SuggestedChips []string          `json:"suggested_chips,omitempty"`
+	Resources      []MessageResource `json:"resources,omitempty"`
+	Timestamp      time.Time         `json:"timestamp"`
+}
+
+type MessageArtifact struct {
+	Type    string `json:"type"`
+	Name    string `json:"name,omitempty"`
+	Path    string `json:"path,omitempty"`
+	Content string `json:"content,omitempty"`
+}
+
+type MessageEvent struct {
+	Type      string `json:"type"`
+	Framework string `json:"framework,omitempty"`
+	Message   string `json:"message,omitempty"`
 }
 
 // MessageResource es un recurso adjunto al mensaje del usuario. Path es
@@ -53,11 +70,11 @@ type MessageResource struct {
 	MimeType string `json:"mime,omitempty"`
 }
 
-func convPath(id string) string      { return filepath.Join(convDir, id) }
-func metaPath(id string) string      { return filepath.Join(convPath(id), "meta.json") }
-func messagesPath(id string) string  { return filepath.Join(convPath(id), "messages.json") }
-func queuePath(id string) string     { return filepath.Join(convPath(id), "questions_queue.json") }
-func uploadsDir(id string) string    { return filepath.Join(convPath(id), "uploads") }
+func convPath(id string) string     { return filepath.Join(convDir, id) }
+func metaPath(id string) string     { return filepath.Join(convPath(id), "meta.json") }
+func messagesPath(id string) string { return filepath.Join(convPath(id), "messages.json") }
+func queuePath(id string) string    { return filepath.Join(convPath(id), "questions_queue.json") }
+func uploadsDir(id string) string   { return filepath.Join(convPath(id), "uploads") }
 
 // storeResources copia cada resource al directorio uploads/ de la conversación
 // y devuelve los MessageResource con paths absolutos al copy. Esto da

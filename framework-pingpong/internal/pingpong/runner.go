@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// RunReport es el resultado de ejecutar un archivo Go en sandbox.
+// RunReport es el resultado de ejecutar un archivo en sandbox.
 type RunReport struct {
 	File       string `json:"file"`
 	CompileOK  bool   `json:"compile_ok"`
@@ -24,10 +24,10 @@ type RunReport struct {
 	TimedOut   bool   `json:"timed_out,omitempty"`
 }
 
-// RunFile compila y ejecuta un archivo Go en un sandbox temporal.
+// RunFile compila y ejecuta un archivo en un sandbox temporal.
 // stdin se pasa como stdin del proceso; expected (si no vacío) se compara con stdout trimmed.
-// Timeout de 10 segundos. Sin acceso a red (GOPROXY=off, GOFLAGS=-mod=mod).
-func RunFile(filePath string, stdin string, expected string) (*RunReport, error) {
+// Timeout de 10 segundos.
+func RunFile(filePath string, stdin string, expected string, lang ...LangConfig) (*RunReport, error) {
 	abs, err := filepath.Abs(filePath)
 	if err != nil {
 		return nil, err
@@ -42,6 +42,14 @@ func RunFile(filePath string, stdin string, expected string) (*RunReport, error)
 		Expected: expected,
 	}
 
+	// Determine language config
+	var lc LangConfig
+	if len(lang) > 0 {
+		lc = lang[0]
+	} else {
+		lc = DefaultLangConfigs["go"]
+	}
+
 	// Crear sandbox temporal
 	sandbox, err := os.MkdirTemp("", "pingpong-run-*")
 	if err != nil {
@@ -49,54 +57,71 @@ func RunFile(filePath string, stdin string, expected string) (*RunReport, error)
 	}
 	defer os.RemoveAll(sandbox)
 
-	// Escribir go.mod mínimo
-	goMod := "module sandbox\n\ngo 1.21\n"
-	if err := os.WriteFile(filepath.Join(sandbox, "go.mod"), []byte(goMod), 0644); err != nil {
-		return nil, fmt.Errorf("no se pudo escribir go.mod: %w", err)
+	// Copy source to sandbox
+	ext := lc.FileExt
+	if ext == "" {
+		ext = filepath.Ext(abs)
 	}
-
-	// Copiar archivo del usuario como main.go
-	targetFile := filepath.Join(sandbox, "main.go")
+	targetName := "main" + ext
+	targetFile := filepath.Join(sandbox, targetName)
 	if err := os.WriteFile(targetFile, src, 0644); err != nil {
 		return nil, fmt.Errorf("no se pudo copiar archivo: %w", err)
 	}
 
-	// Timeout de 10 segundos para build+run
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Paso 1: go build
-	buildCmd := exec.CommandContext(ctx, "go", "build", "-o", "program", ".")
-	buildCmd.Dir = sandbox
-	buildCmd.Env = sandboxEnv(sandbox)
-	var buildStdout, buildStderr bytes.Buffer
-	buildCmd.Stdout = &buildStdout
-	buildCmd.Stderr = &buildStderr
+	return runConfigured(ctx, sandbox, targetFile, lc, rep, stdin, expected)
+}
 
-	if err := buildCmd.Run(); err != nil {
-		rep.CompileOK = false
-		rep.CompileLog = strings.TrimSpace(buildStderr.String())
-		if rep.CompileLog == "" {
-			rep.CompileLog = err.Error()
+// runConfigured executes optional build_cmd and required run_cmd from LangConfig.
+func runConfigured(ctx context.Context, sandbox, targetFile string, lc LangConfig, rep *RunReport, stdin, expected string) (*RunReport, error) {
+	if lc.Name == "go" {
+		goMod := "module sandbox\n\ngo 1.21\n"
+		if err := os.WriteFile(filepath.Join(sandbox, "go.mod"), []byte(goMod), 0644); err != nil {
+			return nil, fmt.Errorf("no se pudo escribir go.mod: %w", err)
 		}
-		// Reemplazar path de sandbox por nombre legible
-		rep.CompileLog = strings.ReplaceAll(rep.CompileLog, sandbox+"/", "")
-		return rep, nil
+	}
+
+	if strings.TrimSpace(lc.BuildCmd) != "" {
+		buildCmd := exec.CommandContext(ctx, "sh", "-c", commandWithFile(lc.BuildCmd, targetFile))
+		buildCmd.Dir = sandbox
+		buildCmd.Env = sandboxEnv(sandbox)
+		var buildStderr bytes.Buffer
+		buildCmd.Stderr = &buildStderr
+
+		if err := buildCmd.Run(); err != nil {
+			rep.CompileOK = false
+			rep.CompileLog = strings.TrimSpace(buildStderr.String())
+			if rep.CompileLog == "" {
+				rep.CompileLog = err.Error()
+			}
+			rep.CompileLog = strings.ReplaceAll(rep.CompileLog, sandbox+"/", "")
+			return rep, nil
+		}
 	}
 	rep.CompileOK = true
 
-	// Paso 2: ejecutar el binario
-	runCmd := exec.CommandContext(ctx, filepath.Join(sandbox, "program"))
+	runCmdText := commandWithFile(lc.RunCmd, targetFile)
+	if strings.TrimSpace(runCmdText) == "" {
+		return nil, fmt.Errorf("lenguaje %q no tiene run_cmd configurado", lc.Name)
+	}
+	runCmd := exec.CommandContext(ctx, "sh", "-c", runCmdText)
 	runCmd.Dir = sandbox
 	runCmd.Env = sandboxEnv(sandbox)
+	return execRun(runCmd, rep, stdin, expected, ctx)
+}
+
+// execRun executes a command and populates the RunReport.
+func execRun(cmd *exec.Cmd, rep *RunReport, stdin, expected string, ctx context.Context) (*RunReport, error) {
 	if stdin != "" {
-		runCmd.Stdin = strings.NewReader(stdin)
+		cmd.Stdin = strings.NewReader(stdin)
 	}
 	var runStdout, runStderr bytes.Buffer
-	runCmd.Stdout = &runStdout
-	runCmd.Stderr = &runStderr
+	cmd.Stdout = &runStdout
+	cmd.Stderr = &runStderr
 
-	runErr := runCmd.Run()
+	runErr := cmd.Run()
 	rep.Stdout = strings.TrimRight(runStdout.String(), "\n\r ")
 	rep.Stderr = strings.TrimSpace(runStderr.String())
 
@@ -114,21 +139,17 @@ func RunFile(filePath string, stdin string, expected string) (*RunReport, error)
 	}
 	rep.RunOK = true
 
-	// Comparar output si expected dado
 	if expected != "" {
 		expTrim := strings.TrimRight(expected, "\n\r ")
 		rep.Match = rep.Stdout == expTrim
 	} else {
-		rep.Match = true // sin expected, siempre match
+		rep.Match = true
 	}
 
 	return rep, nil
 }
 
-// sandboxEnv genera variables de entorno para el sandbox:
-// - GOPROXY=off (sin red)
-// - GOPATH en temp
-// - HOME y PATH heredados
+// sandboxEnv genera variables de entorno para el sandbox Go.
 func sandboxEnv(sandbox string) []string {
 	env := []string{
 		"GOPROXY=off",
@@ -136,7 +157,6 @@ func sandboxEnv(sandbox string) []string {
 		"GOPATH=" + filepath.Join(sandbox, ".gopath"),
 		"GOCACHE=" + filepath.Join(sandbox, ".cache"),
 	}
-	// Heredar PATH, HOME, GOROOT
 	for _, key := range []string{"PATH", "HOME", "GOROOT", "TMPDIR"} {
 		if v := os.Getenv(key); v != "" {
 			env = append(env, key+"="+v)

@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"framework-auditor/checks"
 	"framework-mecanico/fixers"
+	"framework-mecanico/internal/auditdata"
 )
 
 const (
@@ -119,11 +119,11 @@ func cmdPropose(args []string) {
 		fail("propose: --finding-id requerido")
 	}
 	fp, dp, pp, _, _ := paths()
-	finds, err := checks.LoadFindings(fp)
+	finds, err := auditdata.LoadFindings(fp)
 	if err != nil {
 		fail("load findings: %v", err)
 	}
-	var target *checks.Finding
+	var target *auditdata.Finding
 	for i := range finds {
 		if finds[i].ID == *findingID {
 			target = &finds[i]
@@ -133,7 +133,7 @@ func cmdPropose(args []string) {
 	if target == nil {
 		fail("finding %s no existe", *findingID)
 	}
-	ds, err := checks.LoadDataset(dp)
+	ds, err := auditdata.LoadDataset(dp)
 	if err != nil {
 		fail("load dataset: %v", err)
 	}
@@ -152,11 +152,11 @@ func cmdPropose(args []string) {
 
 func cmdProposeAllAuto(args []string) {
 	fp, dp, pp, _, _ := paths()
-	finds, err := checks.LoadFindings(fp)
+	finds, err := auditdata.LoadFindings(fp)
 	if err != nil {
 		fail("load findings: %v", err)
 	}
-	ds, err := checks.LoadDataset(dp)
+	ds, err := auditdata.LoadDataset(dp)
 	if err != nil {
 		fail("load dataset: %v", err)
 	}
@@ -392,7 +392,7 @@ func cmdNextQuestion(args []string) {
 
 func buildGreeting() string {
 	fp, dp, pp, _, _ := paths()
-	finds, _ := checks.LoadFindings(fp)
+	finds, _ := auditdata.LoadFindings(fp)
 	autoCount := 0
 	for _, f := range finds {
 		if f.AutoFixable {
@@ -409,26 +409,27 @@ func buildGreeting() string {
 	// Si hay autos pendientes y no hay propuestas, generamos las propuestas
 	// proactivamente para que el user vea el plan completo en el primer turno.
 	if len(props) == 0 && autoCount > 0 {
-		ds, err := checks.LoadDataset(dp)
-		if err == nil {
-			already := map[string]bool{}
-			for _, p := range props {
-				already[p.FindingID] = true
-			}
-			idx := nextProposalIdx(props)
-			for _, f := range finds {
-				if !f.AutoFixable || already[f.ID] {
-					continue
-				}
-				prop := fixers.ProposeForFinding(f, ds, idx)
-				if prop == nil {
-					continue
-				}
-				props = append(props, *prop)
-				idx++
-			}
-			_ = fixers.SaveProposals(pp, props)
+		ds, err := auditdata.LoadDataset(dp)
+		if err != nil {
+			return fmt.Sprintf("No pude leer el dataset: %v.", err)
 		}
+		already := map[string]bool{}
+		for _, p := range props {
+			already[p.FindingID] = true
+		}
+		idx := nextProposalIdx(props)
+		for _, f := range finds {
+			if !f.AutoFixable || already[f.ID] {
+				continue
+			}
+			prop := fixers.ProposeForFinding(f, ds, idx)
+			if prop == nil {
+				continue
+			}
+			props = append(props, *prop)
+			idx++
+		}
+		_ = fixers.SaveProposals(pp, props)
 	}
 	if len(props) > 0 {
 		fmt.Fprintf(&sb, "Generé un plan de %d fix(es) auto-corregibles. Antes de aplicar nada, te lo muestro:\n\n", len(props))
@@ -581,11 +582,11 @@ func extractProposalID(text string) string {
 // para devolverla como respuesta conversacional.
 func runProposeAllAutoCapture() string {
 	fp, dp, pp, _, _ := paths()
-	finds, err := checks.LoadFindings(fp)
+	finds, err := auditdata.LoadFindings(fp)
 	if err != nil {
 		return fmt.Sprintf("No tengo findings: %v. Pedile al auditor un scan primero.", err)
 	}
-	ds, err := checks.LoadDataset(dp)
+	ds, err := auditdata.LoadDataset(dp)
 	if err != nil {
 		return fmt.Sprintf("No pude leer el dataset: %v.", err)
 	}

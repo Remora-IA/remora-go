@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"channel/profile"
-	"framework-indexa/store"
 	"framework-sabio/internal/llm"
 	"framework-sabio/internal/sqlqa"
 )
@@ -43,11 +42,11 @@ type HistoryTurn struct {
 }
 
 const (
-	defaultStorePath  = "../framework-indexa/data/store.json"
-	defaultDBPath     = "../framework-indexa/data/panalbit.db"
-	defaultStatePath  = "temp/state.json"
-	greetingText      = "Soy el experto en tus datos indexados. Decime qué querés saber (ej: \"cuántos clientes tengo\", \"detalle de proyectos activos\", \"pagos pendientes\")."
-	defaultTopK       = 6
+	defaultStorePath = "../framework-indexa/data/store.json"
+	defaultDBPath    = "../framework-indexa/data/panalbit.db"
+	defaultStatePath = "temp/state.json"
+	greetingText     = "Soy el experto en tus datos indexados. Decime qué querés saber (ej: \"cuántos clientes tengo\", \"detalle de proyectos activos\", \"pagos pendientes\")."
+	defaultTopK      = 6
 )
 
 // profileLoader carga el perfil activo (Forma Genérica o Forma <nombre>)
@@ -77,11 +76,11 @@ func systemPromptWithOverlay(baseSystem, framework string) string {
 // Como el orquestador llama al binario una vez por paso, el estado vive en
 // disco. Para MVP usamos un único state global (un solo "expert chat").
 type state struct {
-	GreetingAsked  bool      `json:"greeting_asked"`
-	PendingAnswer  string    `json:"pending_answer"`     // respuesta lista para entregar al user
-	PendingID      string    `json:"pending_id"`         // id sintético del próximo "next-question"
-	LastQuestion   string    `json:"last_question"`      // última pregunta del user (debug)
-	LastAnswerAt   time.Time `json:"last_answer_at"`
+	GreetingAsked bool      `json:"greeting_asked"`
+	PendingAnswer string    `json:"pending_answer"` // respuesta lista para entregar al user
+	PendingID     string    `json:"pending_id"`     // id sintético del próximo "next-question"
+	LastQuestion  string    `json:"last_question"`  // última pregunta del user (debug)
+	LastAnswerAt  time.Time `json:"last_answer_at"`
 }
 
 func main() {
@@ -280,7 +279,7 @@ func answerQuestion(question, storePath string, history []HistoryTurn) (string, 
 		}
 	}
 
-	st, err := store.NewFileStore(storePath)
+	st, err := newLocalFileStore(storePath)
 	if err != nil {
 		return "", fmt.Errorf("store open (%s): %w", storePath, err)
 	}
@@ -413,9 +412,9 @@ func answerWithSQL(ctx context.Context, c *llm.Client, dbPath, question string, 
 	// Reintento corto: si el LLM se equivoca con SQL inválido, le devolvemos
 	// el error para que corrija. 2 intentos máx.
 	var (
-		lastSQL    string
-		lastErr    error
-		queryRes   *sqlqa.QueryResult
+		lastSQL  string
+		lastErr  error
+		queryRes *sqlqa.QueryResult
 	)
 	for attempt := 0; attempt < 3; attempt++ {
 		sqlText, err := generateSQL(ctx, c, eng.Schema(), question, history, lastSQL, lastErr)

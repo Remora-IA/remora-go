@@ -7,25 +7,27 @@
 // usuario UNA a la vez por la cola compartida.
 //
 // Endpoints:
-//   GET    /health
-//   GET    /api/v1/conversations                    lista conversaciones
-//   POST   /api/v1/conversations                    crea conversación con frameworks
-//   GET    /api/v1/conversations/{id}               metadata + mensajes
-//   DELETE /api/v1/conversations/{id}               elimina
-//   GET    /api/v1/conversations/{id}/messages      historial visible
-//   POST   /api/v1/conversations/{id}/messages      manda input del usuario
-//   GET    /api/v1/conversations/{id}/queue         cola de preguntas
-//   GET    /api/v1/frameworks                       drivers disponibles
-//   GET    /api/v1/frameworks/{name}                detail de un framework
-//   GET    /api/v1/rules                            ver reglas de composición
-//   PUT    /api/v1/rules                            modificar reglas de composición
-//   POST   /api/v1/conversations-single             crear conversación con 1 solo framework
-//   POST   /api/v1/conversations-single/{id}/messages  enviar a conversación single
+//
+//	GET    /health
+//	GET    /api/v1/conversations                    lista conversaciones
+//	POST   /api/v1/conversations                    crea conversación con frameworks
+//	GET    /api/v1/conversations/{id}               metadata + mensajes
+//	DELETE /api/v1/conversations/{id}               elimina
+//	GET    /api/v1/conversations/{id}/messages      historial visible
+//	POST   /api/v1/conversations/{id}/messages      manda input del usuario
+//	GET    /api/v1/conversations/{id}/queue         cola de preguntas
+//	GET    /api/v1/frameworks                       drivers disponibles
+//	GET    /api/v1/frameworks/{name}                detail de un framework
+//	GET    /api/v1/rules                            ver reglas de composición
+//	PUT    /api/v1/rules                            modificar reglas de composición
+//	POST   /api/v1/conversations-single             crear conversación con 1 solo framework
+//	POST   /api/v1/conversations-single/{id}/messages  enviar a conversación single
 //
 // Variables de entorno:
-//   CHANNEL_URL      default http://localhost:8765
-//   CHANNEL_API_KEY  default test-key-001
-//   FLUJO_API_PORT   default 8084
+//
+//	CHANNEL_URL      default http://localhost:8765
+//	CHANNEL_API_KEY  default test-key-001
+//	FLUJO_API_PORT   default 8084
 package main
 
 import (
@@ -61,17 +63,34 @@ type APIResponse struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+type fwInfo struct {
+	Name          string   `json:"name"`
+	Provider      string   `json:"provider"`
+	Model         string   `json:"model"`
+	Capabilities  []string `json:"capabilities"`
+	EnvKey        string   `json:"env_key"`
+	AskVia        string   `json:"ask_via,omitempty"`
+	Modes         []string `json:"modes,omitempty"`
+	ExecutionMode string   `json:"execution_mode"`
+	Description   string   `json:"description,omitempty"`
+	Produces      []string `json:"produces,omitempty"`
+	Requires      []string `json:"requires,omitempty"`
+	Testable      bool     `json:"testable"`
+	Chainable     bool     `json:"chainable"`
+}
+
 type server struct {
 	channel      *adapter.Client
 	rules        *FlowRules
 	runtimeInfo  runtimeInfo
 	allManifests map[string]*manifest.Manifest
+	rootDir      string
 }
 
 type runtimeInfo struct {
-	Provider  string
-	Model     string
-	Note      string
+	Provider string
+	Model    string
+	Note     string
 }
 
 func getRuntimeInfo() runtimeInfo {
@@ -114,6 +133,7 @@ func main() {
 		rules:        rules,
 		runtimeInfo:  getRuntimeInfo(),
 		allManifests: loadedManifests,
+		rootDir:      rootDir,
 	}
 
 	fmt.Printf("Runtime LLM: %s | %s | %s\n", srv.runtimeInfo.Provider, srv.runtimeInfo.Model, srv.runtimeInfo.Note)
@@ -123,6 +143,8 @@ func main() {
 	r.HandleFunc("/health", srv.health).Methods("GET", "OPTIONS")
 	r.HandleFunc("/healthz", srv.healthz).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/frameworks", srv.listFrameworks).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/frameworks/testable", srv.listTestableFrameworks).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/frameworks/chainable", srv.listChainableFrameworks).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations", srv.listConversations).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations", srv.createConversation).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/conversations/{id}", srv.getConversation).Methods("GET", "OPTIONS")
@@ -137,6 +159,7 @@ func main() {
 
 	// Framework detail endpoint
 	r.HandleFunc(apiBase+"/frameworks/{name}", srv.getFramework).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/frameworks/{name}/commands/{command}/run", srv.runFrameworkCommand).Methods("POST", "OPTIONS")
 
 	// Single framework conversation (para probar un framework solo)
 	r.HandleFunc(apiBase+"/conversations-single", srv.createSingleConversation).Methods("POST", "OPTIONS")
@@ -324,26 +347,17 @@ func (s *server) listModels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) listFrameworks(w http.ResponseWriter, r *http.Request) {
-	type fwInfo struct {
-		Name          string   `json:"name"`
-		Provider      string   `json:"provider"`
-		Model         string   `json:"model"`
-		Capabilities  []string `json:"capabilities"`
-		EnvKey        string   `json:"env_key"`
-		AskVia        string   `json:"ask_via,omitempty"`
-		Modes         []string `json:"modes,omitempty"`
-		ExecutionMode string   `json:"execution_mode"`
-		Description   string   `json:"description,omitempty"`
-		Produces      []string `json:"produces,omitempty"`
-		Requires      []string `json:"requires,omitempty"`
-	}
+	writeOK(w, s.collectFrameworkInfos())
+}
+
+func (s *server) collectFrameworkInfos() []fwInfo {
 	seen := map[string]bool{}
 	out := []fwInfo{}
 
 	// Frameworks en el chain conversacional (driverRegistry)
 	for name := range driverRegistry {
 		seen[name] = true
-		info := fwInfo{Name: name, ExecutionMode: manifest.ExecutionModeSync}
+		info := fwInfo{Name: name, ExecutionMode: manifest.ExecutionModeSync, Testable: true, Chainable: true}
 		if m, ok := s.allManifests[name]; ok {
 			info.Provider = m.Model.Provider
 			info.Model = m.Model.Name
@@ -369,12 +383,47 @@ func (s *server) listFrameworks(w http.ResponseWriter, r *http.Request) {
 			Description:   m.Description,
 			Provider:      m.Model.Provider,
 			Capabilities:  m.Model.Capabilities,
+			Testable:      frameworkManifestTestable(m),
+			Chainable:     false,
 		}
 		info.Produces = m.CapabilitiesSemantic.Produces
 		info.Requires = m.CapabilitiesSemantic.Requires
 		out = append(out, info)
 	}
-	writeOK(w, out)
+	return out
+}
+
+func (s *server) listTestableFrameworks(w http.ResponseWriter, r *http.Request) {
+	s.listFrameworksFiltered(w, func(f fwInfo) bool {
+		return f.Testable
+	})
+}
+
+func (s *server) listChainableFrameworks(w http.ResponseWriter, r *http.Request) {
+	s.listFrameworksFiltered(w, func(f fwInfo) bool {
+		return f.Chainable
+	})
+}
+
+func (s *server) listFrameworksFiltered(w http.ResponseWriter, keep func(fwInfo) bool) {
+	all := s.collectFrameworkInfos()
+	items := make([]fwInfo, 0, len(all))
+	for _, item := range all {
+		if keep(item) {
+			items = append(items, item)
+		}
+	}
+	writeOK(w, items)
+}
+
+func frameworkManifestTestable(m *manifest.Manifest) bool {
+	if m == nil {
+		return false
+	}
+	if m.UserInput.Supported && m.EffectiveExecutionMode() == manifest.ExecutionModeSync {
+		return true
+	}
+	return len(m.Commands) > 0
 }
 
 func (s *server) listConversations(w http.ResponseWriter, r *http.Request) {
@@ -459,8 +508,8 @@ func (s *server) createConversation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: map[string]interface{}{
-		"conversation":    conv,
-		"first_question":  first,
+		"conversation":   conv,
+		"first_question": first,
 	}})
 }
 
@@ -480,7 +529,7 @@ func (s *server) triggerFocoFirst(ch *adapter.Client, conv *Conversation) *Messa
 		if d.Name() == "foco" {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			
+
 			// Simular que el usuario preguntó "¿qué hago hoy?"
 			qctx := QueuedAnswerCtx{
 				Answer:       "iniciar día - mostrar prioridades",
@@ -489,7 +538,7 @@ func (s *server) triggerFocoFirst(ch *adapter.Client, conv *Conversation) *Messa
 			if err := d.IngestAnswer(ctx, ch, conv, qctx); err != nil {
 				fmt.Printf("[flujo_api] foco ingest error: %v\n", err)
 			}
-			
+
 			// Pedir la pregunta de foco (que será las prioridades)
 			// Usar PollQuestionFull si está disponible para capturar chips.
 			type fullPoller interface {
@@ -510,16 +559,17 @@ func (s *server) triggerFocoFirst(ch *adapter.Client, conv *Conversation) *Messa
 					}
 				}
 			} else {
-				text, extID, askVia, ok := d.PollQuestion(ctx, ch, conv, nil)
+				text, reasoning, extID, askVia, ok := d.PollQuestion(ctx, ch, conv, nil)
 				if ok && text != "" {
 					return &Message{
-						ID:          generateMessageID(),
-						Role:        "framework",
-						Framework:   "foco",
-						Content:     text,
-						QuestionID:  extID,
-						AskVia:      askVia,
-						Timestamp:   time.Now(),
+						ID:         generateMessageID(),
+						Role:       "framework",
+						Framework:  "foco",
+						Content:    text,
+						Reasoning:  reasoning,
+						QuestionID: extID,
+						AskVia:     askVia,
+						Timestamp:  time.Now(),
 					}
 				}
 			}
@@ -628,9 +678,9 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		// Sin más preguntas: la conversación quedó en idle.
 		writeOK(w, map[string]interface{}{
-			"user_message":     userMsg,
+			"user_message":      userMsg,
 			"framework_message": nil,
-			"idle":             true,
+			"idle":              true,
 		})
 		return
 	}
@@ -640,6 +690,7 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 		Role:           "framework",
 		Framework:      q.Framework,
 		Content:        q.Text,
+		Reasoning:      q.Reasoning,
 		QuestionID:     q.ID,
 		AskVia:         q.AskVia,
 		SuggestedChips: q.Chips,
@@ -863,8 +914,8 @@ type sendEmailReq struct {
 	// vía framework-contactos cuando `To` no viene en el request.
 	EntityType string `json:"entity_type,omitempty"`
 	EntityRef  string `json:"entity_ref,omitempty"`
-	Channel string `json:"channel,omitempty"`
-	ConvID  string `json:"conv_id,omitempty"`
+	Channel    string `json:"channel,omitempty"`
+	ConvID     string `json:"conv_id,omitempty"`
 	// TaskID opcional: si viene, al completar el envío se emite un task.event
 	// con kind=email_sent para cerrar la tarea automáticamente en el ledger.
 	TaskID string `json:"task_id,omitempty"`
@@ -1003,10 +1054,10 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 				Success: false,
 				Data: map[string]interface{}{
 					"missing_capability": res.MissingCapability,
-					"provider_hint":     res.ProviderHint,
-					"entity_type":       req.EntityType,
-					"entity_ref":        req.EntityRef,
-					"channel":           req.Channel,
+					"provider_hint":      res.ProviderHint,
+					"entity_type":        req.EntityType,
+					"entity_ref":         req.EntityRef,
+					"channel":            req.Channel,
 				},
 				Error: "contacto faltante; cargá email vía framework-contactos",
 			})
@@ -1089,12 +1140,12 @@ func (s *server) handleSendEmail(w http.ResponseWriter, r *http.Request) {
 	// de Foco: ejecuta acción → framework la registra → Foco ve la siguiente.
 	if req.TaskID != "" {
 		emitTaskEvent(req.TaskID, "mensajero", "email_sent", map[string]interface{}{
-			"message_id":     msResp.MessageID,
-			"to":             msResp.To,
-			"original_to":    originalTo,
-			"dev_rewritten":  devRewritten,
-			"channel":        msResp.Channel,
-			"result_ref":     "message:" + msResp.MessageID,
+			"message_id":    msResp.MessageID,
+			"to":            msResp.To,
+			"original_to":   originalTo,
+			"dev_rewritten": devRewritten,
+			"channel":       msResp.Channel,
+			"result_ref":    "message:" + msResp.MessageID,
 		})
 		// El ledger cambió: la próxima vez que el orchestrator pida active
 		// task verá la siguiente en la fila, no la que se acaba de cerrar.
@@ -1195,21 +1246,95 @@ func (s *server) updateRules(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) getFramework(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
-	
-	// Verificar que existe
-	if _, ok := driverRegistry[name]; !ok {
+
+	m, ok := s.allManifests[name]
+	if !ok {
 		writeErr(w, http.StatusNotFound, "framework no encontrado: "+name)
 		return
 	}
 
-	// Cargar manifest
-	m, err := loadFrameworkManifest(name)
-	if err != nil {
-		writeErr(w, http.StatusNotFound, "manifest no encontrado para: "+name)
+	writeOK(w, m)
+}
+
+type runFrameworkCommandRequest struct {
+	Params         map[string]string `json:"params"`
+	ConversationID string            `json:"conversation_id"`
+}
+
+func (s *server) runFrameworkCommand(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	name := vars["name"]
+	commandName := vars["command"]
+
+	m, ok := s.allManifests[name]
+	if !ok {
+		writeErr(w, http.StatusNotFound, "framework no encontrado: "+name)
+		return
+	}
+	cmd, ok := m.Commands[commandName]
+	if !ok {
+		writeErr(w, http.StatusNotFound, "comando no encontrado: "+commandName)
 		return
 	}
 
-	writeOK(w, m)
+	var req runFrameworkCommandRequest
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeErr(w, http.StatusBadRequest, "body inválido")
+			return
+		}
+	}
+	if req.Params == nil {
+		req.Params = map[string]string{}
+	}
+	convID := req.ConversationID
+	if convID == "" {
+		convID = fmt.Sprintf("fwtest_%s_%d", name, time.Now().UnixNano())
+	}
+
+	args, err := cmd.ResolveArgs(req.Params, frameworkIOPaths(s.rootDir, m.Inputs), frameworkIOPaths(s.rootDir, m.Outputs))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
+	fullArgs = append(fullArgs, args...)
+	cwdRel := m.Cwd
+	if cwdRel == "" {
+		cwdRel = "framework-" + m.Name
+	}
+	cwd := filepath.Join(s.rootDir, cwdRel)
+
+	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
+	defer cancel()
+	resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeOK(w, map[string]interface{}{
+		"conversation_id": convID,
+		"framework":       name,
+		"command":         commandName,
+		"args":            fullArgs,
+		"cwd":             cwd,
+		"response":        resp,
+	})
+}
+
+func frameworkIOPaths(root string, ports []manifest.IOPort) map[string]string {
+	out := map[string]string{}
+	for _, p := range ports {
+		if p.Name == "" || p.Path == "" {
+			continue
+		}
+		if filepath.IsAbs(p.Path) {
+			out[p.Name] = p.Path
+			continue
+		}
+		out[p.Name] = filepath.Join(root, p.Path)
+	}
+	return out
 }
 
 // ============================================
@@ -1217,8 +1342,8 @@ func (s *server) getFramework(w http.ResponseWriter, r *http.Request) {
 // ============================================
 
 type createSingleConvRequest struct {
-	Title      string `json:"title"`
-	Framework  string `json:"framework"`
+	Title     string `json:"title"`
+	Framework string `json:"framework"`
 }
 
 func (s *server) createSingleConversation(w http.ResponseWriter, r *http.Request) {
@@ -1228,9 +1353,10 @@ func (s *server) createSingleConversation(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Verificar que el framework existe
-	if _, ok := driverRegistry[req.Framework]; !ok {
-		writeErr(w, http.StatusBadRequest, "framework desconocido: "+req.Framework)
+	m, manifestOK := s.allManifests[req.Framework]
+	_, driverOK := driverRegistry[req.Framework]
+	if !driverOK && (!manifestOK || !frameworkManifestTestable(m)) {
+		writeErr(w, http.StatusBadRequest, "framework no testeable: "+req.Framework)
 		return
 	}
 
@@ -1256,7 +1382,6 @@ func (s *server) createSingleConversation(w http.ResponseWriter, r *http.Request
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	// Init driver
 	drivers := driversFor(conv)
 	for _, d := range drivers {
 		if err := d.Init(ctx, ch, conv); err != nil {
@@ -1264,19 +1389,23 @@ func (s *server) createSingleConversation(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	// Pedir primera pregunta
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, "", nil)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
+	var first *Message
+	if len(drivers) > 0 {
+		q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, "", nil)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[flujo_api] runLoop init: %v\n", err)
+		}
+		first = initialFrameworkMessage(conv, q, ok)
+	} else {
+		first = s.createUniversalSingleMessage(conv, m)
 	}
-	first := initialFrameworkMessage(conv, q, ok)
 	if first != nil {
 		_ = appendMessage(conv.ID, *first)
 	}
 
 	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: map[string]interface{}{
-		"conversation":    conv,
-		"first_question":  first,
+		"conversation":   conv,
+		"first_question": first,
 	}})
 }
 
@@ -1329,6 +1458,30 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = ch.ExecuteCommand(ctx, "echo", []string{"user_input:", req.Content}, "")
 
+	if len(driversFor(conv)) == 0 {
+		m, ok := s.allManifests[conv.Frameworks[0]]
+		if !ok || !frameworkManifestTestable(m) {
+			writeErr(w, http.StatusBadRequest, "framework no testeable: "+conv.Frameworks[0])
+			return
+		}
+		result, err := s.runUniversalSingle(ctx, ch, conv, m, req.Content, copiedResources)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		frameworkMsg := result.Message
+		if err := appendMessage(id, frameworkMsg); err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeOK(w, map[string]interface{}{
+			"user_message":      userMsg,
+			"framework_message": frameworkMsg,
+			"idle":              result.Idle,
+		})
+		return
+	}
+
 	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
@@ -1337,9 +1490,9 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 
 	if !ok {
 		writeOK(w, map[string]interface{}{
-			"user_message":     userMsg,
+			"user_message":      userMsg,
 			"framework_message": nil,
-			"idle":             true,
+			"idle":              true,
 		})
 		return
 	}
@@ -1349,6 +1502,7 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 		Role:           "framework",
 		Framework:      q.Framework,
 		Content:        q.Text,
+		Reasoning:      q.Reasoning,
 		QuestionID:     q.ID,
 		AskVia:         q.AskVia,
 		SuggestedChips: q.Chips,
@@ -1365,3 +1519,5 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 		"idle":              false,
 	})
 }
+
+// ============================================

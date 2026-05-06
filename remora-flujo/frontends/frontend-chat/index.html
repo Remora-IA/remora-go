@@ -1428,6 +1428,214 @@
       display: flex;
       justify-content: flex-end;
     }
+
+    .launcher-screen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 200;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .launcher-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(-20px);
+    }
+    .launcher-title {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .launcher-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: -32px;
+      text-align: center;
+      max-width: 400px;
+    }
+    .launcher-options {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .launcher-card {
+      width: 260px;
+      padding: 28px;
+      border-radius: 16px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+    }
+    .launcher-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+    }
+    .launcher-card-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 16px;
+      color: var(--text-muted);
+      transition: color 0.3s;
+    }
+    .launcher-card:hover .launcher-card-icon {
+      color: var(--text);
+    }
+    .launcher-card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .launcher-card-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .fw-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .fw-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .fw-option:hover {
+      border-color: var(--border-hover);
+      background: var(--surface2);
+    }
+    .fw-option.selected {
+      border-color: var(--echo-color);
+      background: hsla(260, 70%, 65%, 0.08);
+    }
+    .fw-option.selected .fw-check {
+      opacity: 1;
+    }
+    .fw-icon {
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      background: var(--surface2);
+      flex-shrink: 0;
+    }
+    .fw-icon svg {
+      width: 20px;
+      height: 20px;
+      color: var(--text-muted);
+    }
+    .fw-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .fw-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .fw-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fw-check {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.3;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .fw-option.selected .fw-check {
+      background: var(--echo-color);
+      border-color: var(--echo-color);
+      opacity: 1;
+    }
+    .fw-check svg {
+      width: 12px;
+      height: 12px;
+      color: white;
+      display: none;
+    }
+    .fw-option.selected .fw-check svg {
+      display: block;
+    }
+
+    .flow-selected-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      min-height: 48px;
+      align-items: center;
+    }
+    .flow-chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: grab;
+      user-select: none;
+    }
+    .flow-chip.dragging {
+      opacity: 0.5;
+    }
+    .flow-chip .remove-chip {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+    .flow-chip .remove-chip:hover {
+      color: var(--text);
+    }
+    .flow-empty-hint {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-style: italic;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 </head>
@@ -1448,12 +1656,46 @@
         </svg>
         Reglas
       </button>
+      <button class="header-btn" id="btn-new-session" title="Iniciar nueva sesión">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+        Nueva
+      </button>
       <div class="model-indicator" id="model-indicator" title="Cambiar modelo">
         <span class="model-dot"></span>
         <span id="current-model-name">Cargando...</span>
       </div>
     </div>
   </header>
+
+  <div class="launcher-screen" id="launcher-screen">
+    <div class="launcher-title">Rémora</div>
+    <div class="launcher-subtitle">Sistema multi-framework para automatización inteligente.<br>Selecciona cómo quieres trabajar hoy.</div>
+    <div class="launcher-options">
+      <div class="launcher-card" id="launcher-single" title="Probar un framework de forma aislada">
+        <div class="launcher-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+        </div>
+        <div class="launcher-card-title">Probar Framework</div>
+        <div class="launcher-card-desc">Conversa con un solo framework aislado. Ideal para desarrollo y testing.</div>
+      </div>
+      <div class="launcher-card" id="launcher-flow" title="Crear un flujo encadenando frameworks">
+        <div class="launcher-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+        <div class="launcher-card-title">Crear Flujo</div>
+        <div class="launcher-card-desc">Encadena múltiples frameworks. Define reglas de composición entre ellos.</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Nodes Canvas -->
   <div class="nodes-canvas" id="nodes-canvas">
@@ -1578,6 +1820,41 @@
   </div>
 </div>
 
+<div class="flow-modal" id="single-fw-modal" style="display: none;">
+  <div class="flow-modal-content">
+    <div class="flow-modal-header">
+      <h2>Probar Framework</h2>
+      <p>Selecciona un framework para conversar de forma aislada</p>
+    </div>
+    <div class="fw-selector" id="single-fw-list">
+      <!-- Frameworks loaded dynamically from API -->
+    </div>
+    <div class="flow-modal-footer">
+      <button class="modal-btn cancel" id="single-fw-cancel">Cancelar</button>
+      <button class="modal-btn confirm" id="single-fw-confirm" disabled>Iniciar</button>
+    </div>
+  </div>
+</div>
+
+<div class="flow-modal" id="flow-builder-modal" style="display: none;">
+  <div class="flow-modal-content" style="max-width: 560px;">
+    <div class="flow-modal-header">
+      <h2>Crear Flujo</h2>
+      <p>Selecciona frameworks y ordénalos para crear un flujo de trabajo</p>
+    </div>
+    <div class="flow-selected-bar" id="flow-selected-bar">
+      <span class="flow-empty-hint">Selecciona frameworks de la lista de abajo...</span>
+    </div>
+    <div class="fw-selector" id="flow-fw-list">
+      <!-- Frameworks loaded dynamically from API -->
+    </div>
+    <div class="flow-modal-footer">
+      <button class="modal-btn cancel" id="flow-builder-cancel">Cancelar</button>
+      <button class="modal-btn confirm" id="flow-builder-confirm" disabled>Crear Flujo</button>
+    </div>
+  </div>
+</div>
+
 <!-- Rules Configuration Modal -->
 <div class="rules-modal" id="rules-modal">
   <div class="rules-modal-content">
@@ -1615,9 +1892,8 @@
 // ============================================
 // CONSTANTS & STATE
 // ============================================
-const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? `http://${window.location.hostname}:8084/api/v1`
-  : `${window.location.origin}/api/v1`;
+const API_ORIGIN = window.location.protocol === 'file:' ? 'http://localhost:8084' : window.location.origin;
+const API_BASE = `${API_ORIGIN}/api/v1`;
 
 const FRAMEWORK_ICONS = {
   echo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1702,9 +1978,27 @@ let activeNodes = []; // { id, name, type }
 let currentConvId = null;
 let currentQuestionId = null;
 let currentFramework = null;
+let conversationCreated = false;
 let isWaitingForResponse = false;
 let currentModel = 'minimax'; // default
 let availableModels = [];
+
+let discoveredFrameworks = [];
+let selectedSingleFramework = null;
+let selectedFlowFrameworks = [];
+let currentMode = null;
+
+function testableFrameworks() {
+  return discoveredFrameworks.filter(fw => fw.testable !== false);
+}
+
+function chainableFrameworks() {
+  return discoveredFrameworks.filter(fw => fw.chainable !== false && fw.execution_mode !== 'async_trigger');
+}
+
+function isConversationalFramework(fw) {
+  return fw && fw.testable !== false;
+}
 
 // ─── FLOWS DEFINITION ───
 const FLOWS = {
@@ -1822,6 +2116,219 @@ modelModal.addEventListener('click', (e) => {
 
 // Load models on init
 loadModels();
+
+// ============================================
+// FRAMEWORK DISCOVERY & LAUNCHER
+// ============================================
+
+async function discoverFrameworks() {
+  try {
+    const res = await fetch(`${API_BASE}/frameworks`);
+    const json = await res.json();
+    if (json.success && Array.isArray(json.data)) {
+      discoveredFrameworks = json.data;
+      console.log('Discovered frameworks:', discoveredFrameworks.map(f => f.name));
+    }
+  } catch (e) {
+    console.error('Failed to discover frameworks:', e);
+    discoveredFrameworks = [];
+  }
+}
+
+function getFrameworkDisplayInfo(fw) {
+  const hardcoded = FRAMEWORK_INFO[fw.name];
+  return {
+    name: hardcoded?.name || fw.name,
+    desc: hardcoded?.desc || fw.description || 'Framework sin descripción',
+    icon: FRAMEWORK_ICONS[fw.name] || FRAMEWORK_ICONS.echo,
+    type: frameworkType(fw.name)
+  };
+}
+
+function getFrameworkName(name) {
+  const fw = discoveredFrameworks.find(f => f.name === name);
+  const info = getFrameworkDisplayInfo(fw || { name });
+  return info.name;
+}
+
+function renderFrameworkOption(fw, selected, onClick, mode) {
+  const info = getFrameworkDisplayInfo(fw);
+  const div = document.createElement('div');
+  div.className = `fw-option ${selected ? 'selected' : ''}`;
+  div.innerHTML = `
+    <div class="fw-icon">${info.icon}</div>
+    <div class="fw-info">
+      <div class="fw-name">${info.name}</div>
+      <div class="fw-desc">${info.desc}</div>
+    </div>
+    <div class="fw-check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+  `;
+  div.addEventListener('click', () => onClick(fw, div));
+  return div;
+}
+
+const singleFwModal = document.getElementById('single-fw-modal');
+const singleFwList = document.getElementById('single-fw-list');
+const singleFwConfirm = document.getElementById('single-fw-confirm');
+const singleFwCancel = document.getElementById('single-fw-cancel');
+
+function showSingleFwModal() {
+  singleFwList.innerHTML = '';
+  selectedSingleFramework = null;
+  singleFwConfirm.disabled = true;
+
+  testableFrameworks().forEach(fw => {
+    const isSelected = selectedSingleFramework === fw.name;
+    const el = renderFrameworkOption(fw, isSelected, (clickedFw, el) => {
+      selectedSingleFramework = clickedFw.name;
+      singleFwList.querySelectorAll('.fw-option').forEach(opt => opt.classList.remove('selected'));
+      el.classList.add('selected');
+      singleFwConfirm.disabled = false;
+    }, 'single');
+    singleFwList.appendChild(el);
+  });
+
+  singleFwModal.style.display = 'flex';
+  singleFwModal.classList.add('visible');
+}
+
+function hideSingleFwModal() {
+  singleFwModal.classList.remove('visible');
+  setTimeout(() => { singleFwModal.style.display = 'none'; }, 300);
+}
+
+singleFwCancel.addEventListener('click', hideSingleFwModal);
+singleFwModal.addEventListener('click', (e) => {
+  if (e.target === singleFwModal) hideSingleFwModal();
+});
+
+singleFwConfirm.addEventListener('click', async () => {
+  if (!selectedSingleFramework) return;
+  hideSingleFwModal();
+  hideLauncher();
+  currentMode = 'single';
+  await createConversationAndStart([selectedSingleFramework], '');
+});
+
+const flowBuilderModal = document.getElementById('flow-builder-modal');
+const flowFwList = document.getElementById('flow-fw-list');
+const flowSelectedBar = document.getElementById('flow-selected-bar');
+const flowBuilderConfirm = document.getElementById('flow-builder-confirm');
+const flowBuilderCancel = document.getElementById('flow-builder-cancel');
+
+function updateFlowSelectedBar() {
+  if (selectedFlowFrameworks.length === 0) {
+    flowSelectedBar.innerHTML = '<span class="flow-empty-hint">Selecciona frameworks de la lista de abajo...</span>';
+    flowBuilderConfirm.disabled = true;
+    return;
+  }
+  flowSelectedBar.innerHTML = '';
+  selectedFlowFrameworks.forEach((name, index) => {
+    const fw = discoveredFrameworks.find(f => f.name === name);
+    const info = getFrameworkDisplayInfo(fw || { name });
+    const chip = document.createElement('div');
+    chip.className = 'flow-chip';
+    chip.draggable = true;
+    chip.innerHTML = `
+      <span>${index + 1}. ${info.name}</span>
+      <span class="remove-chip" data-name="${name}">×</span>
+    `;
+    chip.querySelector('.remove-chip').addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedFlowFrameworks = selectedFlowFrameworks.filter(n => n !== name);
+      updateFlowSelectedBar();
+      renderFlowBuilderList();
+    });
+    flowSelectedBar.appendChild(chip);
+  });
+  flowBuilderConfirm.disabled = false;
+}
+
+function renderFlowBuilderList() {
+  flowFwList.innerHTML = '';
+  chainableFrameworks().forEach(fw => {
+    const isSelected = selectedFlowFrameworks.includes(fw.name);
+    const el = renderFrameworkOption(fw, isSelected, (clickedFw, el) => {
+      if (selectedFlowFrameworks.includes(clickedFw.name)) {
+        selectedFlowFrameworks = selectedFlowFrameworks.filter(n => n !== clickedFw.name);
+        el.classList.remove('selected');
+      } else {
+        selectedFlowFrameworks.push(clickedFw.name);
+        el.classList.add('selected');
+      }
+      updateFlowSelectedBar();
+    }, 'flow');
+    flowFwList.appendChild(el);
+  });
+}
+
+function showFlowBuilderModal() {
+  selectedFlowFrameworks = [];
+  updateFlowSelectedBar();
+  renderFlowBuilderList();
+  flowBuilderModal.style.display = 'flex';
+  flowBuilderModal.classList.add('visible');
+}
+
+function hideFlowBuilderModal() {
+  flowBuilderModal.classList.remove('visible');
+  setTimeout(() => { flowBuilderModal.style.display = 'none'; }, 300);
+}
+
+flowBuilderCancel.addEventListener('click', hideFlowBuilderModal);
+flowBuilderModal.addEventListener('click', (e) => {
+  if (e.target === flowBuilderModal) hideFlowBuilderModal();
+});
+
+flowBuilderConfirm.addEventListener('click', async () => {
+  if (selectedFlowFrameworks.length === 0) return;
+  hideFlowBuilderModal();
+  hideLauncher();
+  currentMode = 'flow';
+  await createConversationAndStart([...selectedFlowFrameworks], '');
+});
+
+const launcherScreen = document.getElementById('launcher-screen');
+const launcherSingle = document.getElementById('launcher-single');
+const launcherFlow = document.getElementById('launcher-flow');
+
+function hideLauncher() {
+  launcherScreen.classList.add('hidden');
+}
+
+function showLauncher() {
+  launcherScreen.classList.remove('hidden');
+  currentMode = null;
+  selectedSingleFramework = null;
+  selectedFlowFrameworks = [];
+  activeNodes = [];
+  currentConvId = null;
+  conversationCreated = false;
+  currentQuestionId = null;
+  currentFramework = null;
+  canvas.querySelectorAll('.node:not(#node-user)').forEach(n => n.remove());
+  canvas.querySelectorAll('.add-node-btn').forEach(n => {
+    if (n.id !== 'add-node-btn') n.remove();
+  });
+  connectionsSvg.innerHTML = '';
+  initialInputArea.classList.remove('hidden');
+  addNodeBtn.classList.remove('hidden');
+  hideThoughtBubble();
+}
+
+launcherSingle.addEventListener('click', () => {
+  showSingleFwModal();
+});
+
+launcherFlow.addEventListener('click', () => {
+  showFlowBuilderModal();
+});
+
+discoverFrameworks();
 
 // ============================================
 // DOM ELEMENTS
@@ -2141,7 +2648,11 @@ function renderFlowOptions() {
         <div class="flow-option-name">${flow.name}</div>
         <div class="flow-option-desc">${flow.desc}</div>
         <div class="flow-option-frameworks">
-          ${flow.frameworks.map(f => `<span>${FRAMEWORK_INFO[f]?.name || f}</span>`).join('')}
+          ${flow.frameworks.map(f => {
+            const fw = discoveredFrameworks.find(df => df.name === f);
+            const info = getFrameworkDisplayInfo(fw || { name: f });
+            return `<span>${info.name}</span>`;
+          }).join('')}
         </div>
       </div>
       <div class="flow-option-check">
@@ -2248,6 +2759,84 @@ function renderSuggestedChips(framework, dynamicChips) {
 // API COMMUNICATION
 // ============================================
 
+function commandDefaults(cmd) {
+  const params = {};
+  (cmd.params || []).forEach(name => {
+    params[name] = (cmd.defaults && cmd.defaults[name]) || '';
+  });
+  return params;
+}
+
+function formatCommandResult(result) {
+  const resp = result.response || {};
+  const stdout = resp.stdout || '';
+  let prettyStdout = stdout;
+  try {
+    prettyStdout = JSON.stringify(JSON.parse(stdout), null, 2);
+  } catch (_) {}
+  return [
+    `**Comando:** \`${result.framework} ${result.command}\``,
+    `**Session:** \`${result.conversation_id}\``,
+    `**Exit:** ${resp.exit_code ?? 'n/a'}`,
+    '',
+    '**stdout**',
+    '```json',
+    prettyStdout || '{}',
+    '```',
+    resp.stderr ? `**stderr**\n\`\`\`\n${resp.stderr}\n\`\`\`` : ''
+  ].filter(Boolean).join('\n');
+}
+
+async function createFrameworkCommandSession(frameworkName) {
+  const fw = discoveredFrameworks.find(f => f.name === frameworkName) || { name: frameworkName };
+  const info = getFrameworkDisplayInfo(fw);
+  canvas.querySelectorAll('.node:not(.user-node)').forEach(n => n.remove());
+  activeNodes = [];
+  addNode(frameworkName, info.name, frameworkType(frameworkName));
+  setNodeActive(frameworkName, true);
+  showThoughtBubble(frameworkType(frameworkName), info.name, 'Cargando comandos del manifest...', false);
+
+  try {
+    const detailRes = await fetch(`${API_BASE}/frameworks/${frameworkName}`);
+    const detailJson = await detailRes.json();
+    if (!detailJson.success) throw new Error(detailJson.error || 'No pude cargar el manifest');
+    const manifest = detailJson.data;
+    const commandNames = Object.keys(manifest.commands || {});
+    if (commandNames.length === 0) {
+      showThoughtBubble(frameworkType(frameworkName), info.name, 'Este framework no declara comandos ejecutables en su manifest.', false);
+      return;
+    }
+    const selectedCommand = prompt(`Comando a probar para ${frameworkName}:\n\n${commandNames.join('\n')}`, commandNames[0]);
+    if (!selectedCommand) {
+      showThoughtBubble(frameworkType(frameworkName), info.name, 'Prueba cancelada.', false);
+      return;
+    }
+    const cmd = manifest.commands[selectedCommand];
+    if (!cmd) {
+      showThoughtBubble(frameworkType(frameworkName), info.name, `Comando no existe: ${selectedCommand}`, false);
+      return;
+    }
+    const paramsText = prompt(`Params JSON para ${frameworkName}.${selectedCommand}`, JSON.stringify(commandDefaults(cmd), null, 2));
+    let params = {};
+    if (paramsText && paramsText.trim()) {
+      params = JSON.parse(paramsText);
+    }
+    showThoughtBubble(frameworkType(frameworkName), info.name, `Ejecutando \`${selectedCommand}\` vía Channel...`, false);
+    const runRes = await fetch(`${API_BASE}/frameworks/${frameworkName}/commands/${selectedCommand}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ params })
+    });
+    const runJson = await runRes.json();
+    if (!runJson.success) throw new Error(runJson.error || 'Error ejecutando comando');
+    currentConvId = runJson.data.conversation_id;
+    conversationCreated = true;
+    showThoughtBubble(frameworkType(frameworkName), info.name, formatCommandResult(runJson.data), false);
+  } catch (e) {
+    showThoughtBubble(frameworkType(frameworkName), info.name, `Error probando framework: ${e.message}`, false);
+  }
+}
+
 async function createConversationAndStart(frameworks, initialMessage) {
   try {
     // Try single framework conversation first
@@ -2264,10 +2853,13 @@ async function createConversationAndStart(frameworks, initialMessage) {
       
       if (json.success && json.data.conversation) {
         currentConvId = json.data.conversation.id;
+        conversationCreated = true;
         
         // Add nodes for selected frameworks
         frameworks.forEach(name => {
-          addNode(name, FRAMEWORK_INFO[name]?.name || name, frameworkType(name));
+          const fw = discoveredFrameworks.find(f => f.name === name);
+          const info = getFrameworkDisplayInfo(fw || { name });
+          addNode(name, info.name, frameworkType(name));
         });
         
         // Activate user node
@@ -2293,17 +2885,19 @@ async function createConversationAndStart(frameworks, initialMessage) {
             const hasInputChips = !(q.suggested_chips && q.suggested_chips.length > 0);
             showThoughtBubble(
               nodeType,
-              FRAMEWORK_INFO[nodeType]?.name || q.framework,
+              getFrameworkName(q.framework),
               q.content,
               hasInputChips,
               'pos-below'
             );
             renderSuggestedChips(q.framework, q.suggested_chips);
           }, 500);
-        } else {
-          // No question, user needs to send initial message
+        } else if (initialMessage) {
           showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
           await sendInitialMessage(initialMessage);
+        } else {
+          initialInputArea.classList.remove('hidden');
+          initialInput.focus();
         }
         
         return;
@@ -2323,10 +2917,13 @@ async function createConversationAndStart(frameworks, initialMessage) {
     
     if (json.success && json.data.conversation) {
       currentConvId = json.data.conversation.id;
+      conversationCreated = true;
       
       // Add nodes for selected frameworks
       frameworks.forEach(name => {
-        addNode(name, FRAMEWORK_INFO[name]?.name || name, frameworkType(name));
+        const fw = discoveredFrameworks.find(f => f.name === name);
+        const info = getFrameworkDisplayInfo(fw || { name });
+        addNode(name, info.name, frameworkType(name));
       });
       
       // Activate user node
@@ -2352,7 +2949,7 @@ async function createConversationAndStart(frameworks, initialMessage) {
           const hasInputChips = !(q.suggested_chips && q.suggested_chips.length > 0);
           showThoughtBubble(
             nodeType,
-            FRAMEWORK_INFO[nodeType]?.name || q.framework,
+            getFrameworkName(q.framework),
             q.content,
             hasInputChips,
             'pos-below'
@@ -2411,7 +3008,7 @@ async function sendInitialMessage(text) {
           setNodeSpeaking(msg.framework, false);
           showThoughtBubble(
             nodeType,
-            FRAMEWORK_INFO[nodeType]?.name || msg.framework,
+            getFrameworkName(msg.framework),
             msg.content,
             true,
             'pos-below'
@@ -2420,7 +3017,14 @@ async function sendInitialMessage(text) {
           maybeRenderSendEmailBtn(msg.framework, msg.content);
         }, 300);
       } else if (json.data.idle) {
-        showThoughtBubble('echo', 'Echo', 'La sesión está completa. Puedes iniciar una nueva si lo necesitas.', false, 'pos-below');
+        const node = activeNodes[0] || {};
+        showThoughtBubble(
+          frameworkType(node.type || node.id || currentFramework || 'echo'),
+          getFrameworkName(node.id || currentFramework || 'echo'),
+          'No hay una nueva pregunta pendiente, pero la sesión sigue abierta. Puedes enviar otro mensaje al mismo framework.',
+          true,
+          'pos-below'
+        );
       }
     }
   } catch (e) {
@@ -2475,7 +3079,7 @@ async function sendResponseToFramework(text) {
           setNodeSpeaking(msg.framework, false);
           showThoughtBubble(
             nodeType,
-            FRAMEWORK_INFO[nodeType]?.name || msg.framework,
+            getFrameworkName(msg.framework),
             msg.content,
             true,
             'pos-below'
@@ -2484,7 +3088,14 @@ async function sendResponseToFramework(text) {
           maybeRenderSendEmailBtn(msg.framework, msg.content);
         }, 500);
       } else if (json.data.idle) {
-        showThoughtBubble('echo', 'Echo', 'La sesión ha terminado. Gracias por usar Handoff.', false, 'pos-below');
+        const node = activeNodes[0] || {};
+        showThoughtBubble(
+          frameworkType(node.type || node.id || currentFramework || 'echo'),
+          getFrameworkName(node.id || currentFramework || 'echo'),
+          'El framework no emitió otra pregunta en este turno, pero la sesión sigue abierta. Puedes seguir escribiéndole.',
+          true,
+          'pos-below'
+        );
       }
     }
   } catch (e) {
@@ -2499,6 +3110,12 @@ async function sendResponseToFramework(text) {
 // EVENT LISTENERS
 // ============================================
 
+// New session button → reset to launcher
+const newSessionBtn = document.getElementById('btn-new-session');
+newSessionBtn.addEventListener('click', () => {
+  showLauncher();
+});
+
 // Add node button → show flow modal
 addNodeBtn.addEventListener('click', showFlowModal);
 
@@ -2506,17 +3123,19 @@ addNodeBtn.addEventListener('click', showFlowModal);
 modalCancel.addEventListener('click', hideFlowModal);
 modalConfirm.addEventListener('click', async () => {
   if (!selectedFlow) return;
-  
+
   const flow = FLOWS[selectedFlow];
   if (!flow) return;
-  
+
   hideFlowModal();
   addNodeBtn.classList.add('hidden');
-  
+
   // Add nodes for flow's frameworks
   flow.frameworks.forEach(name => {
     const type = frameworkType(name);
-    addNode(name, FRAMEWORK_INFO[name]?.name || name, type);
+    const fw = discoveredFrameworks.find(f => f.name === name);
+    const info = getFrameworkDisplayInfo(fw || { name });
+    addNode(name, info.name, type);
   });
   
   // Activate user node
@@ -2542,7 +3161,12 @@ initialSendBtn.addEventListener('click', async () => {
     showFlowModal();
     return;
   }
-  
+
+  if (conversationCreated && currentConvId) {
+    await sendInitialMessage(text);
+    return;
+  }
+
   const frameworkNames = activeNodes.map(n => n.id);
   await createConversationAndStart(frameworkNames, text);
 });

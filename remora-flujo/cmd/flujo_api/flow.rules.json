@@ -11,7 +11,7 @@
         "user_answer_count_max": 0
       },
       "then": {
-        "prepend_speaker": "arquitecto"
+        "delegate_to_provider_of": "repo_model:arquitecto.model.v1"
       }
     },
     {

@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.19] - 2026-05-06
+
+> **Release**: expandir flujo, paladin
+
+### Paladin
+
+- **paladin/lint.go**: archivo nuevo
+- **paladin/main.go**: funciones: hasLintFailures
+- **paladin/lint_test.go**: archivo nuevo
+
+### Flujo
+
+- **cola-preguntas**: sistema de cola de preguntas para control de turnos (handoff/questions_queue.go)
+- **flujo_api/Dockerfile.dev**: archivo nuevo
+- **flujo_api/flow.rules.json**: +1 / -1
+- **static/index.html**: +776 / -408
+- **frontend-chat/index.html**: +643 / -19
+- **flujo_api/drivers.go**: funciones: (e *echoDriver) PollQuestion, (a *alfaDriver) PollQuestion
+- **flujo_api/generic_driver.go**: funciones: (g *genericDriver) resolveCommandArgs, (g *genericDriver) PollQuestion
+- **flujo_api/main.go**: funciones: (s *server) collectFrameworkInfos, (s *server) listTestableFrameworks, (s *server) listChainableFrameworks, (s *server) listFrameworksFiltered | tipos: fwInfo, runFrameworkCommandRequest
+- **flujo_api/orchestrator.go**: +24 / -4
+- **flujo_api/rules.go**: +37 / -4
+- **flujo_api/single_wrapper.go**: archivo nuevo
+- **flujo_api/store.go**: funciones: convPath, metaPath, messagesPath, queuePath | tipos: MessageArtifact, MessageEvent
+- **flujo_api/intent.go**: funciones: providerOfProducedCapability
+- **flujo_api/single_wrapper_test.go**: archivo nuevo
+
+### Repo
+
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (frameworkmecanico/main.go)
+- **channel/Dockerfile**: archivo nuevo
+- **docker-compose.yml**: archivo nuevo
+- **framework-deployer/framework.manifest.json**: +26 / -5
+- **framework-foco/framework.manifest.json**: +10 / -6
+- **framework-mecanico/go.mod**: -4
+- **framework-pingpong/framework-pingpong**: configuracion
+- **framework-pingpong/pingpong**: configuracion
+- **framework-pingpong/pingpong_progress.json**: -59
+- **servidor-rpc/pingpong_progress.json**: archivo nuevo
+- **framework-sabio/go.mod**: -3
+- **cobranza-chile/flow.rules.json**: +21 / -19
+- **framework-pingpong/INITIAL_PROMPT.md**: +131 / -63
+- **foco/main.go**: funciones: configureFocoSession, safePathSegment, newSessionPlan, loadOrNewSessionPlan | tipos: focoAIIntent, focoHistoryTurn
+- **llm/client.go**: archivo nuevo
+- **fixers/fixers.go**: funciones: ProposeForFinding, proposeDeriveFromRelated, proposeSetNull, proposeNextSequence
+- **auditdata/auditdata.go**: archivo nuevo
+- **framework-pingpong/main.go**: funciones: cmdConfigure, cmdNext, cmdCheck, cmdAccept
+- **pingpong/client.go**: funciones: NewWithTrace, (c *Client) Configure, (c *Client) Clean, (c *Client) Scan | tipos: Detour, BatchInfo, BatchStep
+- **pingpong/flow80.go**: archivo nuevo
+- **pingpong/inspector.go**: archivo nuevo
+- **pingpong/runner.go**: funciones: RunFile, runConfigured, execRun
+- **pingpong/verifier.go**: funciones: CompileCheck, FileHash, ReadFileContent, extractSnippet | tipos: LangConfig
+- **servidor-rpc/servidor.go**: archivo nuevo
+- **frameworksabio/local_store.go**: archivo nuevo
+- **frameworksabio/main.go**: +14 / -15
+- **servidor-rpc/client.go**: archivo nuevo
+- **servidor-rpc/cliente.go**: -23
+- **servidor-rpc/main.go**: -25
+- **pingpong/batch_test.go**: archivo nuevo
+- **pingpong/clean_test.go**: archivo nuevo
+- **pingpong/flow80_test.go**: archivo nuevo
+- **pingpong/inspector_test.go**: archivo nuevo
+- **pingpong/verifier_strict_test.go**: funciones: TestCompileCheckPythonOK, TestCompileCheckPythonError
+
 ## [0.1.18] - 2026-05-05
 
 > **Release**: actualizar proyecto

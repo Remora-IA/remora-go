@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"channel/adapter"
@@ -39,6 +40,9 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 	rootCtx.Var("profile", envOr("REMORA_PROFILE", "default"))
 	rootCtx.Var("user_answer", userAnswer)
 	rootCtx.Var("frameworks_active", conv.Frameworks)
+	rootCtx.Actor("flujo_api", "orquesta frameworks activos sin acoplarlos entre sí")
+	rootCtx.Goal("decidir qué framework debe hablar después y entregar la respuesta del usuario al dueño correcto")
+	rootCtx.Expect("framework_chain", "solo un framework queda elegido como próximo speaker")
 	defer func() {
 		rootCtx.End()
 		trace.Flush()
@@ -67,8 +71,12 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 	// framework habla primero. Esto reemplaza reglas name-based del estilo
 	// `prepend_speaker: "<nombre>"` por routing emergente desde el manifest.
 	intentSpan := rootCtx.Child("intent_classification")
+	intentSpan.Rule("capability_intent_routing", "la intención del usuario puede adelantar el framework activo cuyo manifest matchea intent_examples", map[string]any{
+		"active": conv.Frameworks,
+	})
 	intentMatch := classifyIntent(userAnswer, manifests, conv.Frameworks)
 	intentSpan.Var("intent_match", intentMatch)
+	intentSpan.Check("capability_intent_routing", "intent_match vacío o framework activo", fmt.Sprintf("intent_match=%s", intentMatch), intentMatch == "" || slices.Contains(conv.Frameworks, intentMatch))
 	if intentMatch != "" {
 		drivers = reorderDrivers(drivers, intentMatch)
 		intentSpan.Decision("reorder_drivers",
@@ -83,16 +91,25 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 	evalCtx := EvalContext{
 		FrameworksActive: conv.Frameworks,
 		UserAnswerCount:  conv.UserAnswerCount,
+		UserAnswer:       userAnswer,
 		UserResources:    resources,
 	}
 	wantPreprocess := ""
 	if rules != nil {
+		rootCtx.Rule("flow_rules", "flow.rules.json puede reordenar drivers, pedir preprocesamiento o delegar por capability", map[string]any{
+			"rules_count": len(rules.Rules),
+		})
 		for _, action := range rules.Match(evalCtx) {
 			if action.PrependSpeaker != "" {
 				drivers = reorderDrivers(drivers, action.PrependSpeaker)
 			}
 			if action.PrependSpeakerProviderOf != "" {
 				if name := providerOfModelCapability(action.PrependSpeakerProviderOf, manifests, conv.Frameworks); name != "" {
+					drivers = reorderDrivers(drivers, name)
+				}
+			}
+			if action.DelegateToProviderOf != "" {
+				if name := providerOfProducedCapability(action.DelegateToProviderOf, manifests, conv.Frameworks); name != "" {
 					drivers = reorderDrivers(drivers, name)
 				}
 			}
@@ -103,6 +120,7 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 	}
 
 	rootCtx.Var("drivers_final", driverNames(drivers))
+	rootCtx.Check("driver_selection", "hay al menos un driver después de reglas", fmt.Sprintf("drivers=%v", driverNames(drivers)), len(drivers) > 0)
 
 	// 2. Procesar respuesta si hay alguna.
 	if userAnswer != "" || len(resources) > 0 {
@@ -176,6 +194,7 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 			}
 		} else {
 			d := drivers[0]
+			rootCtx.Handoff("user", d.Name(), "respuesta inicial sin pregunta pendiente; se entrega al primer driver del orden actual")
 			qctx := QueuedAnswerCtx{
 				Answer:       enrichedAnswer,
 				QuestionText: "(contexto inicial)",
@@ -209,9 +228,9 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		if fp, hasFull := d.(fullPoller); hasFull {
 			r, ok = fp.PollQuestionFull(ctx, ch, conv, asked[d.Name()])
 		} else {
-			var text, extID, askVia string
-			text, extID, askVia, ok = d.PollQuestion(ctx, ch, conv, asked[d.Name()])
-			r = nextQuestionResponse{ID: extID, Text: text, AskVia: askVia}
+			var text, reasoning, extID, askVia string
+			text, reasoning, extID, askVia, ok = d.PollQuestion(ctx, ch, conv, asked[d.Name()])
+			r = nextQuestionResponse{ID: extID, Text: text, Reasoning: reasoning, AskVia: askVia}
 		}
 		pollSpan.Var("has_question", ok)
 		if !ok {
@@ -222,9 +241,10 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		pollSpan.Var("question_text", truncate(r.Text, 200))
 		pollSpan.Decision("speaker_chosen",
 			fmt.Sprintf("%s habla porque es el primero con pregunta lista", d.Name()))
+		pollSpan.Handoff("flujo_api", d.Name(), "driver tiene pregunta lista para el usuario")
 		pollSpan.End()
 		queue.SetSpeaker(d.Name())
-		qid := queue.AddQuestion(d.Name(), r.ID, r.Text, r.AskVia, r.Chips)
+		qid := queue.AddQuestionWithReasoning(d.Name(), r.ID, r.Text, r.Reasoning, r.AskVia, r.Chips)
 		if err := saveQueue(conv.ID, queue); err != nil {
 			rootCtx.Error(err)
 			return handoff.QueuedQuestion{}, false, err

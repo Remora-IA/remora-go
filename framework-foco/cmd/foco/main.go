@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -10,13 +12,17 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/alclessA0/remora-go/framework-foco/internal/llm"
 )
 
-const (
-	statePath       = "foco_state.json"
-	mdPath          = "foco_state.md"
-	legacyStatePath = "temp/foco/today.json"
-	legacyMDPath    = "temp/foco/today.md"
+var (
+	statePath        = "foco_state.json"
+	mdPath           = "foco_state.md"
+	legacyStatePath  = "temp/foco/today.json"
+	legacyMDPath     = "temp/foco/today.md"
+	pendingReplyPath = "temp/foco/pending_reply.json"
+	priorityListPath = "temp/foco/last_priority_list.json"
 )
 
 // Dependency representa una dependencia entre tareas
@@ -43,6 +49,7 @@ type DayPlan struct {
 	Result       string        `json:"result,omitempty"`
 	Objective    string        `json:"objective"`
 	InferredWhy  string        `json:"inferred_why,omitempty"`
+	Reasoning    string        `json:"reasoning,omitempty"`
 	Notes        []Note        `json:"notes"`
 	Nodes        []Node        `json:"nodes"`
 	Events       []Event       `json:"events,omitempty"`
@@ -167,7 +174,7 @@ func main() {
 	case "show":
 		err = runShow()
 	case "next-question":
-		err = runNextQuestion()
+		err = runNextQuestion(os.Args[2:])
 	case "ingest-answer":
 		err = runIngestAnswer(os.Args[2:])
 	case "query":
@@ -463,6 +470,240 @@ func runAnswer(args []string) error {
 	fmt.Printf("foco_answer_recorded: %d nodos\n", created)
 	fmt.Println(nextQuestion(plan))
 	return nil
+}
+
+func configureFocoSession(convID string) {
+	convID = strings.TrimSpace(convID)
+	if convID == "" {
+		return
+	}
+	dir := filepath.Join("temp", "foco", "sessions", safePathSegment(convID))
+	statePath = filepath.Join(dir, "state.json")
+	mdPath = filepath.Join(dir, "state.md")
+	legacyStatePath = filepath.Join(dir, "today.json")
+	legacyMDPath = filepath.Join(dir, "today.md")
+	pendingReplyPath = filepath.Join(dir, "pending_reply.json")
+	priorityListPath = filepath.Join(dir, "last_priority_list.json")
+}
+
+func safePathSegment(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			b.WriteRune(r)
+			continue
+		}
+		b.WriteByte('_')
+	}
+	if b.Len() == 0 {
+		return "default"
+	}
+	return b.String()
+}
+
+func newSessionPlan() DayPlan {
+	return DayPlan{
+		Date:         time.Now().Format("2006-01-02"),
+		Version:      "session",
+		Notes:        []Note{},
+		Nodes:        []Node{},
+		Events:       []Event{},
+		Tasks:        []Task{},
+		Axioms:       []Axiom{},
+		Conflicts:    []PreConflict{},
+		Dependencies: []Dependency{},
+	}
+}
+
+func loadOrNewSessionPlan() (DayPlan, error) {
+	plan, err := load()
+	if err == nil {
+		return plan, nil
+	}
+	if os.IsNotExist(err) || strings.Contains(err.Error(), "no hay estado de foco") {
+		return newSessionPlan(), nil
+	}
+	return DayPlan{}, err
+}
+
+func questionIDForPlan(plan DayPlan) string {
+	layer := nextMissingLayer(plan)
+	if layer == "" {
+		layer = "alignment"
+	}
+	return fmt.Sprintf("foco_%s_%d_%d_%d_%d_%d", layer, len(plan.Notes), len(plan.Events), len(plan.Tasks), len(plan.Axioms), len(plan.Nodes))
+}
+
+func writePendingReply(plan DayPlan, text string, chips []string) error {
+	reply := map[string]interface{}{
+		"id":        fmt.Sprintf("%s_%d", questionIDForPlan(plan), time.Now().UnixNano()),
+		"text":      text,
+		"reasoning": plan.Reasoning,
+		"ask_via":   "cli",
+		"chips":     chips,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	data, err := json.Marshal(reply)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(pendingReplyPath), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(pendingReplyPath, data, 0644)
+}
+
+type focoAIIntent struct {
+	Action          string   `json:"action"`
+	Reply           string   `json:"reply"`
+	OperationalText string   `json:"operational_text"`
+	Reasoning       string   `json:"reasoning,omitempty"`
+	Chips           []string `json:"chips"`
+}
+
+type focoHistoryTurn struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+func interpretFocoInput(plan DayPlan, answer, historyEncoded string) focoAIIntent {
+	if intent, ok := deterministicConversationIntent(answer); ok {
+		return intent
+	}
+	intent, err := interpretFocoInputWithLLM(plan, answer, historyEncoded)
+	if err == nil && strings.TrimSpace(intent.Action) != "" {
+		return normalizeFocoAIIntent(intent, answer)
+	}
+	return focoAIIntent{Action: "plan", OperationalText: answer, Chips: []string{"¿Qué hago hoy?"}}
+}
+
+func deterministicConversationIntent(answer string) (focoAIIntent, bool) {
+	normalized := strings.Trim(strings.ToLower(answer), " ¿?¡!.,\t\n\r")
+	switch normalized {
+	case "hola", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches", "hey":
+		return focoAIIntent{
+			Action: "chat",
+			Reply:  "Hola. Soy Foco. Estoy listo para ayudarte a ordenar el día, priorizar tareas o decidir qué hacer primero. Cuéntame qué quieres conseguir hoy.",
+			Chips:  []string{"Quiero ordenar mi día", "¿Qué hago hoy?"},
+		}, true
+	case "como estas", "cómo estás", "que tal", "qué tal", "como va", "cómo va":
+		return focoAIIntent{
+			Action: "chat",
+			Reply:  "Estoy funcionando y atento. Mi trabajo es ayudarte a mantener foco: resultado, prioridad, bloqueos y siguiente acción. ¿Qué quieres ordenar ahora?",
+			Chips:  []string{"Quiero ordenar mi día", "¿Qué hago hoy?"},
+		}, true
+	default:
+		return focoAIIntent{}, false
+	}
+}
+
+func interpretFocoInputWithLLM(plan DayPlan, answer, historyEncoded string) (focoAIIntent, error) {
+	client, err := llm.NewClient()
+	if err != nil {
+		return focoAIIntent{}, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	system := `Eres Foco, el framework IA de Rémora para foco diario, priorización y cobranza.
+Debes decidir si el mensaje humano es charla conversacional o si debe modificar el estado operativo.
+No conviertas saludos, "cómo estás", agradecimientos o charla social en resultado, evento, tarea ni axioma.
+Si el usuario expresa una meta, prioridad, tarea, bloqueo, cliente/deudor o intención de trabajo, action="plan".
+Si pide prioridades de cobranza o qué hacer hoy, action="priorities".
+operational_text debe ser una sola frase limpia, sin listas, sin títulos, sin markdown y sin prefijos como RESULTADO o TAREAS.
+Incluye siempre un campo reasoning que explique brevemente (1-2 oraciones) POR QUÉ tomaste esa decisión de action.
+Responde exclusivamente JSON válido con:
+{"action":"chat|plan|priorities","reply":"respuesta natural si action chat o texto breve de acompañamiento","operational_text":"texto normalizado para guardar en Foco si action plan","reasoning":"explicación breve de la decisión tomada","chips":["opción 1","opción 2"]}`
+	user := fmt.Sprintf("Estado actual de Foco:\n%s\n\nHistorial reciente:\n%s\n\nMensaje del usuario:\n%s", compactPlanForAI(plan), decodeHistoryForPrompt(historyEncoded), answer)
+	raw, err := client.Generate(ctx, system, user)
+	if err != nil {
+		return focoAIIntent{}, err
+	}
+	var intent focoAIIntent
+	if err := json.Unmarshal([]byte(extractJSONObject(raw)), &intent); err != nil {
+		return focoAIIntent{}, err
+	}
+	return intent, nil
+}
+
+func normalizeFocoAIIntent(intent focoAIIntent, answer string) focoAIIntent {
+	intent.Action = strings.ToLower(strings.TrimSpace(intent.Action))
+	switch intent.Action {
+	case "chat":
+		if strings.TrimSpace(intent.Reply) == "" {
+			intent.Reply = "Estoy aquí para ayudarte a ordenar el foco. Dime qué quieres conseguir o priorizar."
+		}
+	case "priorities":
+	case "plan":
+		if strings.TrimSpace(intent.OperationalText) == "" {
+			intent.OperationalText = answer
+		}
+		intent.OperationalText = cleanOperationalText(intent.OperationalText, answer)
+	default:
+		intent.Action = "plan"
+		if strings.TrimSpace(intent.OperationalText) == "" {
+			intent.OperationalText = answer
+		}
+		intent.OperationalText = cleanOperationalText(intent.OperationalText, answer)
+	}
+	if len(intent.Chips) == 0 {
+		intent.Chips = []string{"¿Qué hago hoy?"}
+	}
+	return intent
+}
+
+func cleanOperationalText(text, fallback string) string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return fallback
+	}
+	cutMarkers := []string{"TAREAS GENERADAS:", "TAREAS:", "\n1.", "\n- ", "\n* "}
+	for _, marker := range cutMarkers {
+		if idx := strings.Index(text, marker); idx >= 0 {
+			text = strings.TrimSpace(text[:idx])
+		}
+	}
+	prefixes := []string{"RESULTADO:", "Resultado:", "resultado:"}
+	for _, prefix := range prefixes {
+		text = strings.TrimSpace(strings.TrimPrefix(text, prefix))
+	}
+	if text == "" {
+		return fallback
+	}
+	return text
+}
+
+func compactPlanForAI(plan DayPlan) string {
+	return fmt.Sprintf("resultado=%q eventos=%d tareas=%d axiomas=%d siguiente_capa=%q", primaryResult(plan), len(plan.Events), len(plan.Tasks), len(plan.Axioms), nextMissingLayer(plan))
+}
+
+func decodeHistoryForPrompt(historyEncoded string) string {
+	historyEncoded = strings.TrimSpace(historyEncoded)
+	if historyEncoded == "" {
+		return "[]"
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(historyEncoded)
+	if err != nil {
+		return "[]"
+	}
+	var turns []focoHistoryTurn
+	if err := json.Unmarshal(raw, &turns); err != nil {
+		return "[]"
+	}
+	data, err := json.Marshal(turns)
+	if err != nil {
+		return "[]"
+	}
+	return string(data)
+}
+
+func extractJSONObject(raw string) string {
+	raw = strings.TrimSpace(raw)
+	start := strings.Index(raw, "{")
+	end := strings.LastIndex(raw, "}")
+	if start >= 0 && end >= start {
+		return raw[start : end+1]
+	}
+	return raw
 }
 
 func materializeLayerAnswer(plan *DayPlan, text string) bool {
@@ -2319,12 +2560,49 @@ COBRANZA (profile=cobranza-chile):
 }
 
 // Cobranza mode functions
-func runNextQuestion() error {
+func runNextQuestion(args []string) error {
+	fs := flag.NewFlagSet("next-question", flag.ExitOnError)
+	convID := fs.String("conv-id", "", "id de conversación")
+	fs.Parse(args)
+	configureFocoSession(*convID)
+
+	if data, err := os.ReadFile(pendingReplyPath); err == nil {
+		_ = os.Remove(pendingReplyPath)
+		var reply struct {
+			ID        string   `json:"id"`
+			Text      string   `json:"text"`
+			Reasoning string   `json:"reasoning,omitempty"`
+			AskVia    string   `json:"ask_via"`
+			Chips     []string `json:"chips"`
+			Response  string   `json:"response"`
+		}
+		if err := json.Unmarshal(data, &reply); err == nil {
+			text := reply.Text
+			if text == "" {
+				text = reply.Response
+			}
+			if reply.ID == "" {
+				reply.ID = fmt.Sprintf("foco_%d", time.Now().UnixNano())
+			}
+			if text != "" {
+				q := map[string]interface{}{
+					"id":        reply.ID,
+					"text":      text,
+					"reasoning": reply.Reasoning,
+					"ask_via":   reply.AskVia,
+					"chips":     reply.Chips,
+				}
+				out, _ := json.Marshal(q)
+				fmt.Println(string(out))
+				return nil
+			}
+		}
+	}
+
 	// Si hay prioridades generadas y pendientes de mostrar, devolverlas como question
-	stateFile := filepath.Join("temp", "foco", "last_priority_list.json")
-	if data, err := os.ReadFile(stateFile); err == nil {
+	if data, err := os.ReadFile(priorityListPath); err == nil {
 		// Consumed: eliminar para no repetir
-		_ = os.Remove(stateFile)
+		_ = os.Remove(priorityListPath)
 
 		// Formatear como texto legible
 		var list struct {
@@ -2373,7 +2651,21 @@ func runNextQuestion() error {
 			return nil
 		}
 	}
-	// Sin prioridades pendientes: foco no tiene más preguntas
+	plan, err := loadOrNewSessionPlan()
+	if err == nil {
+		question := strings.TrimSpace(nextQuestion(plan))
+		if question != "" {
+			q := map[string]interface{}{
+				"id":      questionIDForPlan(plan),
+				"text":    question,
+				"ask_via": "cli",
+				"chips":   []string{},
+			}
+			out, _ := json.Marshal(q)
+			fmt.Println(string(out))
+			return nil
+		}
+	}
 	fmt.Println("{}")
 	return nil
 }
@@ -2381,16 +2673,36 @@ func runNextQuestion() error {
 func runIngestAnswer(args []string) error {
 	fs := flag.NewFlagSet("ingest-answer", flag.ExitOnError)
 	_ = fs.String("question-id", "", "id de pregunta")
+	convID := fs.String("conv-id", "", "id de conversación")
 	answer := fs.String("answer", "", "respuesta")
+	history := fs.String("history", "", "historial reciente")
 	fs.Parse(args)
+	configureFocoSession(*convID)
 
 	if *answer == "" {
 		return errors.New("ingest-answer: --answer requerido")
 	}
 
-	// Si pregunta por prioridades, generarlas
+	plan, err := loadOrNewSessionPlan()
+	if err != nil {
+		return err
+	}
+	intent := interpretFocoInput(plan, *answer, *history)
+	plan.Reasoning = intent.Reasoning
+
+	if intent.Action == "chat" {
+		if err := writePendingReply(plan, intent.Reply, intent.Chips); err != nil {
+			return err
+		}
+		fmt.Print(intent.Reply)
+		return nil
+	}
+	if intent.Action == "priorities" {
+		return runPriorities()
+	}
+
 	lower := strings.ToLower(*answer)
-	keywords := []string{"prioridad", "prioridades", "qué hacer", "que hacer", "quien cobrar", "a quien", "top", "hoy"}
+	keywords := []string{"prioridad", "prioridades", "qué hacer hoy", "que hacer hoy", "quien cobrar", "a quien cobrar", "top cobranza", "cobranza"}
 	askPriority := false
 	for _, k := range keywords {
 		if strings.Contains(lower, k) {
@@ -2403,15 +2715,19 @@ func runIngestAnswer(args []string) error {
 		return runPriorities()
 	}
 
-	// Respuesta genérica de cobranza
-	response := map[string]interface{}{
-		"response":   "Puedo ayudarte a priorizar deudores o generar emails de cobranza. Pregúntame '¿qué hago hoy?'",
-		"timestamp":  time.Now().Format(time.RFC3339),
-		"pending_id": fmt.Sprintf("foco_%d", time.Now().Unix()),
+	textToMaterialize := strings.TrimSpace(intent.OperationalText)
+	if textToMaterialize == "" {
+		textToMaterialize = *answer
 	}
-	data, _ := json.Marshal(response)
-	_ = os.WriteFile(statePath, data, 0644)
-	fmt.Println(response["response"])
+	materializeAnswer(&plan, textToMaterialize)
+	if err := save(plan); err != nil {
+		return err
+	}
+	text := formatPrimarySummary(plan, true)
+	if err := writePendingReply(plan, text, intent.Chips); err != nil {
+		return err
+	}
+	fmt.Print(text)
 	return nil
 }
 
@@ -2506,9 +2822,8 @@ func emitPriorityList(items []priorityItem, source string) error {
 
 	jsonData, _ := json.MarshalIndent(list, "", "  ")
 
-	stateDir := "temp/foco"
-	_ = os.MkdirAll(stateDir, 0755)
-	_ = os.WriteFile(filepath.Join(stateDir, "last_priority_list.json"), jsonData, 0644)
+	_ = os.MkdirAll(filepath.Dir(priorityListPath), 0755)
+	_ = os.WriteFile(priorityListPath, jsonData, 0644)
 
 	fmt.Println("**Prioridades de cobranza — hoy**")
 	fmt.Println()

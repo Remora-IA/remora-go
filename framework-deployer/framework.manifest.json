@@ -2,16 +2,37 @@
   "name": "deployer",
   "version": "0.1.0",
   "description": "Deploya remora-go a Cloud Run dev. Nunca toca produccion. No hace commits.",
-  "capabilities": ["deploy.dev"],
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "deployer", "./cmd/deployer"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/deployer"]
+  },
+  "cwd": "framework-deployer",
+  "inputs": [],
+  "outputs": [],
   "commands": {
     "plan": {
-      "exec": "go run ./cmd/deployer",
-      "description": "Muestra el plan de deploy (sin ejecutar)"
+      "description": "Muestra el plan de deploy dev sin ejecutar",
+      "args": []
     },
     "apply": {
-      "exec": "go run ./cmd/deployer --apply",
-      "description": "Deploya a flujo-api-dev"
+      "description": "Deploya a flujo-api-dev",
+      "args": ["--apply"]
     }
+  },
+  "asks_human": {},
+  "user_input": {
+    "supported": false
+  },
+  "execution_mode": "async_trigger",
+  "capabilities_semantic": {
+    "tags": ["deploy", "cloud-run", "dev"],
+    "intent_examples": ["deploy dev", "desplegar a dev", "actualizar flujo-api-dev"],
+    "produces": ["deploy:dev"],
+    "requires": ["repo:remora-go"]
   },
   "guards": {
     "forbidden_targets": ["prod", "flujo-api"],

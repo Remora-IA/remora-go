@@ -24,6 +24,21 @@ func main() {
 		paladin.WriteAudit(os.Stdout, result)
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "lint" {
+		root := "."
+		if len(os.Args) > 2 {
+			root = os.Args[2]
+		}
+		result, err := paladin.LintRepo(root)
+		if err != nil {
+			fail(err)
+		}
+		paladin.WriteLint(os.Stdout, result)
+		if hasLintFailures(result) {
+			os.Exit(1)
+		}
+		return
+	}
 
 	path := ""
 	mode := "tree"
@@ -93,4 +108,13 @@ func printSpan(span *paladin.Span, depth int) {
 func fail(err error) {
 	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
+}
+
+func hasLintFailures(result paladin.LintResult) bool {
+	for _, finding := range result.Findings {
+		if finding.Level == "fail" {
+			return true
+		}
+	}
+	return false
 }

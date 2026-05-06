@@ -42,7 +42,7 @@ type FrameworkDriver interface {
 	Name() string
 	Init(ctx context.Context, ch *adapter.Client, conv *Conversation) error
 	IngestAnswer(ctx context.Context, ch *adapter.Client, conv *Conversation, qctx QueuedAnswerCtx) error
-	PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (text, externalID, askVia string, ok bool)
+	PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (text, reasoning, externalID, askVia string, ok bool)
 }
 
 // QueuedAnswerCtx es el contexto que el orquestador entrega al driver al
@@ -185,10 +185,11 @@ func driversFor(conv *Conversation) []FrameworkDriver {
 // nextQuestionResponse es el contrato JSON común de `next-question` entre
 // frameworks. Campos opcionales se ignoran si están vacíos.
 type nextQuestionResponse struct {
-	ID     string   `json:"id"`
-	Text   string   `json:"text"`
-	AskVia string   `json:"ask_via"`
-	Chips  []string `json:"chips,omitempty"`
+	ID        string   `json:"id"`
+	Text      string   `json:"text"`
+	Reasoning string   `json:"reasoning,omitempty"`
+	AskVia    string   `json:"ask_via"`
+	Chips     []string `json:"chips,omitempty"`
 }
 
 func parseNextQuestion(stdout string) (nextQuestionResponse, bool) {
@@ -252,19 +253,19 @@ func (e *echoDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 	return nil
 }
 
-func (e *echoDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, bool) {
+func (e *echoDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, string, bool) {
 	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"next-question"}, "/workspace/framework-echo")
 	if err != nil || !resp.Success {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	r, ok := parseNextQuestion(resp.Stdout)
 	if !ok {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	if alreadyAsked[r.ID] {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
-	return r.Text, r.ID, r.AskVia, true
+	return r.Text, r.Reasoning, r.ID, r.AskVia, true
 }
 
 // ---------------------------------------------------------------------------
@@ -306,7 +307,7 @@ func (a *alfaDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 	return nil
 }
 
-func (a *alfaDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, bool) {
+func (a *alfaDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, string, bool) {
 	_, specAbs := alfaSpecPath(conv)
 	echoTreeAbs := "/workspace/framework-echo/frameworkecho.json"
 	// Compilar/recompilar draft cada vez para reflejar avances de Echo.
@@ -322,18 +323,18 @@ func (a *alfaDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv 
 		"--echo-tree", echoTreeAbs,
 	}, "/workspace/framework-alfa")
 	if err != nil || !resp.Success {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	r, ok := parseNextQuestion(resp.Stdout)
 	if !ok {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	if alreadyAsked[r.ID] {
-		return "", "", "", false
+		return "", "", "", "", false
 	}
 	askVia := r.AskVia
 	if askVia == "" {
 		askVia = "echo"
 	}
-	return r.Text, r.ID, askVia, true
+	return r.Text, r.Reasoning, r.ID, askVia, true
 }

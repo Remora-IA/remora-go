@@ -14,19 +14,23 @@
   "execution_mode": "sync_chain",
   "requires_infra": [],
   "model": {
-    "provider": "none",
-    "capabilities": []
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["conversation", "task_prioritization", "intent_routing"]
   },
   "commands": {
     "next-question": {
       "description": "Devuelve la próxima pregunta o acción",
-      "args": ["next-question"],
-      "params": []
+      "args": ["next-question", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
     },
     "ingest-answer": {
       "description": "Procesa la respuesta del usuario y genera prioridades",
-      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
-      "params": ["question_id", "answer"]
+      "args": ["ingest-answer", "--conv-id", "{params.conv_id}", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--history", "{params.history}"],
+      "params": ["conv_id", "question_id", "answer", "history"],
+      "defaults": {"conv_id": "", "question_id": "", "history": ""}
     },
     "query": {
       "description": "Modo CLI directo para testing",
