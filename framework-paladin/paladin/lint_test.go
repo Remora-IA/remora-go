@@ -63,6 +63,52 @@ func main() {
 	assertLintFindingCode(t, result, "api_missing_universal_single_wrapper")
 }
 
+func TestLintLocalIntegrationCatchesWorkspaceRootDefaults(t *testing.T) {
+	root := t.TempDir()
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main
+
+func main() {
+	rootDir := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
+	r.HandleFunc(apiBase+"/frameworks/testable", srv.listTestableFrameworks)
+	r.HandleFunc(apiBase+"/frameworks/chainable", srv.listChainableFrameworks)
+	_ = rootDir
+	_ = createUniversalSingleMessage
+}
+`)
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "single_wrapper.go"), `package main`)
+
+	var result LintResult
+	if err := lintLocalIntegration(root, &result); err != nil {
+		t.Fatal(err)
+	}
+	assertLintFindingCode(t, result, "api_root_defaults_workspace")
+}
+
+func TestLintLocalIntegrationCatchesHardcodedWorkspaceDrivers(t *testing.T) {
+	root := t.TempDir()
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main
+
+func main() {
+	r.HandleFunc(apiBase+"/frameworks/testable", srv.listTestableFrameworks)
+	r.HandleFunc(apiBase+"/frameworks/chainable", srv.listChainableFrameworks)
+	_ = createUniversalSingleMessage
+}
+`)
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "single_wrapper.go"), `package main`)
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "drivers.go"), `package main
+
+func run() {
+	ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"next-question"}, "/workspace/framework-echo")
+}
+`)
+
+	var result LintResult
+	if err := lintLocalIntegration(root, &result); err != nil {
+		t.Fatal(err)
+	}
+	assertLintFindingCode(t, result, "api_driver_hardcoded_workspace")
+}
+
 func TestLintLocalIntegrationCatchesSingleConversationDriverRegistryCoupling(t *testing.T) {
 	root := t.TempDir()
 	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main

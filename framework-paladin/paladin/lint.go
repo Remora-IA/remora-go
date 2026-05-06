@@ -385,6 +385,9 @@ func lintLocalIntegration(root string, result *LintResult) error {
 	apiPath := filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "main.go")
 	if data, err := os.ReadFile(apiPath); err == nil {
 		content := string(data)
+		if strings.Contains(content, `envOr("CHANNEL_BASE_DIR", "/workspace")`) {
+			addLint(result, "fail", "api_root_defaults_workspace", apiPath, "flujo_api defaulta REMORA_ROOT a /workspace; en local discovery queda ciego y solo aparecen drivers hardcodeados")
+		}
 		if !strings.Contains(content, `apiBase+"/frameworks/testable"`) {
 			addLint(result, "fail", "api_missing_testable_frameworks_endpoint", apiPath, "falta /api/v1/frameworks/testable; frontend single no puede separar frameworks testeables de chainables")
 		}
@@ -397,6 +400,13 @@ func lintLocalIntegration(root string, result *LintResult) error {
 		wrapperPath := filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "single_wrapper.go")
 		if _, err := os.Stat(wrapperPath); err != nil {
 			addLint(result, "fail", "api_missing_universal_single_wrapper", apiPath, "falta wrapper universal para adaptar comandos de manifest a sesión conversacional estándar")
+		}
+	}
+	driversPath := filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "drivers.go")
+	if data, err := os.ReadFile(driversPath); err == nil {
+		content := string(data)
+		if strings.Contains(content, `"/workspace/framework-`) || strings.Contains(content, `"/frameworks/framework`) {
+			addLint(result, "fail", "api_driver_hardcoded_workspace", driversPath, "drivers hardcodean /workspace o /frameworks; en dev local Channel no encuentra binarios y single-mode queda idle")
 		}
 	}
 

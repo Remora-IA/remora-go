@@ -121,7 +121,7 @@ func main() {
 	// Auto-discovery de frameworks vía manifests. Los drivers hardcodeados
 	// (echo, alfa) se mantienen; cualquier framework adicional con manifest
 	// válido se registra automáticamente vía genericDriver.
-	rootDir := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
+	rootDir := resolveRemoraRoot()
 	bootLog := log.New(os.Stderr, "[boot] ", log.LstdFlags)
 	loadedManifests, skippedManifests := initDriverRegistry(rootDir, bootLog)
 	if len(skippedManifests) > 0 {
@@ -224,6 +224,49 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func resolveRemoraRoot() string {
+	if v := os.Getenv("REMORA_ROOT"); v != "" {
+		return v
+	}
+	if v := os.Getenv("CHANNEL_BASE_DIR"); v != "" {
+		return v
+	}
+	cwd, err := os.Getwd()
+	if err == nil {
+		if root, ok := findRemoraRoot(cwd); ok {
+			return root
+		}
+	}
+	return "/workspace"
+}
+
+func findRemoraRoot(start string) (string, bool) {
+	dir, err := filepath.Abs(start)
+	if err != nil {
+		return "", false
+	}
+	for {
+		if looksLikeRemoraRoot(dir) {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
+}
+
+func looksLikeRemoraRoot(dir string) bool {
+	required := []string{"channel", "remora-flujo", "framework-echo", "framework-alfa"}
+	for _, name := range required {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
@@ -1489,10 +1532,15 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !ok {
+		fallback := singleNoQuestionMessage(conv)
+		if err := appendMessage(id, fallback); err != nil {
+			writeErr(w, http.StatusInternalServerError, err.Error())
+			return
+		}
 		writeOK(w, map[string]interface{}{
 			"user_message":      userMsg,
-			"framework_message": nil,
-			"idle":              true,
+			"framework_message": fallback,
+			"idle":              false,
 		})
 		return
 	}
@@ -1518,6 +1566,34 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 		"framework_message": frameworkMsg,
 		"idle":              false,
 	})
+}
+
+func singleNoQuestionMessage(conv *Conversation) Message {
+	framework := ""
+	if len(conv.Frameworks) > 0 {
+		framework = conv.Frameworks[0]
+	}
+	content := "No tengo una nueva pregunta estructurada para este turno, pero la sesión aislada sigue activa. Dame más contexto o una instrucción más concreta."
+	if framework == "alfa" {
+		content = "Alfa compila especificaciones desde un árbol de Echo. Para probarlo en aislamiento, pásame contexto de proceso o ejecuta primero Echo para generar evidencia; si no hay árbol Echo validado, no puedo producir una pregunta útil todavía."
+	}
+	if framework == "echo" {
+		content = "Echo no emitió una nueva pregunta estructurada. Cuéntame el proceso, tarea repetitiva o dolor que quieres descubrir y continuaré desde ahí."
+	}
+	return Message{
+		ID:        generateMessageID(),
+		Role:      "framework",
+		Framework: framework,
+		Content:   content,
+		Reasoning: "Single-session fallback: el driver no devolvió next-question válido, así que la API evita idle silencioso y mantiene la conversación estándar.",
+		Status:    "needs_input",
+		Events: []MessageEvent{{
+			Type:      "framework.needs_input",
+			Framework: framework,
+			Message:   "driver returned no next question",
+		}},
+		Timestamp: time.Now(),
+	}
 }
 
 // ============================================

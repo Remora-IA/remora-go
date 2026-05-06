@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] - 2026-05-06
+
+> **Release**: expandir flujo, paladin
+
+### Paladin
+
+- **paladin/lint.go**: +10
+- **paladin/lint_test.go**: funciones: TestLintLocalIntegrationCatchesWorkspaceRootDefaults, main, TestLintLocalIntegrationCatchesHardcodedWorkspaceDrivers, run
+
+### Flujo
+
+- **flujo_api/drivers.go**: +30 / -14
+- **flujo_api/main.go**: funciones: resolveRemoraRoot, findRemoraRoot, looksLikeRemoraRoot, singleNoQuestionMessage
+- **flujo_api/root_test.go**: archivo nuevo
+
 ## [0.1.19] - 2026-05-06
 
 > **Release**: expandir flujo, paladin

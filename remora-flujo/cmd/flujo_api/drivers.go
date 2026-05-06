@@ -216,18 +216,22 @@ type echoDriver struct{}
 func (e *echoDriver) Name() string { return "echo" }
 
 func (e *echoDriver) Init(ctx context.Context, ch *adapter.Client, conv *Conversation) error {
-	_, _ = ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"reset"}, "/workspace/framework-echo")
+	root := resolveRemoraRoot()
+	cwd := filepath.Join(root, "framework-echo")
+	bin := envOr("REMORA_ECHO_BIN", "go")
+	argsPrefix := []string{"run", "./cmd/frameworkecho"}
+	_, _ = ch.ExecuteCommand(ctx, bin, append(argsPrefix, "reset"), cwd)
 	today := time.Now().Format("2006-01-02")
 	clientName := conv.Title
 	if clientName == "" {
 		clientName = "anonimo"
 	}
-	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{
+	resp, err := ch.ExecuteCommand(ctx, bin, append(argsPrefix,
 		"init",
 		"--project-id", conv.ID,
 		"--client", clientName,
 		"--date", today,
-	}, "/workspace/framework-echo")
+	), cwd)
 	if err != nil {
 		return err
 	}
@@ -238,12 +242,15 @@ func (e *echoDriver) Init(ctx context.Context, ch *adapter.Client, conv *Convers
 }
 
 func (e *echoDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv *Conversation, qctx QueuedAnswerCtx) error {
-	args := []string{
+	root := resolveRemoraRoot()
+	cwd := filepath.Join(root, "framework-echo")
+	bin := envOr("REMORA_ECHO_BIN", "go")
+	args := []string{"run", "./cmd/frameworkecho",
 		"ingest-answer",
 		"--question-id", qctx.ExternalID,
 		"--answer", qctx.Answer,
 	}
-	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", args, "/workspace/framework-echo")
+	resp, err := ch.ExecuteCommand(ctx, bin, args, cwd)
 	if err != nil {
 		return err
 	}
@@ -254,7 +261,10 @@ func (e *echoDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 }
 
 func (e *echoDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, string, bool) {
-	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"next-question"}, "/workspace/framework-echo")
+	root := resolveRemoraRoot()
+	cwd := filepath.Join(root, "framework-echo")
+	bin := envOr("REMORA_ECHO_BIN", "go")
+	resp, err := ch.ExecuteCommand(ctx, bin, []string{"run", "./cmd/frameworkecho", "next-question"}, cwd)
 	if err != nil || !resp.Success {
 		return "", "", "", "", false
 	}
@@ -283,7 +293,7 @@ func (a *alfaDriver) Init(ctx context.Context, ch *adapter.Client, conv *Convers
 // alfaSpecPath construye el path del spec por conversación.
 func alfaSpecPath(conv *Conversation) (relPath, absPath string) {
 	relPath = "framework-alfa/temp/alfa_spec_api_" + conv.ID + ".json"
-	absPath = "/workspace/" + relPath
+	absPath = filepath.Join(resolveRemoraRoot(), relPath)
 	return
 }
 
@@ -292,12 +302,15 @@ func (a *alfaDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 		return nil
 	}
 	_, specAbs := alfaSpecPath(conv)
-	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkalfa", []string{
+	root := resolveRemoraRoot()
+	cwd := filepath.Join(root, "framework-alfa")
+	bin := envOr("REMORA_ALFA_BIN", "go")
+	resp, err := ch.ExecuteCommand(ctx, bin, []string{"run", "./cmd/frameworkalfa",
 		"ingest-answer",
 		"--spec", specAbs,
 		"--question-id", qctx.ExternalID,
 		"--answer", qctx.Answer,
-	}, "/workspace/framework-alfa")
+	}, cwd)
 	if err != nil {
 		return err
 	}
@@ -309,19 +322,22 @@ func (a *alfaDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, conv 
 
 func (a *alfaDriver) PollQuestion(ctx context.Context, ch *adapter.Client, conv *Conversation, alreadyAsked map[string]bool) (string, string, string, string, bool) {
 	_, specAbs := alfaSpecPath(conv)
-	echoTreeAbs := "/workspace/framework-echo/frameworkecho.json"
+	root := resolveRemoraRoot()
+	echoTreeAbs := filepath.Join(root, "framework-echo", "frameworkecho.json")
+	cwd := filepath.Join(root, "framework-alfa")
+	bin := envOr("REMORA_ALFA_BIN", "go")
 	// Compilar/recompilar draft cada vez para reflejar avances de Echo.
-	_, _ = ch.ExecuteCommand(ctx, "/frameworks/frameworkalfa", []string{
+	_, _ = ch.ExecuteCommand(ctx, bin, []string{"run", "./cmd/frameworkalfa",
 		"compile",
 		"--echo-tree", echoTreeAbs,
 		"--out", specAbs,
 		"--allow-draft=true",
-	}, "/workspace/framework-alfa")
-	resp, err := ch.ExecuteCommand(ctx, "/frameworks/frameworkalfa", []string{
+	}, cwd)
+	resp, err := ch.ExecuteCommand(ctx, bin, []string{"run", "./cmd/frameworkalfa",
 		"next-question",
 		"--spec", specAbs,
 		"--echo-tree", echoTreeAbs,
-	}, "/workspace/framework-alfa")
+	}, cwd)
 	if err != nil || !resp.Success {
 		return "", "", "", "", false
 	}
