@@ -1,0 +1,105 @@
+{
+  "name": "radar",
+  "version": "0.1.0",
+  "description": "Radar operativo data-aware. Calcula prioridades determinísticas desde datos declarados del negocio sin lógica por cliente.",
+  "build": {
+    "command": "go",
+    "args": [
+      "build",
+      "-o",
+      "frameworkradar",
+      "./cmd/frameworkradar"
+    ]
+  },
+  "binary": {
+    "command": "./frameworkradar",
+    "args_prefix": []
+  },
+  "cwd": "framework-radar",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "commands": {
+    "prioritize": {
+      "description": "Calcula entidades de cobranza priorizadas desde SQLite y semantic pack del negocio.",
+      "args": [
+        "prioritize",
+        "--business-id",
+        "{params.business_id}",
+        "--db",
+        "{params.db}",
+        "--semantic-pack",
+        "{params.semantic_pack}",
+        "--context-b64",
+        "{params.context_b64}"
+      ],
+      "params": [
+        "business_id",
+        "db",
+        "semantic_pack",
+        "context_b64"
+      ],
+      "defaults": {
+        "business_id": "",
+        "db": "",
+        "semantic_pack": "",
+        "context_b64": ""
+      }
+    }
+  },
+  "capabilities_semantic": {
+    "tags": [
+      "radar",
+      "collections",
+      "priority-scoring",
+      "readonly-data"
+    ],
+    "intent_examples": [
+      "a quién cobrar primero",
+      "prioriza cartera de cobranza",
+      "calcula lista de deudores",
+      "radar de clientes cobrables"
+    ],
+    "produces": [
+      "collection.priority_list.v1",
+      "collection.priority_item.v1",
+      "entity.ref.v1"
+    ],
+    "requires": [
+      "data.sqlite_db.v1",
+      "business.semantic_pack.v1"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "collection.priority_list",
+      "description": "Calcula entidades de cobranza priorizadas desde datos del negocio.",
+      "command": "prioritize",
+      "inputs": [
+        "business.context.v1",
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1"
+      ],
+      "outputs": [
+        "collection.priority_list.v1",
+        "collection.priority_item.v1",
+        "entity.ref.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1"
+      ],
+      "produces": [
+        "collection.priority_list.v1",
+        "collection.priority_item.v1",
+        "entity.ref.v1"
+      ],
+      "execution": "deterministic_business_priority_scoring",
+      "policies": [
+        "readonly_sql",
+        "trace_required",
+        "business_context_required",
+        "no_silent_fallback"
+      ]
+    }
+  ]
+}
