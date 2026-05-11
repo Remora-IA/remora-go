@@ -8,8 +8,11 @@ import (
 
 func TestResolveProviderPrefersGroqWhenConfigured(t *testing.T) {
 	t.Setenv("REMORA_LLM_PROVIDER", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	t.Setenv("GROQ_API_KEY", "groq-test")
-	t.Setenv("MINIMAX_API_KEY", "minimax-test")
+	t.Setenv("REMORA_GROQ_API_KEY", "")
+	t.Setenv("MINIMAX_API_KEY", "")
+	t.Setenv("REMORA_MINIMAX_API_KEY", "")
 
 	provider, _, model, _, err := resolveProvider(Options{}, nil)
 	if err != nil {
@@ -25,6 +28,7 @@ func TestResolveProviderPrefersGroqWhenConfigured(t *testing.T) {
 
 func TestResolveProviderFallsBackToMiniMax(t *testing.T) {
 	t.Setenv("REMORA_LLM_PROVIDER", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 	t.Setenv("GROQ_API_KEY", "")
 	t.Setenv("REMORA_GROQ_API_KEY", "")
 	t.Setenv("MINIMAX_API_KEY", "minimax-test")
@@ -39,8 +43,45 @@ func TestResolveProviderFallsBackToMiniMax(t *testing.T) {
 	if model != defaultMiniMaxModel {
 		t.Fatalf("expected %s, got %s", defaultMiniMaxModel, model)
 	}
-	if !strings.Contains(note, "fallback a minimax") {
-		t.Fatalf("expected fallback reason, got %q", note)
+	if !strings.Contains(note, "minimax key presente") {
+		t.Fatalf("expected minimax key reason, got %q", note)
+	}
+}
+
+func TestResolveProviderPrefersOpenRouter(t *testing.T) {
+	t.Setenv("REMORA_LLM_PROVIDER", "")
+	t.Setenv("OPENROUTER_API_KEY", "or-test-key")
+	t.Setenv("GROQ_API_KEY", "groq-test")
+	t.Setenv("MINIMAX_API_KEY", "minimax-test")
+
+	provider, _, model, note, err := resolveProvider(Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider != providerOpenRouter {
+		t.Fatalf("expected openrouter provider, got %s", provider)
+	}
+	if model != defaultOpenRouterModel {
+		t.Fatalf("expected %s, got %s", defaultOpenRouterModel, model)
+	}
+	if !strings.Contains(note, "openrouter") {
+		t.Fatalf("expected openrouter reason, got %q", note)
+	}
+}
+
+func TestResolveProviderExplicitOpenRouter(t *testing.T) {
+	t.Setenv("REMORA_LLM_PROVIDER", "openrouter")
+	t.Setenv("OPENROUTER_API_KEY", "or-test-key")
+
+	provider, apiKey, _, _, err := resolveProvider(Options{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if provider != providerOpenRouter {
+		t.Fatalf("expected openrouter provider, got %s", provider)
+	}
+	if apiKey != "or-test-key" {
+		t.Fatalf("expected or-test-key, got %s", apiKey)
 	}
 }
 

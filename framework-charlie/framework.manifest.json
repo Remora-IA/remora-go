@@ -1,0 +1,67 @@
+{
+  "name": "charlie",
+  "version": "0.1.0",
+  "description": "Gestión del ciclo de vida de código: doctor, plan, backup, preflight, publish, release. Automatiza la preparación y publicación de cambios.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "charlie", "./cmd/charlie"]
+  },
+  "binary": {
+    "command": "./charlie",
+    "args_prefix": []
+  },
+  "cwd": "framework-charlie",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "commands": {
+    "doctor": {
+      "description": "Diagnóstico de salud del repo",
+      "args": ["doctor"],
+      "params": []
+    },
+    "plan": {
+      "description": "Genera plan de release",
+      "args": ["plan"],
+      "params": []
+    },
+    "preflight": {
+      "description": "Checks previos a publicar",
+      "args": ["preflight"],
+      "params": []
+    },
+    "status": {
+      "description": "Estado actual del repo",
+      "args": ["status"],
+      "params": []
+    },
+    "changelog": {
+      "description": "Genera changelog",
+      "args": ["changelog"],
+      "params": []
+    },
+    "backup": {
+      "description": "Backup del estado actual",
+      "args": ["backup"],
+      "params": []
+    }
+  },
+  "user_input": {
+    "supported": false
+  },
+  "capabilities_semantic": {
+    "tags": ["release", "git", "lifecycle", "publish"],
+    "intent_examples": [
+      "preparar release",
+      "verificar estado del repo",
+      "generar changelog"
+    ],
+    "produces": ["release_plan", "changelog"],
+    "requires": ["repo:remora-go"]
+  }
+}

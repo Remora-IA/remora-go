@@ -1,0 +1,31 @@
+# api_rest - Development Dockerfile
+# Soporta hot-reload via volumes. No compila binarios estáticos.
+# Build context: repo root (para acceder a todos los módulos)
+
+FROM golang:1.24-alpine
+
+RUN apk add --no-cache git ca-certificates wget
+
+WORKDIR /workspace
+
+# Copiar go.mod de todos los módulos para cachear deps
+COPY channel/go.mod /workspace/channel/
+COPY framework-paladin/go.mod /workspace/framework-paladin/
+COPY remora-flujo/go.mod remora-flujo/go.sum /workspace/remora-flujo/
+
+# Crear replace directives temporales para build en container
+WORKDIR /workspace/remora-flujo
+RUN go mod edit -replace channel=/workspace/channel -replace framework-paladin=/workspace/framework-paladin
+RUN go mod download
+
+WORKDIR /workspace
+COPY . /workspace/
+
+# Re-apply replace (por si el COPY sobreescribió)
+WORKDIR /workspace/remora-flujo
+RUN go mod edit -replace channel=/workspace/channel -replace framework-paladin=/workspace/framework-paladin
+
+EXPOSE 8080
+
+WORKDIR /workspace/remora-flujo
+CMD ["go", "run", "./cmd/api_rest"]

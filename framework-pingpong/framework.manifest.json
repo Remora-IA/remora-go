@@ -1,0 +1,76 @@
+{
+  "name": "pingpong",
+  "version": "0.1.0",
+  "description": "Tutor 80/20 para aprender haciendo. Guía al usuario paso a paso por ejercicios de código con next/check/accept y verificación de compilación en cada step.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "pingpong", "./cmd/framework-pingpong"]
+  },
+  "binary": {
+    "command": "./pingpong",
+    "args_prefix": []
+  },
+  "cwd": "framework-pingpong",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "commands": {
+    "next": {
+      "description": "Devuelve el próximo paso/substep del ejercicio",
+      "args": ["next"],
+      "params": []
+    },
+    "check": {
+      "description": "Verifica el estado actual del código del usuario",
+      "args": ["check"],
+      "params": []
+    },
+    "accept": {
+      "description": "Marca el step/substep actual como completado",
+      "args": ["accept"],
+      "params": []
+    },
+    "init": {
+      "description": "Inicializa un ejercicio nuevo",
+      "args": ["init"],
+      "params": []
+    },
+    "verify": {
+      "description": "Verifica compilación del archivo actual",
+      "args": ["verify"],
+      "params": []
+    },
+    "peek": {
+      "description": "Muestra contenido del archivo sin modificar",
+      "args": ["peek"],
+      "params": []
+    },
+    "clean": {
+      "description": "Borra líneas específicas de un archivo",
+      "args": ["clean", "--file", "{params.file}", "--from", "{params.from}", "--to", "{params.to}"],
+      "params": ["file", "from", "to"]
+    }
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer"],
+    "next_question_cmd": "next",
+    "ingest_answer_cmd": "check"
+  },
+  "capabilities_semantic": {
+    "tags": ["tutor", "learning", "code", "exercises", "80-20"],
+    "intent_examples": [
+      "quiero practicar Go",
+      "siguiente paso del ejercicio",
+      "verificar mi código"
+    ],
+    "produces": ["exercise_step", "verification_result"],
+    "requires": []
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "bravo",
+  "version": "0.1.0",
+  "description": "Verificador de flujos ideales vs trazas reales. Compara un IdealFlow declarado contra un Trace real para detectar desvíos, pasos faltantes o reordenados.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkbravo", "./examples/prospectos-seguimiento"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./examples/prospectos-seguimiento"]
+  },
+  "cwd": "framework-bravo",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "commands": {},
+  "user_input": {
+    "supported": false
+  },
+  "capabilities_semantic": {
+    "tags": ["verification", "trace", "ideal-flow", "qa"],
+    "intent_examples": [
+      "verificar que el flujo real coincide con el ideal",
+      "comparar traza vs flujo esperado"
+    ],
+    "produces": ["verification_report"],
+    "requires": ["ideal_flow", "trace"]
+  }
+}

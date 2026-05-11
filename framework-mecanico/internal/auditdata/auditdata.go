@@ -30,6 +30,10 @@ func LoadFindings(path string) ([]Finding, error) {
 	if err != nil {
 		return nil, err
 	}
+	return ParseFindings(raw)
+}
+
+func ParseFindings(raw []byte) ([]Finding, error) {
 	var wrap struct {
 		Findings []Finding `json:"findings"`
 	}
@@ -44,6 +48,10 @@ func LoadDataset(path string) (*Dataset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read dataset: %w", err)
 	}
+	return ParseDataset(raw)
+}
+
+func ParseDataset(raw []byte) (*Dataset, error) {
 	var top map[string]interface{}
 	if err := json.Unmarshal(raw, &top); err != nil {
 		return nil, fmt.Errorf("parse dataset: %w", err)
@@ -51,6 +59,9 @@ func LoadDataset(path string) (*Dataset, error) {
 	endpoints := top
 	if ep, ok := top["endpoints"].(map[string]interface{}); ok {
 		endpoints = ep
+	}
+	if tables, ok := top["tables"].(map[string]interface{}); ok {
+		endpoints = tables
 	}
 	out := &Dataset{Endpoints: map[string][]map[string]interface{}{}, Raw: top}
 	for name, v := range endpoints {
@@ -79,6 +90,15 @@ func (d *Dataset) Save(path string) error {
 			epMap[name] = arr
 		}
 		d.Raw["endpoints"] = epMap
+	} else if tableMap, ok := d.Raw["tables"].(map[string]interface{}); ok {
+		for name, recs := range d.Endpoints {
+			arr := make([]interface{}, 0, len(recs))
+			for _, r := range recs {
+				arr = append(arr, r)
+			}
+			tableMap[name] = arr
+		}
+		d.Raw["tables"] = tableMap
 	} else {
 		for name, recs := range d.Endpoints {
 			arr := make([]interface{}, 0, len(recs))

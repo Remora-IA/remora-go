@@ -11,7 +11,7 @@
 #
 # Flags (env vars):
 #   INSTALL_DIR=/path        fuerza destino (default: ~/.local/bin)
-#   REMORA_API_URL=<url>     URL del flujo_api a embebir en el wrapper
+#   REMORA_API_URL=<url>     URL del api_rest a embebir en el wrapper
 # =============================================================================
 
 set -euo pipefail
@@ -108,5 +108,5 @@ echo "   remora c              → idem (corto)"
 echo "   remora chat --frameworks alfa,echo"
 echo "   remora frameworks"
 echo ""
-echo "Pre-requisito: flujo_api corriendo. Levantar con:"
+echo "Pre-requisito: api_rest corriendo. Levantar con:"
 echo "   bash $REPO_ROOT/scripts/dev-local.sh"

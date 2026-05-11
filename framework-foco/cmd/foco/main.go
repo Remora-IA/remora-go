@@ -173,6 +173,8 @@ func main() {
 		err = runDone(os.Args[2:])
 	case "show":
 		err = runShow()
+	case "session-start":
+		err = runSessionStart(os.Args[2:])
 	case "next-question":
 		err = runNextQuestion(os.Args[2:])
 	case "ingest-answer":
@@ -180,7 +182,11 @@ func main() {
 	case "query":
 		err = runQuery(os.Args[2:])
 	case "priorities":
-		err = runPriorities()
+		err = runPriorities(os.Args[2:])
+	case "next-task":
+		err = runNextCollectionTask(os.Args[2:])
+	case "complete-cycle":
+		err = runCompleteCycle(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 		return
@@ -566,35 +572,15 @@ type focoHistoryTurn struct {
 	Content string `json:"content"`
 }
 
-func interpretFocoInput(plan DayPlan, answer, historyEncoded string) focoAIIntent {
-	if intent, ok := deterministicConversationIntent(answer); ok {
-		return intent
-	}
+func interpretFocoInput(plan DayPlan, answer, historyEncoded string) (focoAIIntent, error) {
 	intent, err := interpretFocoInputWithLLM(plan, answer, historyEncoded)
-	if err == nil && strings.TrimSpace(intent.Action) != "" {
-		return normalizeFocoAIIntent(intent, answer)
+	if err != nil {
+		return focoAIIntent{}, fmt.Errorf("interpretFocoInput: LLM requerido pero falló: %w", err)
 	}
-	return focoAIIntent{Action: "plan", OperationalText: answer, Chips: []string{"¿Qué hago hoy?"}}
-}
-
-func deterministicConversationIntent(answer string) (focoAIIntent, bool) {
-	normalized := strings.Trim(strings.ToLower(answer), " ¿?¡!.,\t\n\r")
-	switch normalized {
-	case "hola", "buenas", "buenos dias", "buenos días", "buenas tardes", "buenas noches", "hey":
-		return focoAIIntent{
-			Action: "chat",
-			Reply:  "Hola. Soy Foco. Estoy listo para ayudarte a ordenar el día, priorizar tareas o decidir qué hacer primero. Cuéntame qué quieres conseguir hoy.",
-			Chips:  []string{"Quiero ordenar mi día", "¿Qué hago hoy?"},
-		}, true
-	case "como estas", "cómo estás", "que tal", "qué tal", "como va", "cómo va":
-		return focoAIIntent{
-			Action: "chat",
-			Reply:  "Estoy funcionando y atento. Mi trabajo es ayudarte a mantener foco: resultado, prioridad, bloqueos y siguiente acción. ¿Qué quieres ordenar ahora?",
-			Chips:  []string{"Quiero ordenar mi día", "¿Qué hago hoy?"},
-		}, true
-	default:
-		return focoAIIntent{}, false
+	if strings.TrimSpace(intent.Action) == "" {
+		return focoAIIntent{}, fmt.Errorf("interpretFocoInput: LLM devolvió acción vacía")
 	}
+	return normalizeFocoAIIntent(intent, answer), nil
 }
 
 func interpretFocoInputWithLLM(plan DayPlan, answer, historyEncoded string) (focoAIIntent, error) {
@@ -2323,6 +2309,92 @@ func parseArgs(args []string) map[string]string {
 	return params
 }
 
+type sessionStartEvent struct {
+	Type      string `json:"type"`
+	Framework string `json:"framework,omitempty"`
+	Message   string `json:"message,omitempty"`
+	Provider  string `json:"provider,omitempty"`
+	Model     string `json:"model,omitempty"`
+}
+
+type sessionStartResponse struct {
+	ID        string              `json:"id"`
+	Text      string              `json:"text"`
+	Reasoning string              `json:"reasoning,omitempty"`
+	AskVia    string              `json:"ask_via"`
+	Chips     []string            `json:"chips"`
+	Events    []sessionStartEvent `json:"events,omitempty"`
+}
+
+func runSessionStart(args []string) error {
+	fs := flag.NewFlagSet("session-start", flag.ExitOnError)
+	convID := fs.String("conv-id", "", "id de conversación")
+	fs.Parse(args)
+	configureFocoSession(*convID)
+
+	prompt, err := os.ReadFile("INITIAL_PROMPT.md")
+	if err != nil {
+		return fmt.Errorf("session-start: no se pudo leer INITIAL_PROMPT.md: %w", err)
+	}
+	initialPrompt := strings.TrimSpace(string(prompt))
+	if initialPrompt == "" {
+		return errors.New("session-start: INITIAL_PROMPT.md vacío")
+	}
+
+	client, err := llm.NewClient()
+	if err != nil {
+		return fmt.Errorf("session-start: LLM requerido: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	system := sessionStartSystem(initialPrompt)
+	user := "Sesión nueva sin mensaje inicial del usuario. Responde únicamente con el primer mensaje conversacional visible para el usuario según INITIAL_PROMPT.md. Si falta un dato crítico, devuelve solo una pregunta corta con exactamente 3 opciones genéricas de estado/decisión. No inventes contenido específico, porcentajes, objetivos, ejemplos, eventos, tareas ni axiomas."
+	text, err := client.Generate(ctx, system, user)
+	if err != nil {
+		return fmt.Errorf("session-start: LLM error: %w", err)
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return errors.New("session-start: LLM devolvió respuesta vacía")
+	}
+
+	resp := sessionStartResponse{
+		ID:        fmt.Sprintf("foco_session_start_%d", time.Now().UnixNano()),
+		Text:      text,
+		Reasoning: "INITIAL_PROMPT.md cargado por Foco; respuesta inicial generada dentro de la sesión del framework vía LLM.",
+		AskVia:    "cli",
+		Chips:     []string{},
+		Events: []sessionStartEvent{
+			{Type: "framework.initial_prompt_loaded", Framework: "foco", Message: "INITIAL_PROMPT.md cargado"},
+			{Type: "llm.request_start", Framework: "foco", Provider: client.Provider(), Model: client.Model(), Message: "solicitud LLM iniciada desde Foco"},
+			{Type: "llm.response_done", Framework: "foco", Provider: client.Provider(), Model: client.Model(), Message: "respuesta inicial generada"},
+		},
+	}
+	out, err := json.Marshal(resp)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(out))
+	return nil
+}
+
+func sessionStartSystem(prompt string) string {
+	return fmt.Sprintf(`Eres un framework conversacional. El bloque INITIAL_PROMPT.md define tu identidad, reglas internas y formato de salida.
+
+REGLAS CRITICAS:
+- Nunca copies texto literal de INITIAL_PROMPT.md.
+- Nunca muestres encabezados, secciones, comandos, rutas, reglas internas ni explicaciones del prompt.
+- Nunca digas "soy una IA", "soy asistente", "estoy listo" ni hagas un saludo genérico.
+- Tu salida debe ser solamente el siguiente mensaje conversacional visible para el usuario.
+- Si el prompt indica que falta un dato crítico, haz una sola pregunta corta con exactamente 3 opciones genéricas de estado/decisión.
+- No inventes resultados, objetivos, eventos, tareas, axiomas, datos de negocio ni ejemplos concretos.
+- Las opciones no deben proponer metas específicas, porcentajes, clientes, tareas ni eventos.
+
+INITIAL_PROMPT.md:
+%s`, prompt)
+}
+
 func load() (DayPlan, error) {
 	data, err := os.ReadFile(statePath)
 	if err != nil {
@@ -2687,7 +2759,10 @@ func runIngestAnswer(args []string) error {
 	if err != nil {
 		return err
 	}
-	intent := interpretFocoInput(plan, *answer, *history)
+	intent, err := interpretFocoInput(plan, *answer, *history)
+	if err != nil {
+		return fmt.Errorf("ingest-answer: %w", err)
+	}
 	plan.Reasoning = intent.Reasoning
 
 	if intent.Action == "chat" {
@@ -2698,7 +2773,7 @@ func runIngestAnswer(args []string) error {
 		return nil
 	}
 	if intent.Action == "priorities" {
-		return runPriorities()
+		return runPriorities(nil)
 	}
 
 	lower := strings.ToLower(*answer)
@@ -2712,7 +2787,7 @@ func runIngestAnswer(args []string) error {
 	}
 
 	if askPriority {
-		return runPriorities()
+		return runPriorities(nil)
 	}
 
 	textToMaterialize := strings.TrimSpace(intent.OperationalText)
@@ -2738,86 +2813,580 @@ func runQuery(args []string) error {
 	if *question == "" {
 		return errors.New("query: --question requerido")
 	}
-	return runPriorities()
+	return runPriorities(nil)
 }
 
-func runPriorities() error {
+func runPriorities(args []string) error {
+	fs := flag.NewFlagSet("priorities", flag.ExitOnError)
+	dbFlag := fs.String("db", "", "path de SQLite del negocio (deprecated; Foco no consulta DB de negocio)")
+	businessID := fs.String("business-id", "", "negocio activo")
+	profile := fs.String("profile", "", "perfil de ejecución")
+	fs.Parse(args)
+	_ = dbFlag
 	// 1. Preferir el ledger event-sourced (framework-tareas). Si hay tareas
 	//    pendientes, son la verdad: Foco no debe regenerar prioridades desde
-	//    cero ignorando trabajo ya en curso. Solo si el ledger está vacío
-	//    (primer arranque o tras reset) se hace fallback al SELECT sobre
-	//    panalbit.db.
+	//    cero ignorando trabajo ya en curso.
 	if items, err := queryTaskLedger(); err != nil {
-		fmt.Fprintf(os.Stderr, "[foco] task ledger error (continuando con fallback SQL): %v\n", err)
+		fmt.Fprintf(os.Stderr, "[foco] task ledger error: %v\n", err)
 	} else if len(items) > 0 {
-		return emitPriorityList(items, "ledger")
+		return emitPriorityList(items, "ledger", *businessID, *profile, "")
 	}
 
-	dbPath := os.Getenv("FOCO_DB")
-	if dbPath == "" {
-		dbPath = "../framework-indexa/data/panalbit.db"
+	list := map[string]interface{}{
+		"artifact_type":        "collection.priority_list.v1",
+		"artifacts":            []string{"collection.priority_list.v1"},
+		"type":                 "priority_list",
+		"generated_at":         time.Now().Format(time.RFC3339),
+		"business_id":          *businessID,
+		"profile":              *profile,
+		"items":                []interface{}{},
+		"count":                0,
+		"needs_configuration":  true,
+		"configuration_reason": "Foco ya no consulta SQLite de negocio. Usa Radar.collection.priority_list antes de Foco.next_collection_task.",
 	}
+	jsonData, _ := json.MarshalIndent(list, "", "  ")
+	fmt.Println(string(jsonData))
+	return nil
+}
 
-	// Verificar si existe DB
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		// Sin datos, devolver lista vacía
-		list := map[string]interface{}{
-			"type":         "priority_list",
-			"generated_at": time.Now().Format(time.RFC3339),
-			"profile":      "cobranza-chile",
-			"items":        []interface{}{},
-			"count":        0,
-			"message":      "No hay datos de deudores. Usa framework-indexa para cargar datos.",
+func runCompleteCycle(args []string) error {
+	fs := flag.NewFlagSet("complete-cycle", flag.ExitOnError)
+	taskID := fs.String("task-id", "", "id de tarea Foco a cerrar")
+	entityRef := fs.String("entity-ref", "", "entidad asociada")
+	entityName := fs.String("entity-name", "", "nombre de entidad")
+	cycleKind := fs.String("cycle-kind", "message_sent", "tipo de ciclo completado")
+	messageID := fs.String("message-id", "", "id/evidencia del mensaje")
+	to := fs.String("to", "", "destinatario")
+	convID := fs.String("conv-id", "", "id de sesión/estado de Foco")
+	_ = fs.Parse(args)
+	configureFocoSession(*convID)
+
+	plan, err := load()
+	if err != nil {
+		plan = newSessionPlan()
+	}
+	now := time.Now().Format(time.RFC3339)
+	id := strings.TrimSpace(*taskID)
+	if id == "" {
+		id = findOpenTaskForEntity(plan, *entityRef, *entityName)
+	}
+	evidence := strings.TrimSpace(*cycleKind)
+	if *messageID != "" {
+		evidence += " message_id=" + strings.TrimSpace(*messageID)
+	}
+	if *to != "" {
+		evidence += " to=" + strings.TrimSpace(*to)
+	}
+	updated := false
+	if id != "" {
+		for i := range plan.Tasks {
+			if plan.Tasks[i].ID == id {
+				plan.Tasks[i].Status = "done"
+				plan.Tasks[i].CompletedAt = now
+				plan.Tasks[i].Evidence = evidence
+				updated = true
+				break
+			}
 		}
-		jsonData, _ := json.MarshalIndent(list, "", "  ")
-		fmt.Println(string(jsonData))
+	}
+	entityLabel := firstNonEmptyStr(strings.TrimSpace(*entityName), strings.TrimSpace(*entityRef), "entidad")
+	if !updated {
+		plan.Tasks = append(plan.Tasks, Task{
+			ID:          fmt.Sprintf("task_%03d", len(plan.Tasks)+1),
+			Title:       "Ciclo completado para " + entityLabel,
+			Why:         "Cierre automático desde flow.cycle.completed.v1.",
+			Expected:    "Registrar evidencia del ciclo operativo.",
+			Status:      "done",
+			CreatedAt:   now,
+			CompletedAt: now,
+			Evidence:    evidence,
+		})
+		id = plan.Tasks[len(plan.Tasks)-1].ID
+	}
+	plan.Notes = append(plan.Notes, Note{Kind: "done", Text: fmt.Sprintf("flow cycle %s completado para %s: %s", *cycleKind, entityLabel, evidence), Time: now})
+	if err := save(plan); err != nil {
+		return err
+	}
+	out := map[string]interface{}{
+		"artifact_type": "focus.cycle_status.v1",
+		"artifacts":     []string{"focus.cycle_status.v1", "task.done"},
+		"success":       true,
+		"task_id":       id,
+		"status":        "done",
+		"cycle_kind":    *cycleKind,
+		"entity_ref":    *entityRef,
+		"entity_name":   *entityName,
+		"evidence":      evidence,
+	}
+	raw, _ := json.MarshalIndent(out, "", "  ")
+	fmt.Println(string(raw))
+	return nil
+}
+
+func findOpenTaskForEntity(plan DayPlan, entityRef, entityName string) string {
+	needleRef := strings.ToLower(strings.TrimSpace(entityRef))
+	needleName := strings.ToLower(strings.TrimSpace(entityName))
+	for _, task := range plan.Tasks {
+		if task.Status == "done" {
+			continue
+		}
+		hay := strings.ToLower(task.ID + " " + task.Title + " " + task.Expected + " " + task.Evidence)
+		if needleRef != "" && strings.Contains(hay, needleRef) {
+			return task.ID
+		}
+		if needleName != "" && strings.Contains(hay, needleName) {
+			return task.ID
+		}
+	}
+	for _, task := range plan.Tasks {
+		if task.Status != "done" {
+			return task.ID
+		}
+	}
+	return ""
+}
+
+func runNextCollectionTask(args []string) error {
+	fs := flag.NewFlagSet("next-task", flag.ExitOnError)
+	businessID := fs.String("business-id", "", "negocio activo")
+	entityRef := fs.String("entity-ref", "", "id de entidad seleccionada")
+	entityType := fs.String("entity-type", "customer", "tipo de entidad")
+	deudor := fs.String("deudor", "", "nombre de entidad seleccionada")
+	actionID := fs.String("action-id", "", "id de la acción seleccionada (action.selection.v1)")
+	actionLabel := fs.String("action-label", "", "label de la acción seleccionada")
+	contextB64 := fs.String("context-b64", "", "contexto runtime codificado")
+	strategyPath := fs.String("strategy-path", "", "path a strategy.recommendation.v1")
+	strategyJSON := fs.String("strategy-json", "", "strategy.recommendation.v1 como JSON string")
+	convID := fs.String("conv-id", "", "id de sesión/estado de Foco")
+	dryRunRaw := fs.String("dry-run", "false", "true si es simulación/dry-run")
+	priorityListJSON := fs.String("priority-list-json", "", "collection.priority_list.v1 como JSON string")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	configureFocoSession(*convID)
+	dryRun := parseBoolString(*dryRunRaw) || contextIsDryRun(*contextB64)
+	var strategy map[string]interface{}
+	if strings.TrimSpace(*strategyPath) != "" {
+		raw, err := os.ReadFile(*strategyPath)
+		if err != nil {
+			return fmt.Errorf("leer strategy-path: %w", err)
+		}
+		_ = json.Unmarshal(raw, &strategy)
+	} else if strings.TrimSpace(*strategyJSON) != "" {
+		_ = json.Unmarshal([]byte(*strategyJSON), &strategy)
+	}
+	selectedAction := strings.TrimSpace(*actionID)
+	name := strings.TrimSpace(*deudor)
+	id := strings.TrimSpace(*entityRef)
+	entityTypeValue := firstNonEmptyStr(*entityType, "customer")
+	if selectedAction == "" && strings.TrimSpace(*priorityListJSON) != "" {
+		plan, err := load()
+		if err != nil {
+			plan = newSessionPlan()
+		}
+		if candidate, ok := firstOpenPriorityCandidate(plan, *priorityListJSON); ok {
+			id = candidate.ID
+			name = candidate.Name
+			entityTypeValue = firstNonEmptyStr(candidate.Type, entityTypeValue)
+		}
+	}
+	if name == "" {
+		name = id
+	}
+	if id == "" && name != "" {
+		id = name
+	}
+	if id == "" {
+		out := map[string]interface{}{
+			"artifact_type":        "focus.next_task.v1",
+			"artifacts":            []string{"focus.next_task.v1", "task.next"},
+			"business_id":          *businessID,
+			"generated_at":         time.Now().Format(time.RFC3339),
+			"needs_configuration":  true,
+			"configuration_reason": "Foco necesita collection.priority_list.v1 con entity.ref.v1 seleccionado para elegir próxima tarea.",
+		}
+		raw, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Println(string(raw))
 		return nil
 	}
 
-	items, queryErr := queryRealPriorities(dbPath)
-	if queryErr != nil {
-		fmt.Fprintf(os.Stderr, "[foco] query priorities error: %v\n", queryErr)
-		list := map[string]interface{}{
-			"type":         "priority_list",
-			"generated_at": time.Now().Format(time.RFC3339),
-			"profile":      "cobranza-chile",
-			"items":        []interface{}{},
-			"count":        0,
-			"message":      "No pude consultar la base de datos: " + queryErr.Error(),
+	entity := map[string]interface{}{
+		"artifact_type": "entity.ref.v1",
+		"type":          entityTypeValue,
+		"id":            id,
+		"name":          name,
+	}
+
+	if selectedAction == "skip_case" {
+		out := map[string]interface{}{
+			"artifact_type":    "focus.next_task.v1",
+			"artifacts":        []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.skipped.v1"},
+			"business_id":      *businessID,
+			"generated_at":     time.Now().Format(time.RFC3339),
+			"selected":         entity,
+			"skipped":          true,
+			"skip_reason":      "El usuario eligió pasar al siguiente caso.",
+			"action_id":        selectedAction,
+			"action_label":     strings.TrimSpace(*actionLabel),
+			"recommended_next": "Consultar siguiente prioridad con Radar.",
 		}
-		jsonData, _ := json.MarshalIndent(list, "", "  ")
-		fmt.Println(string(jsonData))
+		raw, _ := json.MarshalIndent(out, "", "  ")
+		fmt.Println(string(raw))
 		return nil
 	}
 
-	if len(items) == 0 {
-		list := map[string]interface{}{
-			"type":         "priority_list",
-			"generated_at": time.Now().Format(time.RFC3339),
-			"profile":      "cobranza-chile",
-			"items":        []interface{}{},
-			"count":        0,
-			"message":      "No hay deudores pendientes de cobro. Todo al día.",
-		}
-		jsonData, _ := json.MarshalIndent(list, "", "  ")
-		fmt.Println(string(jsonData))
-		return nil
+	title := "Revisar contexto 360 y preparar cobranza para " + name
+	recommendedNext := "Pedir a Sabio entity_360 y preparar comunicación con Mensajero."
+	switch selectedAction {
+	case "quick_collection":
+		recommendedNext = "Generar borrador de cobranza con Mecánico (draft-email)."
+	case "deep_analysis":
+		recommendedNext = "Pedir a Sabio entity_360 y análisis de contexto antes de redactar."
 	}
 
-	return emitPriorityList(items, "panalbit")
+	task := map[string]interface{}{
+		"artifact_type":    "focus.next_task.v1",
+		"business_id":      *businessID,
+		"generated_at":     time.Now().Format(time.RFC3339),
+		"title":            title,
+		"why":              "Es la entidad priorizada por Radar para maximizar impacto esperado de cobranza.",
+		"expected_result":  "Revisar contexto 360, validar borrador y registrar/enviar gestión aprobada.",
+		"recommended_next": recommendedNext,
+		"entity_ref":       entity,
+	}
+	if !dryRun {
+		persisted := persistNextCollectionTask(*businessID, id, name, title, recommendedNext, selectedAction, strings.TrimSpace(*actionLabel))
+		if persisted.ID != "" {
+			task["id"] = persisted.ID
+			task["task_id"] = persisted.ID
+			task["status"] = persisted.Status
+		}
+	} else {
+		task["dry_run"] = true
+	}
+	actionOptions := buildActionOptionsFromStrategy(strategy, name)
+	quickActions := []string{}
+	for _, opt := range actionOptions {
+		if label, ok := opt["label"].(string); ok {
+			quickActions = append(quickActions, label)
+		}
+	}
+	out := map[string]interface{}{
+		"artifact_type":   "focus.next_task.v1",
+		"artifacts":       []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"},
+		"business_id":     *businessID,
+		"generated_at":    time.Now().Format(time.RFC3339),
+		"task":            task,
+		"task_next":       task,
+		"selected":        entity,
+		"action_options":  actionOptions,
+		"quick_actions":   quickActions,
+		"requires_choice": true,
+	}
+	raw, _ := json.MarshalIndent(out, "", "  ")
+	fmt.Println(string(raw))
+	return nil
+}
+
+func parseBoolString(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "t", "true", "yes", "y", "si", "sí":
+		return true
+	default:
+		return false
+	}
+}
+
+func contextIsDryRun(contextB64 string) bool {
+	contextB64 = strings.TrimSpace(contextB64)
+	if contextB64 == "" {
+		return false
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(contextB64)
+	if err != nil {
+		if padded, perr := base64.URLEncoding.DecodeString(contextB64); perr == nil {
+			raw = padded
+		} else {
+			return false
+		}
+	}
+	var ctx map[string]interface{}
+	if err := json.Unmarshal(raw, &ctx); err != nil {
+		return false
+	}
+	if dry, ok := ctx["dry_run"].(bool); ok {
+		return dry
+	}
+	if dry, ok := ctx["dry_run"].(string); ok {
+		return parseBoolString(dry)
+	}
+	return false
+}
+
+type priorityCandidate struct {
+	ID   string
+	Name string
+	Type string
+}
+
+func firstOpenPriorityCandidate(plan DayPlan, priorityListJSON string) (priorityCandidate, bool) {
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(priorityListJSON), &payload); err != nil {
+		return priorityCandidate{}, false
+	}
+	items, _ := payload["items"].([]interface{})
+	for _, raw := range items {
+		item, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		candidate := priorityCandidateFromMap(item)
+		if candidate.ID == "" && candidate.Name == "" {
+			continue
+		}
+		if findOpenTaskForEntityExact(plan, candidate.ID, candidate.Name) != "" {
+			return candidate, true
+		}
+		if taskCompletedForEntity(plan, candidate.ID, candidate.Name) {
+			continue
+		}
+		return candidate, true
+	}
+	if selected, ok := payload["selected"].(map[string]interface{}); ok {
+		candidate := priorityCandidateFromMap(selected)
+		if candidate.ID != "" || candidate.Name != "" {
+			return candidate, true
+		}
+	}
+	return priorityCandidate{}, false
+}
+
+func priorityCandidateFromMap(item map[string]interface{}) priorityCandidate {
+	candidate := priorityCandidate{
+		ID:   jsonString(item, "deudor_id", "id", "entity_ref", "ref"),
+		Name: jsonString(item, "deudor", "name", "cliente", "label"),
+		Type: jsonString(item, "type", "entity_type"),
+	}
+	if entity, ok := item["entity_ref"].(map[string]interface{}); ok {
+		candidate.ID = firstNonEmptyStr(jsonString(entity, "id", "entity_ref", "ref"), candidate.ID)
+		candidate.Name = firstNonEmptyStr(jsonString(entity, "name", "label"), candidate.Name)
+		candidate.Type = firstNonEmptyStr(jsonString(entity, "type", "entity_type"), candidate.Type)
+	}
+	return candidate
+}
+
+func jsonString(m map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := m[key].(string); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func taskCompletedForEntity(plan DayPlan, entityRef, entityName string) bool {
+	needleRef := strings.ToLower(strings.TrimSpace(entityRef))
+	needleName := strings.ToLower(strings.TrimSpace(entityName))
+	if needleRef == "" && needleName == "" {
+		return false
+	}
+	for _, task := range plan.Tasks {
+		if task.Status != "done" {
+			continue
+		}
+		hay := strings.ToLower(task.ID + " " + task.Title + " " + task.Expected + " " + task.Evidence)
+		if needleRef != "" && strings.Contains(hay, needleRef) {
+			return true
+		}
+		if needleName != "" && strings.Contains(hay, needleName) {
+			return true
+		}
+	}
+	return false
+}
+
+func persistNextCollectionTask(businessID, entityID, entityName, title, expected, actionID, actionLabel string) Task {
+	plan, err := load()
+	if err != nil {
+		plan = newSessionPlan()
+	}
+	if existingID := findOpenTaskForEntityExact(plan, entityID, entityName); existingID != "" {
+		for _, task := range plan.Tasks {
+			if task.ID == existingID {
+				return task
+			}
+		}
+	}
+	now := time.Now().Format(time.RFC3339)
+	taskID := "collection_" + safePathSegment(firstNonEmptyStr(businessID, "business")) + "_" + safePathSegment(firstNonEmptyStr(entityID, entityName, fmt.Sprintf("%d", len(plan.Tasks)+1)))
+	evidenceParts := []string{"source=radar.collection.priority_list"}
+	if entityID != "" {
+		evidenceParts = append(evidenceParts, "entity_ref="+entityID)
+	}
+	if entityName != "" {
+		evidenceParts = append(evidenceParts, "entity_name="+entityName)
+	}
+	if actionID != "" {
+		evidenceParts = append(evidenceParts, "action_id="+actionID)
+	}
+	if actionLabel != "" {
+		evidenceParts = append(evidenceParts, "action_label="+actionLabel)
+	}
+	task := Task{
+		ID:        uniqueTaskID(plan, taskID),
+		Title:     title,
+		Why:       "Es la entidad priorizada por Radar para maximizar impacto esperado de cobranza.",
+		Expected:  expected,
+		Status:    "pending",
+		CreatedAt: now,
+		Priority:  "P1",
+		DueDate:   time.Now().Format("2006-01-02"),
+		Evidence:  strings.Join(evidenceParts, "; "),
+	}
+	plan.Tasks = append(plan.Tasks, task)
+	plan.Notes = append(plan.Notes, Note{Kind: "task.created", Text: fmt.Sprintf("Foco creó tarea operativa para %s (%s).", firstNonEmptyStr(entityName, entityID, "entidad"), task.ID), Time: now})
+	if err := save(plan); err != nil {
+		return Task{}
+	}
+	return task
+}
+
+func findOpenTaskForEntityExact(plan DayPlan, entityRef, entityName string) string {
+	needleRef := strings.ToLower(strings.TrimSpace(entityRef))
+	needleName := strings.ToLower(strings.TrimSpace(entityName))
+	if needleRef == "" && needleName == "" {
+		return ""
+	}
+	for _, task := range plan.Tasks {
+		if task.Status == "done" {
+			continue
+		}
+		hay := strings.ToLower(task.ID + " " + task.Title + " " + task.Expected + " " + task.Evidence)
+		if needleRef != "" && strings.Contains(hay, needleRef) {
+			return task.ID
+		}
+		if needleName != "" && strings.Contains(hay, needleName) {
+			return task.ID
+		}
+	}
+	return ""
+}
+
+func uniqueTaskID(plan DayPlan, base string) string {
+	base = strings.TrimSpace(base)
+	if base == "" {
+		base = "task"
+	}
+	seen := map[string]bool{}
+	for _, task := range plan.Tasks {
+		seen[task.ID] = true
+	}
+	if !seen[base] {
+		return base
+	}
+	for i := 2; ; i++ {
+		id := fmt.Sprintf("%s_%d", base, i)
+		if !seen[id] {
+			return id
+		}
+	}
+}
+
+// buildActionOptionsFromStrategy genera action_options dinámicas a partir de
+// strategy.recommendation.v1. Si no hay estrategia, fallback al set fijo.
+func buildActionOptionsFromStrategy(strategy map[string]interface{}, entityName string) []map[string]interface{} {
+	if strategy == nil {
+		return []map[string]interface{}{
+			{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Pedir evidencia y contexto antes de cobrar."},
+			{"id": "quick_collection", "label": "Preparar cobranza rápida", "description": "Generar borrador con la evidencia disponible."},
+			{"id": "skip_case", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y revisar otra prioridad."},
+		}
+	}
+	options := []map[string]interface{}{}
+	if recs, ok := strategy["recommendations"].([]interface{}); ok {
+		for _, r := range recs {
+			if rec, ok := r.(map[string]interface{}); ok {
+				actionID := ""
+				if id, ok := rec["action_id"].(string); ok {
+					actionID = id
+				} else if id, ok := rec["id"].(string); ok {
+					actionID = id
+				}
+				label := ""
+				if l, ok := rec["label"].(string); ok {
+					label = l
+				} else if l, ok := rec["action"].(string); ok {
+					label = l
+				}
+				desc := ""
+				if d, ok := rec["description"].(string); ok {
+					desc = d
+				} else if d, ok := rec["reason"].(string); ok {
+					desc = d
+				}
+				if actionID == "" || label == "" {
+					continue
+				}
+				options = append(options, map[string]interface{}{
+					"id":            actionID,
+					"label":         label,
+					"description":   desc,
+					"from_strategy": true,
+				})
+			}
+		}
+	}
+	// Si la estrategia no generó opciones válidas, fallback al set fijo
+	if len(options) == 0 {
+		return []map[string]interface{}{
+			{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Pedir evidencia y contexto antes de cobrar."},
+			{"id": "quick_collection", "label": "Preparar cobranza rápida", "description": "Generar borrador con la evidencia disponible."},
+			{"id": "skip_case", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y revisar otra prioridad."},
+		}
+	}
+	// Siempre agregar skip_case como última opción si no está ya
+	hasSkip := false
+	for _, opt := range options {
+		if id, ok := opt["id"].(string); ok && id == "skip_case" {
+			hasSkip = true
+			break
+		}
+	}
+	if !hasSkip {
+		options = append(options, map[string]interface{}{
+			"id":          "skip_case",
+			"label":       "Pasar al siguiente caso",
+			"description": "Dejar este caso para después y revisar otra prioridad.",
+		})
+	}
+	return options
 }
 
 // emitPriorityList serializa la lista de prioridades a JSON + markdown y la
 // persiste en temp/foco/last_priority_list.json. `source` indica de dónde
-// vinieron los items ("ledger" = framework-tareas, "panalbit" = fallback SQL).
-func emitPriorityList(items []priorityItem, source string) error {
+// vinieron los items ("ledger" = framework-tareas, "sqlite" = fallback SQL).
+func emitPriorityList(items []priorityItem, source, businessID, profile, dbPath string) error {
 	list := map[string]interface{}{
-		"type":         "priority_list",
-		"generated_at": time.Now().Format(time.RFC3339),
-		"profile":      "cobranza-chile",
-		"source":       source,
-		"items":        items,
-		"count":        len(items),
+		"artifact_type": "collection.priority_list.v1",
+		"artifacts":     []string{"collection.priority_list.v1", "collection.priority_item.v1", "entity.ref.v1"},
+		"type":          "priority_list",
+		"generated_at":  time.Now().Format(time.RFC3339),
+		"business_id":   businessID,
+		"profile":       profile,
+		"source":        source,
+		"db_path":       dbPath,
+		"items":         items,
+		"count":         len(items),
+	}
+	if len(items) > 0 {
+		list["selected"] = map[string]interface{}{
+			"artifact_type": "entity.ref.v1",
+			"type":          "collection_entity",
+			"id":            items[0].DeudorID,
+			"name":          items[0].Deudor,
+			"rank":          items[0].Rank,
+		}
+		list["priority_item"] = items[0]
 	}
 
 	jsonData, _ := json.MarshalIndent(list, "", "  ")
@@ -2825,20 +3394,7 @@ func emitPriorityList(items []priorityItem, source string) error {
 	_ = os.MkdirAll(filepath.Dir(priorityListPath), 0755)
 	_ = os.WriteFile(priorityListPath, jsonData, 0644)
 
-	fmt.Println("**Prioridades de cobranza — hoy**")
-	fmt.Println()
-	fmt.Println("| # | Deudor | Saldo | Mora | Score |")
-	fmt.Println("|---|--------|-------|------|-------|")
-	for _, item := range items {
-		fmt.Printf("| %d | %s | $%s | %d días | %d |\n",
-			item.Rank, item.Deudor, formatMoney(item.SaldoTotal), item.DiasMoraMax, item.Score)
-	}
-	fmt.Println()
-	if len(items) > 0 {
-		fmt.Println("**Acción inmediata**")
-		fmt.Println()
-		fmt.Printf("**%s** — %s\n", items[0].Deudor, items[0].AccionSugerida)
-	}
+	fmt.Println(string(jsonData))
 
 	return nil
 }

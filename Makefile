@@ -12,7 +12,7 @@ SHELL          := /bin/bash
 ROOT           := $(shell pwd)
 GO             := go
 FRAMEWORKS     := framework-alfa framework-auditor framework-charlie \
-                  framework-contactos framework-deployer framework-echo \
+                  framework-deployer framework-echo \
                   framework-foco framework-gmail framework-hosting \
                   framework-indexa framework-mecanico framework-mensajero \
                   framework-quine framework-sabio framework-tareas
@@ -26,8 +26,8 @@ help:
 	@echo ""
 	@echo "  make bootstrap     Setup inicial local (valida .env, genera vault key, compila)"
 	@echo "  make setup-prod    Setup prod completo (secrets + healthz + CI). Idempotente."
-	@echo "  make build         Compila todos los binarios (frameworks + flujo_api)"
-	@echo "  make dev           Arranca flujo_api en :8080 (modo desarrollo)"
+	@echo "  make build         Compila todos los binarios (frameworks + api_rest)"
+	@echo "  make dev           Arranca api_rest en :8080 (modo desarrollo)"
 	@echo "  make test          Corre tests de todo el repo"
 	@echo "  make fmt           Formatea codigo Go"
 	@echo "  make vet           Static analysis (go vet)"
@@ -58,19 +58,19 @@ build-frameworks:
 	done
 
 build-flujo:
-	@echo "→ Compilando channel + flujo_api..."
+	@echo "→ Compilando channel + api_rest..."
 	@cd channel && $(GO) build -o bin/channel ./cmd/channel
 	@cd channel && $(GO) build -o bin/vault ./cmd/vault
-	@cd remora-flujo && $(GO) build -o flujo_api ./cmd/flujo_api
+	@cd remora-flujo && $(GO) build -o api_rest ./cmd/api_rest
 
 # --- Desarrollo -------------------------------------------------------------
 dev:
-	@echo "→ Arrancando flujo_api en http://localhost:8080"
+	@echo "→ Arrancando api_rest en http://localhost:8080"
 	@if [ ! -f .env ]; then \
 	  echo "❌ Falta .env. Corre 'make bootstrap' primero."; \
 	  exit 1; \
 	fi
-	@cd remora-flujo && $(GO) run ./cmd/flujo_api
+	@set -a && source .env && set +a && cd remora-flujo && $(GO) run ./cmd/api_rest
 
 # --- Tests ------------------------------------------------------------------
 test:
@@ -114,8 +114,8 @@ clean-binaries:
 	  rm -f $$fw/framework$${base#framework-} 2>/dev/null || true; \
 	  rm -rf $$fw/bin 2>/dev/null || true; \
 	done
-	@rm -f remora-flujo/flujo remora-flujo/flujo_api remora-flujo/agentrpc
-	@rm -f remora-flujo/cmd/flujo_api/flujo_api remora-flujo/cmd/flujo_api/channel
+	@rm -f remora-flujo/flujo remora-flujo/api_rest remora-flujo/agentrpc
+	@rm -f remora-flujo/cmd/api_rest/api_rest remora-flujo/cmd/api_rest/channel
 	@echo "✅ Binarios limpios"
 
 clean: clean-logs clean-binaries

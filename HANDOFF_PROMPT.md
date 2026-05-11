@@ -31,10 +31,10 @@ Reglas duras:
 ### Lo que funciona
 
 - Modo dev: badge naranja en frontend + redirect de emails a `tom3bs@gmail.com`. Endpoint `/api/v1/config` devuelve `{dev_mode, dev_recipient, profile, runtime}`.
-- `framework-contactos` con tabla canónica `contacts(entity_type, entity_ref, channel, value, source, verified_at)`. Capabilities: `contact.lookup`, `contact.store`. CLI: `lookup, store, list-missing, import-csv, init`.
+- Sabio con tabla canónica `contacts(entity_type, entity_ref, channel, value, source, verified_at)`. Capabilities: `contact.lookup`, `contact.store`. CLI: `lookup, store, list-missing, import-csv, init`.
 - `framework-tareas` (ledger event-sourced). Tablas `tasks` + `task_events`. CLI: `list, next, create, complete, event, seed-from-foco`.
-- Endpoints REST en `flujo_api`: `GET/POST /api/v1/tasks`, `GET /api/v1/tasks/next`, `POST /api/v1/tasks/{id}/event`.
-- `/send-email` resuelve `entity_ref → email` vía contactos (412 si falta), redirige en dev, emite `task.event` automáticamente si vino `task_id`.
+- Endpoints REST en `api_rest`: `GET/POST /api/v1/tasks`, `GET /api/v1/tasks/next`, `POST /api/v1/tasks/{id}/event`.
+- `/send-email` resuelve `entity_ref → email` vía Sabio (412 si falta), redirige en dev, emite `task.event` automáticamente si vino `task_id`.
 - Seed automático al boot (`entrypoint.sh`): si `contacts.db` o `tasks.db` están vacías, las siembra desde `profiles/cobranza-chile/contacts.seed.csv` y `tasks.seed.json`.
 
 ### Bugs reportados por el usuario (pendientes)
@@ -55,8 +55,8 @@ Reglas duras:
 
 | DB | Quién la toca | Operaciones | Ubicación | Persistencia |
 |---|---|---|---|---|
-| `framework-indexa/data/panalbit.db` | Sabio, Foco, Contactos (`list-missing`) | **SOLO LECTURA** | committeada al repo | persistente (parte del repo) |
-| `profiles/<perfil>/contacts.db` | Contactos | RW | filesystem del container | **efímera** entre revisiones de Cloud Run |
+| `framework-indexa/data/panalbit.db` | Sabio, Foco, Sabio (`contact-list-missing`) | **SOLO LECTURA** | committeada al repo | persistente (parte del repo) |
+| `profiles/<perfil>/contacts.db` | Sabio | RW | filesystem del container | **efímera** entre revisiones de Cloud Run |
 | `profiles/<perfil>/tasks.db` | Tareas | RW | filesystem del container | **efímera** entre revisiones |
 
 **CRÍTICO**: `panalbit.db` simula la DB del cliente real. **Nunca debe escribirse en modo dev**. Verifiqué que ningún `INSERT/UPDATE/DELETE` la toca hoy. Hay que agregar un guardrail explícito (ítem 5 del plan abajo) para que abortemos si alguien algún día agrega una escritura.
@@ -66,7 +66,7 @@ Reglas duras:
 - **Manifests**: `framework-*/framework.manifest.json` declaran capabilities, comandos, params, etc.
 - **Sesiones**: `sessions/conv_*.jsonl` — historial de cada conversación.
 - **Estado interno por framework**: `framework-*/temp/state.json` o similar.
-- **Reglas de composición**: `remora-flujo/cmd/flujo_api/flow.rules.json` (a depurar — ver gap abajo).
+- **Reglas de composición**: `remora-flujo/cmd/api_rest/flow.rules.json` (a depurar — ver gap abajo).
 - **Seeds**: `profiles/<perfil>/contacts.seed.csv`, `profiles/<perfil>/tasks.seed.json`.
 
 ### Manifests — formato canónico
@@ -100,7 +100,7 @@ Todos los frameworks deben implementar **`next-question`** y **`ingest-answer`**
 
 ### Routing actual (el problema)
 
-`@/Users/alcless_a1234_cursor/remora-go/remora-flujo/cmd/flujo_api/orchestrator.go` ejecuta:
+`@/Users/alcless_a1234_cursor/remora-go/remora-flujo/cmd/api_rest/orchestrator.go` ejecuta:
 
 1. Carga lista de drivers para la conversación (`conv.Frameworks`).
 2. Aplica reglas de `flow.rules.json` que pueden hacer `prepend_speaker`. **Estas reglas mencionan frameworks por nombre** ("sabio", "alfa") — esto es prescriptivo y hay que matar.
@@ -110,7 +110,7 @@ Esto **no es autónomo**. Ningún componente razona sobre capabilities salvo `en
 
 ### Discovery — esto SÍ es autónomo
 
-`@/Users/alcless_a1234_cursor/remora-go/remora-flujo/cmd/flujo_api/drivers.go` → `initDriverRegistry` escanea `framework-*/framework.manifest.json` al boot, valida cada uno y construye el registry. Frameworks nuevos con manifest válido entran automáticamente vía `genericDriver`. NO hay que registrarlos a mano.
+`@/Users/alcless_a1234_cursor/remora-go/remora-flujo/cmd/api_rest/drivers.go` → `initDriverRegistry` escanea `framework-*/framework.manifest.json` al boot, valida cada uno y construye el registry. Frameworks nuevos con manifest válido entran automáticamente vía `genericDriver`. NO hay que registrarlos a mano.
 
 ---
 
@@ -134,14 +134,14 @@ El usuario agregó `/healthz` en `main.go` que referencia `s.allManifests`, `s.r
 
 ```bash
 cd /Users/alcless_a1234_cursor/remora-go/remora-flujo
-go build -buildvcs=false -o cmd/flujo_api/flujo_api ./cmd/flujo_api
+go build -buildvcs=false -o cmd/api_rest/api_rest ./cmd/api_rest
 ```
 
 Si falla, los campos no existen — agregarlos al struct `server` o ajustar el handler para usar lo que sí hay.
 
 ### Commit 3: Capability router mínimo
 
-Modificar `@/Users/alcless_a1234_cursor/remora-go/remora-flujo/cmd/flujo_api/orchestrator.go` y/o `rules.go` para:
+Modificar `@/Users/alcless_a1234_cursor/remora-go/remora-flujo/cmd/api_rest/orchestrator.go` y/o `rules.go` para:
 
 1. En `runLoop`, antes del polling lineal, **clasificar la respuesta del usuario contra `capabilities_semantic.intent_examples`** de cada manifest cargado.
 2. Si match (heurística simple primero: substring case-insensitive), `prepend` ese framework al frente del orden.
@@ -175,7 +175,7 @@ Ubicación sugerida: `framework-indexa/store/store.go` o un helper compartido.
 
 ### Commit 6: Fixes tácticos del email
 
-Frontend (`remora-flujo/cmd/flujo_api/static/index.html`):
+Frontend (`remora-flujo/cmd/api_rest/static/index.html`):
 
 - El handler del botón "Enviar email" debe pasar `entity_type`, `entity_ref`, `task_id` al `/api/v1/send-email`.
 - Sanitizar el draft antes del fetch: regex `^\*\*[^\n]*\*\*\s*\n` para sacar headers, `\n\*\*No requiere acción.*\*\*\s*$` para cierres.
@@ -232,15 +232,14 @@ remora-go/
 ├── framework-mensajero/         ← envío email vía SMTP
 ├── framework-hosting/           ← provisión credentials.smtp
 ├── framework-indexa/            ← indexer ERP → panalbit.db
-├── framework-contactos/         ← creado en sesión anterior, RW contacts.db
 ├── framework-tareas/            ← creado en sesión anterior, RW tasks.db
 ├── profiles/cobranza-chile/     ← perfil activo (seeds, flow.rules, etc)
-└── remora-flujo/cmd/flujo_api/  ← orquestador HTTP + frontend embebido
+└── remora-flujo/cmd/api_rest/  ← orquestador HTTP + frontend embebido
     ├── main.go                  ← endpoints, routing
     ├── orchestrator.go          ← runLoop (a refactorizar en commit 3)
     ├── drivers.go               ← discovery + genericDriver
     ├── rules.go                 ← flow rules (a depurar en commit 3)
-    ├── contactos.go             ← cliente del binario
+    ├── contacts.go              ← cliente de Sabio para contact.lookup
     ├── tareas.go                ← cliente del binario
     ├── flow.rules.json          ← reglas de composición (a depurar)
     ├── Dockerfile

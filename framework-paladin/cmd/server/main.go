@@ -16,9 +16,12 @@ import (
 )
 
 const (
-	defaultPort      = "8099"
-	minimaxAPIURL    = "https://api.minimax.io/anthropic/v1/messages"
+	defaultPort         = "8099"
+	minimaxAPIURL       = "https://api.minimax.io/anthropic/v1/messages"
+	openRouterAPIURL    = "https://openrouter.ai/api/v1/chat/completions"
+	groqAPIURL          = "https://api.groq.com/openai/v1/chat/completions"
 	defaultMiniMaxModel = "MiniMax-M2.7"
+	defaultOAIModel     = "meta-llama/llama-4-scout-17b-16e-instruct"
 )
 
 // TraceEntry guarda un trace recibido y su flow traducido.
@@ -38,8 +41,10 @@ type Server struct {
 	traces  map[string]*TraceEntry
 	mu      sync.RWMutex
 	httpClient *http.Client
-	minimaxAPIKey string
-	minimaxModel string
+	llmProvider string
+	llmAPIKey   string
+	llmModel    string
+	llmAPIURL   string
 }
 
 func main() {
@@ -52,15 +57,16 @@ func main() {
 	loadEnv(".env")
 	loadEnv(".env.local")
 
-	apiKey := firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY")
-	model := firstEnv("MINIMAX_MODEL", "REMORA_MINIMAX_MODEL", defaultMiniMaxModel)
+	provider, apiKey, model, apiURL := resolvePaladinProvider()
 
 	srv := &Server{
-		port:         port,
-		traces:       make(map[string]*TraceEntry),
-		httpClient:   &http.Client{Timeout: 60 * time.Second},
-		minimaxAPIKey: apiKey,
-		minimaxModel:  model,
+		port:        port,
+		traces:      make(map[string]*TraceEntry),
+		httpClient:  &http.Client{Timeout: 90 * time.Second},
+		llmProvider: provider,
+		llmAPIKey:   apiKey,
+		llmModel:    model,
+		llmAPIURL:   apiURL,
 	}
 
 	mux := http.NewServeMux()
@@ -74,7 +80,7 @@ func main() {
 	fmt.Printf("========================================\n")
 	fmt.Printf(" Paladin Server\n")
 	fmt.Printf(" Puerto:  %s\n", port)
-	fmt.Printf(" MiniMax: %s (%s)\n", model, apiKeyPrefix(apiKey))
+	fmt.Printf(" LLM:    %s / %s (%s)\n", provider, model, apiKeyPrefix(apiKey))
 	fmt.Printf("========================================\n\n")
 
 	if err := http.ListenAndServe(addr, mux); err != nil {
@@ -218,13 +224,13 @@ func (srv *Server) listTraces(w http.ResponseWriter, r *http.Request) {
 }
 
 func (srv *Server) translateTrace(entry *TraceEntry) {
-	if srv.minimaxAPIKey == "" {
+	if srv.llmAPIKey == "" {
 		entry.mu.Lock()
 		entry.Processing = false
 		entry.FlowResult = &paladin.FlowResult{
 			TraceID:     entry.TraceID,
 			Framework:   entry.Framework,
-			FlowNarrative: "MINIMAX_API_KEY no configurada - traducción deshabilitada",
+			FlowNarrative: "LLM API key no configurada - traducción deshabilitada",
 		}
 		entry.mu.Unlock()
 		return
@@ -289,47 +295,82 @@ Trace JSON:
 ` + prettyJSON
 }
 
-func (srv *Server) callMiniMax(prompt string) (*paladin.FlowResult, error) {
-	messages := []map[string]any{
-		{"role": "user", "content": prompt},
+func (srv *Server) callLLMText(prompt string, maxTokens int) (string, error) {
+	switch srv.llmProvider {
+	case "openrouter", "groq":
+		return srv.callOAICompat(prompt, maxTokens)
+	case "minimax":
+		return srv.callMiniMaxText(prompt, maxTokens)
+	default:
+		return "", fmt.Errorf("provider %q no soportado", srv.llmProvider)
 	}
+}
 
-	reqBody := map[string]any{
-		"model":     srv.minimaxModel,
-		"max_tokens": 4096,
-		"messages":  messages,
+func (srv *Server) callOAICompat(prompt string, maxTokens int) (string, error) {
+	type msg struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
 	}
-
-	body, err := json.Marshal(reqBody)
+	body, _ := json.Marshal(map[string]any{
+		"model":       srv.llmModel,
+		"max_tokens":  maxTokens,
+		"temperature": 0.2,
+		"messages":    []msg{{Role: "user", Content: prompt}},
+	})
+	req, err := http.NewRequest("POST", srv.llmAPIURL, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-
-	req, err := http.NewRequest("POST", minimaxAPIURL, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", srv.minimaxAPIKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("anthropic-dangerous-direct-browser-access", "true")
-
+	req.Header.Set("Authorization", "Bearer "+srv.llmAPIKey)
 	resp, err := srv.httpClient.Do(req)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
+	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("minimax HTTP %d: %s", resp.StatusCode, string(respBody))
+		return "", fmt.Errorf("llm HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
+	var parsed struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return "", fmt.Errorf("llm parse: %w", err)
+	}
+	if len(parsed.Choices) == 0 {
+		return "", fmt.Errorf("llm: respuesta sin choices")
+	}
+	return parsed.Choices[0].Message.Content, nil
+}
 
+func (srv *Server) callMiniMaxText(prompt string, maxTokens int) (string, error) {
+	body, _ := json.Marshal(map[string]any{
+		"model":      srv.llmModel,
+		"max_tokens": maxTokens,
+		"messages":   []map[string]string{{"role": "user", "content": prompt}},
+	})
+	req, err := http.NewRequest("POST", srv.llmAPIURL, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-api-key", srv.llmAPIKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("anthropic-dangerous-direct-browser-access", "true")
+	resp, err := srv.httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("minimax HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
 	var miniResp struct {
 		Content []struct {
 			Type string `json:"type"`
@@ -337,19 +378,22 @@ func (srv *Server) callMiniMax(prompt string) (*paladin.FlowResult, error) {
 		} `json:"content"`
 	}
 	if err := json.Unmarshal(respBody, &miniResp); err != nil {
-		return nil, fmt.Errorf("error parseando respuesta: %w - body: %s", err, string(respBody))
+		return "", fmt.Errorf("minimax parse: %w", err)
 	}
-
 	if len(miniResp.Content) == 0 {
-		return nil, fmt.Errorf("respuesta vacía de MiniMax")
+		return "", fmt.Errorf("respuesta vacía de LLM")
+	}
+	return miniResp.Content[0].Text, nil
+}
+
+func (srv *Server) callMiniMax(prompt string) (*paladin.FlowResult, error) {
+	text, err := srv.callLLMText(prompt, 4096)
+	if err != nil {
+		return nil, err
 	}
 
-	text := miniResp.Content[0].Text
-
-	// Parsear JSON de la respuesta
 	var flowResult paladin.FlowResult
 	if err := json.Unmarshal([]byte(text), &flowResult); err != nil {
-		// Intentar extraer de markdown code block
 		cleaned := extractJSON(text)
 		if err := json.Unmarshal([]byte(cleaned), &flowResult); err != nil {
 			return nil, fmt.Errorf("no se pudo parsear flow result: %w", err)
@@ -360,8 +404,8 @@ func (srv *Server) callMiniMax(prompt string) (*paladin.FlowResult, error) {
 }
 
 func (srv *Server) askQuestion(entry *TraceEntry, question string) (string, error) {
-	if srv.minimaxAPIKey == "" {
-		return "MINIMAX_API_KEY no configurada", nil
+	if srv.llmAPIKey == "" {
+		return "LLM API key no configurada", nil
 	}
 
 	var narrative string
@@ -378,61 +422,11 @@ Pregunta: %s
 
 Responde en español, directamente.`, narrative, question)
 
-	messages := []map[string]any{
-		{"role": "user", "content": prompt},
-	}
-
-	reqBody := map[string]any{
-		"model":      srv.minimaxModel,
-		"max_tokens": 2048,
-		"messages":   messages,
-	}
-
-	body, err := json.Marshal(reqBody)
+	text, err := srv.callLLMText(prompt, 2048)
 	if err != nil {
 		return "", err
 	}
-
-	req, err := http.NewRequest("POST", minimaxAPIURL, bytes.NewReader(body))
-	if err != nil {
-		return "", err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", srv.minimaxAPIKey)
-	req.Header.Set("anthropic-version", "2023-06-01")
-	req.Header.Set("anthropic-dangerous-direct-browser-access", "true")
-
-	resp, err := srv.httpClient.Do(req)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("minimax HTTP %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var miniResp struct {
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-	}
-	if err := json.Unmarshal(respBody, &miniResp); err != nil {
-		return "", fmt.Errorf("error parseando respuesta: %w", err)
-	}
-
-	if len(miniResp.Content) == 0 {
-		return "", fmt.Errorf("respuesta vacía de MiniMax")
-	}
-
-	return miniResp.Content[0].Text, nil
+	return text, nil
 }
 
 func loadEnv(path string) {
@@ -464,6 +458,30 @@ func firstEnv(names ...string) string {
 		}
 	}
 	return ""
+}
+
+func resolvePaladinProvider() (provider, apiKey, model, apiURL string) {
+	p := strings.ToLower(strings.TrimSpace(os.Getenv("PALADIN_LLM_PROVIDER")))
+	if p == "" {
+		p = strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER")))
+	}
+	if p == "" {
+		if firstEnv("OPENROUTER_API_KEY") != "" {
+			p = "openrouter"
+		} else if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
+			p = "groq"
+		} else {
+			p = "minimax"
+		}
+	}
+	switch p {
+	case "openrouter":
+		return p, firstEnv("OPENROUTER_API_KEY"), firstEnv("PALADIN_LLM_MODEL", defaultOAIModel), openRouterAPIURL
+	case "groq":
+		return p, firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY"), firstEnv("PALADIN_LLM_MODEL", defaultOAIModel), groqAPIURL
+	default:
+		return "minimax", firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY"), firstEnv("PALADIN_LLM_MODEL", defaultMiniMaxModel), minimaxAPIURL
+	}
 }
 
 func apiKeyPrefix(key string) string {

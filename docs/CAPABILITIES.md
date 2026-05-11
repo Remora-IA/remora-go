@@ -65,7 +65,7 @@ En cada `framework.manifest.json`:
 
 ## Cómo se resuelve
 
-El orquestador (`flujo_api`) escanea todos los manifests al boot y arma:
+El orquestador (`api_rest`) escanea todos los manifests al boot y arma:
 
 ```
 producerOf["credentials.smtp"] = ["hosting"]

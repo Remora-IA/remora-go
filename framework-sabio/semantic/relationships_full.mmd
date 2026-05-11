@@ -1,0 +1,77 @@
+flowchart LR
+  advances["advances<br/>1 filas"]
+  agreements["agreements<br/>614 filas"]
+  areas["areas<br/>9 filas"]
+  bank_accounts["bank_accounts<br/>3 filas"]
+  banks["banks<br/>2 filas"]
+  billing_document_statuses["billing_document_statuses<br/>5 filas"]
+  billing_document_types["billing_document_types<br/>6 filas"]
+  billing_documents["billing_documents<br/>1579 filas"]
+  charges["charges<br/>1518 filas"]
+  client_groups["client_groups<br/>7 filas"]
+  clients["clients<br/>269 filas"]
+  codes["codes<br/>127 filas"]
+  countries["countries<br/>241 filas"]
+  currencies["currencies<br/>3 filas"]
+  expenses["expenses<br/>8 filas"]
+  expenses_categories["expenses_categories<br/>21 filas"]
+  languages["languages<br/>2 filas"]
+  law_firms["law_firms<br/>2 filas"]
+  milestones["milestones<br/>308 filas"]
+  national_id_document_types["national_id_document_types<br/>6 filas"]
+  payment_concepts["payment_concepts<br/>18 filas"]
+  payment_conditions["payment_conditions<br/>16 filas"]
+  payment_types["payment_types<br/>10 filas"]
+  payments["payments<br/>1451 filas"]
+  project_areas["project_areas<br/>11 filas"]
+  project_types["project_types<br/>6 filas"]
+  projects["projects<br/>521 filas"]
+  providers["providers<br/>1 filas"]
+  rates["rates<br/>59 filas"]
+  related_document_types["related_document_types<br/>3 filas"]
+  time_entries["time_entries<br/>30050 filas"]
+  user_areas["user_areas<br/>12 filas"]
+  user_categories["user_categories<br/>10 filas"]
+  users["users<br/>70 filas"]
+  advances -->|"client_id → id (high)"| clients
+  advances -->|"project_id → id (high)"| projects
+  agreements -->|"client_id → id (high)"| clients
+  bank_accounts -->|"bank_id → id (high)"| banks
+  bank_accounts -->|"currency_id → id (high)"| currencies
+  billing_documents -->|"charge_id → id (high)"| charges
+  billing_documents -->|"client_id → id (high)"| clients
+  clients -.->|"group_id → id (medium)"| client_groups
+  client_groups -.->|"client_id → id (medium)"| clients
+  client_groups -->|"country_id → id (high)"| countries
+  charges -->|"agreement_id → id (high)"| agreements
+  charges -->|"client_id → id (high)"| clients
+  expenses -->|"client_id → id (high)"| clients
+  expenses -->|"project_id → id (high)"| projects
+  milestones -->|"agreement_id → id (high)"| agreements
+  milestones -->|"charge_id → id (high)"| charges
+  payments -->|"client_id → id (high)"| clients
+  payments -->|"currency_id → id (high)"| currencies
+  projects -->|"agreement_id → id (high)"| agreements
+  projects -->|"client_id → id (high)"| clients
+  projects -->|"currency_code → code (high)"| currencies
+  projects -.->|"language_code → code (medium)"| languages
+  projects -->|"project_area_id → id (high)"| project_areas
+  projects -->|"project_type_id → id (high)"| project_types
+  time_entries -->|"project_code → code (high)"| projects
+  time_entries -->|"user_id → id (high)"| users
+  user_areas -.->|"related_id → id (low)"| areas
+  users -->|"user_area_id → id (high)"| user_areas
+  users -->|"user_category_id → id (high)"| user_categories
+  billing_document_statuses:::isolated
+  billing_document_types:::isolated
+  codes:::isolated
+  expenses_categories:::isolated
+  law_firms:::isolated
+  national_id_document_types:::isolated
+  payment_concepts:::isolated
+  payment_conditions:::isolated
+  payment_types:::isolated
+  providers:::isolated
+  rates:::isolated
+  related_document_types:::isolated
+  classDef isolated fill:#fff3cd,stroke:#d39e00,color:#222

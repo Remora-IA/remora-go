@@ -2,16 +2,18 @@
 
 Una página. Reglas duras. Si un PR las rompe, no entra.
 
+Ver también `docs/AXIOMS.md`. Axioma rector: **un flujo está listo cuando cualquier framework puede entrar, actuar, pedir ayuda, esperar o salir del equipo usando solo capabilities declaradas, contratos verificables y trazas auditables, sin cables por nombre ni conocimiento oculto.**
+
 ## 1. Modelo mental
 
-Remora es un sistema de **frameworks autónomos**. Cada framework es una sesión de IA (prompts) + un binario Go que expone comandos CLI. El orquestador (`remora-flujo/cmd/flujo_api`) los compone vía Channel (JSON-RPC sobre stdin/stdout). La autonomía emerge porque cada framework declara qué **capabilities** produce y requiere — no porque alguien escriba un flujo prescriptivo.
+Remora es un sistema de **frameworks autónomos**. Cada framework es una sesión de IA (prompts) + un binario Go que expone comandos CLI. El orquestador (`remora-flujo/cmd/api_rest`) los compone vía Channel (JSON-RPC sobre stdin/stdout). La autonomía emerge porque cada framework declara qué **capabilities** produce y requiere — no porque alguien escriba un flujo prescriptivo.
 
 ## 2. Reglas duras
 
 1. **Frameworks nuevos se crean con `framework-quine`**, no a mano. `./quine create --name X --type Y`. Si Quine no alcanza, mejorar Quine antes que crear a mano.
 2. **Frameworks se comunican por JSON** (Channel JSON-RPC). Nunca por imports cruzados ni memoria compartida.
 3. **Routing es capability-based, no name-based.** El orquestador NUNCA debe hacer `if framework == "sabio"`. Debe preguntar "quién produce capability X". `flow.rules.json` es solo para overrides finos (ej. `capability_missing → delegate_to_provider_of`); no para "quién habla".
-4. **Cada manifest declara `capabilities_semantic`** con `tags`, `intent_examples`, `produces`, `requires`. El registry lo escanea al boot (`drivers.go::initDriverRegistry`).
+4. **Cada manifest declara capabilities.** `capabilities_semantic` describe routing blando (`tags`, `intent_examples`, `produces`, `requires`) y `capabilities` declara contratos typed (`id`, `command`, `inputs`, `outputs`, `execution`, `policies`) para que Paladin valide el trabajo en equipo.
 5. **Contrato CLI mínimo de todo framework**: `next-question` (devuelve `{"id","text","ask_via"}` o `{}`) y `ingest-answer` (recibe `--question-id` y `--answer`).
 6. **Sin emojis** en código ni commits salvo pedido explícito del usuario.
 
@@ -21,10 +23,10 @@ Remora es un sistema de **frameworks autónomos**. Cada framework es una sesión
 |---|---|---|---|
 | Estado canónico compartido entre frameworks | **SQLite** en `profiles/<perfil>/*.db` | Frameworks que producen la capability dueña | Efímero entre revisiones de Cloud Run; se reseedea al boot vía `entrypoint.sh` |
 | Estado interno de un framework | JSON file (`framework-*/temp/state.json`) | Solo ese framework | No se comparte |
-| ERP origen del cliente | `framework-indexa/data/panalbit.db` | Sabio, Foco, Contactos (`list-missing`) | **READ-ONLY siempre.** Committeado al repo. Simula la DB del cliente real |
+| ERP origen del cliente | `framework-indexa/data/panalbit.db` | Sabio, Foco | **READ-ONLY siempre.** Committeado al repo. Simula la DB del cliente real |
 | Comunicación entre componentes | JSON por stdin/stdout | Channel | Nunca compartir memoria |
-| Sesiones de conversación | `sessions/conv_*.jsonl` | flujo_api | Append-only |
-| Reglas de composición | `remora-flujo/cmd/flujo_api/flow.rules.json` | flujo_api | Solo overrides; ver regla 3 |
+| Sesiones de conversación | `sessions/conv_*.jsonl` | api_rest | Append-only |
+| Reglas de composición | `remora-flujo/cmd/api_rest/flow.rules.json` | api_rest | Solo overrides; ver regla 3 |
 | Seeds del perfil | `profiles/<perfil>/{contacts.seed.csv,tasks.seed.json}` | `entrypoint.sh` | Idempotente: solo siembra si la DB está vacía |
 
 ## 4. Aislamiento dev/prod

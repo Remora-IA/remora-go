@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
+	"github.com/user/framework-echo/internal/llm"
 	"github.com/user/framework-echo/internal/tree"
 )
 
@@ -24,14 +26,80 @@ func cmdNextQuestion() {
 	report := t.AssessAlfaReadiness()
 	out := map[string]string{}
 	if report.NextQuestion != "" && report.RecommendedAction != tree.RecommendedPassToAlfa {
-		out["id"] = "rd_" + shortHash(report.NextQuestion)
-		out["text"] = report.NextQuestion
+		// Usar LLM para generar una pregunta contextual y natural.
+		questionText := generateEchoQuestion(t, report)
+		out["id"] = "rd_" + shortHash(questionText)
+		out["text"] = questionText
 		out["ask_via"] = ""
 		out["recommended_action"] = report.RecommendedAction
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	_ = enc.Encode(out)
+}
+
+const echoSystemPrompt = `Eres Echo, la IA de descubrimiento de procesos de Remora.
+
+Tu trabajo es guiar una conversación de descubrimiento para entender el mundo real del usuario y construir un árbol validado:
+AXIOM -> THEORY -> TASK -> PAIN -> OPPORTUNITY
+
+Tu personalidad:
+- Eres directo y cálido, sin ser formal.
+- Hablas en español natural.
+- Hacés una pregunta a la vez.
+- Preguntás por comportamiento actual, no por soluciones ideales.
+- Nunca preguntás "qué querés automatizar".
+- Nunca ofrecés una solución antes de confirmar un dolor real.
+- Pedís recursos reales (captura, foto, Excel, ejemplo) cuando reducen incertidumbre.
+
+No expliques el framework. Hacé una sola pregunta natural para avanzar el proceso.`
+
+func generateEchoQuestion(t *tree.FrameworkEcho, report tree.ReadinessReport) string {
+	client, err := llm.NewClient()
+	if err != nil {
+		// LLM no disponible: devolver error en lugar de fallback.
+		fmt.Fprintf(os.Stderr, "Error LLM: %v\n", err)
+		return report.NextQuestion
+	}
+	treeContext := buildTreeContext(t, report)
+	userPrompt := fmt.Sprintf(
+		"Estado actual del árbol de descubrimiento:\n%s\n\nAcción recomendada: %s\nPregunta base: %s\n\nGenera UNA sola pregunta natural y directa para hacerle al usuario. Solo la pregunta, sin explicación.",
+		treeContext, report.RecommendedAction, report.NextQuestion)
+	reply, err := client.Generate(context.Background(), echoSystemPrompt, userPrompt)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error LLM: %v\n", err)
+		return report.NextQuestion
+	}
+	reply = strings.TrimSpace(reply)
+	if reply == "" {
+		return report.NextQuestion
+	}
+	return reply
+}
+
+func buildTreeContext(t *tree.FrameworkEcho, report tree.ReadinessReport) string {
+	stats := t.GetStats()
+	var sb strings.Builder
+	if t.ProjectID != "" {
+		fmt.Fprintf(&sb, "Proyecto: %s, Cliente: %s\n", t.ProjectID, t.ClientName)
+	}
+	fmt.Fprintf(&sb, "Nodos totales: %d\n", stats.TotalNodes)
+	layerNames := map[int]string{0: "AXIOMS", 1: "THEORIES", 2: "TASKS", 3: "PAINS", 4: "OPPORTUNITIES"}
+	for layer := 0; layer <= 4; layer++ {
+		if ls, ok := stats.ByLayer[layer]; ok && ls.Total > 0 {
+			fmt.Fprintf(&sb, "  %s: %d total, %d validados\n", layerNames[layer], ls.Total, ls.Validated)
+		}
+	}
+	// Incluir títulos de nodos validados para contexto.
+	for _, n := range t.Nodes {
+		if n.Status == tree.StatusValidated {
+			fmt.Fprintf(&sb, "  [%s] %s: %s\n", n.ID, n.Type, n.Title)
+		}
+	}
+	if len(report.Risks) > 0 {
+		fmt.Fprintf(&sb, "Riesgos: %s\n", strings.Join(report.Risks, ", "))
+	}
+	return sb.String()
 }
 
 // cmdIngestAnswer recibe una respuesta del usuario y avanza el árbol UN paso

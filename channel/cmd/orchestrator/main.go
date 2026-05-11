@@ -139,7 +139,8 @@ func cmdList(fws map[string]*manifest.Manifest) {
 }
 
 func cmdChains(fws map[string]*manifest.Manifest) {
-	fmt.Println("Cadenas válidas (output.format → input.format):\n")
+	fmt.Println("Cadenas válidas (output.format → input.format):")
+	fmt.Println()
 	count := 0
 	for _, from := range fws {
 		for _, to := range fws {

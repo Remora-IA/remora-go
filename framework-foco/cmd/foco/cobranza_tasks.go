@@ -30,7 +30,7 @@ type tasksLedgerResp struct {
 
 // queryTaskLedger invoca el binario `frameworktareas` para listar las tareas
 // pendientes del perfil. Devuelve nil, nil si el binario no está accesible o
-// no hay tareas pendientes (caller cae al fallback SQL sobre panalbit.db).
+// no hay tareas pendientes (caller cae al fallback SQL configurado).
 //
 // Variables de entorno:
 //   - REMORA_TAREAS_BIN: path al binario (default: ../framework-tareas/frameworktareas)

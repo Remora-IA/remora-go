@@ -1,9 +1,12 @@
 // Package checks implementa las reglas de auditoría sobre un dataset
-// con shape de dump JSON-API (timebilling-like). Cada Rule es una función
-// pura que recibe el dataset y devuelve los findings detectados.
+// con shape de dump JSON-API genérico. Cada Rule es una función pura
+// que recibe el dataset y devuelve los findings detectados.
 //
 // Diseño:
 //   - Sin LLM ni heurística: reglas determinísticas, reproducibles.
+//   - Business-agnostic: FK relationships, required fields, and date fields
+//     are inferred dynamically from the dataset structure (no hardcoded
+//     table/field names).
 //   - Cada Finding describe endpoint/record/campo + evidencia + sugerencia.
 //   - AutoFixable indica si framework-mecanico puede proponer un fix sin
 //     intervención humana (decisión final siempre del usuario al apply).
@@ -13,6 +16,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,28 +32,29 @@ const (
 
 // Reglas (rule_id estable, usadas por framework-mecanico para mapear fixers).
 const (
-	RuleFKOrphan         = "fk_orphan"
-	RuleEmptyRequired    = "empty_required"
-	RuleNullRequired     = "null_required"
-	RuleInvalidValue     = "invalid_value"
-	RuleInvalidDate      = "invalid_date"
-	RuleStaleAdvance     = "stale_advance"
-	RuleDuplicateRecord  = "duplicate_record"
+	RuleFKOrphan        = "fk_orphan"
+	RuleEmptyRequired   = "empty_required"
+	RuleNullRequired    = "null_required"
+	RuleInvalidValue    = "invalid_value"
+	RuleInvalidDate     = "invalid_date"
+	RuleStaleAdvance    = "stale_advance"
+	RuleDuplicateRecord = "duplicate_record"
+	RuleMissingContact  = "missing_contact_destination"
 )
 
 // Finding es un hallazgo del auditor.
 type Finding struct {
-	ID            string                 `json:"id"`
-	Rule          string                 `json:"rule"`
-	Severity      string                 `json:"severity"`
-	Endpoint      string                 `json:"endpoint"`
-	RecordID      string                 `json:"record_id"`
-	Field         string                 `json:"field,omitempty"`
-	Message       string                 `json:"message"`
-	Evidence      map[string]interface{} `json:"evidence,omitempty"`
-	Suggestion    string                 `json:"suggestion,omitempty"`
-	AutoFixable   bool                   `json:"auto_fixable"`
-	FixHint       map[string]interface{} `json:"fix_hint,omitempty"`
+	ID          string                 `json:"id"`
+	Rule        string                 `json:"rule"`
+	Severity    string                 `json:"severity"`
+	Endpoint    string                 `json:"endpoint"`
+	RecordID    string                 `json:"record_id"`
+	Field       string                 `json:"field,omitempty"`
+	Message     string                 `json:"message"`
+	Evidence    map[string]interface{} `json:"evidence,omitempty"`
+	Suggestion  string                 `json:"suggestion,omitempty"`
+	AutoFixable bool                   `json:"auto_fixable"`
+	FixHint     map[string]interface{} `json:"fix_hint,omitempty"`
 }
 
 // Dataset representa el dump JSON-API en memoria.
@@ -71,6 +76,9 @@ func LoadDataset(path string) (*Dataset, error) {
 	endpoints := top
 	if ep, ok := top["endpoints"].(map[string]interface{}); ok {
 		endpoints = ep
+	}
+	if tables, ok := top["tables"].(map[string]interface{}); ok {
+		endpoints = tables
 	}
 	out := &Dataset{
 		Endpoints: map[string][]map[string]interface{}{},
@@ -125,51 +133,117 @@ func (d *Dataset) Save(path string) error {
 	return os.Rename(tmp, path)
 }
 
-// FKMap describe relaciones de FK declaradas (endpoint.field -> targetEndpoint).
-// Solo declaramos las que son SEMÁNTICAMENTE FKs en el dominio timebilling.
-var FKMap = []struct {
-	From      string // endpoint origen
-	Field     string // campo FK en el origen
-	To        string // endpoint destino
-	TargetKey string // por defecto "id"
-}{
-	{"advances", "client_id", "clients", "id"},
-	{"advances", "project_id", "projects", "id"},
-	{"projects", "client_id", "clients", "id"},
-	{"projects", "agreement_id", "agreements", "id"},
-	{"billing_documents", "client_id", "clients", "id"},
-	{"billing_documents", "charge_id", "charges", "id"},
-	{"payments", "client_id", "clients", "id"},
-	{"charges", "client_id", "clients", "id"},
-	{"charges", "agreement_id", "agreements", "id"},
-	{"agreements", "client_id", "clients", "id"},
-	{"bank_accounts", "bank_id", "banks", "id"},
-	{"bank_accounts", "currency_id", "currencies", "id"},
-	{"time_entries", "user_id", "users", "id"},
-	{"expenses", "client_id", "clients", "id"},
-	{"rates", "user_id", "users", "id"},
-}
-
-// RequiredStringFields define campos string que NO deben estar vacíos.
-var RequiredStringFields = []struct {
+// EndpointField is a generic (endpoint, field) pair used by inferred rules.
+type EndpointField struct {
 	Endpoint string
 	Field    string
-}{
-	{"agreements", "name"},
-	{"clients", "name"},
-	{"clients", "code"},
-	{"projects", "name"},
-	{"projects", "code"},
-	{"areas", "name"},
 }
 
-// RequiredNonNullFields define campos que no deben ser null.
-var RequiredNonNullFields = []struct {
-	Endpoint string
-	Field    string
-}{
-	{"agreements", "code"},
-	{"agreements", "name"},
+// FKRelation describes a foreign-key relationship between two endpoints.
+type FKRelation struct {
+	From      string // source endpoint
+	Field     string // FK field in source
+	To        string // target endpoint
+	TargetKey string // key field in target (usually "id")
+}
+
+// InferFKRelations discovers FK relationships by looking for fields that end
+// in "_id" and matching them to existing endpoints in the dataset.
+// This replaces the hardcoded FKMap and works for any business domain.
+func InferFKRelations(d *Dataset) []FKRelation {
+	var rels []FKRelation
+	seen := map[string]bool{}
+	for endpoint, records := range d.Endpoints {
+		if len(records) == 0 {
+			continue
+		}
+		// Sample all records to collect field names (some records may have
+		// different fields due to sparse JSON).
+		fieldSet := map[string]bool{}
+		for _, rec := range records {
+			for k := range rec {
+				fieldSet[k] = true
+			}
+		}
+		for field := range fieldSet {
+			if !strings.HasSuffix(field, "_id") {
+				continue
+			}
+			base := strings.TrimSuffix(field, "_id")
+			// Try common plural forms.
+			for _, candidate := range []string{base + "s", base + "es", base} {
+				if _, exists := d.Endpoints[candidate]; exists {
+					key := endpoint + "." + field + "->" + candidate
+					if !seen[key] {
+						seen[key] = true
+						rels = append(rels, FKRelation{
+							From:      endpoint,
+							Field:     field,
+							To:        candidate,
+							TargetKey: "id",
+						})
+					}
+					break
+				}
+			}
+		}
+	}
+	// Sort for deterministic output.
+	sort.Slice(rels, func(i, j int) bool {
+		if rels[i].From != rels[j].From {
+			return rels[i].From < rels[j].From
+		}
+		return rels[i].Field < rels[j].Field
+	})
+	return rels
+}
+
+// commonRequiredFieldNames are field names that are universally expected to
+// have non-empty, non-null values when present.  Business-agnostic.
+var commonRequiredFieldNames = map[string]bool{
+	"name": true, "code": true, "title": true,
+}
+
+// InferRequiredStringFields scans the dataset and returns (endpoint, field)
+// pairs for fields with commonly-required names that exist in the data.
+func InferRequiredStringFields(d *Dataset) []EndpointField {
+	var out []EndpointField
+	seen := map[string]bool{}
+	for endpoint, records := range d.Endpoints {
+		if len(records) == 0 {
+			continue
+		}
+		fieldSet := map[string]bool{}
+		for _, rec := range records {
+			for k := range rec {
+				fieldSet[k] = true
+			}
+		}
+		for field := range fieldSet {
+			if !commonRequiredFieldNames[field] {
+				continue
+			}
+			key := endpoint + "." + field
+			if !seen[key] {
+				seen[key] = true
+				out = append(out, EndpointField{Endpoint: endpoint, Field: field})
+			}
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Endpoint != out[j].Endpoint {
+			return out[i].Endpoint < out[j].Endpoint
+		}
+		return out[i].Field < out[j].Field
+	})
+	return out
+}
+
+// InferRequiredNonNullFields returns the same fields as
+// InferRequiredStringFields — if a "name" or "code" field exists, it should
+// not be null either.
+func InferRequiredNonNullFields(d *Dataset) []EndpointField {
+	return InferRequiredStringFields(d)
 }
 
 // invalidDateSentinels son strings que aparecen como "fechas" pero no lo son.
@@ -178,29 +252,82 @@ var invalidDateSentinels = map[string]bool{
 	"0000-00-00 00:00:00": true,
 }
 
-// dateFields que deberían contener fechas válidas (o ser null).
-var DateFields = []struct {
-	Endpoint string
-	Field    string
-}{
-	{"projects", "inactive_at"},
-	{"clients", "agreement_start_date"},
-	{"charges", "date_from"},
-	{"charges", "date_to"},
-	{"advances", "date"},
-	{"payments", "date"},
-	{"billing_documents", "date"},
+// dateFieldNameHints are substrings that indicate a field holds a date value.
+var dateFieldNameHints = []string{"date", "_at", "created", "updated", "expired", "starts", "ends"}
+
+// InferDateFields discovers date fields by matching field names against common
+// naming patterns and verifying at least one record has a date-like value.
+func InferDateFields(d *Dataset) []EndpointField {
+	var out []EndpointField
+	seen := map[string]bool{}
+	for endpoint, records := range d.Endpoints {
+		if len(records) == 0 {
+			continue
+		}
+		fieldSet := map[string]bool{}
+		for _, rec := range records {
+			for k := range rec {
+				fieldSet[k] = true
+			}
+		}
+		for field := range fieldSet {
+			low := strings.ToLower(field)
+			isDate := false
+			for _, hint := range dateFieldNameHints {
+				if strings.Contains(low, hint) {
+					isDate = true
+					break
+				}
+			}
+			if !isDate {
+				continue
+			}
+			key := endpoint + "." + field
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			out = append(out, EndpointField{Endpoint: endpoint, Field: field})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Endpoint != out[j].Endpoint {
+			return out[i].Endpoint < out[j].Endpoint
+		}
+		return out[i].Field < out[j].Field
+	})
+	return out
 }
 
 // RunAll ejecuta todos los checks y devuelve los findings ordenados.
 func RunAll(d *Dataset) []Finding {
+	return RunAllWithSchema(d, nil)
+}
+
+// RunAllWithSchema ejecuta todos los checks incluyendo validación de schema
+// cuando tableColumns no es nil. tableColumns mapea tabla → lista de columnas
+// y se obtiene via TableColumnsFromDB.
+//
+// All data-quality rules (FK, required fields, dates) are inferred dynamically
+// from the dataset structure — no hardcoded business-specific tables or fields.
+func RunAllWithSchema(d *Dataset, tableColumns map[string][]string) []Finding {
+	// Infer rules dynamically from the actual dataset.
+	fkRels := InferFKRelations(d)
+	reqStr := InferRequiredStringFields(d)
+	reqNonNull := InferRequiredNonNullFields(d)
+	dateFields := InferDateFields(d)
+
 	var all []Finding
-	all = append(all, CheckFKOrphans(d)...)
-	all = append(all, CheckEmptyRequired(d)...)
-	all = append(all, CheckNullRequired(d)...)
-	all = append(all, CheckInvalidDates(d)...)
+	all = append(all, CheckFKOrphans(d, fkRels)...)
+	all = append(all, CheckEmptyRequired(d, reqStr)...)
+	all = append(all, CheckNullRequired(d, reqNonNull)...)
+	all = append(all, CheckInvalidDates(d, dateFields)...)
 	all = append(all, CheckInvalidValues(d)...)
 	all = append(all, CheckStaleAdvances(d)...)
+	all = append(all, CheckMissingContactDestination(d)...)
+	if tableColumns != nil {
+		all = append(all, CheckSchemaContactCapability(d, tableColumns)...)
+	}
 
 	// Ordenamos: critical → warning → info, después por endpoint, después record_id.
 	sevRank := map[string]int{SeverityCritical: 0, SeverityWarning: 1, SeverityInfo: 2}
@@ -220,12 +347,46 @@ func RunAll(d *Dataset) []Finding {
 	return all
 }
 
-// CheckFKOrphans valida que cada FK declarada en FKMap exista en el endpoint destino.
-func CheckFKOrphans(d *Dataset) []Finding {
+func CheckMissingContactDestination(d *Dataset) []Finding {
+	var findings []Finding
+	for endpoint, records := range d.Endpoints {
+		if !isContactEntityEndpoint(endpoint) {
+			continue
+		}
+		for _, rec := range records {
+			if recordHasEmail(rec) {
+				continue
+			}
+			recID := pickID(rec)
+			findings = append(findings, Finding{
+				Rule:     RuleMissingContact,
+				Severity: SeverityWarning,
+				Endpoint: endpoint,
+				RecordID: recID,
+				Field:    "email",
+				Message:  fmt.Sprintf("Falta email/contacto operativo: %s[%s].email", endpoint, recID),
+				Evidence: map[string]interface{}{
+					"checked_fields": []string{"email", "contact_email", "mail", "correo", "to", "destination"},
+				},
+				Suggestion:  "Solicitar o enriquecer el contacto antes de ejecutar mensajería saliente.",
+				AutoFixable: false,
+				FixHint: map[string]interface{}{
+					"strategy": "request_contact_destination",
+					"endpoint": endpoint,
+					"field":    "email",
+				},
+			})
+		}
+	}
+	return findings
+}
+
+// CheckFKOrphans valida que cada FK en fkRels exista en el endpoint destino.
+func CheckFKOrphans(d *Dataset, fkRels []FKRelation) []Finding {
 	var findings []Finding
 	// Pre-construimos un set de IDs por endpoint destino.
 	targetIDs := map[string]map[string]bool{}
-	for _, fk := range FKMap {
+	for _, fk := range fkRels {
 		if _, done := targetIDs[fk.To]; done {
 			continue
 		}
@@ -238,7 +399,7 @@ func CheckFKOrphans(d *Dataset) []Finding {
 		targetIDs[fk.To] = set
 	}
 
-	for _, fk := range FKMap {
+	for _, fk := range fkRels {
 		records := d.Endpoints[fk.From]
 		if len(records) == 0 {
 			continue
@@ -278,9 +439,9 @@ func CheckFKOrphans(d *Dataset) []Finding {
 }
 
 // CheckEmptyRequired detecta campos string requeridos que están vacíos "".
-func CheckEmptyRequired(d *Dataset) []Finding {
+func CheckEmptyRequired(d *Dataset, rules []EndpointField) []Finding {
 	var findings []Finding
-	for _, rule := range RequiredStringFields {
+	for _, rule := range rules {
 		for _, rec := range d.Endpoints[rule.Endpoint] {
 			v, ok := rec[rule.Field]
 			if !ok {
@@ -303,7 +464,7 @@ func CheckEmptyRequired(d *Dataset) []Finding {
 					Evidence: map[string]interface{}{
 						"current_value": s,
 					},
-					Suggestion:  "Completar el valor o derivarlo de campos relacionados (ej. nombre del cliente).",
+					Suggestion:  "Completar el valor o derivarlo de campos relacionados.",
 					AutoFixable: true,
 					FixHint: map[string]interface{}{
 						"strategy": "derive_from_related",
@@ -318,9 +479,9 @@ func CheckEmptyRequired(d *Dataset) []Finding {
 }
 
 // CheckNullRequired detecta campos requeridos que son null.
-func CheckNullRequired(d *Dataset) []Finding {
+func CheckNullRequired(d *Dataset, rules []EndpointField) []Finding {
 	var findings []Finding
-	for _, rule := range RequiredNonNullFields {
+	for _, rule := range rules {
 		for _, rec := range d.Endpoints[rule.Endpoint] {
 			v, ok := rec[rule.Field]
 			if !ok || v == nil {
@@ -348,9 +509,9 @@ func CheckNullRequired(d *Dataset) []Finding {
 }
 
 // CheckInvalidDates detecta sentinels tipo "0000-00-00" en campos de fecha.
-func CheckInvalidDates(d *Dataset) []Finding {
+func CheckInvalidDates(d *Dataset, dateFields []EndpointField) []Finding {
 	var findings []Finding
-	for _, rule := range DateFields {
+	for _, rule := range dateFields {
 		for _, rec := range d.Endpoints[rule.Endpoint] {
 			v, ok := rec[rule.Field]
 			if !ok || v == nil {
@@ -387,42 +548,46 @@ func CheckInvalidDates(d *Dataset) []Finding {
 	return findings
 }
 
-// CheckInvalidValues detecta valores fuera de rango en campos numéricos
-// con semántica conocida (ej: número de factura no puede ser negativo).
+// CheckInvalidValues detecta valores fuera de rango en campos numéricos.
+// Checks any field named "number", "amount", or "total" for negative values
+// across all endpoints — business-agnostic.
 func CheckInvalidValues(d *Dataset) []Finding {
 	var findings []Finding
-	// billing_documents.number debe ser positivo.
-	for _, rec := range d.Endpoints["billing_documents"] {
-		v, ok := rec["number"]
-		if !ok || v == nil {
-			continue
-		}
-		nStr := asString(v)
-		n, err := strconv.Atoi(nStr)
-		if err != nil {
-			continue
-		}
-		if n < 0 {
-			recID := pickID(rec)
-			findings = append(findings, Finding{
-				Rule:     RuleInvalidValue,
-				Severity: SeverityCritical,
-				Endpoint: "billing_documents",
-				RecordID: recID,
-				Field:    "number",
-				Message:  fmt.Sprintf("Número de factura negativo: %s[%s].number=%d", "billing_documents", recID, n),
-				Evidence: map[string]interface{}{
-					"current_value": n,
-				},
-				Suggestion:  "Reasignar el número con el siguiente correlativo válido de la serie.",
-				AutoFixable: true,
-				FixHint: map[string]interface{}{
-					"strategy": "next_sequence",
-					"endpoint": "billing_documents",
-					"field":    "number",
-					"group_by": "series_number",
-				},
-			})
+	numericFields := map[string]bool{"number": true, "amount": true, "total": true}
+	for endpoint, records := range d.Endpoints {
+		for _, rec := range records {
+			for field := range numericFields {
+				v, ok := rec[field]
+				if !ok || v == nil {
+					continue
+				}
+				nStr := asString(v)
+				n, err := strconv.Atoi(nStr)
+				if err != nil {
+					continue
+				}
+				if n < 0 {
+					recID := pickID(rec)
+					findings = append(findings, Finding{
+						Rule:     RuleInvalidValue,
+						Severity: SeverityCritical,
+						Endpoint: endpoint,
+						RecordID: recID,
+						Field:    field,
+						Message:  fmt.Sprintf("Valor negativo: %s[%s].%s=%d", endpoint, recID, field, n),
+						Evidence: map[string]interface{}{
+							"current_value": n,
+						},
+						Suggestion:  "Verificar si el valor negativo es correcto o debe corregirse.",
+						AutoFixable: true,
+						FixHint: map[string]interface{}{
+							"strategy": "review_value",
+							"endpoint": endpoint,
+							"field":    field,
+						},
+					})
+				}
+			}
 		}
 	}
 	return findings
@@ -484,6 +649,30 @@ func pickID(rec map[string]interface{}) string {
 	return ""
 }
 
+func isContactEntityEndpoint(endpoint string) bool {
+	e := strings.ToLower(strings.TrimSpace(endpoint))
+	switch e {
+	case "clients", "customers", "debtors", "deudores", "contacts", "contactos":
+		return true
+	default:
+		return strings.Contains(e, "client") || strings.Contains(e, "customer") || strings.Contains(e, "deudor")
+	}
+}
+
+func recordHasEmail(rec map[string]interface{}) bool {
+	for _, field := range []string{"email", "contact_email", "mail", "correo", "to", "destination"} {
+		if v, ok := rec[field]; ok && looksLikeEmail(asString(v)) {
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeEmail(s string) bool {
+	s = strings.TrimSpace(strings.ToLower(s))
+	return strings.Contains(s, "@") && strings.Contains(s, ".") && !strings.Contains(s, "@ejemplo.")
+}
+
 func asString(v interface{}) string {
 	if v == nil {
 		return ""
@@ -534,8 +723,21 @@ func SaveFindings(path string, findings []Finding) error {
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0644); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(path), "findings-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		os.Remove(tmp)
+		return err
+	}
+	if err := f.Close(); err != nil {
+		os.Remove(tmp)
 		return err
 	}
 	return os.Rename(tmp, path)

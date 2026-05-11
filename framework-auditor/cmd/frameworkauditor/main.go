@@ -18,10 +18,11 @@
 //
 //	./frameworkauditor next-question
 //	./frameworkauditor ingest-answer --question-id <id> --answer <text>
-//	    Modo conversacional para el orquestador flujo_api.
+//	    Modo conversacional para el orquestador api_rest.
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -33,6 +34,7 @@ import (
 	"time"
 
 	"framework-auditor/checks"
+	"framework-auditor/internal/llm"
 )
 
 const (
@@ -70,21 +72,26 @@ func main() {
 }
 
 func usage() {
-	fmt.Print(`frameworkauditor: agente de auditoría sobre dataset JSON-API
+	fmt.Print(`frameworkauditor: agente de auditoría sobre dataset JSON-API o SQLite
 
 Uso:
   frameworkauditor reset
-  frameworkauditor scan [--source <path>] [--out <path>]
+  frameworkauditor scan [--source <path>] [--db <sqlite_path>] [--out <path>] [--json]
   frameworkauditor list [--severity critical|warning|info] [--json]
   frameworkauditor detail --id F-001 [--json]
   frameworkauditor next-question
   frameworkauditor ingest-answer --question-id <id> --answer <text>
+
+Si se pasa --db, se escanea la base SQLite en vez del JSON.
+Esto permite auditar panalbit.db directamente y detectar brechas
+estructurales (ej: tablas sin columna de email).
 
 Variables de entorno:
   AUDITOR_GOLDEN    override dataset.golden.json
   AUDITOR_WORKING   override dataset.working.json
   AUDITOR_FINDINGS  override findings.json
   AUDITOR_STATE     override state.json
+  AUDITOR_DB        override para --db (path a SQLite)
 `)
 }
 
@@ -149,18 +156,47 @@ func copyFile(src, dst string) error {
 
 func cmdScan(args []string) {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
-	source := fs.String("source", "", "path del dataset")
+	source := fs.String("source", "", "path del dataset JSON")
+	dbPath := fs.String("db", "", "path a SQLite (panalbit.db); si se pasa, se escanea la DB en vez del JSON")
 	out := fs.String("out", "", "path findings.json")
+	asJSON := fs.Bool("json", false, "salida JSON con artifacts para orquestador")
 	fs.Parse(args)
 
-	wp := resolvePath(*source, "AUDITOR_WORKING", defaultWorking)
 	fp := resolvePath(*out, "AUDITOR_FINDINGS", defaultFindings)
 
-	d, err := checks.LoadDataset(wp)
-	if err != nil {
-		fail("load: %v", err)
+	// Resolve db path from flag, then env, then empty.
+	resolvedDB := *dbPath
+	if resolvedDB == "" {
+		resolvedDB = os.Getenv("AUDITOR_DB")
 	}
-	findings := checks.RunAll(d)
+
+	var d *checks.Dataset
+	var tableColumns map[string][]string
+	var err error
+	var sourceLabel string
+
+	if resolvedDB != "" {
+		// SQLite mode: read directly from panalbit.db (or any SQLite).
+		d, err = checks.LoadDatasetFromSQLite(resolvedDB)
+		if err != nil {
+			fail("load sqlite %s: %v", resolvedDB, err)
+		}
+		tableColumns, err = checks.TableColumnsFromDB(resolvedDB)
+		if err != nil {
+			fail("read schema %s: %v", resolvedDB, err)
+		}
+		sourceLabel = "sqlite:" + resolvedDB
+	} else {
+		// JSON mode (legacy): read from dataset.working.json.
+		wp := resolvePath(*source, "AUDITOR_WORKING", defaultWorking)
+		d, err = checks.LoadDataset(wp)
+		if err != nil {
+			fail("load: %v", err)
+		}
+		sourceLabel = "json:" + wp
+	}
+
+	findings := checks.RunAllWithSchema(d, tableColumns)
 	if err := checks.SaveFindings(fp, findings); err != nil {
 		fail("save findings: %v", err)
 	}
@@ -173,10 +209,109 @@ func cmdScan(args []string) {
 	for _, f := range findings {
 		bySev[f.Severity]++
 	}
-	fmt.Printf("Scan completo: %d registros revisados, %d hallazgos.\n", totalRecords, len(findings))
+	if *asJSON {
+		emitJSON(map[string]interface{}{
+			"artifact_type": "auditor.findings.v1",
+			"artifacts":     []string{"auditor.findings.v1", "data.gaps.v1"},
+			"generated_at":  time.Now().UTC().Format(time.RFC3339),
+			"source":        sourceLabel,
+			"findings_path": fp,
+			"findings":      findings,
+			"data_gaps":     dataGapsFromFindings(findings),
+			"summary": map[string]interface{}{
+				"total_records": totalRecords,
+				"total":         len(findings),
+				"critical":      bySev[checks.SeverityCritical],
+				"warning":       bySev[checks.SeverityWarning],
+				"info":          bySev[checks.SeverityInfo],
+			},
+		})
+		return
+	}
+	fmt.Printf("Scan completo (%s): %d registros revisados, %d hallazgos.\n", sourceLabel, totalRecords, len(findings))
 	fmt.Printf("  críticos: %d   advertencias: %d   informativos: %d\n",
 		bySev[checks.SeverityCritical], bySev[checks.SeverityWarning], bySev[checks.SeverityInfo])
 	fmt.Printf("Findings persistidos en %s\n", fp)
+}
+
+// dataGapsFromFindings converts Auditor findings into data.gaps.v1 entries.
+// Bulk data-quality findings (including missing contact rows) are grouped by
+// (rule, endpoint, field) so we emit ONE gap entry per group with a count and
+// the list of affected record IDs, instead of one gap per record.
+// Schema gaps are emitted individually because they describe table structure.
+func dataGapsFromFindings(findings []checks.Finding) []map[string]interface{} {
+	gaps := []map[string]interface{}{}
+
+	// Group noisy row-level rules by (rule, endpoint, field).
+	type groupKey struct{ rule, endpoint, field string }
+	type groupData struct {
+		severity  string
+		fixHint   map[string]interface{}
+		recordIDs []string
+	}
+	groups := map[groupKey]*groupData{}
+	var groupOrder []groupKey
+
+	for _, f := range findings {
+		switch f.Rule {
+		case checks.RuleSchemaContactGap:
+			gaps = append(gaps, map[string]interface{}{
+				"artifact_type": "data.gap.v1",
+				"rule":          f.Rule,
+				"type":          "schema_contact_gap",
+				"severity":      f.Severity,
+				"endpoint":      f.Endpoint,
+				"record_id":     f.RecordID,
+				"field":         f.Field,
+				"message":       f.Message,
+				"fix_hint":      f.FixHint,
+			})
+		case checks.RuleEmptyRequired, checks.RuleNullRequired, checks.RuleMissingContact:
+			// Bulk data-quality — group to avoid flooding.
+			key := groupKey{rule: f.Rule, endpoint: f.Endpoint, field: f.Field}
+			g, exists := groups[key]
+			if !exists {
+				g = &groupData{severity: f.Severity, fixHint: f.FixHint}
+				groups[key] = g
+				groupOrder = append(groupOrder, key)
+			}
+			if f.RecordID != "" {
+				g.recordIDs = append(g.recordIDs, f.RecordID)
+			}
+		default:
+			// Other rules are not data gaps.
+		}
+	}
+
+	// Emit grouped bulk gaps.
+	for _, key := range groupOrder {
+		g := groups[key]
+		label := "vacío"
+		gapType := key.rule
+		if key.rule == checks.RuleNullRequired {
+			label = "nulo"
+		} else if key.rule == checks.RuleMissingContact {
+			label = "sin email/contacto operativo"
+			gapType = "missing_contact"
+		}
+		msg := fmt.Sprintf("%d registros en %s con campo %s %s", len(g.recordIDs), key.endpoint, key.field, label)
+		if len(g.recordIDs) == 1 {
+			msg = fmt.Sprintf("%s[%s].%s %s", key.endpoint, g.recordIDs[0], key.field, label)
+		}
+		gaps = append(gaps, map[string]interface{}{
+			"artifact_type": "data.gap.v1",
+			"rule":          key.rule,
+			"type":          gapType,
+			"severity":      g.severity,
+			"endpoint":      key.endpoint,
+			"field":         key.field,
+			"message":       msg,
+			"count":         len(g.recordIDs),
+			"record_ids":    g.recordIDs,
+			"fix_hint":      g.fixHint,
+		})
+	}
+	return gaps
 }
 
 // ---------- list ----------
@@ -280,11 +415,11 @@ func printFinding(f checks.Finding) {
 // ---------- modo conversacional ----------
 
 type state struct {
-	GreetingSent  bool      `json:"greeting_sent"`
-	PendingText   string    `json:"pending_text"`
-	PendingID     string    `json:"pending_id"`
-	LastUserText  string    `json:"last_user_text"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	GreetingSent bool      `json:"greeting_sent"`
+	PendingText  string    `json:"pending_text"`
+	PendingID    string    `json:"pending_id"`
+	LastUserText string    `json:"last_user_text"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 func loadState(path string) *state {
@@ -402,6 +537,7 @@ func autoScanSummary() (string, error) {
 //   - "lista" / "listar" / "todos" → listado completo
 //   - "scan" / "rescan" / "revisar" → re-ejecuta scan
 //   - "reset" → reset
+//
 // Cualquier otra cosa: respuesta conversacional simple.
 func cmdIngestAnswer(args []string) {
 	fs := flag.NewFlagSet("ingest-answer", flag.ExitOnError)
@@ -470,7 +606,63 @@ func interpret(text string) string {
 	case strings.Contains(low, "reset"):
 		return "Para resetear, corré 'auditor reset' por CLI o pediselo al mecánico."
 	}
-	return "Puedo darte el detalle de un hallazgo (ej. \"detalle F-001\"), listar todos (\"lista\"), volver a escanear (\"rescan\") o pasarle el turno al mecánico (\"arreglá los auto\")."
+	// Conversación general → LLM con system prompt del auditor.
+	return interpretWithLLM(text)
+}
+
+const auditorSystemPrompt = `Eres el Auditor de datos de Remora. Tu rol es revisar datasets JSON de ERPs, detectar anomalías de integridad referencial, campos requeridos faltantes, fechas inválidas, valores fuera de rango y datos huérfanos.
+
+Tu personalidad:
+- Eres directo, técnico y preciso.
+- Hablas en español rioplatense informal ("pediime", "fijate", "decime").
+- Nunca inventas datos ni hallazgos.
+- Si no sabés algo, lo decís.
+
+Capacidades que podés ofrecer al usuario:
+- Mostrar detalle de un hallazgo ("detalle F-001")
+- Listar todos los hallazgos ("lista")
+- Volver a escanear ("rescan")
+- Delegar al mecánico para arreglar ("arreglá los auto")
+
+Contexto actual:
+%s
+
+Respondé de forma breve y útil. Si el usuario pregunta algo fuera de tu alcance, explicá qué podés hacer.`
+
+func interpretWithLLM(userText string) string {
+	client, err := llm.NewClient()
+	if err != nil {
+		return fmt.Sprintf("Error iniciando LLM: %v", err)
+	}
+	// Construir contexto de findings actuales.
+	contextStr := buildFindingsContext()
+	system := fmt.Sprintf(auditorSystemPrompt, contextStr)
+	reply, err := client.Generate(context.Background(), system, userText)
+	if err != nil {
+		return fmt.Sprintf("Error del LLM: %v", err)
+	}
+	return reply
+}
+
+func buildFindingsContext() string {
+	fp := resolvePath("", "AUDITOR_FINDINGS", defaultFindings)
+	findings, err := checks.LoadFindings(fp)
+	if err != nil {
+		return "No hay findings cargados (no se corrió scan)."
+	}
+	if len(findings) == 0 {
+		return "Último scan: 0 hallazgos. Dataset limpio."
+	}
+	bySev := map[string]int{}
+	autoCount := 0
+	for _, f := range findings {
+		bySev[f.Severity]++
+		if f.AutoFixable {
+			autoCount++
+		}
+	}
+	return fmt.Sprintf("Último scan: %d hallazgos (%d críticos, %d advertencias, %d informativos). Auto-corregibles: %d.",
+		len(findings), bySev[checks.SeverityCritical], bySev[checks.SeverityWarning], bySev[checks.SeverityInfo], autoCount)
 }
 
 // looksLikeFixIntent detecta intenciones afirmativas o de remediación.

@@ -75,20 +75,24 @@ type UAPIResponse struct {
 // Si insecure=true, el cliente acepta certificados self-signed (común en
 // hostings con Let's Encrypt mal configurado o IPs directas). Default: false.
 func New(host, user, pass string, insecure bool) (*Client, error) {
+	host = normalizeHost(host)
 	if host == "" || user == "" || pass == "" {
 		return nil, fmt.Errorf("cpanel: host/user/pass son requeridos")
+	}
+	if isPlaceholderHost(host) {
+		return nil, fmt.Errorf("cpanel: host de ejemplo no permitido (%s); usa el dominio real del negocio", host)
 	}
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return nil, fmt.Errorf("cpanel: cookiejar: %w", err)
 	}
 	return &Client{
-		Host: host,
-		Port: 2083,
-		User: user,
-		Pass: pass,
+		Host:     host,
+		Port:     2083,
+		User:     user,
+		Pass:     pass,
 		Insecure: insecure,
-		jar:  jar,
+		jar:      jar,
 		http: &http.Client{
 			Timeout: 30 * time.Second,
 			Jar:     jar,
@@ -97,6 +101,30 @@ func New(host, user, pass string, insecure bool) (*Client, error) {
 			},
 		},
 	}, nil
+}
+
+func normalizeHost(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+	if strings.Contains(host, "://") {
+		if u, err := url.Parse(host); err == nil && u.Host != "" {
+			host = u.Host
+		}
+	}
+	host = strings.TrimPrefix(host, "https//")
+	host = strings.TrimPrefix(host, "http//")
+	host = strings.Trim(host, "/")
+	if h, _, err := strings.Cut(host, ":"); err && h != "" {
+		host = h
+	}
+	return strings.TrimSpace(host)
+}
+
+func isPlaceholderHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	return host == "ejemplo.com" || host == "cpanel.ejemplo.com" || host == "example.com" || host == "cpanel.example.com" || strings.HasSuffix(host, ".example.com") || strings.HasSuffix(host, ".ejemplo.com")
 }
 
 // baseURL devuelve "https://<host>:<port>" sin slash final.

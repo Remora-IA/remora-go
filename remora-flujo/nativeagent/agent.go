@@ -21,10 +21,13 @@ import (
 const (
 	providerGroq        = "groq"
 	providerMiniMax     = "minimax"
+	providerOpenRouter  = "openrouter"
 	groqAPIURL          = "https://api.groq.com/openai/v1/chat/completions"
 	minimaxAPIURL       = "https://api.minimax.io/anthropic/v1/messages"
+	openRouterAPIURL    = "https://openrouter.ai/api/v1/chat/completions"
 	defaultGroqModel    = "meta-llama/llama-4-scout-17b-16e-instruct"
 	defaultMiniMaxModel = "MiniMax-M2.7"
+	defaultOpenRouterModel = "meta-llama/llama-4-scout-17b-16e-instruct"
 )
 
 type Agent struct {
@@ -40,6 +43,7 @@ type Agent struct {
 	allowedTools map[string]bool
 	traceCtx     *paladin.Context
 	httpClient   *http.Client
+	apiURL       string
 }
 
 type Options struct {
@@ -84,6 +88,11 @@ func New(options Options) (*Agent, error) {
 		allowedTools[tool] = true
 	}
 
+	apiURL := groqAPIURL
+	if provider == providerOpenRouter {
+		apiURL = openRouterAPIURL
+	}
+
 	return &Agent{
 		provider:     provider,
 		providerNote: note,
@@ -97,6 +106,7 @@ func New(options Options) (*Agent, error) {
 		allowedTools: allowedTools,
 		traceCtx:     options.Trace,
 		httpClient:   &http.Client{Timeout: 180 * time.Second},
+		apiURL:       apiURL,
 	}, nil
 }
 
@@ -107,6 +117,16 @@ func resolveProvider(options Options, envFiles []string) (string, string, string
 	}
 
 	switch explicit {
+	case providerOpenRouter:
+		apiKey := strings.TrimSpace(options.APIKey)
+		if apiKey == "" {
+			apiKey = firstEnv("OPENROUTER_API_KEY")
+		}
+		if apiKey == "" {
+			return "", "", "", "", fmt.Errorf("REMORA_LLM_PROVIDER=openrouter pero falta OPENROUTER_API_KEY; env_files=%s", strings.Join(envFiles, ","))
+		}
+		model := firstNonEmpty(options.Model, os.Getenv("REMORA_OPENROUTER_MODEL"), defaultOpenRouterModel)
+		return providerOpenRouter, apiKey, model, fmt.Sprintf("explicit; env_files=%s", strings.Join(envFiles, ",")), nil
 	case providerMiniMax:
 		apiKey := strings.TrimSpace(options.APIKey)
 		if apiKey == "" {
@@ -128,15 +148,26 @@ func resolveProvider(options Options, envFiles []string) (string, string, string
 		model := firstNonEmpty(options.Model, os.Getenv("REMORA_GROQ_MODEL"), defaultGroqModel)
 		return providerGroq, apiKey, model, fmt.Sprintf("explicit; env_files=%s", strings.Join(envFiles, ",")), nil
 	default:
-		// Auto-detect: preferir MiniMax (coding plan) si hay key, fallback a Groq
+		// Auto-detect: preferir OpenRouter, luego MiniMax, luego Groq
 		provider := ""
 		providerSource := ""
-		if firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY") != "" {
+		if firstEnv("OPENROUTER_API_KEY") != "" {
+			provider = providerOpenRouter
+			providerSource = "openrouter key presente"
+		} else if firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY") != "" {
 			provider = providerMiniMax
 			providerSource = "minimax key presente"
 		} else if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
 			provider = providerGroq
-			providerSource = "minimax key ausente; fallback a groq"
+			providerSource = "fallback a groq"
+		}
+		if provider == providerOpenRouter {
+			apiKey := strings.TrimSpace(options.APIKey)
+			if apiKey == "" {
+				apiKey = firstEnv("OPENROUTER_API_KEY")
+			}
+			model := firstNonEmpty(options.Model, os.Getenv("REMORA_OPENROUTER_MODEL"), defaultOpenRouterModel)
+			return providerOpenRouter, apiKey, model, fmt.Sprintf("%s; env_files=%s", providerSource, strings.Join(envFiles, ",")), nil
 		}
 		if provider == providerMiniMax {
 			apiKey := strings.TrimSpace(options.APIKey)
@@ -154,7 +185,7 @@ func resolveProvider(options Options, envFiles []string) (string, string, string
 			model := firstNonEmpty(options.Model, os.Getenv("REMORA_GROQ_MODEL"), defaultGroqModel)
 			return providerGroq, apiKey, model, fmt.Sprintf("%s; env_files=%s", providerSource, strings.Join(envFiles, ",")), nil
 		}
-		return "", "", "", "", fmt.Errorf("falta MINIMAX_API_KEY/REMORA_MINIMAX_API_KEY y GROQ_API_KEY/REMORA_GROQ_API_KEY; env_files=%s", strings.Join(envFiles, ","))
+		return "", "", "", "", fmt.Errorf("falta OPENROUTER_API_KEY, MINIMAX_API_KEY/REMORA_MINIMAX_API_KEY y GROQ_API_KEY/REMORA_GROQ_API_KEY; env_files=%s", strings.Join(envFiles, ","))
 	}
 }
 
@@ -372,7 +403,7 @@ func (a *Agent) request(messages []Message) (*Response, error) {
 		ctx.Var("provider_reason", a.providerNote)
 	}
 	switch a.provider {
-	case providerGroq:
+	case providerOpenRouter, providerGroq:
 		return a.requestGroq(ctx, messages)
 	case providerMiniMax:
 		return a.requestMiniMax(ctx, messages)
@@ -461,7 +492,11 @@ func (a *Agent) requestGroq(ctx *paladin.Context, messages []Message) (*Response
 	if ctx != nil {
 		ctx.Var("request_bytes", len(body))
 	}
-	httpReq, err := http.NewRequest("POST", groqAPIURL, bytes.NewReader(body))
+	apiEndpoint := a.apiURL
+	if apiEndpoint == "" {
+		apiEndpoint = groqAPIURL
+	}
+	httpReq, err := http.NewRequest("POST", apiEndpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -867,8 +902,8 @@ func (a *Agent) imageBlocks(images []ImageInput) ([]ContentBlock, error) {
 	if len(images) == 0 {
 		return nil, nil
 	}
-	if a.provider != providerGroq {
-		return nil, errors.New("las imágenes solo están habilitadas con Groq/Llama 4 Scout en esta integración")
+	if a.provider != providerGroq && a.provider != providerOpenRouter {
+		return nil, errors.New("las imágenes solo están habilitadas con Groq/OpenRouter en esta integración")
 	}
 	if len(images) > 5 {
 		return nil, fmt.Errorf("Groq/Llama 4 Scout admite máximo 5 imágenes por mensaje; recibidas=%d", len(images))

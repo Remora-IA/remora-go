@@ -90,6 +90,7 @@ func cmdIngestAnswer(args []string) {
 // ============================================================
 
 type canSendResp struct {
+	ArtifactType      string `json:"artifact_type,omitempty"`
 	Available         bool   `json:"available"`
 	Channel           string `json:"channel"`
 	MissingCapability string `json:"missing_capability,omitempty"`
@@ -106,16 +107,18 @@ func cmdCanSend(args []string) {
 	cap := capabilityForChannel(*channel)
 	if cap == "" {
 		emitJSON(canSendResp{
-			Available: false, Channel: *channel,
+			ArtifactType: "message.send_readiness.v1",
+			Available:    false, Channel: *channel,
 			Reason: fmt.Sprintf("canal desconocido: %s", *channel),
 		})
 		return
 	}
 	if vaultHas(*convID, cap) {
-		emitJSON(canSendResp{Available: true, Channel: *channel})
+		emitJSON(canSendResp{ArtifactType: "message.send_readiness.v1", Available: true, Channel: *channel})
 		return
 	}
 	emitJSON(canSendResp{
+		ArtifactType:      "message.send_readiness.v1",
 		Available:         false,
 		Channel:           *channel,
 		MissingCapability: cap,
@@ -156,13 +159,15 @@ func providerHintForCapability(cap string) string {
 // ============================================================
 
 type sendResp struct {
-	Success           bool   `json:"success"`
-	Channel           string `json:"channel"`
-	To                string `json:"to,omitempty"`
-	MessageID         string `json:"message_id,omitempty"`
-	Error             string `json:"error,omitempty"`
-	MissingCapability string `json:"missing_capability,omitempty"`
-	ProviderHint      string `json:"provider_hint,omitempty"`
+	ArtifactType      string   `json:"artifact_type,omitempty"`
+	Artifacts         []string `json:"artifacts,omitempty"`
+	Success           bool     `json:"success"`
+	Channel           string   `json:"channel"`
+	To                string   `json:"to,omitempty"`
+	MessageID         string   `json:"message_id,omitempty"`
+	Error             string   `json:"error,omitempty"`
+	MissingCapability string   `json:"missing_capability,omitempty"`
+	ProviderHint      string   `json:"provider_hint,omitempty"`
 }
 
 func cmdSend(args []string) {
@@ -182,33 +187,34 @@ func cmdSend(args []string) {
 			// Probar URL-safe como fallback (channel pasa newlines así).
 			decoded, err = base64.RawURLEncoding.DecodeString(*bodyB64)
 			if err != nil {
-				emitJSON(sendResp{Channel: *channel, Error: "body-b64 inválido: " + err.Error()})
+				emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "body-b64 inválido: " + err.Error()})
 				os.Exit(1)
 			}
 		}
 		body = string(decoded)
 	}
 	if body == "" {
-		emitJSON(sendResp{Channel: *channel, Error: "body vacío"})
+		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "body vacío"})
 		os.Exit(2)
 	}
 
 	cap := capabilityForChannel(*channel)
 	if cap == "" {
-		emitJSON(sendResp{Channel: *channel, Error: "canal no soportado: " + *channel})
+		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "canal no soportado: " + *channel})
 		os.Exit(2)
 	}
 	credBytes, err := vaultGet(*convID, cap)
 	if err != nil {
 		if err == errVaultNotFound {
 			emitJSON(sendResp{
-				Channel: *channel, Error: "credenciales faltantes",
+				ArtifactType: "message.sent.v1",
+				Channel:      *channel, Error: "credenciales faltantes",
 				MissingCapability: cap,
 				ProviderHint:      providerHintForCapability(cap),
 			})
 			os.Exit(3) // exit code reservado: capability missing
 		}
-		emitJSON(sendResp{Channel: *channel, Error: "vault: " + err.Error()})
+		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "vault: " + err.Error()})
 		os.Exit(1)
 	}
 
@@ -216,7 +222,7 @@ func cmdSend(args []string) {
 	case "email", "smtp":
 		var c smtpCreds
 		if err := json.Unmarshal(credBytes, &c); err != nil {
-			emitJSON(sendResp{Channel: *channel, Error: "credentials.smtp inválidas: " + err.Error()})
+			emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "credentials.smtp inválidas: " + err.Error()})
 			os.Exit(1)
 		}
 		c.applyDefaults()
@@ -225,20 +231,40 @@ func cmdSend(args []string) {
 			dest = c.DefaultTo
 		}
 		if dest == "" {
-			emitJSON(sendResp{Channel: *channel, Error: "destinatario vacío y no hay default_to en credentials.smtp"})
+			emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "destinatario vacío y no hay default_to en credentials.smtp"})
 			os.Exit(2)
 		}
+		if !strings.Contains(dest, "@") || strings.Contains(dest, "sin destinatario") {
+			emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "destinatario de email faltante o inválido", MissingCapability: "contact.destination.v1", ProviderHint: "sabio"})
+			os.Exit(3)
+		}
+		realDest := dest
+		sendSubject := *subject
+		if override := strings.TrimSpace(os.Getenv("REMORA_DEV_EMAIL_OVERRIDE")); override != "" {
+			dest = override
+			sendSubject = subjectWithDevPrefix(sendSubject, realDest)
+		}
 		msgID := fmt.Sprintf("mensajero-%d@%s", time.Now().UnixNano(), c.Host)
-		if err := smtpSend(c, dest, *subject, body, msgID); err != nil {
-			emitJSON(sendResp{Channel: *channel, To: dest, Error: err.Error()})
+		if err := smtpSend(c, dest, sendSubject, body, msgID); err != nil {
+			emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, To: dest, Error: err.Error()})
 			os.Exit(1)
 		}
-		_ = appendSentLog(*convID, *channel, dest, *subject, msgID)
-		emitJSON(sendResp{Success: true, Channel: *channel, To: dest, MessageID: msgID})
+		_ = appendSentLog(*convID, *channel, dest, sendSubject, msgID)
+		emitJSON(sendResp{ArtifactType: "message.sent.v1", Artifacts: []string{"message.sent.v1", "message.sent"}, Success: true, Channel: *channel, To: dest, MessageID: msgID})
 	default:
-		emitJSON(sendResp{Channel: *channel, Error: "canal aún no implementado: " + *channel})
+		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "canal aún no implementado: " + *channel})
 		os.Exit(2)
 	}
+}
+
+func subjectWithDevPrefix(subject, realDest string) string {
+	if strings.HasPrefix(subject, "[DEV]") {
+		return subject
+	}
+	if strings.TrimSpace(subject) == "" {
+		subject = "(sin asunto)"
+	}
+	return "[DEV → " + realDest + "] " + subject
 }
 
 // ============================================================
@@ -315,7 +341,9 @@ var errVaultNotFound = fmt.Errorf("not found in vault")
 
 func vaultBin() string {
 	if v := os.Getenv("REMORA_VAULT_BIN"); v != "" {
-		return v
+		if _, err := os.Stat(v); err == nil {
+			return v
+		}
 	}
 	return "../channel/bin/vault"
 }

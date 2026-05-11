@@ -228,7 +228,10 @@ func writeDataTableRows(w http.ResponseWriter, db *sql.DB, table string, limit, 
 func (s *server) openDataDB(businessID string) (*sql.DB, error) {
 	path := os.Getenv("SABIO_DB")
 	if path == "" {
-		path = businessDataDBPath(s.rootDir, businessID)
+		path = s.businessSQLitePath(businessID)
+		if path == "" {
+			path = businessDataDBPath(s.rootDir, businessID)
+		}
 	}
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(s.rootDir, path)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Levanta Channel + flujo_api en local (Mac/Linux)
+# Levanta Channel + api_rest en local (Mac/Linux)
 # Uso: ./scripts/dev-local.sh
 # Requiere: estar en /Users/alcless_a1234_cursor/remora-go
 #
@@ -38,10 +38,10 @@ osascript -e "tell application \"Terminal\" to do script \"cd $ROOT/channel && g
 echo "Channel levantandose en :8765..."
 sleep 2
 
-# Terminal 2: flujo_api (desde el directorio del módulo)
-osascript -e "tell application \"Terminal\" to do script \"cd $ROOT/remora-flujo && REMORA_ROOT=$ROOT CHANNEL_URL=$CHANNEL_URL CHANNEL_API_KEY=$API_KEY go run ./cmd/flujo_api\""
+# Terminal 2: api_rest (desde el directorio del módulo)
+osascript -e "tell application \"Terminal\" to do script \"cd $ROOT/remora-flujo && REMORA_ROOT=$ROOT CHANNEL_URL=$CHANNEL_URL CHANNEL_API_KEY=$API_KEY go run ./cmd/api_rest\""
 
-echo "flujo_api levantandose en :8084..."
+echo "api_rest levantandose en :8084..."
 echo ""
 echo "Esperá ~5s y luego:"
 echo "  remora                 → modo pair-programming"

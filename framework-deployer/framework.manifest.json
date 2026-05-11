@@ -28,6 +28,12 @@
     "supported": false
   },
   "execution_mode": "async_trigger",
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
   "capabilities_semantic": {
     "tags": ["deploy", "cloud-run", "dev"],
     "intent_examples": ["deploy dev", "desplegar a dev", "actualizar flujo-api-dev"],

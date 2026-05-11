@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-// Puerto 8084 coincide con el default de flujo_api en desarrollo local
+// Puerto 8084 coincide con el default de api_rest en desarrollo local
 // (ver scripts/dev-local.sh). Para prod, exportar REMORA_API_URL.
 const apiBaseDefault = "http://localhost:8084/api/v1"
 
@@ -265,7 +265,7 @@ func handleCode() {
 }
 
 func printUsage() {
-	fmt.Println(`remora - Cliente terminal para la red RPC de remora-go
+	fmt.Print(`remora - Cliente terminal para la red RPC de remora-go
 
 Uso rápido:
   remora                         ← modo pair-programming (arquitecto)
@@ -301,7 +301,7 @@ Comandos:
     Lista frameworks descubiertos con sus capabilities.
 
 Variables de entorno:
-  REMORA_API_URL    URL base de flujo_api (default: http://localhost:8084/api/v1)
+  REMORA_API_URL    URL base de api_rest (default: http://localhost:8084/api/v1)
   REMORA_API_TOKEN  Token de autenticacion (opcional)
 
 Instalacion global:
@@ -852,8 +852,8 @@ func showSpinner(label string, done chan struct{}) {
 	}
 }
 
-// ensureBackendRunning detecta si flujo_api local (:8084) responde.
-// Si no, ejecuta scripts/dev-local.sh para levantar channel + flujo_api
+// ensureBackendRunning detecta si api_rest local (:8084) responde.
+// Si no, ejecuta scripts/dev-local.sh para levantar channel + api_rest
 // y espera a que estén listos (hasta 15s). Solo funciona en local;
 // para prod (REMORA_API_URL seteada a URL remota) no hace nada.
 func ensureBackendRunning() {
@@ -862,7 +862,7 @@ func ensureBackendRunning() {
 		return
 	}
 
-	// Chequear si :8084 está abierto (flujo_api).
+	// Chequear si :8084 está abierto (api_rest).
 	conn, err := net.DialTimeout("tcp", "localhost:8084", 800*time.Millisecond)
 	if err == nil {
 		conn.Close()
@@ -884,7 +884,7 @@ func ensureBackendRunning() {
 		return
 	}
 
-	fmt.Fprintln(os.Stderr, "🚀 Backend no detectado. Levantando channel + flujo_api...")
+	fmt.Fprintln(os.Stderr, "🚀 Backend no detectado. Levantando channel + api_rest...")
 	cmd := exec.Command("bash", scriptPath)
 	cmd.Dir = repoRoot
 	cmd.Stdout = os.Stderr
@@ -895,7 +895,7 @@ func ensureBackendRunning() {
 	}
 
 	// Esperar a que :8084 responda (hasta 15s).
-	fmt.Fprintln(os.Stderr, "⏳ Esperando que flujo_api esté listo...")
+	fmt.Fprintln(os.Stderr, "⏳ Esperando que api_rest esté listo...")
 	for i := 0; i < 30; i++ {
 		time.Sleep(500 * time.Millisecond)
 		conn, err := net.DialTimeout("tcp", "localhost:8084", 500*time.Millisecond)

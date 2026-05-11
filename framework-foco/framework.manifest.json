@@ -1,10 +1,15 @@
 {
   "name": "foco",
-  "version": "1.0.1-cobranza",
-  "description": "Priorizador de deudores para cobranza-chile. Genera lista priorizada desde datos de facturación.",
+  "version": "1.1.0-focus-task",
+  "description": "Foco operativo del día. Convierte prioridades, eventos y conversación en próximas tareas sin consultar bases de datos de negocio.",
   "build": {
     "command": "go",
-    "args": ["build", "-o", "foco", "./cmd/foco"]
+    "args": [
+      "build",
+      "-o",
+      "foco",
+      "./cmd/foco"
+    ]
   },
   "binary": {
     "command": "./foco",
@@ -17,41 +22,374 @@
     "provider": "groq",
     "name": "meta-llama/llama-4-scout-17b-16e-instruct",
     "env_key": "GROQ_API_KEY",
-    "capabilities": ["conversation", "task_prioritization", "intent_routing"]
+    "capabilities": [
+      "conversation",
+      "task_prioritization",
+      "intent_routing"
+    ],
+    "fallback": {
+      "provider": "minimax",
+      "name": "MiniMax-Text-01",
+      "env_key": "MINIMAX_API_KEY"
+    }
   },
   "commands": {
     "next-question": {
       "description": "Devuelve la próxima pregunta o acción",
-      "args": ["next-question", "--conv-id", "{params.conv_id}"],
-      "params": ["conv_id"],
-      "defaults": {"conv_id": ""}
+      "args": [
+        "next-question",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
+    },
+    "session-start": {
+      "description": "Inicia una sesión IA del framework leyendo INITIAL_PROMPT.md",
+      "args": [
+        "session-start",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
     },
     "ingest-answer": {
       "description": "Procesa la respuesta del usuario y genera prioridades",
-      "args": ["ingest-answer", "--conv-id", "{params.conv_id}", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--history", "{params.history}"],
-      "params": ["conv_id", "question_id", "answer", "history"],
-      "defaults": {"conv_id": "", "question_id": "", "history": ""}
+      "args": [
+        "ingest-answer",
+        "--conv-id",
+        "{params.conv_id}",
+        "--question-id",
+        "{params.question_id}",
+        "--answer",
+        "{params.answer}",
+        "--history",
+        "{params.history}"
+      ],
+      "params": [
+        "conv_id",
+        "question_id",
+        "answer",
+        "history"
+      ],
+      "defaults": {
+        "conv_id": "",
+        "question_id": "",
+        "history": ""
+      }
     },
     "query": {
       "description": "Modo CLI directo para testing",
-      "args": ["query", "--question", "{params.question}"],
-      "params": ["question"]
+      "args": [
+        "query",
+        "--question",
+        "{params.question}"
+      ],
+      "params": [
+        "question"
+      ]
     },
     "priorities": {
-      "description": "Genera lista priorizada en formato JSON",
-      "args": ["priorities"],
-      "params": []
+      "description": "Compatibilidad legacy: lee task ledger si existe. No consulta SQLite de negocio.",
+      "args": [
+        "priorities",
+        "--business-id",
+        "{params.business_id}",
+        "--profile",
+        "{params.profile}",
+        "--db",
+        "{params.db}"
+      ],
+      "params": [
+        "business_id",
+        "profile",
+        "db"
+      ],
+      "defaults": {
+        "business_id": "",
+        "profile": "",
+        "db": ""
+      }
+    },
+    "next-task": {
+      "description": "Convierte una prioridad seleccionada en la próxima tarea operativa. Respeta action.selection.v1 si está presente. Puede recibir strategy.recommendation.v1 para generar action_options dinámicas.",
+      "args": [
+        "next-task",
+        "--business-id",
+        "{params.business_id}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--deudor",
+        "{params.deudor}",
+        "--action-id",
+        "{params.action_id}",
+        "--action-label",
+        "{params.action_label}",
+        "--context-b64",
+        "{params.context_b64}",
+        "--strategy-path",
+        "{params.strategy_path}",
+        "--strategy-json",
+        "{params.strategy_json}",
+        "--conv-id",
+        "{params.conv_id}",
+        "--dry-run",
+        "{params.dry_run}",
+        "--priority-list-json",
+        "{params.priority_list_json}"
+      ],
+      "params": [
+        "business_id",
+        "entity_ref",
+        "entity_type",
+        "deudor",
+        "action_id",
+        "action_label",
+        "context_b64",
+        "strategy_path",
+        "strategy_json",
+        "conv_id",
+        "dry_run",
+        "priority_list_json"
+      ],
+      "defaults": {
+        "business_id": "",
+        "entity_ref": "",
+        "entity_type": "customer",
+        "deudor": "",
+        "action_id": "",
+        "action_label": "",
+        "context_b64": "",
+        "strategy_path": "",
+        "strategy_json": "",
+        "conv_id": "",
+        "dry_run": "false",
+        "priority_list_json": ""
+      }
+    },
+    "complete-cycle": {
+      "description": "Consume flow.cycle.completed.v1 y marca la tarea/ciclo operativo como completado en Foco.",
+      "args": [
+        "complete-cycle",
+        "--task-id",
+        "{params.task_id}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--entity-name",
+        "{params.entity_name}",
+        "--cycle-kind",
+        "{params.cycle_kind}",
+        "--message-id",
+        "{params.message_id}",
+        "--to",
+        "{params.to}",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "task_id",
+        "entity_ref",
+        "entity_name",
+        "cycle_kind",
+        "message_id",
+        "to",
+        "conv_id"
+      ],
+      "defaults": {
+        "task_id": "",
+        "entity_ref": "",
+        "entity_name": "",
+        "cycle_kind": "message_sent",
+        "message_id": "",
+        "to": "",
+        "conv_id": ""
+      }
     }
   },
   "user_input": {
     "supported": true,
     "next_question_cmd": "next-question",
     "ingest_answer_cmd": "ingest-answer",
-    "modes": ["query"],
+    "modes": [
+      "query"
+    ],
     "ask_via": "cli"
   },
   "state": {
     "dir": "temp/foco",
-    "files": ["state.json", "last_priority_list.json"]
-  }
+    "files": [
+      "state.json",
+      "last_priority_list.json"
+    ]
+  },
+  "capabilities_semantic": {
+    "tags": [
+      "focus",
+      "operational-prioritization",
+      "collections",
+      "daily-plan"
+    ],
+    "intent_examples": [
+      "qué hago hoy",
+      "cuál es la próxima tarea",
+      "en qué me enfoco ahora",
+      "con quién empiezo"
+    ],
+    "produces": [
+      "focus.next_task.v1",
+      "task.next",
+      "focus.cycle_status.v1",
+      "task.done"
+    ],
+    "requires": [
+      "collection.priority_list.v1"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "focus.entry_briefing",
+      "description": "Abre el flujo operativo hablando primero al usuario, resume el contexto disponible y ofrece opciones rápidas.",
+      "command": "session-start",
+      "inputs": [
+        "business.context.v1",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "focus.briefing.v1",
+        "framework.question.v1",
+        "task.options.v1"
+      ],
+      "requires": [
+        "session.context.v1"
+      ],
+      "produces": [
+        "focus.briefing.v1",
+        "framework.question.v1",
+        "task.options.v1"
+      ],
+      "execution": "operational_entry_briefing",
+      "policies": [
+        "trace_required",
+        "framework_speaks_first"
+      ]
+    },
+    {
+      "id": "collection.priority_list",
+      "description": "Compatibilidad legacy: expone prioridades desde ledger conversacional si existe. Deprecated para scoring data-aware; usar radar.collection.priority_list.",
+      "command": "priorities",
+      "inputs": [
+        "business.context.v1"
+      ],
+      "outputs": [
+        "collection.priority_list.v1",
+        "collection.priority_item.v1",
+        "entity.ref.v1"
+      ],
+      "requires": [
+        "business.context.v1"
+      ],
+      "produces": [
+        "collection.priority_list.v1",
+        "collection.priority_item.v1",
+        "entity.ref.v1",
+        "data.priorities"
+      ],
+      "execution": "operational_ledger_priority_export",
+      "policies": [
+        "trace_required",
+        "business_context_required",
+        "deprecated_use_radar_for_data_scoring"
+      ]
+    },
+    {
+      "id": "focus.next_collection_task",
+      "description": "Convierte una lista priorizada en la próxima tarea operativa del cobrador.",
+      "command": "next-task",
+      "inputs": [
+        "collection.priority_list.v1",
+        "business.context.v1",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "focus.next_task.v1",
+        "task.next",
+        "entity.ref.v1",
+        "action.options.v1"
+      ],
+      "requires": [
+        "collection.priority_list.v1"
+      ],
+      "produces": [
+        "focus.next_task.v1",
+        "task.next",
+        "entity.ref.v1",
+        "action.options.v1"
+      ],
+      "execution": "operational_focus_selection",
+      "policies": [
+        "trace_required"
+      ]
+    },
+    {
+      "id": "focus.conversation",
+      "description": "Mantiene una conversación de foco/priorización y convierte respuestas del usuario en próximas acciones.",
+      "command": "ingest-answer",
+      "inputs": [
+        "user.input.v1",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "framework.question.v1",
+        "task.next"
+      ],
+      "requires": [
+        "session.context.v1"
+      ],
+      "produces": [
+        "task.next"
+      ],
+      "execution": "stateful_conversation",
+      "policies": [
+        "trace_required"
+      ]
+    },
+    {
+      "id": "focus.complete_cycle",
+      "description": "Cierra un ciclo operativo cuando un flujo emite flow.cycle.completed.v1 y actualiza el estado de la tarea en Foco.",
+      "command": "complete-cycle",
+      "inputs": [
+        "flow.cycle.completed.v1",
+        "task.next",
+        "entity.ref.v1"
+      ],
+      "outputs": [
+        "focus.cycle_status.v1",
+        "task.done"
+      ],
+      "requires": [
+        "flow.cycle.completed.v1"
+      ],
+      "produces": [
+        "focus.cycle_status.v1",
+        "task.done"
+      ],
+      "execution": "deterministic_cycle_completion_update",
+      "policies": [
+        "state_mutation",
+        "trace_required",
+        "idempotent"
+      ]
+    }
+  ]
 }

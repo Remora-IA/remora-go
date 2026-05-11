@@ -7,6 +7,7 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -22,10 +23,10 @@ import (
 
 // Resource es un input no-textual del usuario (imagen, audio, archivo).
 type Resource struct {
-	Type     string `json:"type"`            // "image" | "audio" | "file"
-	Path     string `json:"path"`            // path absoluto en disco
-	MimeType string `json:"mime,omitempty"`  // ej "image/png"
-	Name     string `json:"name,omitempty"`  // nombre original
+	Type     string `json:"type"`           // "image" | "audio" | "file"
+	Path     string `json:"path"`           // path absoluto en disco
+	MimeType string `json:"mime,omitempty"` // ej "image/png"
+	Name     string `json:"name,omitempty"` // nombre original
 }
 
 // Client es la interfaz unificada. Cada provider implementa esto.
@@ -34,6 +35,7 @@ type Client interface {
 	Model() string
 	Capabilities() []string
 	Complete(ctx context.Context, req CompletionRequest) (string, error)
+	Stream(ctx context.Context, req CompletionRequest, emit func(StreamEvent)) (string, error)
 }
 
 // CompletionRequest es la petición unificada. Si Resources tiene imágenes y
@@ -43,6 +45,11 @@ type CompletionRequest struct {
 	User      string
 	Resources []Resource
 	MaxTokens int
+}
+
+type StreamEvent struct {
+	Type  string
+	Delta string
 }
 
 // Spec describe un modelo a usar. Coincide con manifest.ModelSpec.
@@ -61,6 +68,12 @@ func New(spec Spec) (Client, error) {
 		return nil, fmt.Errorf("llm: falta env %s para provider %s", spec.EnvKey, spec.Provider)
 	}
 	switch strings.ToLower(spec.Provider) {
+	case "openrouter":
+		s := spec
+		if s.BaseURL == "" {
+			s.BaseURL = "https://openrouter.ai/api/v1/chat/completions"
+		}
+		return &groqClient{spec: s, apiKey: apiKey}, nil
 	case "groq":
 		return &groqClient{spec: spec, apiKey: apiKey}, nil
 	case "minimax":
@@ -100,9 +113,9 @@ type groqChatMsg struct {
 }
 
 type groqContent struct {
-	Type     string         `json:"type"` // "text" | "image_url"
-	Text     string         `json:"text,omitempty"`
-	ImageURL *groqImageURL  `json:"image_url,omitempty"`
+	Type     string        `json:"type"` // "text" | "image_url"
+	Text     string        `json:"text,omitempty"`
+	ImageURL *groqImageURL `json:"image_url,omitempty"`
 }
 
 type groqImageURL struct {
@@ -113,6 +126,7 @@ type groqRequest struct {
 	Model     string        `json:"model"`
 	Messages  []groqChatMsg `json:"messages"`
 	MaxTokens int           `json:"max_tokens,omitempty"`
+	Stream    bool          `json:"stream,omitempty"`
 }
 
 type groqResponse struct {
@@ -201,6 +215,91 @@ func (g *groqClient) Complete(ctx context.Context, req CompletionRequest) (strin
 	return parsed.Choices[0].Message.Content, nil
 }
 
+func (g *groqClient) Stream(ctx context.Context, req CompletionRequest, emit func(StreamEvent)) (string, error) {
+	url := g.spec.BaseURL
+	if url == "" {
+		url = "https://api.groq.com/openai/v1/chat/completions"
+	}
+	maxTokens := req.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = 1024
+	}
+	var msgs []groqChatMsg
+	if req.System != "" {
+		msgs = append(msgs, groqChatMsg{Role: "system", Content: []groqContent{{Type: "text", Text: req.System}}})
+	}
+	msgs = append(msgs, groqChatMsg{Role: "user", Content: []groqContent{{Type: "text", Text: req.User}}})
+	body, err := json.Marshal(groqRequest{Model: g.spec.Name, Messages: msgs, MaxTokens: maxTokens, Stream: true})
+	if err != nil {
+		return "", err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+g.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	resp, err := (&http.Client{Timeout: 120 * time.Second}).Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("llm/groq: HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	emit(StreamEvent{Type: "text_start"})
+	var sb strings.Builder
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			break
+		}
+		var chunk struct {
+			Choices []struct {
+				Delta map[string]string `json:"delta"`
+			} `json:"choices"`
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error,omitempty"`
+		}
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			continue
+		}
+		if chunk.Error != nil {
+			return "", fmt.Errorf("llm/groq: %s", chunk.Error.Message)
+		}
+		if len(chunk.Choices) == 0 {
+			continue
+		}
+		delta := chunk.Choices[0].Delta["content"]
+		if delta == "" {
+			delta = chunk.Choices[0].Delta["reasoning_content"]
+			if delta == "" {
+				delta = chunk.Choices[0].Delta["reasoning"]
+			}
+			if delta != "" {
+				emit(StreamEvent{Type: "thinking_delta", Delta: delta})
+				continue
+			}
+		}
+		if delta != "" {
+			sb.WriteString(delta)
+			emit(StreamEvent{Type: "text_delta", Delta: delta})
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	emit(StreamEvent{Type: "text_end"})
+	return sb.String(), nil
+}
+
 // imageToDataURL lee un archivo de imagen del disco y lo codifica como
 // data URL inline (data:image/<mime>;base64,...) para enviar a Groq.
 func imageToDataURL(r Resource) (string, error) {
@@ -242,6 +341,7 @@ type miniRequest struct {
 	MaxTokens int       `json:"max_tokens"`
 	System    string    `json:"system,omitempty"`
 	Messages  []miniMsg `json:"messages"`
+	Stream    bool      `json:"stream,omitempty"`
 }
 
 type miniMsg struct {
@@ -317,4 +417,100 @@ func (m *minimaxClient) Complete(ctx context.Context, req CompletionRequest) (st
 		}
 	}
 	return sb.String(), nil
+}
+
+func (m *minimaxClient) Stream(ctx context.Context, req CompletionRequest, emit func(StreamEvent)) (string, error) {
+	url := m.spec.BaseURL
+	if url == "" {
+		url = "https://api.minimax.io/anthropic/v1/messages"
+	}
+	maxTokens := req.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = 2048
+	}
+	body, err := json.Marshal(miniRequest{
+		Model:     m.spec.Name,
+		MaxTokens: maxTokens,
+		System:    req.System,
+		Messages:  []miniMsg{{Role: "user", Content: req.User}},
+		Stream:    true,
+	})
+	if err != nil {
+		return "", err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("x-api-key", m.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("anthropic-dangerous-direct-browser-access", "true")
+	httpReq.Header.Set("anthropic-beta", "fine-grained-tool-streaming-2025-05-14")
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+	resp, err := (&http.Client{Timeout: 120 * time.Second}).Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("llm/minimax: HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	var sb strings.Builder
+	var currentEvent string
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		if strings.HasPrefix(line, "event:") {
+			currentEvent = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+			continue
+		}
+		if !strings.HasPrefix(line, "data:") {
+			continue
+		}
+		data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+		if data == "[DONE]" {
+			break
+		}
+		handleMiniStreamData(currentEvent, data, &sb, emit)
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return sb.String(), nil
+}
+
+func handleMiniStreamData(eventName, data string, sb *strings.Builder, emit func(StreamEvent)) {
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(data), &payload); err != nil {
+		return
+	}
+	switch eventName {
+	case "content_block_start":
+		block, _ := payload["content_block"].(map[string]any)
+		switch block["type"] {
+		case "thinking":
+			emit(StreamEvent{Type: "thinking_start"})
+		case "text":
+			emit(StreamEvent{Type: "text_start"})
+		}
+	case "content_block_delta":
+		delta, _ := payload["delta"].(map[string]any)
+		switch delta["type"] {
+		case "thinking_delta":
+			if s, _ := delta["thinking"].(string); s != "" {
+				emit(StreamEvent{Type: "thinking_delta", Delta: s})
+			}
+		case "text_delta":
+			if s, _ := delta["text"].(string); s != "" {
+				sb.WriteString(s)
+				emit(StreamEvent{Type: "text_delta", Delta: s})
+			}
+		}
+	case "content_block_stop":
+		emit(StreamEvent{Type: "text_end"})
+	}
 }

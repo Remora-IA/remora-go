@@ -141,12 +141,10 @@ func handleEvaluate() {
 		}
 	}
 
-	// Llamar a MiniMax para evaluación real
-	eval, err := evaluateWithMiniMax(proposal, contextText, severity)
+	eval, err := evaluateWithLLM(proposal, contextText, severity)
 	if err != nil {
-		// Fallback: usar evaluación determinística básica si MiniMax falla
-		fmt.Fprintf(os.Stderr, "warn: MiniMax no disponible (%v), usando evaluacion basica\n", err)
-		eval = basicEvaluate(proposal, severity)
+		fmt.Fprintf(os.Stderr, "error: LLM no disponible: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Generar preguntas de follow-up para riesgos altos
@@ -164,80 +162,6 @@ func handleEvaluate() {
 
 	data, _ := json.MarshalIndent(eval, "", "  ")
 	fmt.Println(string(data))
-}
-
-// basicEvaluate genera una evaluación determinística basada en keywords
-// (fallback cuando MiniMax no está disponible).
-func basicEvaluate(proposal, severity string) Eval {
-	risks := []Risk{}
-	p := strings.ToLower(proposal)
-
-	if strings.Contains(p, "mover") || strings.Contains(p, "refactor") {
-		risks = append(risks, Risk{
-			ID:          "r_coupling",
-			Severity:    pickSeverity("high", severity),
-			Category:    "coupling",
-			Description: "La propuesta asume que las referencias al codigo movido son conocidas. Sin un index completo, puede haber callers no detectados.",
-			Evidence:    "Pendiente: contar referencias con grep o index.",
-		})
-	}
-	if strings.Contains(p, "cambiar") || strings.Contains(p, "modificar") {
-		risks = append(risks, Risk{
-			ID:          "r_regression",
-			Severity:    pickSeverity("medium", severity),
-			Category:    "regression",
-			Description: "Cambios en funciones usadas por multiples frameworks pueden romper contratos implicitos.",
-			Evidence:    "Pendiente: lista de callers y tests existentes.",
-		})
-	}
-	if strings.Contains(p, "nuevo") || strings.Contains(p, "agregar") {
-		risks = append(risks, Risk{
-			ID:          "r_assumption",
-			Severity:    pickSeverity("medium", severity),
-			Category:    "assumption",
-			Description: "Nuevas abstracciones asumen que el problema es general cuando puede ser especifico.",
-			Evidence:    "Pendiente: confirmar que al menos 2 casos de uso justifican la generalizacion.",
-		})
-	}
-	if strings.Contains(p, "eliminar") || strings.Contains(p, "borrar") {
-		risks = append(risks, Risk{
-			ID:          "r_data_loss",
-			Severity:    pickSeverity("blocker", severity),
-			Category:    "data_loss",
-			Description: "Eliminar codigo sin migrar datos o referencias puede causar fallos en produccion.",
-			Evidence:    "Pendiente: confirmar que ningun otro framework o proceso depende de este codigo.",
-		})
-	}
-	if len(risks) == 0 {
-		risks = append(risks, Risk{
-			ID:          "r_generic",
-			Severity:    pickSeverity("low", severity),
-			Category:    "assumption",
-			Description: "La propuesta no describe los tests que validarian el cambio.",
-			Evidence:    "Pendiente: lista de tests a agregar o modificar.",
-		})
-	}
-
-	return Eval{
-		ID:      "ev_basic",
-		Verdict: "needs_evidence",
-		Risks:   risks,
-		Notes:   "Evaluacion basica (fallback). Se requiere evidencia para confirmar o descartar riesgos.",
-	}
-}
-
-func pickSeverity(base, severity string) string {
-	if severity == "strict" {
-		switch base {
-		case "low":
-			return "medium"
-		case "medium":
-			return "high"
-		case "high":
-			return "blocker"
-		}
-	}
-	return base
 }
 
 func handleChallenge() {
@@ -374,76 +298,55 @@ func flagValueDefault(name, def string) string {
 }
 
 // ---------------------------------------------------------------------------
-// MiniMax Anthropic-compatible evaluation
+// LLM evaluation (OpenRouter / Groq / MiniMax)
 // ---------------------------------------------------------------------------
 
-func evaluateWithMiniMax(proposal, contextText, severity string) (Eval, error) {
-	apiKey := firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY")
-	if apiKey == "" {
-		return Eval{}, fmt.Errorf("falta MINIMAX_API_KEY o REMORA_MINIMAX_API_KEY")
+func resolveCriticoProvider() (provider, apiKey, apiURL, model string) {
+	loadEnvFiles()
+	p := strings.ToLower(strings.TrimSpace(os.Getenv("CRITICO_LLM_PROVIDER")))
+	if p == "" {
+		p = strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER")))
 	}
-	model := firstEnv("CRITICO_LLM_MODEL", "MiniMax-M2.7")
+	if p == "" {
+		if firstEnv("OPENROUTER_API_KEY") != "" {
+			p = "openrouter"
+		} else if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
+			p = "groq"
+		} else {
+			p = "minimax"
+		}
+	}
+	switch p {
+	case "openrouter":
+		return p, firstEnv("OPENROUTER_API_KEY"), "https://openrouter.ai/api/v1/chat/completions", firstNonEmpty(os.Getenv("CRITICO_LLM_MODEL"), "meta-llama/llama-4-scout-17b-16e-instruct")
+	case "groq":
+		return p, firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY"), "https://api.groq.com/openai/v1/chat/completions", firstNonEmpty(os.Getenv("CRITICO_LLM_MODEL"), "llama-3.3-70b-versatile")
+	default:
+		return "minimax", firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY"), "https://api.minimax.io/anthropic/v1/messages", firstNonEmpty(os.Getenv("CRITICO_LLM_MODEL"), "MiniMax-M2.7")
+	}
+}
+
+func evaluateWithLLM(proposal, contextText, severity string) (Eval, error) {
+	provider, apiKey, apiURL, model := resolveCriticoProvider()
+	if apiKey == "" {
+		return Eval{}, fmt.Errorf("falta API key para provider %s", provider)
+	}
 
 	system := buildCriticoSystemPrompt(severity)
 	userMsg := buildCriticoUserPrompt(proposal, contextText)
 
-	reqBody := map[string]interface{}{
-		"model":      model,
-		"max_tokens": 4096,
-		"system":     system,
-		"messages": []map[string]string{
-			{"role": "user", "content": userMsg},
-		},
+	var rawText string
+	var err error
+	if provider == "minimax" {
+		rawText, err = callMiniMax(apiKey, apiURL, model, system, userMsg)
+	} else {
+		rawText, err = callOAICompat(apiKey, apiURL, model, system, userMsg)
 	}
-
-	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return Eval{}, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", "https://api.minimax.io/anthropic/v1/messages", bytes.NewReader(body))
-	if err != nil {
-		return Eval{}, err
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", apiKey)
-	httpReq.Header.Set("anthropic-version", "2023-06-01")
-	httpReq.Header.Set("anthropic-dangerous-direct-browser-access", "true")
-
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return Eval{}, err
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return Eval{}, err
-	}
-	if resp.StatusCode >= 400 {
-		return Eval{}, fmt.Errorf("minimax HTTP %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	var ar struct {
-		Content []struct {
-			Type string `json:"type"`
-			Text string `json:"text"`
-		} `json:"content"`
-	}
-	if err := json.Unmarshal(respBody, &ar); err != nil {
-		return Eval{}, fmt.Errorf("minimax parse: %w", err)
-	}
-
-	var fullText string
-	for _, c := range ar.Content {
-		if c.Type == "text" {
-			fullText += c.Text
-		}
-	}
+	fullText := rawText
 
 	// Extraer JSON de la respuesta (puede estar en markdown code block o directo)
 	jsonText := extractJSON(fullText)
@@ -467,7 +370,7 @@ func evaluateWithMiniMax(proposal, contextText, severity string) (Eval, error) {
 		eval.Proposal = proposal
 	}
 	if eval.Notes == "" {
-		eval.Notes = "Evaluación generada por MiniMax. Revisar riesgos detectados."
+		eval.Notes = fmt.Sprintf("Evaluación generada por LLM (%s). Revisar riesgos detectados.", provider)
 	}
 
 	return eval, nil
@@ -555,4 +458,152 @@ func firstEnv(keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func loadEnvFiles() {
+	roots := []string{}
+	if v := os.Getenv("REMORA_ROOT"); v != "" {
+		roots = append(roots, v)
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		roots = append(roots, cwd)
+		if i := strings.LastIndex(cwd, "/"); i > 0 {
+			roots = append(roots, cwd[:i])
+		}
+	}
+	for _, r := range roots {
+		for _, suffix := range []string{"/.env.local", "/.env", "/remora-flujo/.env.local"} {
+			readEnvFile(r + suffix)
+		}
+	}
+}
+
+func readEnvFile(path string) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		eq := strings.Index(line, "=")
+		if eq < 1 {
+			continue
+		}
+		key := strings.TrimSpace(line[:eq])
+		val := strings.Trim(strings.TrimSpace(line[eq+1:]), `"'`)
+		if os.Getenv(key) == "" {
+			_ = os.Setenv(key, val)
+		}
+	}
+}
+
+func callOAICompat(apiKey, apiURL, model, system, userMsg string) (string, error) {
+	type msg struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	}
+	msgs := []msg{}
+	if system != "" {
+		msgs = append(msgs, msg{Role: "system", Content: system})
+	}
+	msgs = append(msgs, msg{Role: "user", Content: userMsg})
+	body, _ := json.Marshal(map[string]interface{}{
+		"model":       model,
+		"messages":    msgs,
+		"max_tokens":  4096,
+		"temperature": 0.2,
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
+	resp, err := (&http.Client{Timeout: 90 * time.Second}).Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("llm HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	var parsed struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+		Error *struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return "", fmt.Errorf("llm parse: %w", err)
+	}
+	if parsed.Error != nil {
+		return "", fmt.Errorf("llm error: %s", parsed.Error.Message)
+	}
+	if len(parsed.Choices) == 0 {
+		return "", fmt.Errorf("llm: respuesta sin choices")
+	}
+	return parsed.Choices[0].Message.Content, nil
+}
+
+func callMiniMax(apiKey, apiURL, model, system, userMsg string) (string, error) {
+	body, _ := json.Marshal(map[string]interface{}{
+		"model":      model,
+		"max_tokens": 4096,
+		"system":     system,
+		"messages":   []map[string]string{{"role": "user", "content": userMsg}},
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-api-key", apiKey)
+	httpReq.Header.Set("anthropic-version", "2023-06-01")
+	httpReq.Header.Set("anthropic-dangerous-direct-browser-access", "true")
+	resp, err := (&http.Client{Timeout: 60 * time.Second}).Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("minimax HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	var ar struct {
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	}
+	if err := json.Unmarshal(respBody, &ar); err != nil {
+		return "", fmt.Errorf("minimax parse: %w", err)
+	}
+	var sb strings.Builder
+	for _, c := range ar.Content {
+		if c.Type == "text" {
+			sb.WriteString(c.Text)
+		}
+	}
+	return sb.String(), nil
 }

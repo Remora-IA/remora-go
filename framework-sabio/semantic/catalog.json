@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "source": "framework-indexa/data/panalbit.db",
+  "purpose": "Capa semantica curada para que Sabio use relaciones reales y declare limites sin inventar datos.",
+  "entities": {
+    "client": {
+      "table": "clients",
+      "label": "Cliente",
+      "description": "Cliente o deudor del sistema de gestion legal/timebilling.",
+      "key": "id",
+      "display_column": "name",
+      "important_columns": {
+        "id": "Identificador interno del cliente.",
+        "name": "Nombre del cliente.",
+        "code": "Codigo de negocio del cliente.",
+        "active": "Estado del cliente: '1' activo, '0' inactivo/dado de baja.",
+        "agreement_start_date": "Fecha de inicio de acuerdo si esta informada.",
+        "group_id": "Grupo de cliente si esta informado."
+      },
+      "joins": {
+        "projects": "clients.id = projects.client_id",
+        "agreements": "clients.id = agreements.client_id",
+        "charges": "clients.id = charges.client_id",
+        "billing_documents": "clients.id = billing_documents.client_id",
+        "payments": "clients.id = payments.client_id",
+        "expenses": "clients.id = expenses.client_id"
+      }
+    },
+    "project": {
+      "table": "projects",
+      "label": "Proyecto/Caso/Asunto",
+      "description": "Proyecto, caso o asunto asociado a un cliente.",
+      "key": "id",
+      "display_column": "name",
+      "important_columns": {
+        "client_id": "FK real hacia clients.id.",
+        "agreement_id": "FK real hacia agreements.id.",
+        "code": "Codigo del proyecto; se usa para unir con time_entries.project_code.",
+        "currency_code": "Codigo de moneda; se une con currencies.code.",
+        "active": "Estado: '1' activo, '0' inactivo.",
+        "collectable": "Indica si el proyecto es cobrable."
+      },
+      "joins": {
+        "clients": "projects.client_id = clients.id",
+        "agreements": "projects.agreement_id = agreements.id",
+        "expenses": "projects.id = expenses.project_id",
+        "time_entries": "projects.code = time_entries.project_code",
+        "currencies": "projects.currency_code = currencies.code",
+        "project_areas": "projects.project_area_id = project_areas.id",
+        "project_types": "projects.project_type_id = project_types.id"
+      }
+    },
+    "agreement": {
+      "table": "agreements",
+      "label": "Contrato/Acuerdo",
+      "description": "Acuerdo contractual asociado a clientes, proyectos, cargos e hitos.",
+      "key": "id",
+      "display_column": "name",
+      "joins": {
+        "clients": "agreements.client_id = clients.id",
+        "projects": "agreements.id = projects.agreement_id",
+        "charges": "agreements.id = charges.agreement_id",
+        "milestones": "agreements.id = milestones.agreement_id"
+      }
+    },
+    "charge": {
+      "table": "charges",
+      "label": "Cargo/Cobro",
+      "description": "Cargo de cobranza vinculado a cliente y acuerdo.",
+      "key": "id",
+      "display_column": "description",
+      "important_columns": {
+        "state": "Estado del cargo. Estados impagos canonicos: FACTURADO, EMITIDO, PAGO PARCIAL, ENVIADO AL CLIENTE, EN REVISION.",
+        "date_from": "Fecha inicial del periodo del cargo.",
+        "date_to": "Fecha final del periodo del cargo."
+      },
+      "joins": {
+        "clients": "charges.client_id = clients.id",
+        "agreements": "charges.agreement_id = agreements.id",
+        "billing_documents": "charges.id = billing_documents.charge_id",
+        "milestones": "charges.id = milestones.charge_id"
+      }
+    },
+    "milestone": {
+      "table": "milestones",
+      "label": "Hito de cobro",
+      "description": "Hito monetario asociado a un cargo/acuerdo. Fuente canonica para estimar saldo pendiente de cobranza.",
+      "key": "id",
+      "important_columns": {
+        "amount": "Monto del hito. Convertir con CAST(amount AS REAL) para sumas.",
+        "date": "Fecha del hito; usar julianday(date) para mora."
+      },
+      "joins": {
+        "charges": "milestones.charge_id = charges.id",
+        "agreements": "milestones.agreement_id = agreements.id"
+      }
+    },
+    "billing_document": {
+      "table": "billing_documents",
+      "label": "Documento de facturacion/Factura",
+      "description": "Documento/factura asociado a cargo y cliente.",
+      "key": "id",
+      "important_columns": {
+        "number": "Numero del documento.",
+        "series_number": "Serie del documento.",
+        "date": "Fecha del documento."
+      },
+      "joins": {
+        "charges": "billing_documents.charge_id = charges.id",
+        "clients": "billing_documents.client_id = clients.id"
+      },
+      "limitations": [
+        "No existe billing_documents.project_id.",
+        "No usar billing_documents.amount para saldo pendiente de cobranza; esa columna no existe en esta DB."
+      ]
+    },
+    "payment": {
+      "table": "payments",
+      "label": "Pago",
+      "description": "Pago asociado a cliente y moneda.",
+      "key": "id",
+      "important_columns": {
+        "amount": "Monto pagado. Convertir con CAST(amount AS REAL) para sumas.",
+        "residue": "Residuo/saldo del pago.",
+        "date": "Fecha del pago."
+      },
+      "joins": {
+        "clients": "payments.client_id = clients.id",
+        "currencies": "payments.currency_id = currencies.id"
+      },
+      "limitations": [
+        "No existe payments.billing_document_id.",
+        "No hay relacion directa visible entre pagos y facturas/documentos."
+      ]
+    },
+    "time_entry": {
+      "table": "time_entries",
+      "label": "Registro de horas/trabajo",
+      "description": "Horas cargadas por usuarios a proyectos.",
+      "key": "id",
+      "important_columns": {
+        "project_code": "Se une con projects.code, no con projects.id.",
+        "duration": "Duracion total.",
+        "billable_duration": "Duracion facturable.",
+        "date": "Fecha del trabajo."
+      },
+      "joins": {
+        "projects": "time_entries.project_code = projects.code",
+        "users": "time_entries.user_id = users.id"
+      }
+    },
+    "user": {
+      "table": "users",
+      "label": "Usuario interno",
+      "description": "Usuario interno del sistema; sus emails no son emails de clientes/deudores.",
+      "key": "id",
+      "display_column": "name",
+      "joins": {
+        "time_entries": "users.id = time_entries.user_id",
+        "user_areas": "users.user_area_id = user_areas.id",
+        "user_categories": "users.user_category_id = user_categories.id"
+      }
+    },
+    "law_firm": {
+      "table": "law_firms",
+      "label": "Estudio juridico",
+      "description": "Firma juridica registrada.",
+      "key": "id",
+      "display_column": "name",
+      "joins": {},
+      "limitations": [
+        "Solo hay id, name y has_metadata.",
+        "No hay direccion.",
+        "No hay telefono.",
+        "No hay fecha de registro.",
+        "No hay relacion visible con clientes, proyectos, cargos, pagos ni usuarios."
+      ]
+    }
+  },
+  "confirmed_relationships": [
+    "clients.id = projects.client_id",
+    "clients.id = agreements.client_id",
+    "clients.id = charges.client_id",
+    "clients.id = billing_documents.client_id",
+    "clients.id = payments.client_id",
+    "clients.id = expenses.client_id",
+    "agreements.id = projects.agreement_id",
+    "agreements.id = charges.agreement_id",
+    "agreements.id = milestones.agreement_id",
+    "charges.id = billing_documents.charge_id",
+    "charges.id = milestones.charge_id",
+    "projects.id = expenses.project_id",
+    "projects.code = time_entries.project_code",
+    "users.id = time_entries.user_id",
+    "currencies.id = payments.currency_id",
+    "currencies.code = projects.currency_code",
+    "project_areas.id = projects.project_area_id",
+    "project_types.id = projects.project_type_id",
+    "user_areas.id = users.user_area_id",
+    "user_categories.id = users.user_category_id"
+  ],
+  "forbidden_relationships": [
+    "billing_documents.project_id",
+    "payments.billing_document_id",
+    "law_firms -> clients",
+    "law_firms -> projects",
+    "law_firms -> charges",
+    "law_firms -> payments",
+    "law_firms -> users"
+  ],
+  "canonical_metrics": {
+    "collection_pending_balance": {
+      "label": "Saldo pendiente estimado de cobranza",
+      "source": "SUM(CAST(milestones.amount AS REAL)) desde charges impagos",
+      "unpaid_charge_states": [
+        "FACTURADO",
+        "EMITIDO",
+        "PAGO PARCIAL",
+        "ENVIADO AL CLIENTE",
+        "EN REVISION"
+      ],
+      "notes": [
+        "Usar charges -> milestones.",
+        "No usar billing_documents.amount.",
+        "mora_dias se calcula con julianday sobre milestones.date."
+      ]
+    }
+  }
+}

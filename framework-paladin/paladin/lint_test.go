@@ -23,7 +23,7 @@ const API_BASE = (window.location.hostname === 'localhost' || window.location.ho
 
 func TestLintLocalIntegrationCatchesFrontendSingleModeListingAllFrameworks(t *testing.T) {
 	root := t.TempDir()
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "static", "index.html"), `<script>
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "static", "index.html"), `<script>
 function showSingleFwModal() {
   discoveredFrameworks.forEach(fw => {});
 }
@@ -47,7 +47,7 @@ function start() {
 
 func TestLintLocalIntegrationCatchesMissingFrameworkCapabilityEndpoints(t *testing.T) {
 	root := t.TempDir()
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "main.go"), `package main
 
 func main() {
 	r.HandleFunc(apiBase+"/frameworks", srv.listFrameworks)
@@ -65,7 +65,7 @@ func main() {
 
 func TestLintLocalIntegrationCatchesWorkspaceRootDefaults(t *testing.T) {
 	root := t.TempDir()
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "main.go"), `package main
 
 func main() {
 	rootDir := envOr("REMORA_ROOT", envOr("CHANNEL_BASE_DIR", "/workspace"))
@@ -75,7 +75,7 @@ func main() {
 	_ = createUniversalSingleMessage
 }
 `)
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "single_wrapper.go"), `package main`)
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "single_wrapper.go"), `package main`)
 
 	var result LintResult
 	if err := lintLocalIntegration(root, &result); err != nil {
@@ -86,7 +86,7 @@ func main() {
 
 func TestLintLocalIntegrationCatchesHardcodedWorkspaceDrivers(t *testing.T) {
 	root := t.TempDir()
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "main.go"), `package main
 
 func main() {
 	r.HandleFunc(apiBase+"/frameworks/testable", srv.listTestableFrameworks)
@@ -94,8 +94,8 @@ func main() {
 	_ = createUniversalSingleMessage
 }
 `)
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "single_wrapper.go"), `package main`)
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "drivers.go"), `package main
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "single_wrapper.go"), `package main`)
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "drivers.go"), `package main
 
 func run() {
 	ch.ExecuteCommand(ctx, "/frameworks/frameworkecho", []string{"next-question"}, "/workspace/framework-echo")
@@ -111,7 +111,7 @@ func run() {
 
 func TestLintLocalIntegrationCatchesSingleConversationDriverRegistryCoupling(t *testing.T) {
 	root := t.TempDir()
-	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "flujo_api", "main.go"), `package main
+	writeLintTestFile(t, root, filepath.Join("remora-flujo", "cmd", "api_rest", "main.go"), `package main
 
 func createSingleConversation() {
 	if _, ok := driverRegistry[req.Framework]; !ok {
@@ -236,6 +236,55 @@ func reply() string {
 		t.Fatal(err)
 	}
 	assertLintFindingCode(t, result, "sync_chain_hardcoded_reply")
+}
+
+func TestLintManifestsCatchesMissingTypedCapabilities(t *testing.T) {
+	root := t.TempDir()
+	writeLintTestFile(t, root, filepath.Join("framework-demo", "framework.manifest.json"), `{
+  "name": "demo",
+  "version": "1.0.0",
+  "binary": {"command": "./demo"},
+  "execution_mode": "sync_chain",
+  "commands": {},
+  "capabilities_semantic": {"tags": ["demo"]}
+}`)
+
+	var result LintResult
+	if _, err := lintManifests(root, &result); err != nil {
+		t.Fatal(err)
+	}
+	assertLintFindingCode(t, result, "manifest_no_typed_capabilities")
+}
+
+func TestLintManifestsValidatesTypedCapabilityContract(t *testing.T) {
+	root := t.TempDir()
+	writeLintTestFile(t, root, filepath.Join("framework-demo", "framework.manifest.json"), `{
+  "name": "demo",
+  "version": "1.0.0",
+  "binary": {"command": "./demo"},
+  "execution_mode": "sync_chain",
+  "commands": {
+    "query": {"args": ["query"], "params": []}
+  },
+  "capabilities_semantic": {"tags": ["data"]},
+  "capabilities": [
+    {
+      "id": "data.query.sql",
+      "description": "Responde con SQL y BM25",
+      "command": "missing",
+      "outputs": ["answer.grounded.v1"],
+      "execution": "sql+bm25"
+    }
+  ]
+}`)
+
+	var result LintResult
+	if _, err := lintManifests(root, &result); err != nil {
+		t.Fatal(err)
+	}
+	assertLintFindingCode(t, result, "capability_command_missing")
+	assertLintFindingCode(t, result, "capability_fallback_policy_missing")
+	assertLintFindingCode(t, result, "capability_trace_policy_missing")
 }
 
 func writeLintTestFile(t *testing.T, root, rel, content string) {

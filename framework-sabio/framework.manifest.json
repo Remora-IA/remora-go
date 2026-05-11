@@ -1,10 +1,16 @@
 {
   "name": "sabio",
   "version": "0.1.0",
-  "description": "Experto en datos indexados. Responde preguntas del usuario haciendo retrieval sobre el vector store de framework-indexa y formulando la respuesta con Gemini.",
+  "description": "Experto en datos indexados. Responde preguntas del usuario usando SQLite como fuente declarada de verdad, sin fallback silencioso a stores legacy.",
   "build": {
     "command": "go",
-    "args": ["build", "-buildvcs=false", "-o", "frameworksabio", "./cmd/frameworksabio"]
+    "args": [
+      "build",
+      "-buildvcs=false",
+      "-o",
+      "frameworksabio",
+      "./cmd/frameworksabio"
+    ]
   },
   "binary": {
     "command": "./frameworksabio",
@@ -15,35 +21,269 @@
   "requires_infra": [],
   "inputs": [
     {
-      "name": "vector_store",
-      "format": "indexa.store.v1",
-      "path": "../framework-indexa/data/store.json",
+      "name": "data_sqlite_db",
+      "format": "data.sqlite_db.v1",
+      "path": "temp/business_data/default.db",
       "required": true,
-      "description": "Vector store producido por framework-indexa"
+      "description": "Base SQLite producida por framework-indexa; fuente primaria de verdad para Sabio"
     }
   ],
   "outputs": [],
   "commands": {
     "next-question": {
       "description": "Devuelve la próxima respuesta lista (o saludo inicial)",
-      "args": ["next-question"],
+      "args": [
+        "next-question"
+      ],
       "params": []
     },
     "ingest-answer": {
-      "description": "Recibe la pregunta del user, hace RAG, deja respuesta lista. Acepta historial conversacional opcional (base64-url-safe de JSON [{role,content},...]) para resolver referencias contextuales.",
-      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--history", "{params.history}"],
-      "params": ["question_id", "answer", "history"],
-      "defaults": {"history": ""}
+      "description": "Recibe la pregunta del user, consulta SQLite con semántica de negocio y deja respuesta lista. Acepta historial y contexto runtime opcional (base64-url-safe JSON).",
+      "args": [
+        "ingest-answer",
+        "--question-id",
+        "{params.question_id}",
+        "--answer",
+        "{params.answer}",
+        "--history",
+        "{params.history}",
+        "--business-id",
+        "{params.business_id}",
+        "--context-b64",
+        "{params.context_b64}"
+      ],
+      "params": [
+        "question_id",
+        "answer",
+        "history",
+        "business_id",
+        "context_b64"
+      ],
+      "defaults": {
+        "history": "",
+        "business_id": "",
+        "context_b64": ""
+      }
     },
     "query": {
-      "description": "Modo CLI directo (sin state) para tests",
-      "args": ["query", "--question", "{params.question}"],
-      "params": ["question"]
+      "description": "Modo CLI directo (sin state) para consultar datos con business pack y contexto runtime opcional",
+      "args": [
+        "query",
+        "--question",
+        "{params.question}",
+        "--db",
+        "{params.db}",
+        "--business-id",
+        "{params.business_id}",
+        "--context-b64",
+        "{params.context_b64}",
+        "--capability",
+        "{params.capability}"
+      ],
+      "params": [
+        "question",
+        "db",
+        "business_id",
+        "context_b64",
+        "capability"
+      ],
+      "defaults": {
+        "business_id": "",
+        "db": "",
+        "context_b64": "",
+        "capability": ""
+      }
+    },
+    "explain-capabilities": {
+      "description": "Explica el WHY, audiencia, modos, límites y preguntas sugeridas de Sabio para el negocio/contexto activo",
+      "args": [
+        "explain-capabilities",
+        "--business-id",
+        "{params.business_id}",
+        "--context-b64",
+        "{params.context_b64}"
+      ],
+      "params": [
+        "business_id",
+        "context_b64"
+      ],
+      "defaults": {
+        "business_id": "",
+        "context_b64": ""
+      }
+    },
+    "inspect-source": {
+      "description": "Perfila una DB SQLite y genera profile.json con tablas, columnas, muestras y relaciones candidatas",
+      "args": [
+        "inspect-source",
+        "--db",
+        "{params.db}",
+        "--out",
+        "{params.out}"
+      ],
+      "params": [
+        "db",
+        "out"
+      ],
+      "defaults": {
+        "db": "",
+        "out": "semantic/profile.json"
+      }
+    },
+    "validate-business-config": {
+      "description": "Valida que el business pack activo referencie tablas/columnas existentes y políticas coherentes",
+      "args": [
+        "validate-business-config",
+        "--business-id",
+        "{params.business_id}",
+        "--db",
+        "{params.db}"
+      ],
+      "params": [
+        "business_id",
+        "db"
+      ],
+      "defaults": {
+        "business_id": "",
+        "db": ""
+      }
     },
     "reset": {
       "description": "Limpia el state (saludo + respuesta pendiente)",
-      "args": ["reset"],
+      "args": [
+        "reset"
+      ],
       "params": []
+    },
+    "contact-lookup": {
+      "description": "Busca el contacto preferido de una entidad por canal usando el store canónico de contactos de Sabio.",
+      "args": [
+        "contact-lookup",
+        "--profile",
+        "{params.profile}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--channel",
+        "{params.channel}"
+      ],
+      "params": [
+        "profile",
+        "entity_type",
+        "entity_ref",
+        "channel"
+      ],
+      "defaults": {
+        "profile": "",
+        "channel": "email"
+      }
+    },
+    "contact-store": {
+      "description": "Inserta o actualiza un contacto para una entidad y canal en el store canónico de Sabio.",
+      "args": [
+        "contact-store",
+        "--profile",
+        "{params.profile}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--channel",
+        "{params.channel}",
+        "--value",
+        "{params.value}",
+        "--source",
+        "{params.source}"
+      ],
+      "params": [
+        "profile",
+        "entity_type",
+        "entity_ref",
+        "channel",
+        "value",
+        "source"
+      ],
+      "defaults": {
+        "profile": "",
+        "channel": "email",
+        "source": "manual"
+      }
+    },
+    "contact-list-missing": {
+      "description": "Lista entidades de un tipo que no tienen contacto en el canal pedido.",
+      "args": [
+        "contact-list-missing",
+        "--profile",
+        "{params.profile}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--channel",
+        "{params.channel}"
+      ],
+      "params": [
+        "profile",
+        "entity_type",
+        "channel"
+      ],
+      "defaults": {
+        "profile": "",
+        "entity_type": "client",
+        "channel": "email"
+      }
+    },
+    "contact-import-csv": {
+      "description": "Importa contactos desde CSV con headers entity_type,entity_ref,channel,value[,source].",
+      "args": [
+        "contact-import-csv",
+        "--profile",
+        "{params.profile}",
+        "--file",
+        "{params.file}"
+      ],
+      "params": [
+        "profile",
+        "file"
+      ],
+      "defaults": {
+        "profile": ""
+      }
+    },
+    "contact-init": {
+      "description": "Inicializa el store canónico de contactos de Sabio para el perfil activo.",
+      "args": [
+        "contact-init",
+        "--profile",
+        "{params.profile}"
+      ],
+      "params": [
+        "profile"
+      ],
+      "defaults": {
+        "profile": ""
+      }
+    },
+    "dataset-export": {
+      "description": "Exporta el contenido de la base SQLite a un artifact JSON dataset.raw.v1 para consumo por frameworks downstream (ej: Radar, Auditor, Mecánico).",
+      "args": [
+        "dataset-export",
+        "--db",
+        "{params.db}",
+        "--semantic-pack",
+        "{params.semantic_pack}",
+        "--out",
+        "{params.out}"
+      ],
+      "params": [
+        "db",
+        "semantic_pack",
+        "out"
+      ],
+      "defaults": {
+        "db": "",
+        "semantic_pack": "",
+        "out": ""
+      }
     }
   },
   "asks_human": {
@@ -54,18 +294,31 @@
   "user_input": {
     "supported": true,
     "ask_via": "",
-    "modes": ["short_answer"],
+    "modes": [
+      "short_answer"
+    ],
     "next_question_cmd": "next-question",
     "ingest_answer_cmd": "ingest-answer"
   },
   "model": {
-    "provider": "minimax",
-    "name": "MiniMax-M2.7",
-    "env_key": "MINIMAX_API_KEY",
-    "capabilities": ["text"]
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": [
+      "text",
+      "conversation"
+    ]
   },
   "capabilities_semantic": {
-    "tags": ["rag", "data-expert", "qa"],
+    "tags": [
+      "sqlite",
+      "data-expert",
+      "qa",
+      "cobranzas",
+      "contacts",
+      "contact-lookup",
+      "contact-store"
+    ],
     "intent_examples": [
       "cuántos clientes tengo",
       "qué proyectos están activos",
@@ -74,9 +327,340 @@
       "gestionar:",
       "analizar al cliente",
       "trabajar sobre el deudor",
-      "vista 360 del cliente"
+      "vista 360 del cliente",
+      "buscar email de cliente",
+      "guardar contacto de deudor",
+      "importar contactos desde CSV"
     ],
-    "produces": ["answer_with_citations"],
-    "requires": ["data_indexed:timebilling"]
-  }
+    "produces": [
+      "answer_with_citations",
+      "entity_360.v1",
+      "answer.grounded.v1",
+      "contact.destination.v1",
+      "contact.record.v1",
+      "contact.import_report.v1"
+    ],
+    "requires": [
+      "data_indexed:timebilling"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "data.entity_360",
+      "description": "Genera una vista 360 de una entidad/deudor usando SQLite, business pack, contexto runtime y evidencia trazable.",
+      "command": "query",
+      "inputs": [
+        "entity.ref.v1",
+        "business.context.v1",
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1",
+        "session.context"
+      ],
+      "outputs": [
+        "entity_360.v1",
+        "answer.grounded.v1"
+      ],
+      "requires": [
+        "entity.ref.v1",
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1"
+      ],
+      "produces": [
+        "entity_360.v1",
+        "answer.grounded.v1"
+      ],
+      "execution": "llm_planned_readonly_sqlite_with_business_context",
+      "policies": [
+        "trace_required",
+        "evidence_required",
+        "readonly_sql",
+        "business_context_required",
+        "scope_aware",
+        "no_silent_fallback"
+      ]
+    },
+    {
+      "id": "data.inventory",
+      "description": "Describe qué fuentes, tablas y entidades de datos tiene disponibles Sabio sin inferir acciones operativas.",
+      "command": "query",
+      "inputs": [
+        "user.question",
+        "data.sqlite_db.v1"
+      ],
+      "outputs": [
+        "data.inventory.v1",
+        "answer.grounded.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1"
+      ],
+      "produces": [
+        "data.inventory.v1",
+        "answer.grounded.v1"
+      ],
+      "execution": "deterministic_sqlite_schema",
+      "policies": [
+        "trace_required",
+        "evidence_required",
+        "overlay_presentation_only"
+      ]
+    },
+    {
+      "id": "data.entity.list",
+      "description": "Lista entidades disponibles en la base estructurada, por ejemplo clientes, estudios jurídicos o usuarios.",
+      "command": "query",
+      "inputs": [
+        "user.question",
+        "data.sqlite_db.v1"
+      ],
+      "outputs": [
+        "entity_list.v1",
+        "answer.grounded.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1"
+      ],
+      "produces": [
+        "entity_list.v1",
+        "answer.grounded.v1"
+      ],
+      "execution": "deterministic_or_parametric_sqlite",
+      "policies": [
+        "trace_required",
+        "evidence_required",
+        "readonly_sql",
+        "overlay_presentation_only"
+      ]
+    },
+    {
+      "id": "data.query.sql",
+      "description": "Responde preguntas sobre datos estructurados usando SQL read-only planificado por LLM sobre SQLite.",
+      "command": "query",
+      "inputs": [
+        "user.question",
+        "data.sqlite_db.v1"
+      ],
+      "outputs": [
+        "answer.grounded.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1"
+      ],
+      "produces": [
+        "answer.grounded.v1"
+      ],
+      "execution": "llm_planned_readonly_sqlite",
+      "policies": [
+        "trace_required",
+        "evidence_required",
+        "readonly_sql",
+        "no_silent_fallback",
+        "overlay_presentation_only"
+      ]
+    },
+    {
+      "id": "business.capabilities.explain",
+      "description": "Declara qué puede responder Sabio para un negocio, audiencia y scope de sesión sin depender de memoria o skills externos.",
+      "command": "explain-capabilities",
+      "inputs": [
+        "business.id",
+        "session.context"
+      ],
+      "outputs": [
+        "business_capabilities.v1",
+        "suggested_questions.v1"
+      ],
+      "requires": [
+        "business.semantic_pack.v1"
+      ],
+      "produces": [
+        "business_capabilities.v1"
+      ],
+      "execution": "deterministic_business_pack_read",
+      "policies": [
+        "no_llm_required",
+        "safe_for_runtime"
+      ]
+    },
+    {
+      "id": "data.source.inspect",
+      "description": "Genera un perfil estructural de una fuente SQLite para iniciar o actualizar una capa semántica de negocio.",
+      "command": "inspect-source",
+      "inputs": [
+        "data.sqlite_db.v1"
+      ],
+      "outputs": [
+        "data.profile.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1"
+      ],
+      "produces": [
+        "data.profile.v1"
+      ],
+      "execution": "deterministic_sqlite_profile",
+      "policies": [
+        "readonly",
+        "admin_only"
+      ]
+    },
+    {
+      "id": "business.semantic.validate",
+      "description": "Valida determinísticamente un business pack contra la DB real antes de activarlo o usarlo en runtime.",
+      "command": "validate-business-config",
+      "inputs": [
+        "business.semantic_pack.v1",
+        "data.sqlite_db.v1"
+      ],
+      "outputs": [
+        "business_config_validation.v1"
+      ],
+      "requires": [
+        "business.semantic_pack.v1",
+        "data.sqlite_db.v1"
+      ],
+      "produces": [
+        "business_config_validation.v1"
+      ],
+      "execution": "deterministic_business_config_validation",
+      "policies": [
+        "no_llm_required",
+        "admin_only"
+      ]
+    },
+    {
+      "id": "data.query.scoped",
+      "description": "Responde preguntas usando SQLite, catálogo semántico, business pack y contexto runtime de audiencia/scope.",
+      "command": "query",
+      "inputs": [
+        "user.question",
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1",
+        "session.context"
+      ],
+      "outputs": [
+        "answer.grounded.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1"
+      ],
+      "produces": [
+        "answer.grounded.v1"
+      ],
+      "execution": "llm_planned_readonly_sqlite_with_business_context",
+      "policies": [
+        "trace_required",
+        "evidence_required",
+        "readonly_sql",
+        "business_context_required",
+        "scope_aware",
+        "no_silent_fallback"
+      ]
+    },
+    {
+      "id": "contact.lookup",
+      "description": "Busca el contacto preferido de una entidad de negocio para un canal.",
+      "command": "contact-lookup",
+      "inputs": [
+        "entity.ref.v1",
+        "contact.channel.v1",
+        "profile.context"
+      ],
+      "outputs": [
+        "contact.lookup.v1",
+        "contact.destination.v1"
+      ],
+      "requires": [
+        "entity.ref.v1"
+      ],
+      "produces": [
+        "contact.lookup.v1",
+        "contact.destination.v1"
+      ],
+      "execution": "deterministic_sqlite_contact_lookup",
+      "policies": [
+        "no_llm_required",
+        "no_contact_fabrication",
+        "profile_scoped"
+      ]
+    },
+    {
+      "id": "contact.store",
+      "description": "Inserta o actualiza un contacto para una entidad y canal.",
+      "command": "contact-store",
+      "inputs": [
+        "entity.ref.v1",
+        "contact.channel.v1",
+        "contact.value.v1",
+        "profile.context"
+      ],
+      "outputs": [
+        "contact.record.v1"
+      ],
+      "requires": [
+        "entity.ref.v1",
+        "contact.value.v1"
+      ],
+      "produces": [
+        "contact.record.v1"
+      ],
+      "execution": "deterministic_sqlite_contact_upsert",
+      "policies": [
+        "no_llm_required",
+        "profile_scoped",
+        "operator_authorized_write"
+      ]
+    },
+    {
+      "id": "contact.import",
+      "description": "Importa contactos desde un CSV curado por staff o por el negocio autorizado.",
+      "command": "contact-import-csv",
+      "inputs": [
+        "contact.csv.v1",
+        "profile.context"
+      ],
+      "outputs": [
+        "contact.import_report.v1"
+      ],
+      "requires": [
+        "contact.csv.v1"
+      ],
+      "produces": [
+        "contact.import_report.v1"
+      ],
+      "execution": "deterministic_csv_contact_import",
+      "policies": [
+        "no_llm_required",
+        "profile_scoped",
+        "operator_authorized_write"
+      ]
+    },
+    {
+      "id": "dataset.export",
+      "description": "Exporta el contenido de la base SQLite a un artifact JSON dataset.raw.v1 para consumo por frameworks downstream (ej: Radar, Auditor, Mecánico).",
+      "command": "dataset-export",
+      "inputs": [
+        "data.sqlite_db.v1",
+        "business.semantic_pack.v1"
+      ],
+      "outputs": [
+        "dataset.raw.v1",
+        "external.api.dump.v1"
+      ],
+      "requires": [
+        "data.sqlite_db.v1"
+      ],
+      "produces": [
+        "dataset.raw.v1",
+        "external.api.dump.v1"
+      ],
+      "execution": "deterministic_sqlite_readonly_export",
+      "policies": [
+        "readonly_sql",
+        "no_external_side_effect",
+        "safe_for_runtime"
+      ]
+    }
+  ]
 }

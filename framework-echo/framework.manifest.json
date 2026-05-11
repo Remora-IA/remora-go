@@ -72,10 +72,9 @@
     "ingest_answer_cmd": "ingest-answer"
   },
   "model": {
-    "provider": "minimax",
-    "name": "MiniMax-M2.7",
-    "env_key": "MINIMAX_API_KEY",
-    "capabilities": ["text"],
-    "base_url": "https://api.minimax.io/anthropic/v1/messages"
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
   }
 }

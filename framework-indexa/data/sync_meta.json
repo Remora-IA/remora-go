@@ -1,13 +1,13 @@
 {
-  "last_sync_at": "2026-05-08T23:39:07Z",
+  "last_sync_at": "2026-05-10T16:00:29Z",
   "base_url": "https://panalbit.thetimebilling.com/time_tracking/api/v2",
   "user": "soporte@panalbit.com",
   "dump_path": "data/dump.json",
   "sqlite_path": "data/panalbit.db",
   "store_path": "data/store.json",
   "total_records": 36969,
-  "previous_records": 0,
-  "changed": true,
+  "previous_records": 36969,
+  "changed": false,
   "page_size": 3000,
   "concurrency": 4
 }

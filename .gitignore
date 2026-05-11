@@ -30,7 +30,6 @@ channel/cmd/vault/vault
 framework-alfa/frameworkalfa
 framework-auditor/frameworkauditor
 framework-charlie/charlie
-framework-contactos/frameworkcontactos
 framework-echo/frameworkecho
 framework-excel/frameworkexcel
 framework-foco/foco
@@ -47,11 +46,11 @@ framework-quine/quine
 framework-sabio/frameworksabio
 framework-tareas/frameworktareas
 remora-flujo/flujo
-remora-flujo/flujo_api
+remora-flujo/api_rest
 remora-flujo/flujo_test
 remora-flujo/agentrpc
-remora-flujo/cmd/flujo_api/flujo_api
-remora-flujo/cmd/flujo_api/channel
+remora-flujo/cmd/api_rest/api_rest
+remora-flujo/cmd/api_rest/channel
 
 # Go build/test outputs
 *.test

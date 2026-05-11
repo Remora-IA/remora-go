@@ -1,4 +1,4 @@
-package framework-gmail
+package frameworkgmail
 
 // Spec define la estructura del framework.
 type Spec struct {

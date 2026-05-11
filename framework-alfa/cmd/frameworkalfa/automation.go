@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"framework-alfa/internal/alfa"
+	"framework-alfa/internal/llm"
 )
 
 // answersSidecarPath devuelve la ruta del archivo donde se persisten las
@@ -83,7 +85,7 @@ func cmdNextQuestionAlfa() {
 			continue
 		}
 		out["id"] = oq.ID
-		out["text"] = oq.QuestionForEcho
+		out["text"] = generateAlfaQuestion(oq, spec)
 		out["ask_via"] = "echo"
 		out["reason"] = oq.Reason
 		break
@@ -135,4 +137,40 @@ func cmdIngestAnswerAlfa() {
 		"ok":          true,
 		"question_id": *questionID,
 	})
+}
+
+const alfaSystemPrompt = `Eres Alfa, el compilador semántico de Remora. Tu trabajo es traducir el árbol de descubrimiento de Echo en un flujo ideal verificable por Bravo.
+
+Tu personalidad:
+- Eres técnico pero accesible.
+- Hablas en español natural.
+- Cuando necesitás información, pedís cosas concretas: datos, ejemplos, capturas.
+- No inventás reglas de negocio que Echo no validó.
+- No ofrecés soluciones vagas.
+
+Cuando generás una pregunta, debe ser directa y orientada a desbloquear la compilación del flujo. No explicás el framework.`
+
+func generateAlfaQuestion(oq alfa.OpenQuestion, spec *alfa.AlfaSpec) string {
+	client, err := llm.NewClient()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error LLM: %v\n", err)
+		return oq.QuestionForEcho
+	}
+	opTitle := spec.AutomationIntent
+	if len(spec.SelectedOpportunities) > 0 {
+		opTitle = spec.SelectedOpportunities[0].Title
+	}
+	userPrompt := fmt.Sprintf(
+		"Pregunta original del spec: %s\nRazón: %s\nOportunidad compilada: %s\n\nReformulá esta pregunta de forma natural y directa para hacérsela al usuario. Solo la pregunta, sin explicación.",
+		oq.QuestionForEcho, oq.Reason, opTitle)
+	reply, err := client.Generate(context.Background(), alfaSystemPrompt, userPrompt)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error LLM: %v\n", err)
+		return oq.QuestionForEcho
+	}
+	reply = strings.TrimSpace(reply)
+	if reply == "" {
+		return oq.QuestionForEcho
+	}
+	return reply
 }

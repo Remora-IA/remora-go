@@ -59,8 +59,9 @@
   "batchIndex": 2,
   "passedBatches": 1,
   "miniTestAttempts": 0,
-  "inMinitest": false,
+  "inMinitest": true,
   "checkpoints": {
     "servidor.go": "package main \n\n\n\ntype Args struct {\n\tNum1 int\n\tNum2 int\n\n}\n\ntype Reply struct {\n\tResultado int \n}\n\n\n\nfunc main(){\n\n\t\n}"
-  }
+  },
+  "lastVerifyHash": "985b951fc72eaff8"
 }

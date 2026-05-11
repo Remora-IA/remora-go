@@ -3,18 +3,24 @@ package internal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
 
+var errStopWalk = errors.New("stop walk")
+
 // Handler procesa requests JSON-RPC 2.0 (Axioma 2 - Dumb Executor)
 type Handler struct {
-	BaseDir string
-	APIKeys map[string]bool
+	BaseDir  string
+	APIKeys  map[string]bool
 	Timeout  time.Duration
 	Sessions *SessionLogger
 }
@@ -33,8 +39,8 @@ func NewHandler(baseDir string, apiKeys []string) *Handler {
 		}
 	}
 	return &Handler{
-		BaseDir: absBase,
-		APIKeys: keyMap,
+		BaseDir:  absBase,
+		APIKeys:  keyMap,
 		Timeout:  timeout,
 		Sessions: NewSessionLogger(absBase),
 	}
@@ -72,7 +78,7 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Axioma 8: solo 5 métodos
+	// Axioma 8: solo métodos permitidos
 	var resp Response
 	var logCmd string
 	var logArgs []string
@@ -86,6 +92,12 @@ func (h *Handler) Handle(w http.ResponseWriter, r *http.Request) {
 		resp = h.writeFile(&req, start)
 	case "list_dir":
 		resp = h.listDir(&req, start)
+	case "grep":
+		resp = h.grep(&req, start)
+	case "find":
+		resp = h.find(&req, start)
+	case "edit_file":
+		resp = h.editFile(&req, start)
 	case "http_get":
 		resp = h.httpGet(&req, r, start)
 	default:
@@ -235,6 +247,133 @@ func (h *Handler) listDir(req *JSONRPCRequest, start time.Time) Response {
 	return NewSuccessResponse(strings.Join(names, "\n"), "", 0, time.Since(start))
 }
 
+func (h *Handler) grep(req *JSONRPCRequest, start time.Time) Response {
+	pattern, ok := req.Params["pattern"].(string)
+	if !ok || pattern == "" {
+		return NewErrorResponse("params.pattern must be a non-empty string", time.Since(start))
+	}
+	path := "."
+	if raw, present := req.Params["path"]; present && raw != nil {
+		var ok bool
+		path, ok = raw.(string)
+		if !ok {
+			return NewErrorResponse("params.path must be a string", time.Since(start))
+		}
+	}
+	maxResults := intParam(req.Params, "max_results", 200)
+	full, err := resolveWithinBase(path, h.BaseDir)
+	if err != nil {
+		LogSecurityReject(req.Method, "****", err.Error())
+		return NewErrorResponse(err.Error(), time.Since(start))
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return NewErrorResponse("invalid pattern: "+err.Error(), time.Since(start))
+	}
+	var matches []string
+	err = walkReadableFiles(full, func(file string, data []byte) bool {
+		rel, _ := filepath.Rel(h.BaseDir, file)
+		lines := strings.Split(string(data), "\n")
+		for i, line := range lines {
+			if re.MatchString(line) {
+				matches = append(matches, rel+":"+itoa(i+1)+":"+line)
+				if len(matches) >= maxResults {
+					return false
+				}
+			}
+		}
+		return len(matches) < maxResults
+	})
+	if err != nil {
+		return NewErrorResponse("grep error: "+err.Error(), time.Since(start))
+	}
+	return NewSuccessResponse(strings.Join(matches, "\n"), "", 0, time.Since(start))
+}
+
+func (h *Handler) find(req *JSONRPCRequest, start time.Time) Response {
+	path := "."
+	if raw, present := req.Params["path"]; present && raw != nil {
+		var ok bool
+		path, ok = raw.(string)
+		if !ok {
+			return NewErrorResponse("params.path must be a string", time.Since(start))
+		}
+	}
+	query := ""
+	if raw, present := req.Params["query"]; present && raw != nil {
+		var ok bool
+		query, ok = raw.(string)
+		if !ok {
+			return NewErrorResponse("params.query must be a string", time.Since(start))
+		}
+	}
+	maxResults := intParam(req.Params, "max_results", 200)
+	full, err := resolveWithinBase(path, h.BaseDir)
+	if err != nil {
+		LogSecurityReject(req.Method, "****", err.Error())
+		return NewErrorResponse(err.Error(), time.Since(start))
+	}
+	var matches []string
+	err = filepath.WalkDir(full, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() && shouldSkipDir(d.Name()) && path != full {
+			return filepath.SkipDir
+		}
+		rel, _ := filepath.Rel(h.BaseDir, path)
+		if query == "" || strings.Contains(d.Name(), query) || strings.Contains(rel, query) {
+			matches = append(matches, rel)
+			if len(matches) >= maxResults {
+				return errStopWalk
+			}
+		}
+		return nil
+	})
+	if err != nil && err != errStopWalk {
+		return NewErrorResponse("find error: "+err.Error(), time.Since(start))
+	}
+	sort.Strings(matches)
+	return NewSuccessResponse(strings.Join(matches, "\n"), "", 0, time.Since(start))
+}
+
+func (h *Handler) editFile(req *JSONRPCRequest, start time.Time) Response {
+	path, ok := req.Params["path"].(string)
+	if !ok || path == "" {
+		return NewErrorResponse("params.path must be a non-empty string", time.Since(start))
+	}
+	oldText, ok := req.Params["old"].(string)
+	if !ok || oldText == "" {
+		return NewErrorResponse("params.old must be a non-empty string", time.Since(start))
+	}
+	newText, ok := req.Params["new"].(string)
+	if !ok {
+		return NewErrorResponse("params.new must be a string", time.Since(start))
+	}
+	full, err := resolveWithinBase(path, h.BaseDir)
+	if err != nil {
+		LogSecurityReject(req.Method, "****", err.Error())
+		return NewErrorResponse(err.Error(), time.Since(start))
+	}
+	data, err := os.ReadFile(full)
+	if err != nil {
+		return NewErrorResponse("read error: "+err.Error(), time.Since(start))
+	}
+	content := string(data)
+	if !strings.Contains(content, oldText) {
+		return NewErrorResponse("old text not found", time.Since(start))
+	}
+	count := 1
+	if v, _ := req.Params["replace_all"].(bool); v {
+		count = -1
+	}
+	updated := strings.Replace(content, oldText, newText, count)
+	if err := os.WriteFile(full, []byte(updated), 0644); err != nil {
+		return NewErrorResponse("write error: "+err.Error(), time.Since(start))
+	}
+	return NewSuccessResponse("file edited", "", 0, time.Since(start))
+}
+
 func (h *Handler) httpGet(req *JSONRPCRequest, r *http.Request, start time.Time) Response {
 	url, ok := req.Params["url"].(string)
 	if !ok {
@@ -298,6 +437,79 @@ func resolveWithinBase(path, baseDir string) (string, error) {
 		return "", pathError("path escapes base_dir")
 	}
 	return resolved, nil
+}
+
+func intParam(params map[string]interface{}, key string, def int) int {
+	raw, ok := params[key]
+	if !ok || raw == nil {
+		return def
+	}
+	switch v := raw.(type) {
+	case float64:
+		if v > 0 {
+			return int(v)
+		}
+	case int:
+		if v > 0 {
+			return v
+		}
+	}
+	return def
+}
+
+func itoa(v int) string {
+	return strconv.Itoa(v)
+}
+
+func walkReadableFiles(root string, visit func(file string, data []byte) bool) error {
+	info, err := os.Stat(root)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		data, err := os.ReadFile(root)
+		if err != nil {
+			return err
+		}
+		visit(root, data)
+		return nil
+	}
+	err = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if shouldSkipDir(d.Name()) && path != root {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil || info.Size() > 1024*1024 {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil || strings.ContainsRune(string(data), 0) {
+			return nil
+		}
+		if !visit(path, data) {
+			return errStopWalk
+		}
+		return nil
+	})
+	if err == errStopWalk {
+		return nil
+	}
+	return err
+}
+
+func shouldSkipDir(name string) bool {
+	switch name {
+	case ".git", "node_modules", "vendor", "dist", "build", ".next", ".cache", "tmp", "temp":
+		return true
+	default:
+		return false
+	}
 }
 
 type pathError string

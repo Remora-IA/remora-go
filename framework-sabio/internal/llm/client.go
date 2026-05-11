@@ -32,13 +32,16 @@ import (
 )
 
 const (
-	providerGroq        = "groq"
-	providerMiniMax     = "minimax"
-	groqAPIURL          = "https://api.groq.com/openai/v1/chat/completions"
-	minimaxAPIURL       = "https://api.minimax.io/anthropic/v1/messages"
-	defaultGroqModel    = "meta-llama/llama-4-scout-17b-16e-instruct"
-	defaultMiniMaxModel = "MiniMax-M2.7"
-	requestTimeout      = 90 * time.Second
+	providerGroq           = "groq"
+	providerMiniMax        = "minimax"
+	providerOpenRouter     = "openrouter"
+	groqAPIURL             = "https://api.groq.com/openai/v1/chat/completions"
+	minimaxAPIURL          = "https://api.minimax.io/anthropic/v1/messages"
+	openRouterAPIURL       = "https://openrouter.ai/api/v1/chat/completions"
+	defaultGroqModel       = "meta-llama/llama-4-scout-17b-16e-instruct"
+	defaultMiniMaxModel    = "MiniMax-M2.7"
+	defaultOpenRouterModel = "meta-llama/llama-4-scout-17b-16e-instruct"
+	requestTimeout         = 90 * time.Second
 )
 
 type Client struct {
@@ -52,7 +55,9 @@ type Client struct {
 func NewClient() (*Client, error) {
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER")))
 	if provider == "" {
-		if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
+		if firstEnv("OPENROUTER_API_KEY") != "" {
+			provider = providerOpenRouter
+		} else if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
 			provider = providerGroq
 		} else {
 			provider = providerMiniMax
@@ -65,6 +70,12 @@ func NewClient() (*Client, error) {
 	}
 
 	switch provider {
+	case providerOpenRouter:
+		c.apiKey = firstEnv("OPENROUTER_API_KEY")
+		if c.apiKey == "" {
+			return nil, fmt.Errorf("falta OPENROUTER_API_KEY")
+		}
+		c.model = firstNonEmpty(os.Getenv("REMORA_OPENROUTER_MODEL"), defaultOpenRouterModel)
 	case providerGroq:
 		c.apiKey = firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY")
 		if c.apiKey == "" {
@@ -92,8 +103,10 @@ func (c *Client) Model() string { return c.model }
 // Generate manda system + user y retorna el texto del primer candidato.
 func (c *Client) Generate(ctx context.Context, system, user string) (string, error) {
 	switch c.provider {
+	case providerOpenRouter:
+		return c.generateOAICompat(ctx, openRouterAPIURL, system, user)
 	case providerGroq:
-		return c.generateGroq(ctx, system, user)
+		return c.generateOAICompat(ctx, groqAPIURL, system, user)
 	case providerMiniMax:
 		return c.generateMiniMax(ctx, system, user)
 	default:
@@ -125,7 +138,7 @@ type oaiResp struct {
 	} `json:"error"`
 }
 
-func (c *Client) generateGroq(ctx context.Context, system, user string) (string, error) {
+func (c *Client) generateOAICompat(ctx context.Context, apiURL, system, user string) (string, error) {
 	msgs := []oaiMessage{}
 	if system != "" {
 		msgs = append(msgs, oaiMessage{Role: "system", Content: system})
@@ -138,19 +151,19 @@ func (c *Client) generateGroq(ctx context.Context, system, user string) (string,
 		Temperature: 0.2,
 		MaxTokens:   1024,
 	})
-	raw, status, err := c.do(ctx, groqAPIURL, body)
+	raw, status, err := c.do(ctx, apiURL, body)
 	if err != nil {
 		return "", err
 	}
 	var parsed oaiResp
 	if err := json.Unmarshal(raw, &parsed); err != nil {
-		return "", fmt.Errorf("groq parse (status %d): %w; body=%s", status, err, string(raw))
+		return "", fmt.Errorf("%s parse (status %d): %w; body=%s", c.provider, status, err, string(raw))
 	}
 	if parsed.Error != nil {
-		return "", fmt.Errorf("groq api error: %s (%s)", parsed.Error.Message, parsed.Error.Type)
+		return "", fmt.Errorf("%s api error: %s (%s)", c.provider, parsed.Error.Message, parsed.Error.Type)
 	}
 	if len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("groq: respuesta sin choices; body=%s", string(raw))
+		return "", fmt.Errorf("%s: respuesta sin choices; body=%s", c.provider, string(raw))
 	}
 	return parsed.Choices[0].Message.Content, nil
 }
@@ -222,7 +235,13 @@ func (c *Client) do(ctx context.Context, url string, body []byte) ([]byte, int, 
 		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	if c.provider == providerMiniMax {
+		req.Header.Set("x-api-key", c.apiKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+		req.Header.Set("anthropic-dangerous-direct-browser-access", "true")
+	} else {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

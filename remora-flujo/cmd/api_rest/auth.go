@@ -102,7 +102,7 @@ type remoraTeamInvite struct {
 }
 
 func openAuthStore() (*authStore, error) {
-	path := envOr("REMORA_AUTH_DB", "temp/remora_auth.db")
+	path := envOr("REMORA_AUTH_DB", defaultAuthDBPath())
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return nil, err
 	}
@@ -120,6 +120,14 @@ func openAuthStore() (*authStore, error) {
 		return nil, err
 	}
 	return s, nil
+}
+
+func defaultAuthDBPath() string {
+	root := resolveRemoraRoot()
+	if root == "" || root == "/workspace" {
+		return "profiles/_system/remora_auth.db"
+	}
+	return filepath.Join(root, "profiles", "_system", "remora_auth.db")
 }
 
 func (s *authStore) migrate() error {

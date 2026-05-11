@@ -1,11 +1,10 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 
-	"framework-framework-echo/internal/paladin"
+	"github.com/user/framework-echo/internal/paladin"
 )
 
 func main() {
@@ -26,7 +25,7 @@ func main() {
 	case "help", "-h", "--help":
 		usage()
 	default:
-		fmt.Fprintf(os.Stderr, "comando desconocido: framework-echo\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "comando desconocido: %s\n", os.Args[1])
 		usage()
 		os.Exit(1)
 	}
@@ -34,9 +33,9 @@ func main() {
 
 func cmdStatus() {
 	fmt.Println("Status: OK")
-	fmt.Printf("Framework: echo\n", "%!s(MISSING)")
+	fmt.Println("Framework: echo")
 }
 
 func usage() {
-	fmt.Println("%!s(MISSING) - CLI\n\nUSO:\n  %!s(MISSING) <comando>\n\nCOMANDOS:\n  status  Muestra el estado\n  help    Muestra esta ayuda")
+	fmt.Println("framework-echo - CLI\n\nUSO:\n  framework-echo <comando>\n\nCOMANDOS:\n  status  Muestra el estado\n  help    Muestra esta ayuda")
 }

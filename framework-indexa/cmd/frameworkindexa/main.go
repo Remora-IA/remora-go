@@ -6,17 +6,25 @@
 //	./frameworkindexa init [--store <path>]
 //	./frameworkindexa index --source <path-json> [--store <path>]
 //	                       [--endpoints <csv>] [--max-records <n>] [--dry-run]
+//	./frameworkindexa api-plan --docs-file <path> [--base-url <url>] [--out <path>]
 //	./frameworkindexa status [--store <path>] [--json]
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
+	"time"
 
+	"framework-indexa/internal/llm"
 	"framework-indexa/sqlbuilder"
 	"framework-indexa/store"
 )
@@ -35,6 +43,8 @@ func main() {
 		cmdIndex(os.Args[2:])
 	case "status":
 		cmdStatus(os.Args[2:])
+	case "api-plan":
+		cmdAPIPlan(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -51,6 +61,7 @@ Uso:
   frameworkindexa init [--store <path>]
   frameworkindexa index --source <path-json> [--store <path>]
                         [--endpoints <csv>] [--max-records <n>] [--dry-run]
+  frameworkindexa api-plan --docs-file <path> [--base-url <url>] [--out <path>]
   frameworkindexa status [--store <path>] [--json]
 
 Variables de entorno:
@@ -66,6 +77,534 @@ func resolveStorePath(flagVal string) string {
 		return v
 	}
 	return defaultStorePath
+}
+
+type connectorSpec struct {
+	Version   string              `json:"version"`
+	BaseURL   string              `json:"base_url"`
+	AuthTypes []string            `json:"auth_types"`
+	Resources []connectorResource `json:"resources"`
+	Notes     []string            `json:"notes,omitempty"`
+	Sources   []docSource         `json:"sources,omitempty"`
+}
+
+type connectorResource struct {
+	Name        string         `json:"name"`
+	Method      string         `json:"method"`
+	Path        string         `json:"path"`
+	TableName   string         `json:"table_name"`
+	RecordsPath string         `json:"records_path"`
+	PrimaryKey  string         `json:"primary_key"`
+	Pagination  map[string]any `json:"pagination"`
+	Incremental map[string]any `json:"incremental,omitempty"`
+}
+
+type docSource struct {
+	URL     string `json:"url"`
+	Status  string `json:"status"`
+	Bytes   int    `json:"bytes,omitempty"`
+	Error   string `json:"error,omitempty"`
+	Snippet string `json:"snippet,omitempty"`
+}
+
+func cmdAPIPlan(args []string) {
+	fs := flag.NewFlagSet("api-plan", flag.ExitOnError)
+	docsFile := fs.String("docs-file", "", "archivo con documentación de la API")
+	baseURL := fs.String("base-url", "", "base URL sugerida")
+	outPath := fs.String("out", "", "path donde escribir connector spec JSON")
+	fs.Parse(args)
+	if *docsFile == "" {
+		fail("api-plan: --docs-file requerido")
+	}
+	raw, err := os.ReadFile(*docsFile)
+	if err != nil {
+		fail("api-plan read docs: %v", err)
+	}
+	docs, sources := enrichDocsWithURLs(string(raw))
+	spec, ok := connectorPlanFromOpenAPI(docs, *baseURL)
+	err = nil
+	if !ok {
+		spec, err = planConnectorWithLLM(truncateText(docs, 120000), *baseURL)
+	}
+	if err != nil {
+		spec = heuristicConnectorPlan(docs, *baseURL)
+		spec.Notes = append(spec.Notes, "Plan heurístico: no se pudo usar LLM: "+err.Error())
+	}
+	spec.Sources = sources
+	out, _ := json.MarshalIndent(spec, "", "  ")
+	if *outPath != "" {
+		if err := os.WriteFile(*outPath, append(out, '\n'), 0644); err != nil {
+			fail("api-plan write: %v", err)
+		}
+	}
+	fmt.Println(string(out))
+}
+
+func planConnectorWithLLM(docs, baseURL string) (connectorSpec, error) {
+	client, err := llm.NewClient()
+	if err != nil {
+		return connectorSpec{}, err
+	}
+	system := `Eres Indexa API Planner. Convierte documentación de APIs REST en un ConnectorSpec JSON seguro para sincronizar datos read-only. Devuelve SOLO JSON válido, sin markdown. No incluyas credenciales. Solo endpoints GET listables. Usa records_path JSONPath simple como $, $.data, $.results o $.items.`
+	user := fmt.Sprintf(`Base URL sugerida: %s
+
+Documentación:
+%s
+
+Devuelve JSON con shape:
+{"version":"api_connector.v1","base_url":"...","auth_types":["bearer"],"resources":[{"name":"clients","method":"GET","path":"/clients","table_name":"clients","records_path":"$.data","primary_key":"id","pagination":{"type":"page","page_param":"page","page_size_param":"limit","page_size":100,"max_pages":100},"incremental":{"type":"updated_since","request_param":"updated_since","record_field":"updated_at"}}],"notes":[]}`, baseURL, docs)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	text, err := client.Generate(ctx, system, user)
+	if err != nil {
+		return connectorSpec{}, err
+	}
+	text = strings.TrimSpace(text)
+	text = strings.TrimPrefix(text, "```json")
+	text = strings.TrimPrefix(text, "```")
+	text = strings.TrimSuffix(text, "```")
+	var spec connectorSpec
+	if err := json.Unmarshal([]byte(strings.TrimSpace(text)), &spec); err != nil {
+		return connectorSpec{}, err
+	}
+	return normalizeConnectorSpec(spec, baseURL), nil
+}
+
+func connectorPlanFromOpenAPI(docs, fallbackBaseURL string) (connectorSpec, bool) {
+	specs := extractJSONObjectStrings(docs)
+	for _, raw := range specs {
+		var doc map[string]any
+		if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+			continue
+		}
+		if doc["openapi"] == nil && doc["swagger"] == nil {
+			continue
+		}
+		paths, ok := doc["paths"].(map[string]any)
+		if !ok || len(paths) == 0 {
+			continue
+		}
+		baseURL := fallbackBaseURL
+		if baseURL == "" {
+			baseURL = openAPIServerURL(doc)
+		}
+		resources := []connectorResource{}
+		pathNames := make([]string, 0, len(paths))
+		for path := range paths {
+			pathNames = append(pathNames, path)
+		}
+		sort.Strings(pathNames)
+		for _, path := range pathNames {
+			if strings.Contains(path, "{") {
+				continue
+			}
+			methods, ok := paths[path].(map[string]any)
+			if !ok || methods["get"] == nil {
+				continue
+			}
+			name := strings.Trim(strings.ReplaceAll(strings.Trim(path, "/"), "/", "_"), "_")
+			if name == "" {
+				continue
+			}
+			resources = append(resources, connectorResource{
+				Name:        name,
+				Method:      "GET",
+				Path:        path,
+				TableName:   safeName(name),
+				RecordsPath: "$",
+				PrimaryKey:  "id",
+				Pagination:  openAPIPagination(methods["get"]),
+			})
+			if len(resources) >= 40 {
+				break
+			}
+		}
+		if len(resources) == 0 {
+			continue
+		}
+		authTypes := openAPIAuthTypes(doc)
+		out := normalizeConnectorSpec(connectorSpec{Version: "api_connector.v1", BaseURL: baseURL, AuthTypes: authTypes, Resources: resources, Notes: []string{"Plan generado determinísticamente desde OpenAPI/Swagger recuperado por Indexa."}}, fallbackBaseURL)
+		return out, true
+	}
+	return connectorSpec{}, false
+}
+
+func extractJSONObjectStrings(text string) []string {
+	out := []string{}
+	for i := 0; i < len(text); i++ {
+		if text[i] != '{' {
+			continue
+		}
+		depth := 0
+		inString := false
+		escape := false
+		for j := i; j < len(text); j++ {
+			c := text[j]
+			if inString {
+				if escape {
+					escape = false
+				} else if c == '\\' {
+					escape = true
+				} else if c == '"' {
+					inString = false
+				}
+				continue
+			}
+			switch c {
+			case '"':
+				inString = true
+			case '{':
+				depth++
+			case '}':
+				depth--
+				if depth == 0 {
+					candidate := text[i : j+1]
+					if strings.Contains(candidate, `"paths"`) && (strings.Contains(candidate, `"openapi"`) || strings.Contains(candidate, `"swagger"`)) {
+						out = append(out, candidate)
+					}
+					i = j
+					break
+				}
+			}
+		}
+	}
+	return out
+}
+
+func openAPIServerURL(doc map[string]any) string {
+	servers, _ := doc["servers"].([]any)
+	if len(servers) == 0 {
+		return ""
+	}
+	first, _ := servers[0].(map[string]any)
+	raw, _ := first["url"].(string)
+	return raw
+}
+
+func openAPIAuthTypes(doc map[string]any) []string {
+	raw, ok := doc["components"].(map[string]any)
+	if !ok {
+		return []string{"api_key", "basic", "bearer", "none"}
+	}
+	sec, ok := raw["securitySchemes"].(map[string]any)
+	if !ok {
+		return []string{"api_key", "basic", "bearer", "none"}
+	}
+	out := []string{}
+	for _, v := range sec {
+		m, _ := v.(map[string]any)
+		t, _ := m["type"].(string)
+		scheme, _ := m["scheme"].(string)
+		switch strings.ToLower(t) {
+		case "api_key", "apikey":
+			out = append(out, "api_key")
+		case "http":
+			switch strings.ToLower(scheme) {
+			case "basic":
+				out = append(out, "basic")
+			case "bearer":
+				out = append(out, "bearer")
+			}
+		}
+	}
+	return out
+}
+
+func openAPIPagination(method any) map[string]any {
+	m, _ := method.(map[string]any)
+	params, _ := m["parameters"].([]any)
+	names := map[string]bool{}
+	for _, p := range params {
+		pm, _ := p.(map[string]any)
+		name, _ := pm["name"].(string)
+		names[strings.ToLower(name)] = true
+	}
+	if names["page"] {
+		pageSize := "limit"
+		if names["per_page"] {
+			pageSize = "per_page"
+		} else if names["page_size"] {
+			pageSize = "page_size"
+		}
+		return map[string]any{"type": "page", "page_param": "page", "page_size_param": pageSize, "page_size": 100, "max_pages": 100}
+	}
+	if names["offset"] {
+		limit := "limit"
+		if names["per_page"] {
+			limit = "per_page"
+		}
+		return map[string]any{"type": "offset", "offset_param": "offset", "limit_param": limit, "page_size": 100, "max_pages": 100}
+	}
+	return map[string]any{"type": "none"}
+}
+
+func safeName(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	s = regexp.MustCompile(`[^a-z0-9_]+`).ReplaceAllString(s, "_")
+	s = strings.Trim(s, "_")
+	if s == "" {
+		return "records"
+	}
+	if s[0] >= '0' && s[0] <= '9' {
+		return "t_" + s
+	}
+	return s
+}
+
+func enrichDocsWithURLs(docs string) (string, []docSource) {
+	queue := extractURLs(docs)
+	if len(queue) == 0 {
+		return docs, nil
+	}
+	client := &http.Client{Timeout: 25 * time.Second}
+	parts := []string{docs, "\n\n--- Documentación recuperada por Indexa ---\n"}
+	sources := []docSource{}
+	seen := map[string]bool{}
+	for len(queue) > 0 && len(sources) < 8 {
+		rawURL := queue[0]
+		queue = queue[1:]
+		if seen[rawURL] {
+			continue
+		}
+		seen[rawURL] = true
+		src, text, links := fetchDocURL(client, rawURL)
+		sources = append(sources, src)
+		for _, link := range links {
+			if !seen[link] {
+				queue = append(queue, link)
+			}
+		}
+		if text == "" {
+			continue
+		}
+		parts = append(parts, "\n\nFuente: "+rawURL+"\n"+text)
+	}
+	return truncateText(strings.Join(parts, "\n"), 900000), sources
+}
+
+func extractURLs(text string) []string {
+	re := regexp.MustCompile(`https?://[^\s<>"']+`)
+	matches := re.FindAllString(text, -1)
+	out := []string{}
+	seen := map[string]bool{}
+	for _, m := range matches {
+		u := strings.TrimRight(m, ".,);]")
+		parsed, err := url.Parse(u)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" || seen[u] {
+			continue
+		}
+		seen[u] = true
+		out = append(out, u)
+		if len(out) >= 5 {
+			break
+		}
+	}
+	return out
+}
+
+func fetchDocURL(client *http.Client, rawURL string) (docSource, string, []string) {
+	src := docSource{URL: rawURL, Status: "fetching"}
+	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
+	if err != nil {
+		src.Status, src.Error = "error", err.Error()
+		return src, "", nil
+	}
+	req.Header.Set("User-Agent", "Remora-Indexa/0.1 API documentation reader")
+	req.Header.Set("Accept", "text/html,application/json,application/yaml,text/yaml,text/plain,*/*;q=0.8")
+	resp, err := client.Do(req)
+	if err != nil {
+		src.Status, src.Error = "error", err.Error()
+		return src, "", nil
+	}
+	defer resp.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
+	src.Bytes = len(raw)
+	if resp.StatusCode >= 300 {
+		src.Status = fmt.Sprintf("http_%d", resp.StatusCode)
+		src.Error = snippetText(string(raw), 240)
+		return src, "", nil
+	}
+	links := discoverDocLinks(raw, resp.Request.URL.String())
+	text := extractReadableDocText(raw, resp.Header.Get("Content-Type"))
+	if looksLikeOpenAPIDoc(text) {
+		text = truncateText(text, 700000)
+	} else {
+		text = truncateText(text, 30000)
+	}
+	src.Status = "ok"
+	src.Snippet = snippetText(text, 220)
+	return src, text, links
+}
+
+func discoverDocLinks(raw []byte, base string) []string {
+	text := string(raw)
+	re := regexp.MustCompile(`(?i)(?:href|src|spec-url)=["']([^"']+)["']`)
+	out := []string{}
+	seen := map[string]bool{}
+	for _, match := range re.FindAllStringSubmatch(text, -1) {
+		if len(match) < 2 || !looksLikeDocSpec(match[1]) {
+			continue
+		}
+		u, err := url.Parse(match[1])
+		if err != nil {
+			continue
+		}
+		baseURL, err := url.Parse(base)
+		if err == nil {
+			u = baseURL.ResolveReference(u)
+		}
+		resolved := u.String()
+		if !seen[resolved] {
+			seen[resolved] = true
+			out = append(out, resolved)
+		}
+	}
+	return out
+}
+
+func looksLikeDocSpec(path string) bool {
+	p := strings.ToLower(path)
+	return strings.Contains(p, "openapi") || strings.Contains(p, "swagger") || strings.Contains(p, "api-doc") || strings.Contains(p, "bundled-") || strings.HasSuffix(p, ".json") || strings.HasSuffix(p, ".yaml") || strings.HasSuffix(p, ".yml")
+}
+
+func extractReadableDocText(raw []byte, contentType string) string {
+	text := string(raw)
+	lowerType := strings.ToLower(contentType)
+	if strings.Contains(lowerType, "html") || strings.Contains(strings.ToLower(text[:minInt(len(text), 200)]), "<html") {
+		text = stripTagBlocks(text, "script")
+		text = stripTagBlocks(text, "style")
+		text = regexp.MustCompile(`(?is)<br\s*/?>`).ReplaceAllString(text, "\n")
+		text = regexp.MustCompile(`(?is)</(p|div|section|article|h[1-6]|li|tr|pre|code)>`).ReplaceAllString(text, "\n")
+		text = regexp.MustCompile(`(?is)<[^>]+>`).ReplaceAllString(text, " ")
+	}
+	text = htmlEntityCleanup(text)
+	text = regexp.MustCompile(`[ \t\r\f\v]+`).ReplaceAllString(text, " ")
+	text = regexp.MustCompile(`\n\s+`).ReplaceAllString(text, "\n")
+	text = regexp.MustCompile(`\n{3,}`).ReplaceAllString(text, "\n\n")
+	return strings.TrimSpace(text)
+}
+
+func looksLikeOpenAPIDoc(text string) bool {
+	head := text[:minInt(len(text), 2000)]
+	return (strings.Contains(head, `"openapi"`) || strings.Contains(head, `"swagger"`)) && strings.Contains(text, `"paths"`)
+}
+
+func stripTagBlocks(text, tag string) string {
+	re := regexp.MustCompile(`(?is)<` + tag + `\b[^>]*>.*?</` + tag + `>`)
+	return re.ReplaceAllString(text, " ")
+}
+
+func htmlEntityCleanup(text string) string {
+	repl := strings.NewReplacer(
+		"&nbsp;", " ",
+		"&amp;", "&",
+		"&lt;", "<",
+		"&gt;", ">",
+		"&quot;", `"`,
+		"&#39;", "'",
+	)
+	return repl.Replace(text)
+}
+
+func truncateText(text string, max int) string {
+	if len(text) <= max {
+		return text
+	}
+	return text[:max] + "\n...[truncado por Indexa]..."
+}
+
+func snippetText(text string, max int) string {
+	text = strings.TrimSpace(regexp.MustCompile(`\s+`).ReplaceAllString(text, " "))
+	if len(text) <= max {
+		return text
+	}
+	return text[:max] + "..."
+}
+
+func heuristicConnectorPlan(docs, baseURL string) connectorSpec {
+	resources := []connectorResource{}
+	seen := map[string]bool{}
+	for _, tok := range strings.Fields(docs) {
+		if !strings.HasPrefix(tok, "/") {
+			continue
+		}
+		path := strings.Trim(tok, " ,.;:)")
+		if strings.ContainsAny(path, "{}") || seen[path] {
+			continue
+		}
+		seen[path] = true
+		name := strings.ReplaceAll(strings.Trim(path, "/"), "/", "_")
+		if name == "" || strings.Contains(name, ":") {
+			continue
+		}
+		resources = append(resources, connectorResource{Name: name, Method: "GET", Path: path, TableName: name, RecordsPath: "$.data", PrimaryKey: "id", Pagination: map[string]any{"type": "none"}})
+		if len(resources) >= 8 {
+			break
+		}
+	}
+	if len(resources) == 0 {
+		resources = append(resources, connectorResource{Name: "records", Method: "GET", Path: "/", TableName: "records", RecordsPath: "$", PrimaryKey: "id", Pagination: map[string]any{"type": "none"}})
+	}
+	return normalizeConnectorSpec(connectorSpec{Version: "api_connector.v1", BaseURL: baseURL, AuthTypes: []string{"bearer", "api_key", "basic", "none"}, Resources: resources}, baseURL)
+}
+
+func normalizeConnectorSpec(spec connectorSpec, fallbackBaseURL string) connectorSpec {
+	if spec.Version == "" {
+		spec.Version = "api_connector.v1"
+	}
+	if spec.BaseURL == "" {
+		spec.BaseURL = fallbackBaseURL
+	}
+	spec.AuthTypes = normalizeAuthTypes(spec.AuthTypes)
+	if len(spec.AuthTypes) == 0 {
+		spec.AuthTypes = []string{"bearer", "api_key", "basic", "none"}
+	}
+	for i := range spec.Resources {
+		r := &spec.Resources[i]
+		if r.Method == "" {
+			r.Method = "GET"
+		}
+		if r.TableName == "" {
+			r.TableName = r.Name
+		}
+		if r.RecordsPath == "" {
+			r.RecordsPath = "$.data"
+		}
+		if r.PrimaryKey == "" {
+			r.PrimaryKey = "id"
+		}
+		if r.Pagination == nil {
+			r.Pagination = map[string]any{"type": "none"}
+		}
+	}
+	return spec
+}
+
+func normalizeAuthTypes(values []string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, v := range values {
+		key := strings.ToLower(strings.TrimSpace(v))
+		key = strings.ReplaceAll(key, "-", "_")
+		key = strings.ReplaceAll(key, " ", "_")
+		switch key {
+		case "bearer", "bearer_token", "token":
+			key = "bearer"
+		case "api_key", "apikey", "x_api_key":
+			key = "api_key"
+		case "basic", "basic_auth":
+			key = "basic"
+		case "none", "no_auth":
+			key = "none"
+		default:
+			continue
+		}
+		if !seen[key] {
+			seen[key] = true
+			out = append(out, key)
+		}
+	}
+	return out
 }
 
 func cmdInit(args []string) {
@@ -427,6 +966,13 @@ func stringify(v interface{}, depth int) string {
 		b, _ := json.Marshal(v)
 		return string(b)
 	}
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func fail(format string, args ...interface{}) {

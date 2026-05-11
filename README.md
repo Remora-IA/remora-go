@@ -1,6 +1,6 @@
 # Remora Go
 
-Sistema multi-framework de IA orquestado por `remora-flujo/cmd/flujo_api`
+Sistema multi-framework de IA orquestado por `remora-flujo/cmd/api_rest`
 sobre un canal JSON-RPC (`channel/`). Cada framework encapsula una capability
 (echo, alfa, foco, sabio, mecanico, mensajero, hosting, etc.) y se compone
 declarativamente desde `flow.rules.json`.
@@ -26,7 +26,7 @@ cd framework-hosting && go run ./cmd/frameworkhosting genkey
 go build ./...
 
 # 5. Arrancar el API
-cd remora-flujo && go run ./cmd/flujo_api
+cd remora-flujo && go run ./cmd/api_rest
 # Abrir http://localhost:8080
 ```
 
@@ -149,7 +149,7 @@ las env vars no-sensibles (`REMORA_PROFILE`, `REMORA_DEV_MODE`, etc.).
 
 ### Healthcheck
 
-`flujo_api` expone dos endpoints:
+`api_rest` expone dos endpoints:
 
 - `GET /health` — liveness simple (`{status: ok}`).
 - `GET /healthz` — readiness profunda. Devuelve `200` si LLM, frameworks

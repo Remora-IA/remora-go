@@ -13,6 +13,8 @@ import (
 )
 
 func main() {
+	loadDotEnv()
+
 	// Cloud Run inyecta PORT como env var (Axioma de deploy)
 	defaultAddr := ":8080"
 	if p := os.Getenv("PORT"); p != "" {
@@ -69,4 +71,36 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+func loadDotEnv() {
+	candidates := []string{
+		".env",
+		"../.env",
+		"../../.env",
+		"../../../.env",
+	}
+	for _, path := range candidates {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			key := strings.TrimSpace(parts[0])
+			value := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+			if os.Getenv(key) == "" {
+				_ = os.Setenv(key, value)
+			}
+		}
+		log.Printf(".env loaded from %s", path)
+		return
+	}
 }

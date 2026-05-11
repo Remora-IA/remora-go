@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"framework-paladin/paladin"
+	"github.com/remora-go/framework-paladin/paladin"
 )
 
 type Context = paladin.Context

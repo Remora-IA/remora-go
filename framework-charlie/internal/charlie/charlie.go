@@ -1546,7 +1546,7 @@ func ShouldIgnore(filePath string) bool {
 	if base == ".DS_Store" || strings.HasSuffix(base, ".bak") {
 		return true
 	}
-	if base == "charlie" || base == "quine" || base == "paladin" || base == "flujo" || base == "flujo_api" || base == "gmail" {
+	if base == "charlie" || base == "quine" || base == "paladin" || base == "flujo" || base == "api_rest" || base == "gmail" {
 		return true
 	}
 	ignoredParts := []string{"/temp/", "/bin/"}
@@ -2551,7 +2551,7 @@ func ValidateReport(report *Report) []string {
 
 	// Verificar estructura del changelog (nuevo formato con secciones por scope)
 	hasValidStructure := false
-	validSectionMarkers := []string{"### Charlie", "### Paladin", "### Quine", "### Flujo", "### Echo", "### Gmail", "### Alfa", "### Bravo", "### Repo", "### Limpieza", "### Scripts", "### Foco", "### Sabio", "### Mecanico", "### Mensajero", "### Hosting", "### Indexa", "### Tareas", "### Contactos", "### Auditor", "### Excel"}
+	validSectionMarkers := []string{"### Charlie", "### Paladin", "### Quine", "### Flujo", "### Echo", "### Gmail", "### Alfa", "### Bravo", "### Repo", "### Limpieza", "### Scripts", "### Foco", "### Sabio", "### Mecanico", "### Mensajero", "### Hosting", "### Indexa", "### Tareas", "### Auditor", "### Excel"}
 	for _, marker := range validSectionMarkers {
 		if strings.Contains(report.Changelog, marker) {
 			hasValidStructure = true

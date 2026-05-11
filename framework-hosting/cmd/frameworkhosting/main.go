@@ -27,10 +27,12 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,7 +45,7 @@ import (
 
 const (
 	defaultStateDir = "temp"
-	greetingText    = "Soy tu asistente de hosting. Conectame con `conectar <host> <usuario> <password>` (ej: `conectar patriciastocker.com tomashigh@patriciastocker.com PASS`) y después podés pedirme `listar correos`."
+	greetingText    = "Soy tu asistente de hosting. Voy a conectar tu cPanel y preparar automáticamente el correo de envío para Remora. Primero decime el host de cPanel o el dominio principal (por ejemplo: cpanel.tudominio.com o tudominio.com)."
 )
 
 // state mantiene el progreso conversacional del framework (un saludo + una
@@ -52,6 +54,9 @@ type state struct {
 	GreetingAsked bool      `json:"greeting_asked"`
 	PendingAnswer string    `json:"pending_answer,omitempty"`
 	PendingID     string    `json:"pending_id,omitempty"`
+	SetupStep     string    `json:"setup_step,omitempty"`
+	Host          string    `json:"host,omitempty"`
+	User          string    `json:"user,omitempty"`
 	LastAt        time.Time `json:"last_at,omitempty"`
 }
 
@@ -74,6 +79,10 @@ func main() {
 		cmdImportSMTP(os.Args[2:])
 	case "has-smtp":
 		cmdHasSMTP(os.Args[2:])
+	case "delete-smtp":
+		cmdDeleteSMTP(os.Args[2:])
+	case "discover-cpanel":
+		cmdDiscoverCPanel(os.Args[2:])
 	case "genkey":
 		cmdGenKey()
 	default:
@@ -139,9 +148,8 @@ func cmdIngestAnswer(args []string) {
 	sp := resolveStatePath(*statePath, *convID)
 	cp := creds.Path(filepath.Dir(sp), *convID)
 
-	respText := dispatchIntent(strings.TrimSpace(*answer), cp)
-
 	s := loadState(sp)
+	respText := dispatchIntent(strings.TrimSpace(*answer), cp, *convID, s)
 	s.PendingAnswer = respText
 	s.PendingID = fmt.Sprintf("hosting_resp_%d", time.Now().Unix())
 	s.LastAt = time.Now()
@@ -150,56 +158,165 @@ func cmdIngestAnswer(args []string) {
 
 // dispatchIntent es un router super simple basado en prefijos. Para una v2
 // usaríamos LLM o reglas más ricas, pero para POC alcanza.
-func dispatchIntent(answer, credsPath string) string {
+func dispatchIntent(answer, credsPath, convID string, s *state) string {
 	low := strings.ToLower(answer)
 
 	switch {
 	case strings.HasPrefix(low, "conectar "), strings.HasPrefix(low, "connect "):
-		return doConnectFromText(answer, credsPath)
+		return doConnectFromText(answer, credsPath, convID)
 	case strings.Contains(low, "listar correo"),
 		strings.Contains(low, "lista emails"),
 		strings.Contains(low, "list emails"),
 		strings.Contains(low, "list-emails"):
 		return doListEmails(credsPath)
 	default:
-		return "No entendí. Decime:\n" +
-			"• `conectar <host> <usuario> <password>` para conectar al panel\n" +
-			"• `listar correos` para ver las cuentas de email del dominio"
+		return handleConnectWizard(answer, credsPath, convID, s)
 	}
+}
+
+func handleConnectWizard(answer, credsPath, convID string, s *state) string {
+	answer = strings.TrimSpace(answer)
+	if answer == "" {
+		return "No recibí texto. Decime el host de cPanel o el dominio principal."
+	}
+	switch s.SetupStep {
+	case "":
+		s.Host = sanitizeHostAnswer(answer)
+		s.SetupStep = "user"
+		return "Perfecto. ¿Cuál es el usuario de cPanel?"
+	case "user":
+		s.User = strings.TrimSpace(answer)
+		s.SetupStep = "pass"
+		return "Listo. Ahora decime la contraseña de cPanel. No la voy a mostrar ni registrar; la usaré solo para conectar por API y guardar secretos cifrados."
+	case "pass":
+		pass := answer
+		host, user := s.Host, s.User
+		s.SetupStep = ""
+		s.Host = ""
+		s.User = ""
+		return doConnect(host, user, pass, credsPath, convID)
+	default:
+		s.SetupStep = ""
+		return "Reinicié el asistente de hosting. Decime el host de cPanel o dominio principal."
+	}
+}
+
+func sanitizeHostAnswer(answer string) string {
+	answer = strings.TrimSpace(answer)
+	answer = strings.TrimPrefix(answer, "https://")
+	answer = strings.TrimPrefix(answer, "http://")
+	answer = strings.TrimSuffix(answer, "/")
+	fields := strings.Fields(answer)
+	if len(fields) == 1 {
+		return fields[0]
+	}
+	return answer
 }
 
 // doConnectFromText parsea "conectar host user pass" y delega a doConnect.
 // Tolerante con espacios extras y variantes en el verbo.
-func doConnectFromText(text, credsPath string) string {
+func doConnectFromText(text, credsPath, convID string) string {
 	parts := strings.Fields(text)
 	if len(parts) < 4 {
 		return "Faltan datos. Formato: `conectar <host> <usuario> <password>`"
 	}
 	host, user, pass := parts[1], parts[2], strings.Join(parts[3:], " ")
-	return doConnect(host, user, pass, credsPath)
+	return doConnect(host, user, pass, credsPath, convID)
 }
 
 // doConnect prueba auth contra cPanel y, si OK, persiste credenciales.
-func doConnect(host, user, pass, credsPath string) string {
+// Luego descubre automáticamente cuentas de email y auto-configura SMTP.
+func doConnect(host, user, pass, credsPath, convID string) string {
+	host = sanitizeHostAnswer(host)
+	if isPlaceholderHost(host) {
+		return "No voy a conectar contra un dominio de ejemplo. Decime el dominio real del negocio o usa el endpoint cPanel descubierto."
+	}
 	cli, err := cpanel.New(host, user, pass, true)
 	if err != nil {
 		return fmt.Sprintf("Error de configuración: %v", err)
 	}
 	if err := cli.Login(); err != nil {
-		return fmt.Sprintf("No pude conectar al hosting: %v", err)
+		// Fallback 1: user con @ → probar sin @
+		if local := cpanelLocalUserCandidate(user); local != "" {
+			retry, retryErr := cpanel.New(host, local, pass, true)
+			if retryErr == nil && retry.Login() == nil {
+				cli = retry
+				user = local
+			} else {
+				return cpanelLoginErrorHelp(host, user, err)
+			}
+			// Fallback 2: user sin @ → probar con @dominio
+		} else if full := cpanelFullUserCandidate(user, host); full != "" && full != user {
+			retry, retryErr := cpanel.New(host, full, pass, true)
+			if retryErr == nil && retry.Login() == nil {
+				cli = retry
+				user = full
+			} else {
+				return cpanelLoginErrorHelp(host, user, err)
+			}
+		} else {
+			return cpanelLoginErrorHelp(host, user, err)
+		}
 	}
 	if err := cli.Ping(); err != nil {
-		return fmt.Sprintf("Login OK pero la sesión no respondió a Ping: %v", err)
+		return fmt.Sprintf("No pude conectar al hosting: %v", err)
 	}
 	c := &creds.Credentials{
 		Panel: "cpanel", Host: host, Port: 2083,
 		User: user, Pass: pass, Insecure: true,
 	}
 	if err := creds.Save(credsPath, c); err != nil {
-		return fmt.Sprintf("Conexión OK pero no pude guardar credenciales: %v.\n" +
+		return fmt.Sprintf("Conexión OK pero no pude guardar credenciales: %v.\n"+
 			"Verificá que HOSTING_VAULT_KEY esté seteada (corré `frameworkhosting genkey` para generar una).", err)
 	}
-	return fmt.Sprintf("Conectado a %s como %s. Credenciales guardadas. Pedime `listar correos` para ver las cuentas del dominio.", host, user)
+	emailAddr, smtpHost, err := autoProvisionSMTP(cli, host, convID)
+	if err != nil {
+		return fmt.Sprintf("Conectado a %s, pero no pude preparar el correo saliente automáticamente: %v", host, err)
+	}
+	return fmt.Sprintf("Conectado a %s. Preparé automáticamente el correo saliente con cPanel: %s vía %s:587. Ya puedo enviar correos con aprobación.", host, emailAddr, smtpHost)
+}
+
+func cpanelLocalUserCandidate(user string) string {
+	user = strings.TrimSpace(user)
+	if !strings.Contains(user, "@") {
+		return ""
+	}
+	local := strings.TrimSpace(strings.SplitN(user, "@", 2)[0])
+	if local == "" || local == user {
+		return ""
+	}
+	return local
+}
+
+func cpanelFullUserCandidate(user, host string) string {
+	user = strings.TrimSpace(user)
+	if strings.Contains(user, "@") {
+		return ""
+	}
+	domain := hostDomainFromHost(host)
+	if domain == "" {
+		return ""
+	}
+	return user + "@" + domain
+}
+
+func hostDomainFromHost(host string) string {
+	host = strings.TrimSpace(host)
+	host = strings.TrimPrefix(host, "cpanel.")
+	host = strings.TrimPrefix(host, "mail.")
+	host = strings.TrimPrefix(host, "www.")
+	return host
+}
+
+func cpanelLoginErrorHelp(host, user string, err error) string {
+	return fmt.Sprintf("No pude conectar al hosting: %v\n\n"+
+		"Probá con el usuario completo incluyendo el dominio (ej: usuario@%s).\n"+
+		"Algunos cPanels aceptan solo la contraseña web; otros requieren API token.", err, hostDomainFromHost(host))
+}
+
+func isPlaceholderHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	return host == "ejemplo.com" || host == "cpanel.ejemplo.com" || host == "example.com" || host == "cpanel.example.com" || strings.HasSuffix(host, ".example.com") || strings.HasSuffix(host, ".ejemplo.com")
 }
 
 // doListEmails carga credenciales y llama UAPI list_pops.
@@ -235,6 +352,44 @@ func doListEmails(credsPath string) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+func autoProvisionSMTP(cli *cpanel.Client, fallbackHost, convID string) (string, string, error) {
+	domain := fallbackHost
+	if d, err := cli.ListDomains(); err == nil && strings.TrimSpace(d.MainDomain) != "" {
+		domain = strings.TrimSpace(d.MainDomain)
+	}
+	domain = strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(domain, "cpanel."), "mail."), "www.")
+	local := "remora-cobranza"
+	password := generatePassword()
+	emailAddr, err := cli.AddPop(cpanel.AddPopParams{
+		Email: local, Domain: domain, Password: password, QuotaMB: 250,
+	})
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "exist") {
+			local = "remora-cobranza-" + fmt.Sprint(time.Now().Unix())
+			emailAddr, err = cli.AddPop(cpanel.AddPopParams{
+				Email: local, Domain: domain, Password: password, QuotaMB: 250,
+			})
+		}
+		if err != nil {
+			return "", "", err
+		}
+	}
+	smtpHost := "mail." + domain
+	bundle := map[string]string{
+		"host":       smtpHost,
+		"port":       "587",
+		"user":       emailAddr,
+		"pass":       password,
+		"from":       emailAddr,
+		"default_to": "",
+		"source":     "cpanel_auto_provision",
+	}
+	if err := vaultSet(convID, "credentials.smtp", bundle); err != nil {
+		return "", "", err
+	}
+	return emailAddr, smtpHost, nil
+}
+
 // cmdConnect: modo CLI directo, equivalente a `connect host user pass` sin
 // pasar por el estado conversacional.
 func cmdConnect(args []string) {
@@ -250,7 +405,7 @@ func cmdConnect(args []string) {
 	}
 	sp := resolveStatePath(*statePath, *convID)
 	cp := creds.Path(filepath.Dir(sp), *convID)
-	fmt.Println(doConnect(*host, *user, *pass, cp))
+	fmt.Println(doConnect(*host, *user, *pass, cp, *convID))
 }
 
 // cmdListEmails: modo CLI directo.
@@ -351,12 +506,14 @@ func fail(format string, args ...interface{}) {
 // provisionSMTPResp es el JSON que devuelven provision-smtp/import-smtp
 // para que el orquestador o el frontend interpreten el resultado.
 type provisionSMTPResp struct {
-	Success    bool   `json:"success"`
-	Email      string `json:"email,omitempty"`
-	SMTPHost   string `json:"smtp_host,omitempty"`
-	SMTPPort   string `json:"smtp_port,omitempty"`
-	Capability string `json:"capability,omitempty"`
-	Error      string `json:"error,omitempty"`
+	ArtifactType string   `json:"artifact_type,omitempty"`
+	Artifacts    []string `json:"artifacts,omitempty"`
+	Success      bool     `json:"success"`
+	Email        string   `json:"email,omitempty"`
+	SMTPHost     string   `json:"smtp_host,omitempty"`
+	SMTPPort     string   `json:"smtp_port,omitempty"`
+	Capability   string   `json:"capability,omitempty"`
+	Error        string   `json:"error,omitempty"`
 }
 
 // cmdProvisionSMTP: crea (o asume existente) un buzón en cPanel y guarda
@@ -434,7 +591,9 @@ func cmdProvisionSMTP(args []string) {
 		os.Exit(1)
 	}
 	emitJSON(provisionSMTPResp{
-		Success: true, Email: emailAddr,
+		ArtifactType: "credentials.smtp",
+		Artifacts:    []string{"credentials.smtp"},
+		Success:      true, Email: emailAddr,
 		SMTPHost: smtpHost, SMTPPort: smtpPort,
 		Capability: "credentials.smtp",
 	})
@@ -477,7 +636,9 @@ func cmdImportSMTP(args []string) {
 		os.Exit(1)
 	}
 	emitJSON(provisionSMTPResp{
-		Success: true, Email: *user, SMTPHost: *host, SMTPPort: *port,
+		ArtifactType: "credentials.smtp",
+		Artifacts:    []string{"credentials.smtp"},
+		Success:      true, Email: *user, SMTPHost: *host, SMTPPort: *port,
 		Capability: "credentials.smtp",
 	})
 }
@@ -490,9 +651,116 @@ func cmdHasSMTP(args []string) {
 	_ = fs.Parse(args)
 	available := vaultHas(*convID, "credentials.smtp")
 	emitJSON(map[string]interface{}{
-		"available":  available,
-		"capability": "credentials.smtp",
+		"artifact_type": "credentials.status.v1",
+		"available":     available,
+		"capability":    "credentials.smtp",
 	})
+}
+
+// cmdDeleteSMTP elimina credentials.smtp del vault.
+func cmdDeleteSMTP(args []string) {
+	fs := flag.NewFlagSet("delete-smtp", flag.ExitOnError)
+	convID := fs.String("conv-id", "", "id de la conversación")
+	_ = fs.Parse(args)
+	err := vaultDelete(*convID, "credentials.smtp")
+	deleted := err == nil
+	emitJSON(map[string]interface{}{
+		"artifact_type": "credentials.deleted.v1",
+		"deleted":       deleted,
+		"capability":      "credentials.smtp",
+	})
+}
+
+type cpanelDiscoveryResp struct {
+	ArtifactType string                  `json:"artifact_type"`
+	Domain       string                  `json:"domain"`
+	Found        bool                    `json:"found"`
+	Best         string                  `json:"best,omitempty"`
+	Candidates   []cpanelCandidateResult `json:"candidates"`
+}
+
+type cpanelCandidateResult struct {
+	URL         string `json:"url"`
+	Reachable   bool   `json:"reachable"`
+	StatusCode  int    `json:"status_code,omitempty"`
+	LooksCPanel bool   `json:"looks_cpanel"`
+	Error       string `json:"error,omitempty"`
+}
+
+func cmdDiscoverCPanel(args []string) {
+	fs := flag.NewFlagSet("discover-cpanel", flag.ExitOnError)
+	domain := fs.String("domain", "", "dominio principal del negocio")
+	_ = fs.Parse(args)
+	d := normalizeDomain(*domain)
+	if d == "" {
+		emitJSONErr("discover-cpanel: --domain requerido")
+		os.Exit(2)
+	}
+	candidates := []string{
+		"https://cpanel." + d + ":2083",
+		"https://" + d + ":2083",
+		"http://cpanel." + d + ":2082",
+		"http://" + d + ":2082",
+	}
+	results := make([]cpanelCandidateResult, 0, len(candidates))
+	best := ""
+	for _, u := range candidates {
+		r := probeCPanelURL(u)
+		results = append(results, r)
+		if best == "" && r.Reachable && r.LooksCPanel {
+			best = r.URL
+		}
+	}
+	if best == "" {
+		for _, r := range results {
+			if r.Reachable {
+				best = r.URL
+				break
+			}
+		}
+	}
+	emitJSON(cpanelDiscoveryResp{
+		ArtifactType: "hosting.cpanel.discovery.v1",
+		Domain:       d,
+		Found:        best != "",
+		Best:         best,
+		Candidates:   results,
+	})
+}
+
+func normalizeDomain(s string) string {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "https://")
+	s = strings.TrimPrefix(s, "http://")
+	s = strings.TrimPrefix(s, "cpanel.")
+	s = strings.TrimPrefix(s, "www.")
+	if idx := strings.Index(s, "/"); idx >= 0 {
+		s = s[:idx]
+	}
+	if idx := strings.Index(s, ":"); idx >= 0 {
+		s = s[:idx]
+	}
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+func probeCPanelURL(u string) cpanelCandidateResult {
+	client := &http.Client{
+		Timeout: 6 * time.Second,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
+	req, err := http.NewRequest(http.MethodGet, u+"/login/?login_only=1", nil)
+	if err != nil {
+		return cpanelCandidateResult{URL: u, Error: err.Error()}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return cpanelCandidateResult{URL: u, Error: err.Error()}
+	}
+	defer resp.Body.Close()
+	looks := resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden
+	return cpanelCandidateResult{URL: u, Reachable: true, StatusCode: resp.StatusCode, LooksCPanel: looks}
 }
 
 // ============================================================
@@ -501,7 +769,9 @@ func cmdHasSMTP(args []string) {
 
 func vaultBin() string {
 	if v := os.Getenv("REMORA_VAULT_BIN"); v != "" {
-		return v
+		if _, err := os.Stat(v); err == nil {
+			return v
+		}
 	}
 	return "../channel/bin/vault"
 }
@@ -533,6 +803,16 @@ func vaultHas(convID, key string) bool {
 	cmd := exec.Command(vaultBin(), "has", "--conv", conv, "--key", key)
 	cmd.Env = os.Environ()
 	return cmd.Run() == nil
+}
+
+func vaultDelete(convID, key string) error {
+	conv := strings.TrimSpace(convID)
+	if conv == "" {
+		conv = "default"
+	}
+	cmd := exec.Command(vaultBin(), "delete", "--conv", conv, "--key", key)
+	cmd.Env = os.Environ()
+	return cmd.Run()
 }
 
 // emitJSON / emitJSONErr son wrappers para mantener formato consistente

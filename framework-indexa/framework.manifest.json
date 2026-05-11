@@ -46,6 +46,11 @@
       "description": "Muestra documentos por endpoint",
       "args": ["status"],
       "params": []
+    },
+    "api-plan": {
+      "description": "Usa IA para proponer un ConnectorSpec desde documentación de una API REST",
+      "args": ["api-plan", "--docs-file", "{params.docs_file}", "--base-url", "{params.base_url}", "--out", "{params.out}"],
+      "params": ["docs_file", "base_url", "out"]
     }
   },
   "asks_human": {
@@ -57,10 +62,10 @@
     "supported": false
   },
   "model": {
-    "provider": "google",
-    "name": "text-embedding-004",
-    "env_key": "GEMINI_API_KEY",
-    "capabilities": ["text-embedding"]
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
   },
   "capabilities_semantic": {
     "tags": ["ingest", "embeddings", "rag"],

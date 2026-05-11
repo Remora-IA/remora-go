@@ -191,7 +191,7 @@ var AllChecklists = map[string]Checklist{
 			},
 			{
 				ID:          "manifest-exists",
-				Description: "Existe framework.manifest.json (contrato declarativo con el orquestador flujo_api)",
+				Description: "Existe framework.manifest.json (contrato declarativo con el orquestador api_rest)",
 				Severity:    "recommended",
 				Category:    "manifest",
 			},

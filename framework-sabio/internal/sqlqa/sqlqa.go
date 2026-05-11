@@ -7,7 +7,7 @@
 //  4. ejecuta con timeout y LIMIT defensivo
 //  5. devuelve filas + SQL para que el caller le pida al LLM phrasing natural
 //
-// Esto resuelve agregaciones, joins y filtros precisos, donde BM25 falla.
+// Esto resuelve agregaciones, joins y filtros precisos contra SQLite.
 package sqlqa
 
 import (
@@ -66,18 +66,18 @@ func (e *Engine) Schema() string { return e.schema }
 // QueryResult es lo que devolvemos al caller para que arme el prompt
 // de phrasing.
 type QueryResult struct {
-	SQL          string           // SQL ejecutada
-	Columns      []string         // nombres de columnas devueltos
-	Rows         []map[string]any // hasta MaxRows filas como JSON-friendly
-	RowCount     int              // total filas devueltas (puede ser > len(Rows) si truncamos)
-	Truncated    bool             // true si tuvimos que limitar
-	ExecMillis   int64            // tiempo de ejecución
+	SQL        string           // SQL ejecutada
+	Columns    []string         // nombres de columnas devueltos
+	Rows       []map[string]any // hasta MaxRows filas como JSON-friendly
+	RowCount   int              // total filas devueltas (puede ser > len(Rows) si truncamos)
+	Truncated  bool             // true si tuvimos que limitar
+	ExecMillis int64            // tiempo de ejecución
 }
 
 // Defaults conservadores para evitar OOMs en el contenedor.
 const (
-	MaxRows       = 200
-	QueryTimeout  = 10 * time.Second
+	MaxRows      = 200
+	QueryTimeout = 10 * time.Second
 )
 
 // Run ejecuta la SQL provista (después de validarla) y retorna las filas.
@@ -173,26 +173,31 @@ func SanitizeSelect(rawSQL string) (string, error) {
 }
 
 // buildSchema lee la DB e imprime un resumen compacto que se puede
-// inyectar al prompt del LLM. Incluye: tablas, columnas, conteo, y
-// 1 fila de ejemplo por tabla.
+// inyectar al prompt del LLM. Incluye: tablas/vistas, columnas, conteo, y
+// 1 fila de ejemplo por tabla/vista.
 func (e *Engine) buildSchema() (string, error) {
-	rows, err := e.db.Query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+	rows, err := e.db.Query("SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') ORDER BY type, name")
 	if err != nil {
 		return "", err
 	}
-	tables := []string{}
+	type relation struct {
+		name string
+		kind string
+	}
+	relations := []relation{}
 	for rows.Next() {
-		var n string
-		if err := rows.Scan(&n); err != nil {
+		var n, kind string
+		if err := rows.Scan(&n, &kind); err != nil {
 			rows.Close()
 			return "", err
 		}
-		tables = append(tables, n)
+		relations = append(relations, relation{name: n, kind: kind})
 	}
 	rows.Close()
 
 	var sb strings.Builder
-	for _, t := range tables {
+	for _, rel := range relations {
+		t := rel.name
 		var n int
 		_ = e.db.QueryRow(fmt.Sprintf(`SELECT COUNT(*) FROM "%s"`, t)).Scan(&n)
 
@@ -213,7 +218,7 @@ func (e *Engine) buildSchema() (string, error) {
 		}
 		colRows.Close()
 
-		fmt.Fprintf(&sb, `TABLE "%s" (%d rows): %s`, t, n, strings.Join(cols, ", "))
+		fmt.Fprintf(&sb, `%s "%s" (%d rows): %s`, strings.ToUpper(rel.kind), t, n, strings.Join(cols, ", "))
 		sb.WriteString("\n")
 
 		// Muestra de una fila para que el LLM vea formatos reales.

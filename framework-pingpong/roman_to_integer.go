@@ -1,8 +1,6 @@
-package main 
+package main
 
-func main (){
-
-	   romano := "I"       
+func romanToIntegerDemo() {
+	romano := "I"
 	_ = romano
-
 }

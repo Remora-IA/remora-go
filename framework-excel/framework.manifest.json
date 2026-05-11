@@ -1,0 +1,36 @@
+{
+  "name": "excel",
+  "version": "0.1.0",
+  "description": "Conector de archivos Excel. Lee, escribe y manipula hojas de cálculo (.xlsx). Expone operaciones CRUD sobre celdas, filas y hojas.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworkexcel", "./cmd/framework-excel"]
+  },
+  "binary": {
+    "command": "./frameworkexcel",
+    "args_prefix": []
+  },
+  "cwd": "framework-excel",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "commands": {},
+  "user_input": {
+    "supported": false
+  },
+  "capabilities_semantic": {
+    "tags": ["excel", "spreadsheet", "data", "csv"],
+    "intent_examples": [
+      "leer archivo excel",
+      "obtener datos de la hoja",
+      "escribir en una celda"
+    ],
+    "produces": ["spreadsheet_data"],
+    "requires": ["file:xlsx"]
+  }
+}

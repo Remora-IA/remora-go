@@ -1,4 +1,4 @@
-package framework-gmail
+package frameworkgmail
 
 import (
 	"time"
@@ -31,7 +31,6 @@ func (c *Client) Flush() {
 	}
 }
 
-
 // Process Procesa datos según el flujo del framework
 func (c *Client) Process() (interface{}, error) {
 	childCtx := c.ctx.Child("Process")
@@ -41,7 +40,6 @@ func (c *Client) Process() (interface{}, error) {
 	return map[string]interface{}{"status": "ok", "method": "Process"}, nil
 }
 
-
 // Status Muestra el estado actual del framework
 func (c *Client) Status() (interface{}, error) {
 	childCtx := c.ctx.Child("Status")
@@ -50,7 +48,6 @@ func (c *Client) Status() (interface{}, error) {
 	childCtx.Decision("ejecutando-Status", "Muestra el estado actual del framework")
 	return map[string]interface{}{"status": "ok", "method": "Status"}, nil
 }
-
 
 // Validate Valida datos de entrada
 func (c *Client) Validate() (interface{}, error) {

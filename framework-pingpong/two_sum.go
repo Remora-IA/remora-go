@@ -1,19 +1,18 @@
 package main
 
-
-func main(){
-
-	nums := []int{1,2,3}
+func twoSumDemo() {
+	nums := []int{1, 2, 3}
 	target := 3
+	_ = twoSum(nums, target)
 }
 
-
-func twoSum(nums []int, target int){
-
-
-	for i := 0; i < len(nums); i++{
-		suma := suma + 1
+func twoSum(nums []int, target int) []int {
+	seen := map[int]int{}
+	for i, n := range nums {
+		if j, ok := seen[target-n]; ok {
+			return []int{j, i}
+		}
+		seen[n] = i
 	}
-
-	return []int{i, suma}
+	return nil
 }

@@ -44,12 +44,21 @@ func groqStreamWithTools(
 	toolChoice string,
 	onDelta func(StreamDelta),
 ) (LLMResponse, error) {
-	apiKey := firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY")
-	if apiKey == "" {
-		return LLMResponse{}, fmt.Errorf("falta GROQ_API_KEY o REMORA_GROQ_API_KEY")
+	provider := resolveProvider()
+	var apiKey, url, model string
+	switch provider {
+	case "openrouter":
+		apiKey = firstEnv("OPENROUTER_API_KEY")
+		url = getenvDefault("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1/chat/completions")
+		model = getenvDefault("ARQUITECTO_LLM_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+	default:
+		apiKey = firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY")
+		url = getenvDefault("GROQ_BASE_URL", "https://api.groq.com/openai/v1/chat/completions")
+		model = getenvDefault("ARQUITECTO_LLM_MODEL", "llama-3.3-70b-versatile")
 	}
-	model := getenvDefault("ARQUITECTO_LLM_MODEL", "llama-3.3-70b-versatile")
-	url := getenvDefault("GROQ_BASE_URL", "https://api.groq.com/openai/v1/chat/completions")
+	if apiKey == "" {
+		return LLMResponse{}, fmt.Errorf("falta API key para provider %s", provider)
+	}
 
 	msgs := []groqMsg{}
 	if system != "" {

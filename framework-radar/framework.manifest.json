@@ -1,7 +1,7 @@
 {
   "name": "radar",
   "version": "0.1.0",
-  "description": "Radar operativo data-aware. Calcula prioridades determinísticas desde datos declarados del negocio sin lógica por cliente.",
+  "description": "Radar analítico data-aware. Calcula scoring, prioridad y esquema de análisis desde datos declarados del negocio sin ejecutar ni sugerir acciones operativas.",
   "build": {
     "command": "go",
     "args": [
@@ -20,13 +20,37 @@
   "requires_infra": [],
   "commands": {
     "prioritize": {
-      "description": "Calcula entidades de cobranza priorizadas desde SQLite y semantic pack del negocio.",
+      "description": "Calcula entidades de cobranza priorizadas desde dataset.raw.v1 mediado por Sabio y semantic pack del negocio.",
       "args": [
         "prioritize",
         "--business-id",
         "{params.business_id}",
-        "--db",
-        "{params.db}",
+        "--semantic-pack",
+        "{params.semantic_pack}",
+        "--dataset-artifact",
+        "{params.dataset_artifact}",
+        "--context-b64",
+        "{params.context_b64}"
+      ],
+      "params": [
+        "business_id",
+        "semantic_pack",
+        "dataset_artifact",
+        "context_b64"
+      ],
+      "defaults": {
+        "business_id": "",
+        "semantic_pack": "",
+        "dataset_artifact": "",
+        "context_b64": ""
+      }
+    },
+    "configure-analysis": {
+      "description": "Diseña y persiste el esquema/configuración de análisis desde el semantic pack del negocio.",
+      "args": [
+        "configure-analysis",
+        "--business-id",
+        "{params.business_id}",
         "--semantic-pack",
         "{params.semantic_pack}",
         "--context-b64",
@@ -34,13 +58,11 @@
       ],
       "params": [
         "business_id",
-        "db",
         "semantic_pack",
         "context_b64"
       ],
       "defaults": {
         "business_id": "",
-        "db": "",
         "semantic_pack": "",
         "context_b64": ""
       }
@@ -62,40 +84,86 @@
     "produces": [
       "collection.priority_list.v1",
       "collection.priority_item.v1",
-      "entity.ref.v1"
+      "entity.ref.v1",
+      "risk.score.v1",
+      "strategy.recommendation.v1",
+      "data.gaps.v1",
+      "data.request.v1",
+      "analysis.schema.v1",
+      "analysis.plan.v1",
+      "analysis.proposal.v1"
     ],
     "requires": [
-      "data.sqlite_db.v1",
+      "dataset.raw.v1",
       "business.semantic_pack.v1"
     ]
   },
   "capabilities": [
     {
+      "id": "analysis.configure",
+      "description": "Formula una forma configurable de analizar los registros usando configuración semántica del negocio, sin acceso directo a SQLite.",
+      "command": "configure-analysis",
+      "inputs": [
+        "business.context.v1",
+        "business.semantic_pack.v1"
+      ],
+      "outputs": [
+        "analysis.schema.v1",
+        "analysis.plan.v1",
+        "analysis.proposal.v1"
+      ],
+      "requires": [
+        "business.semantic_pack.v1"
+      ],
+      "produces": [
+        "analysis.schema.v1",
+        "analysis.plan.v1",
+        "analysis.proposal.v1"
+      ],
+      "execution": "analysis_schema_generation_from_semantic_pack",
+      "policies": [
+        "trace_required",
+        "human_acceptance_before_prioritization"
+      ]
+    },
+    {
       "id": "collection.priority_list",
-      "description": "Calcula entidades de cobranza priorizadas desde datos del negocio.",
+      "description": "Calcula entidades de cobranza priorizadas desde dataset.raw.v1 mediado por Sabio.",
       "command": "prioritize",
       "inputs": [
         "business.context.v1",
-        "data.sqlite_db.v1",
+        "dataset.raw.v1",
         "business.semantic_pack.v1"
       ],
       "outputs": [
         "collection.priority_list.v1",
         "collection.priority_item.v1",
-        "entity.ref.v1"
+        "entity.ref.v1",
+        "risk.score.v1",
+        "strategy.recommendation.v1",
+        "data.gaps.v1",
+        "data.request.v1",
+        "analysis.schema.v1",
+        "analysis.plan.v1"
       ],
       "requires": [
-        "data.sqlite_db.v1",
+        "dataset.raw.v1",
         "business.semantic_pack.v1"
       ],
       "produces": [
         "collection.priority_list.v1",
         "collection.priority_item.v1",
-        "entity.ref.v1"
+        "entity.ref.v1",
+        "risk.score.v1",
+        "strategy.recommendation.v1",
+        "data.gaps.v1",
+        "data.request.v1",
+        "analysis.schema.v1",
+        "analysis.plan.v1"
       ],
       "execution": "deterministic_business_priority_scoring",
       "policies": [
-        "readonly_sql",
+        "readonly_dataset",
         "trace_required",
         "business_context_required",
         "no_silent_fallback"

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es" data-theme="dark">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -616,6 +616,94 @@
     .thought-bubble.user .thought-header { color: var(--text); }
     .thought-bubble.user .thought-header .dot { background: var(--text); }
 
+    /* ─── REASONING PANEL (esquina superior izquierda) ─── */
+    .reasoning-panel {
+      position: fixed;
+      top: 70px;
+      left: 16px;
+      width: 320px;
+      max-height: calc(100vh - 90px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      opacity: 0;
+      transform: translateX(-20px) scale(0.95);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: auto;
+      z-index: 90;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+    }
+    .reasoning-panel.visible {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+    .reasoning-panel-header {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .reasoning-panel-header .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+    .reasoning-panel-body {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    .reasoning-panel-body::-webkit-scrollbar { width: 4px; }
+    .reasoning-panel-body::-webkit-scrollbar-track { background: transparent; }
+    .reasoning-panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .reasoning-panel-body p { margin: 0 0 8px 0; }
+    .reasoning-panel-body p:last-child { margin-bottom: 0; }
+    .reasoning-panel-body em { color: var(--text-dim); font-style: italic; }
+    .reasoning-panel-body strong { color: var(--text); font-weight: 600; }
+    .reasoning-panel-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0;
+      transition: all 0.15s;
+    }
+    .reasoning-panel-close:hover { background: var(--surface2); color: var(--text); }
+
     /* Input inside thought bubble */
     .thought-input-wrapper {
       margin-top: 16px;
@@ -877,7 +965,8 @@
       color: white;
       border-color: var(--accent);
     }
-    .send-email-action-btn {
+    .send-email-action-btn,
+    .evidence-action-btn {
       display: flex;
       align-items: center;
       justify-content: center;
@@ -898,6 +987,134 @@
     .send-email-action-btn:disabled { background: #6b7280; cursor: default; opacity: 0.7; }
     .send-email-action-btn.sent { background: #16a34a; }
     .send-email-action-btn.error { background: #dc2626; }
+    .evidence-action-btn {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .evidence-action-btn:hover {
+      background: var(--accent);
+      color: white;
+      border-color: var(--accent);
+    }
+
+    .evidence-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.62);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1200;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease;
+    }
+    .evidence-modal.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .evidence-modal-content {
+      width: min(880px, 92vw);
+      max-height: 82vh;
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+    }
+    .evidence-modal-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .evidence-modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .evidence-modal-subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .evidence-modal-close {
+      border: 0;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    .evidence-modal-body {
+      padding: 18px 20px 20px;
+      overflow: auto;
+    }
+    .evidence-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .evidence-meta-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--surface2);
+    }
+    .evidence-meta-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .evidence-meta-value {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 600;
+      word-break: break-word;
+    }
+    .evidence-sql {
+      margin: 12px 0 16px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #0b0b0c;
+      color: #d7e3ff;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+    .evidence-table-wrap {
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .evidence-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .evidence-table th,
+    .evidence-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 9px 11px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .evidence-table th {
+      background: var(--surface2);
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .evidence-table tr:last-child td { border-bottom: 0; }
 
     /* ─── Rules Modal ─── */
     .rules-modal {
@@ -1643,6 +1860,29 @@
 
 <div class="glow"></div>
 
+<!-- Reasoning Panel (esquina superior izquierda) -->
+<div class="reasoning-panel" id="reasoning-panel">
+  <button class="reasoning-panel-close" id="reasoning-panel-close" title="Cerrar">&times;</button>
+  <div class="reasoning-panel-header">
+    <span class="dot"></span>
+    <span class="header-text">Pensamiento</span>
+  </div>
+  <div class="reasoning-panel-body" id="reasoning-panel-body"></div>
+</div>
+
+<div class="evidence-modal" id="evidence-modal">
+  <div class="evidence-modal-content">
+    <div class="evidence-modal-header">
+      <div>
+        <div class="evidence-modal-title">Evidencia</div>
+        <div class="evidence-modal-subtitle" id="evidence-modal-subtitle">Consulta y filas encontradas</div>
+      </div>
+      <button class="evidence-modal-close" id="evidence-modal-close" title="Cerrar">&times;</button>
+    </div>
+    <div class="evidence-modal-body" id="evidence-modal-body"></div>
+  </div>
+</div>
+
 <div class="shell">
 
   <!-- Header -->
@@ -2340,6 +2580,13 @@ const thoughtBubble = document.getElementById('thought-bubble');
 const thoughtBody = document.getElementById('thought-body');
 const thoughtInputWrapper = document.getElementById('thought-input-wrapper');
 const thoughtInput = document.getElementById('thought-input');
+const reasoningPanel = document.getElementById('reasoning-panel');
+const reasoningPanelBody = document.getElementById('reasoning-panel-body');
+const reasoningPanelClose = document.getElementById('reasoning-panel-close');
+const evidenceModal = document.getElementById('evidence-modal');
+const evidenceModalBody = document.getElementById('evidence-modal-body');
+const evidenceModalSubtitle = document.getElementById('evidence-modal-subtitle');
+const evidenceModalClose = document.getElementById('evidence-modal-close');
 const thoughtSendBtn = document.getElementById('thought-send-btn');
 const initialInputArea = document.getElementById('initial-input-area');
 const initialInput = document.getElementById('initial-input');
@@ -2504,6 +2751,14 @@ function renderContent(content) {
   return `<p>${esc.replace(/\n/g, '<br>')}</p>`;
 }
 
+function cleanVisibleContent(content) {
+  if (content == null) return '';
+  let text = String(content);
+  text = text.replace(/(?:\n|\r|^)\s*Evidencia\s*:?\s*```(?:json)?\s*\{[\s\S]*?\}\s*```/gi, '');
+  text = text.replace(/(?:\n|\r|^)\s*Evidencia\s*:?\s*\{[\s\S]*?"source"\s*:\s*"sqlite"[\s\S]*?\}\s*/gi, '');
+  return text.trim();
+}
+
 function showThoughtBubble(type, header, content, hasInput = false, position = 'pos-below') {
   const dot = thoughtBubble.querySelector('.dot');
   const headerText = thoughtBubble.querySelector('.header-text');
@@ -2511,7 +2766,7 @@ function showThoughtBubble(type, header, content, hasInput = false, position = '
   thoughtBubble.className = `thought-bubble ${type} ${position}`;
   dot.style.background = 'var(--text)';
   headerText.textContent = header;
-  thoughtBody.innerHTML = renderContent(content);
+  thoughtBody.innerHTML = renderContent(cleanVisibleContent(content));
   
   thoughtInputWrapper.style.display = hasInput ? 'flex' : 'none';
   thoughtInput.value = '';
@@ -2617,6 +2872,203 @@ function positionBubbleNearNode(position) {
 
 function hideThoughtBubble() {
   thoughtBubble.classList.remove('visible');
+}
+
+function showReasoningPanel(reasoning, framework) {
+  if (!reasoning || !reasoning.trim()) {
+    hideReasoningPanel();
+    return;
+  }
+  const headerText = reasoningPanel.querySelector('.header-text');
+  headerText.textContent = (framework ? framework + ' — ' : '') + 'Pensamiento';
+  reasoningPanelBody.innerHTML = renderContent(reasoning);
+  reasoningPanel.classList.add('visible');
+}
+
+function reasoningText(message) {
+  if (!message) return '';
+  const parts = [];
+  if (message.reasoning) parts.push(message.reasoning);
+  if (message.events && message.events.length) {
+    parts.push(message.events.map(ev => {
+      const bits = [ev.type];
+      if (ev.provider || ev.model) bits.push([ev.provider, ev.model].filter(Boolean).join(' / '));
+      if (ev.message) bits.push(ev.message);
+      return `- ${bits.filter(Boolean).join(' — ')}`;
+    }).join('\n'));
+  }
+  return parts.join('\n\n');
+}
+
+function hideReasoningPanel() {
+  reasoningPanel.classList.remove('visible');
+}
+
+if (reasoningPanelClose) {
+  reasoningPanelClose.addEventListener('click', hideReasoningPanel);
+}
+
+function extractEvidence(message) {
+  const content = message?.content || '';
+  const eventText = (message?.events || [])
+    .filter(ev => ev.type === 'tool_execution_end' && ev.message)
+    .map(ev => ev.message)
+    .join('\n\n');
+  const source = `${content}\n\n${eventText}`;
+  const trace = extractEvidenceTrace(source);
+  if (!trace) return null;
+  return {
+    trace,
+    rows: extractEvidenceRows(content, trace),
+  };
+}
+
+function extractEvidenceTrace(text) {
+  const blocks = [];
+  const fenced = text.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi);
+  for (const match of fenced) blocks.push(match[1]);
+  blocks.push(...extractJsonObjects(text).filter(obj => obj.includes('"source"') || obj.includes('"sql"') || obj.includes('"row_count"')));
+  for (const block of blocks) {
+    try {
+      const parsed = JSON.parse(block.trim());
+      if (parsed && (parsed.sql || parsed.tables || parsed.row_count !== undefined)) return parsed;
+    } catch (_) {}
+  }
+  return null;
+}
+
+function extractJsonObjects(text) {
+  const objects = [];
+  let start = -1;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escape = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0 && start >= 0) {
+        objects.push(text.slice(start, i + 1));
+        start = -1;
+      }
+    }
+  }
+  return objects;
+}
+
+function extractEvidenceRows(content, trace) {
+  const rows = [];
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const m = line.match(/^\s*[-*]\s+(.+?)\s*$/);
+    if (m) rows.push({ value: m[1].trim() });
+  }
+  const column = inferEvidenceColumn(trace);
+  return rows.map((r, i) => ({ '#': i + 1, [column]: r.value }));
+}
+
+function inferEvidenceColumn(trace) {
+  const sql = trace?.sql || '';
+  const alias = sql.match(/\bas\s+["`]?([\wáéíóúñ_]+)["`]?/i);
+  if (alias) return alias[1].replace(/_/g, ' ');
+  const table = (trace?.tables && trace.tables[0]) || 'resultado';
+  if (table === 'law_firms') return 'estudio jurídico';
+  return 'valor';
+}
+
+function maybeRenderEvidenceBtn(message) {
+  const existing = thoughtBubble.querySelector('.evidence-action-btn');
+  if (existing) existing.remove();
+  const evidence = extractEvidence(message);
+  if (!evidence) return;
+  const btn = document.createElement('button');
+  btn.className = 'evidence-action-btn';
+  btn.textContent = 'Ver evidencia';
+  btn.addEventListener('click', () => showEvidenceModal(evidence));
+  thoughtBubble.appendChild(btn);
+}
+
+function showEvidenceModal(evidence) {
+  const trace = evidence.trace || {};
+  const table = (trace.tables && trace.tables.join(', ')) || '—';
+  const rowCount = trace.row_count ?? evidence.rows.length;
+  evidenceModalSubtitle.textContent = `${table} · ${rowCount} registro${rowCount === 1 ? '' : 's'}`;
+  evidenceModalBody.innerHTML = `
+    <div class="evidence-meta">
+      <div class="evidence-meta-card">
+        <div class="evidence-meta-label">Fuente</div>
+        <div class="evidence-meta-value">${escapeHtml(trace.source || 'sqlite')}</div>
+      </div>
+      <div class="evidence-meta-card">
+        <div class="evidence-meta-label">Tabla</div>
+        <div class="evidence-meta-value">${escapeHtml(table)}</div>
+      </div>
+      <div class="evidence-meta-card">
+        <div class="evidence-meta-label">Registros</div>
+        <div class="evidence-meta-value">${escapeHtml(String(rowCount))}</div>
+      </div>
+      <div class="evidence-meta-card">
+        <div class="evidence-meta-label">Capability</div>
+        <div class="evidence-meta-value">${escapeHtml(trace.capability || '—')}</div>
+      </div>
+    </div>
+    ${trace.sql ? `<pre class="evidence-sql">${escapeHtml(trace.sql)}</pre>` : ''}
+    ${renderEvidenceTable(evidence.rows)}
+  `;
+  evidenceModal.classList.add('visible');
+}
+
+function renderEvidenceTable(rows) {
+  if (!rows || rows.length === 0) {
+    return '<div class="evidence-table-wrap"><table class="evidence-table"><tbody><tr><td>No se pudieron extraer filas de la respuesta, pero la consulta y el conteo están arriba.</td></tr></tbody></table></div>';
+  }
+  const cols = Object.keys(rows[0]);
+  return `
+    <div class="evidence-table-wrap">
+      <table class="evidence-table">
+        <thead><tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(row => `<tr>${cols.map(c => `<td>${escapeHtml(String(row[c] ?? ''))}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function hideEvidenceModal() {
+  evidenceModal.classList.remove('visible');
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+if (evidenceModalClose) {
+  evidenceModalClose.addEventListener('click', hideEvidenceModal);
+}
+if (evidenceModal) {
+  evidenceModal.addEventListener('click', e => {
+    if (e.target === evidenceModal) hideEvidenceModal();
+  });
 }
 
 // ============================================
@@ -2879,6 +3331,7 @@ async function createConversationAndStart(frameworks, initialMessage) {
           const nodeType = frameworkType(q.framework);
           setNodeActive(q.framework, true);
           setNodeSpeaking(q.framework, true);
+          showReasoningPanel(reasoningText(q), q.framework);
           
           setTimeout(() => {
             setNodeSpeaking(q.framework, false);
@@ -2891,6 +3344,7 @@ async function createConversationAndStart(frameworks, initialMessage) {
               'pos-below'
             );
             renderSuggestedChips(q.framework, q.suggested_chips);
+            maybeRenderEvidenceBtn(q);
           }, 500);
         } else if (initialMessage) {
           showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
@@ -2943,6 +3397,7 @@ async function createConversationAndStart(frameworks, initialMessage) {
         const nodeType = frameworkType(q.framework);
         setNodeActive(q.framework, true);
         setNodeSpeaking(q.framework, true);
+        showReasoningPanel(reasoningText(q), q.framework);
 
         setTimeout(() => {
           setNodeSpeaking(q.framework, false);
@@ -2955,6 +3410,7 @@ async function createConversationAndStart(frameworks, initialMessage) {
             'pos-below'
           );
           renderSuggestedChips(q.framework, q.suggested_chips);
+          maybeRenderEvidenceBtn(q);
         }, 500);
       } else if (initialMessage) {
         showThoughtBubble('user', 'Tú', initialMessage, false, 'pos-below');
@@ -2972,8 +3428,9 @@ async function sendInitialMessage(text) {
   if (isWaitingForResponse) return;
   
   isWaitingForResponse = true;
+  hideReasoningPanel();
   deactivateAllNodes();
-  
+
   try {
     let res;
     if (activeNodes.length === 1) {
@@ -3003,7 +3460,8 @@ async function sendInitialMessage(text) {
         setNodeSpeaking(msg.framework, true);
         
         hideThoughtBubble();
-        
+        showReasoningPanel(reasoningText(msg), msg.framework);
+
         setTimeout(() => {
           setNodeSpeaking(msg.framework, false);
           showThoughtBubble(
@@ -3015,6 +3473,7 @@ async function sendInitialMessage(text) {
           );
           renderSuggestedChips(msg.framework);
           maybeRenderSendEmailBtn(msg.framework, msg.content);
+          maybeRenderEvidenceBtn(msg);
         }, 300);
       } else if (json.data.idle) {
         const node = activeNodes[0] || {};
@@ -3041,8 +3500,9 @@ async function sendResponseToFramework(text) {
   
   isWaitingForResponse = true;
   hideThoughtBubble();
+  hideReasoningPanel();
   deactivateAllNodes();
-  
+
   // Show user's response in bubble
   showThoughtBubble('user', 'Tú', text, false, 'pos-below');
   
@@ -3075,6 +3535,8 @@ async function sendResponseToFramework(text) {
         setNodeActive(msg.framework, true);
         setNodeSpeaking(msg.framework, true);
         
+        showReasoningPanel(reasoningText(msg), msg.framework);
+
         setTimeout(() => {
           setNodeSpeaking(msg.framework, false);
           showThoughtBubble(
@@ -3086,6 +3548,7 @@ async function sendResponseToFramework(text) {
           );
           renderSuggestedChips(msg.framework);
           maybeRenderSendEmailBtn(msg.framework, msg.content);
+          maybeRenderEvidenceBtn(msg);
         }, 500);
       } else if (json.data.idle) {
         const node = activeNodes[0] || {};

@@ -900,14 +900,14 @@ func checkItem(item types.ChecklistItem, frameworkPath string) ItemResult {
 		}
 
 	// =========================================================================
-	// MANIFEST (contrato declarativo con flujo_api)
+	// MANIFEST (contrato declarativo con api_rest)
 	// =========================================================================
 	case "manifest-exists":
 		path := filepath.Join(frameworkPath, "framework.manifest.json")
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			result.Status = "fail"
 			result.Reason = "No existe framework.manifest.json"
-			result.Suggestion = "Crear framework.manifest.json siguiendo el schema de channel/manifest. Sin él, el orquestador flujo_api no puede integrar este framework automáticamente."
+			result.Suggestion = "Crear framework.manifest.json siguiendo el schema de channel/manifest. Sin él, el orquestador api_rest no puede integrar este framework automáticamente."
 		}
 
 	case "manifest-valid":

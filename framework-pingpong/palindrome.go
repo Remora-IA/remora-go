@@ -1,4 +1,4 @@
-func main (){
+package main
 
-	
+func palindromeDemo() {
 }

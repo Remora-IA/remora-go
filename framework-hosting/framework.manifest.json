@@ -4,7 +4,13 @@
   "description": "Conecta al panel de hosting del usuario (cPanel UAPI) y opera sobre email/DNS/archivos vía HTTPS. POC: connect + list-emails.",
   "build": {
     "command": "go",
-    "args": ["build", "-buildvcs=false", "-o", "frameworkhosting", "./cmd/frameworkhosting"]
+    "args": [
+      "build",
+      "-buildvcs=false",
+      "-o",
+      "frameworkhosting",
+      "./cmd/frameworkhosting"
+    ]
   },
   "binary": {
     "command": "./frameworkhosting",
@@ -14,77 +20,376 @@
   "execution_mode": "async_trigger",
   "requires_infra": [],
   "model": {
-    "provider": "none",
-    "capabilities": []
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": [
+      "text",
+      "conversation"
+    ]
   },
   "commands": {
     "next-question": {
       "description": "Devuelve el saludo inicial o la respuesta pendiente",
-      "args": ["next-question", "--conv-id", "{params.conv_id}"],
-      "params": ["conv_id"],
-      "defaults": {"conv_id": ""}
+      "args": [
+        "next-question",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
     },
     "ingest-answer": {
       "description": "Procesa input del usuario: 'conectar host user pass' | 'listar correos'",
-      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--conv-id", "{params.conv_id}"],
-      "params": ["question_id", "answer", "conv_id"],
-      "defaults": {"conv_id": ""}
+      "args": [
+        "ingest-answer",
+        "--question-id",
+        "{params.question_id}",
+        "--answer",
+        "{params.answer}",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "question_id",
+        "answer",
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
     },
     "connect": {
       "description": "Verifica login al panel y guarda credenciales encriptadas",
-      "args": ["connect", "--host", "{params.host}", "--user", "{params.user}", "--pass", "{params.pass}", "--conv-id", "{params.conv_id}"],
-      "params": ["host", "user", "pass", "conv_id"],
-      "defaults": {"conv_id": ""}
+      "args": [
+        "connect",
+        "--host",
+        "{params.host}",
+        "--user",
+        "{params.user}",
+        "--pass",
+        "{params.pass}",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "host",
+        "user",
+        "pass",
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
     },
     "list-emails": {
       "description": "Lista cuentas de email del dominio (Email/list_pops)",
-      "args": ["list-emails", "--conv-id", "{params.conv_id}"],
-      "params": ["conv_id"],
-      "defaults": {"conv_id": ""}
+      "args": [
+        "list-emails",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
     },
     "provision-smtp": {
       "description": "Crea un buzón email vía cPanel UAPI y persiste credenciales.smtp en el vault compartido",
-      "args": ["provision-smtp", "--mailbox", "{params.mailbox}", "--domain", "{params.domain}", "--password", "{params.password}", "--default-to", "{params.default_to}", "--conv-id", "{params.conv_id}"],
-      "params": ["mailbox", "domain", "password", "default_to", "conv_id"],
-      "defaults": {"password": "", "default_to": "", "conv_id": ""}
+      "args": [
+        "provision-smtp",
+        "--mailbox",
+        "{params.mailbox}",
+        "--domain",
+        "{params.domain}",
+        "--password",
+        "{params.password}",
+        "--default-to",
+        "{params.default_to}",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "mailbox",
+        "domain",
+        "password",
+        "default_to",
+        "conv_id"
+      ],
+      "defaults": {
+        "password": "",
+        "default_to": "",
+        "conv_id": ""
+      }
     },
     "import-smtp": {
       "description": "Importa credenciales SMTP existentes (sin tocar cPanel) y las guarda en el vault como credentials.smtp",
-      "args": ["import-smtp", "--host", "{params.host}", "--port", "{params.port}", "--user", "{params.user}", "--pass", "{params.pass}", "--from", "{params.from}", "--default-to", "{params.default_to}", "--conv-id", "{params.conv_id}"],
-      "params": ["host", "port", "user", "pass", "from", "default_to", "conv_id"],
-      "defaults": {"port": "587", "from": "", "default_to": "", "conv_id": ""}
+      "args": [
+        "import-smtp",
+        "--host",
+        "{params.host}",
+        "--port",
+        "{params.port}",
+        "--user",
+        "{params.user}",
+        "--pass",
+        "{params.pass}",
+        "--from",
+        "{params.from}",
+        "--default-to",
+        "{params.default_to}",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "host",
+        "port",
+        "user",
+        "pass",
+        "from",
+        "default_to",
+        "conv_id"
+      ],
+      "defaults": {
+        "port": "587",
+        "from": "",
+        "default_to": "",
+        "conv_id": ""
+      }
     },
     "has-smtp": {
       "description": "Devuelve {available: bool, capability: 'credentials.smtp'}",
-      "args": ["has-smtp", "--conv-id", "{params.conv_id}"],
-      "params": ["conv_id"],
-      "defaults": {"conv_id": ""}
+      "args": [
+        "has-smtp",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
+    },
+    "discover-cpanel": {
+      "description": "Dado un dominio, prueba endpoints estándar de cPanel y devuelve el mejor candidato",
+      "args": [
+        "discover-cpanel",
+        "--domain",
+        "{params.domain}"
+      ],
+      "params": [
+        "domain"
+      ],
+      "defaults": {}
+    },
+    "delete-smtp": {
+      "description": "Elimina credentials.smtp del vault para la conversación/perfil",
+      "args": [
+        "delete-smtp",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
     },
     "genkey": {
       "description": "Genera una clave AES-256 para HOSTING_VAULT_KEY",
-      "args": ["genkey"],
+      "args": [
+        "genkey"
+      ],
       "params": []
     }
   },
   "user_input": {
     "supported": true,
     "ask_via": "",
-    "modes": ["short_answer"],
+    "modes": [
+      "short_answer"
+    ],
     "next_question_cmd": "next-question",
     "ingest_answer_cmd": "ingest-answer"
   },
   "state": {
     "dir": "temp",
-    "files": ["state.json", "creds_*.enc"]
+    "files": [
+      "state.json",
+      "creds_*.enc"
+    ]
   },
   "capabilities_semantic": {
-    "tags": ["hosting", "cpanel", "email", "dns"],
+    "tags": [
+      "hosting",
+      "cpanel",
+      "email",
+      "dns"
+    ],
     "intent_examples": [
       "conectar a mi hosting",
       "listar las cuentas de correo",
       "qué emails tengo en mi dominio"
     ],
-    "produces": ["email_account_list", "credentials.smtp", "credentials.cpanel"],
-    "requires": ["credentials.cpanel"]
-  }
+    "produces": [
+      "email_account_list",
+      "credentials.smtp",
+      "credentials.cpanel"
+    ],
+    "requires": [
+      "credentials.cpanel"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "credentials.cpanel.connect",
+      "description": "Verifica acceso a cPanel y guarda credenciales cPanel cifradas para la conversación/perfil.",
+      "command": "connect",
+      "inputs": [
+        "credentials.cpanel.input.v1",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "credentials.cpanel"
+      ],
+      "requires": [
+        "session.context.v1"
+      ],
+      "produces": [
+        "credentials.cpanel"
+      ],
+      "execution": "vault_write_after_remote_login_check",
+      "policies": [
+        "secret_write",
+        "approval_required",
+        "audit_log_required"
+      ]
+    },
+    {
+      "id": "credentials.smtp.provision",
+      "description": "Crea o prepara una casilla SMTP en hosting/cPanel y persiste credentials.smtp en el vault.",
+      "command": "provision-smtp",
+      "inputs": [
+        "credentials.cpanel",
+        "smtp.provision_request.v1",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "credentials.smtp"
+      ],
+      "requires": [
+        "credentials.cpanel"
+      ],
+      "produces": [
+        "credentials.smtp"
+      ],
+      "execution": "cpanel_uapi_mailbox_provision_and_vault_write",
+      "policies": [
+        "external_side_effect",
+        "secret_write",
+        "approval_required",
+        "audit_log_required"
+      ]
+    },
+    {
+      "id": "credentials.smtp.import",
+      "description": "Importa credenciales SMTP existentes al vault sin crear recursos en el hosting.",
+      "command": "import-smtp",
+      "inputs": [
+        "credentials.smtp.input.v1",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "credentials.smtp"
+      ],
+      "requires": [
+        "session.context.v1"
+      ],
+      "produces": [
+        "credentials.smtp"
+      ],
+      "execution": "vault_secret_import",
+      "policies": [
+        "secret_write",
+        "approval_required",
+        "audit_log_required"
+      ]
+    },
+    {
+      "id": "credentials.smtp.check",
+      "description": "Verifica si credentials.smtp existe en el vault para la conversación/perfil.",
+      "command": "has-smtp",
+      "inputs": [
+        "session.context.v1"
+      ],
+      "outputs": [
+        "credentials.status.v1"
+      ],
+      "requires": [
+        "session.context.v1"
+      ],
+      "produces": [
+        "credentials.status.v1"
+      ],
+      "execution": "vault_capability_check",
+      "policies": [
+        "safe_for_runtime",
+        "no_external_side_effect"
+      ]
+    },
+    {
+      "id": "credentials.smtp.delete",
+      "description": "Elimina credentials.smtp del vault para la conversación/perfil.",
+      "command": "delete-smtp",
+      "inputs": [
+        "session.context.v1"
+      ],
+      "outputs": [
+        "credentials.deleted.v1"
+      ],
+      "requires": [
+        "session.context.v1"
+      ],
+      "produces": [
+        "credentials.deleted.v1"
+      ],
+      "execution": "vault_capability_delete",
+      "policies": [
+        "secret_write",
+        "approval_required"
+      ]
+    },
+    {
+      "id": "email.account.list",
+      "description": "Lista cuentas de email disponibles en el hosting/cPanel conectado.",
+      "command": "list-emails",
+      "inputs": [
+        "credentials.cpanel",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "email_account_list.v1"
+      ],
+      "requires": [
+        "credentials.cpanel"
+      ],
+      "produces": [
+        "email_account_list.v1",
+        "email_account_list"
+      ],
+      "execution": "cpanel_uapi_read",
+      "policies": [
+        "read_external_data",
+        "secret_required"
+      ]
+    }
+  ]
 }

@@ -88,9 +88,9 @@ func main() {
 	// ================================================================================
 	generarReporte(ctx, vistaUnificada, resultadoVerificado)
 
-	fmt.Printf("\n" + strings.Repeat("=", 70) + "\n")
+	fmt.Print("\n" + strings.Repeat("=", 70) + "\n")
 	fmt.Printf(" VISTA UNIFICADA DE PROSPECTOS - RESUMEN\n")
-	fmt.Printf(strings.Repeat("=", 70) + "\n")
+	fmt.Print(strings.Repeat("=", 70) + "\n")
 	fmt.Printf("Total prospectos: %d\n", len(vistaUnificada))
 	fmt.Printf("Requieren acción inmediata: %d\n", resultadoVerificado["prospectos_necesitan_accion"])
 	fmt.Printf("Dolor resuelto: %v\n", resultadoVerificado["dolor_resuelto"])

@@ -1,11 +1,13 @@
 package internal
 
+// AllowedMethods son los métodos expuestos por Channel (Axioma 8)
+
 // JSONRPCRequest representa un request JSON-RPC 2.0 (Axioma 6)
 type JSONRPCRequest struct {
 	JSONRPC string                 `json:"jsonrpc"` // Debe ser "2.0"
 	Method  string                 `json:"method"`
 	Params  map[string]interface{} `json:"params"`
-	ID     interface{}            `json:"id"`
+	ID      interface{}            `json:"id"`
 }
 
 // ValidateJSONRPC valida que el request cumpla JSON-RPC 2.0 (Axioma 6)
@@ -28,12 +30,14 @@ func ValidateJSONRPC(req *JSONRPCRequest) (bool, string) {
 	return true, ""
 }
 
-// AllowedMethods son los 5 métodos únicos expuestos (Axioma 8)
 var AllowedMethods = map[string]bool{
 	"execute_command": true,
 	"read_file":       true,
 	"write_file":      true,
 	"list_dir":        true,
+	"grep":            true,
+	"find":            true,
+	"edit_file":       true,
 	"http_get":        true,
 }
 

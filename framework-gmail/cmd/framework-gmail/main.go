@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -91,7 +92,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Println(`Framework framework-gmail - Gmail MCP CLI
+	fmt.Print(`Framework framework-gmail - Gmail MCP CLI
 
 COMUNICACIÓN:
   send-email             Enviar un email
@@ -164,6 +165,11 @@ func parseArgs(args []string) map[string]string {
 	return result
 }
 
+func printJSON(v interface{}) {
+	data, _ := json.Marshal(v)
+	fmt.Println(string(data))
+}
+
 // ========== EMAIL COMMANDS ==========
 
 func cmdSendEmail(args []string) {
@@ -182,12 +188,25 @@ func cmdCreateDraft(args []string) {
 	params := parseArgs(args)
 	recipient := getParam(params, "recipient", "recipient_id", "to")
 	subject := params["subject"]
-	message := params["message"]
-	if recipient == "" || subject == "" || message == "" {
+	message := getParam(params, "message", "body")
+	if subject == "" || message == "" {
 		fmt.Fprintf(os.Stderr, "Uso: gmail create-draft --recipient_id EMAIL --subject 'ASUNTO' --message 'MENSAJE'\n")
 		os.Exit(1)
 	}
-	fmt.Printf("Ejecutando: create-draft to=%s subject=%s\n", recipient, subject)
+	if recipient == "" {
+		recipient = "sin destinatario"
+	}
+	printJSON(map[string]interface{}{
+		"artifact_type": "message.draft.v1",
+		"artifacts":     []string{"message.draft.v1"},
+		"channel":       "email",
+		"to":            recipient,
+		"subject":       subject,
+		"body":          message,
+		"body_b64":      base64.StdEncoding.EncodeToString([]byte(message)),
+		"status":        "draft_only",
+		"source":        "framework-gmail",
+	})
 }
 
 func cmdListDrafts(args []string) {

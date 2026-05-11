@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Demo end-to-end del flujo Auditor → Mecánico sobre el dataset real
-# de timebilling. Funciona sin Channel ni flujo_api: invoca los binarios
+# de timebilling. Funciona sin Channel ni api_rest: invoca los binarios
 # directamente para mostrar el flujo de detección y reparación.
 #
 # Para resetear el demo entre corridas: este mismo script lo hace al inicio.

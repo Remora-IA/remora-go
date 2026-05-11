@@ -32,13 +32,13 @@ type Client struct {
 	HTTPClient *http.Client
 }
 
-// New crea un cliente con timeout default de 35s (Channel timeoutea a 30s).
+// New crea un cliente con timeout default de 300s (soporta operaciones largas como Mecánico apply-all sobre datasets grandes).
 func New(baseURL, apiKey string) *Client {
 	return &Client{
 		BaseURL: baseURL,
 		APIKey:  apiKey,
 		HTTPClient: &http.Client{
-			Timeout: 35 * time.Second,
+			Timeout: 300 * time.Second,
 		},
 	}
 }
@@ -72,6 +72,31 @@ func (c *Client) WriteFile(ctx context.Context, path, content string) (*Response
 // ListDir lista un directorio dentro del BaseDir de Channel.
 func (c *Client) ListDir(ctx context.Context, path string) (*Response, error) {
 	return c.call(ctx, "list_dir", map[string]interface{}{"path": path})
+}
+
+func (c *Client) Grep(ctx context.Context, path, pattern string, maxResults int) (*Response, error) {
+	return c.call(ctx, "grep", map[string]interface{}{
+		"path":        path,
+		"pattern":     pattern,
+		"max_results": maxResults,
+	})
+}
+
+func (c *Client) Find(ctx context.Context, path, query string, maxResults int) (*Response, error) {
+	return c.call(ctx, "find", map[string]interface{}{
+		"path":        path,
+		"query":       query,
+		"max_results": maxResults,
+	})
+}
+
+func (c *Client) EditFile(ctx context.Context, path, oldText, newText string, replaceAll bool) (*Response, error) {
+	return c.call(ctx, "edit_file", map[string]interface{}{
+		"path":        path,
+		"old":         oldText,
+		"new":         newText,
+		"replace_all": replaceAll,
+	})
 }
 
 // HTTPGet ejecuta un GET HTTP a través de Channel.

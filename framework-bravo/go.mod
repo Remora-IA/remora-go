@@ -2,6 +2,6 @@ module framework-bravo
 
 go 1.24.0
 
-require framework-paladin v0.0.0
+require github.com/remora-go/framework-paladin v0.0.0
 
-replace framework-paladin => ../framework-paladin
+replace github.com/remora-go/framework-paladin => ../framework-paladin

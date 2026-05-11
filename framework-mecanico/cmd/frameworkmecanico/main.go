@@ -15,6 +15,8 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -25,6 +27,7 @@ import (
 
 	"framework-mecanico/fixers"
 	"framework-mecanico/internal/auditdata"
+	"framework-mecanico/internal/llm"
 )
 
 const (
@@ -51,14 +54,16 @@ func main() {
 		cmdApply(os.Args[2:])
 	case "apply-all":
 		cmdApplyAll(os.Args[2:])
+	case "draft-email":
+		cmdDraftEmail(os.Args[2:])
+	case "resolve-gaps":
+		cmdResolveGaps(os.Args[2:])
 	case "reset":
 		cmdReset(os.Args[2:])
 	case "next-question":
 		cmdNextQuestion(os.Args[2:])
 	case "ingest-answer":
 		cmdIngestAnswer(os.Args[2:])
-	case "draft-email":
-		cmdDraftEmail(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -77,6 +82,8 @@ Uso:
   frameworkmecanico list-proposals [--json]
   frameworkmecanico apply --proposal-id P-001
   frameworkmecanico apply-all
+  frameworkmecanico draft-email --deudor <nombre> [--to <email>] [--saldo <monto>] [--dias-mora <dias>]
+  frameworkmecanico resolve-gaps --data-gaps-json <json> [--findings-json <json>] [--entity-ref-json <json>]
   frameworkmecanico reset
   frameworkmecanico next-question
   frameworkmecanico ingest-answer --question-id <id> --answer <text>
@@ -109,17 +116,65 @@ func paths() (findingsP, datasetP, proposalsP, appliedP, stateP string) {
 	return
 }
 
+// loadFindingsOrJSON loads findings from a JSON string if non-empty,
+// then from MECANICO_FINDINGS_JSON env var, otherwise from file path.
+func loadFindingsOrJSON(jsonStr, path string) ([]auditdata.Finding, error) {
+	if strings.TrimSpace(jsonStr) != "" {
+		return auditdata.ParseFindings([]byte(jsonStr))
+	}
+	if v := os.Getenv("MECANICO_FINDINGS_JSON"); v != "" {
+		return auditdata.ParseFindings([]byte(v))
+	}
+	return auditdata.LoadFindings(path)
+}
+
+func loadFindingsOrJSONPath(jsonStr, pathArg, defaultPath string) ([]auditdata.Finding, error) {
+	if strings.TrimSpace(pathArg) != "" {
+		raw, err := os.ReadFile(pathArg)
+		if err != nil {
+			return nil, err
+		}
+		return auditdata.ParseFindings(raw)
+	}
+	return loadFindingsOrJSON(jsonStr, defaultPath)
+}
+
+// loadDatasetOrJSON loads dataset from a JSON string if non-empty,
+// then from MECANICO_DATASET_JSON env var, otherwise from file path.
+func loadDatasetOrJSON(jsonStr, path string) (*auditdata.Dataset, error) {
+	if strings.TrimSpace(jsonStr) != "" {
+		return auditdata.ParseDataset([]byte(jsonStr))
+	}
+	if v := os.Getenv("MECANICO_DATASET_JSON"); v != "" {
+		return auditdata.ParseDataset([]byte(v))
+	}
+	return auditdata.LoadDataset(path)
+}
+
+func loadDatasetOrJSONPath(jsonStr, pathArg, defaultPath string) (*auditdata.Dataset, error) {
+	if strings.TrimSpace(pathArg) != "" {
+		raw, err := os.ReadFile(pathArg)
+		if err != nil {
+			return nil, err
+		}
+		return auditdata.ParseDataset(raw)
+	}
+	return loadDatasetOrJSON(jsonStr, defaultPath)
+}
+
 // ---------- propose ----------
 
 func cmdPropose(args []string) {
 	fs := flag.NewFlagSet("propose", flag.ExitOnError)
 	findingID := fs.String("finding-id", "", "id del finding")
+	findingsJSON := fs.String("findings-json", "", "findings como JSON string (artifact)")
+	datasetJSON := fs.String("dataset-json", "", "dataset como JSON string (artifact)")
 	fs.Parse(args)
 	if *findingID == "" {
 		fail("propose: --finding-id requerido")
 	}
 	fp, dp, pp, _, _ := paths()
-	finds, err := auditdata.LoadFindings(fp)
+	finds, err := loadFindingsOrJSON(*findingsJSON, fp)
 	if err != nil {
 		fail("load findings: %v", err)
 	}
@@ -133,7 +188,7 @@ func cmdPropose(args []string) {
 	if target == nil {
 		fail("finding %s no existe", *findingID)
 	}
-	ds, err := auditdata.LoadDataset(dp)
+	ds, err := loadDatasetOrJSON(*datasetJSON, dp)
 	if err != nil {
 		fail("load dataset: %v", err)
 	}
@@ -151,12 +206,18 @@ func cmdPropose(args []string) {
 }
 
 func cmdProposeAllAuto(args []string) {
+	fs := flag.NewFlagSet("propose-all-auto", flag.ExitOnError)
+	findingsJSON := fs.String("findings-json", "", "findings como JSON string (artifact)")
+	findingsPath := fs.String("findings-path", "", "ruta a archivo JSON de findings")
+	datasetJSON := fs.String("dataset-json", "", "dataset como JSON string (artifact)")
+	datasetPath := fs.String("dataset-path", "", "ruta a archivo JSON de dataset")
+	fs.Parse(args)
 	fp, dp, pp, _, _ := paths()
-	finds, err := auditdata.LoadFindings(fp)
+	finds, err := loadFindingsOrJSONPath(*findingsJSON, *findingsPath, fp)
 	if err != nil {
 		fail("load findings: %v", err)
 	}
-	ds, err := auditdata.LoadDataset(dp)
+	ds, err := loadDatasetOrJSONPath(*datasetJSON, *datasetPath, dp)
 	if err != nil {
 		fail("load dataset: %v", err)
 	}
@@ -264,6 +325,7 @@ func displayValue(v interface{}) string {
 func cmdApply(args []string) {
 	fs := flag.NewFlagSet("apply", flag.ExitOnError)
 	proposalID := fs.String("proposal-id", "", "id de la propuesta")
+	datasetJSON := fs.String("dataset-json", "", "dataset como JSON string (artifact)")
 	fs.Parse(args)
 	if *proposalID == "" {
 		fail("apply: --proposal-id requerido")
@@ -283,45 +345,246 @@ func cmdApply(args []string) {
 	if target == nil {
 		fail("propuesta %s no existe", *proposalID)
 	}
-	rec, err := fixers.Apply(*target, dp, ap)
+	dsPath := dp
+	if strings.TrimSpace(*datasetJSON) != "" {
+		tmp, err := writeTempDatasetJSON(*datasetJSON)
+		if err != nil {
+			fail("write temp dataset: %v", err)
+		}
+		defer os.Remove(tmp)
+		dsPath = tmp
+	}
+	rec, err := fixers.Apply(*target, dsPath, ap)
 	if err != nil {
 		fail("apply: %v", err)
 	}
 	if err := fixers.RemoveProposal(pp, target.ID); err != nil {
 		fail("remove proposal: %v", err)
 	}
-	fmt.Printf("Aplicado %s sobre %s:%s.%s   antes=%v   después=%v\n",
-		target.ID, rec.Endpoint, rec.RecordID, rec.Field,
-		displayValue(rec.Before), displayValue(rec.After))
+	updated := readJSONMap(dsPath)
+	emitJSON(map[string]interface{}{
+		"artifact_type":   "mecanico.applied.v1",
+		"artifacts":       []string{"mecanico.applied.v1", "dataset.raw.v1", "external.api.dump.v1"},
+		"applied":         rec,
+		"applied_count":   1,
+		"failed_count":    0,
+		"updated_dataset": updated,
+		"human_summary":   fmt.Sprintf("Mecánico aplicó %s sobre %s:%s.%s.", target.ID, rec.Endpoint, rec.RecordID, rec.Field),
+	})
 }
 
 func cmdApplyAll(args []string) {
+	fs := flag.NewFlagSet("apply-all", flag.ExitOnError)
+	datasetJSON := fs.String("dataset-json", "", "dataset como JSON string (artifact)")
+	datasetPath := fs.String("dataset-path", "", "ruta a archivo JSON de dataset")
+	fs.Parse(args)
 	_, dp, pp, ap, _ := paths()
 	props, err := fixers.LoadProposals(pp)
 	if err != nil {
 		fail("load proposals: %v", err)
 	}
 	if len(props) == 0 {
-		fmt.Println("Sin propuestas para aplicar.")
+		emitJSON(map[string]interface{}{
+			"artifact_type": "mecanico.applied.v1",
+			"artifacts":     []string{"mecanico.applied.v1"},
+			"applied":       []interface{}{},
+			"applied_count": 0,
+			"failed_count":  0,
+			"human_summary": "No había propuestas pendientes para aplicar.",
+		})
 		return
+	}
+	dsPath := dp
+	if strings.TrimSpace(*datasetPath) != "" {
+		dsPath = *datasetPath
+	} else if strings.TrimSpace(*datasetJSON) != "" {
+		tmp, err := writeTempDatasetJSON(*datasetJSON)
+		if err != nil {
+			fail("write temp dataset: %v", err)
+		}
+		defer os.Remove(tmp)
+		dsPath = tmp
 	}
 	applied := 0
 	failed := 0
+	appliedRecords := []interface{}{}
+	failures := []map[string]interface{}{}
 	for _, p := range props {
-		rec, err := fixers.Apply(p, dp, ap)
+		rec, err := fixers.Apply(p, dsPath, ap)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s falló: %v\n", p.ID, err)
 			failed++
+			failures = append(failures, map[string]interface{}{"proposal_id": p.ID, "error": err.Error()})
 			continue
 		}
-		fmt.Printf("✓ %s   %s:%s.%s   %v → %v\n", p.ID, rec.Endpoint, rec.RecordID, rec.Field,
-			displayValue(rec.Before), displayValue(rec.After))
+		appliedRecords = append(appliedRecords, rec)
 		applied++
 	}
 	// Limpiamos las propuestas aplicadas. apply-all aplica todo, así que
 	// vaciamos el archivo (las que fallaron quedan registradas en stderr).
 	_ = fixers.SaveProposals(pp, nil)
-	fmt.Printf("\nAplicadas %d propuestas. Fallidas: %d.\n", applied, failed)
+	updated := readJSONMap(dsPath)
+	emitJSON(map[string]interface{}{
+		"artifact_type":   "mecanico.applied.v1",
+		"artifacts":       []string{"mecanico.applied.v1", "dataset.raw.v1", "external.api.dump.v1"},
+		"applied":         appliedRecords,
+		"failures":        failures,
+		"applied_count":   applied,
+		"failed_count":    failed,
+		"updated_dataset": updated,
+		"human_summary":   fmt.Sprintf("Mecánico aplicó %d propuesta(s). Fallidas: %d.", applied, failed),
+	})
+}
+
+func writeTempDatasetJSON(jsonStr string) (string, error) {
+	f, err := os.CreateTemp("", "mecanico_dataset_*.json")
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if _, err := f.WriteString(jsonStr); err != nil {
+		return "", err
+	}
+	return f.Name(), nil
+}
+
+func readJSONMap(path string) map[string]interface{} {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var out map[string]interface{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// ---------- resolve-gaps (conversational gap resolver) ----------
+
+func cmdResolveGaps(args []string) {
+	fs := flag.NewFlagSet("resolve-gaps", flag.ExitOnError)
+	dataGapsJSON := fs.String("data-gaps-json", "", "data.gaps.v1 como JSON string")
+	findingsJSON := fs.String("findings-json", "", "auditor.findings.v1 como JSON string")
+	entityRefJSON := fs.String("entity-ref-json", "", "entity.ref.v1 como JSON string")
+	fs.Parse(args)
+	if strings.TrimSpace(*dataGapsJSON) == "" {
+		fail("resolve-gaps: --data-gaps-json requerido")
+	}
+	var gaps []map[string]interface{}
+	if err := json.Unmarshal([]byte(*dataGapsJSON), &gaps); err != nil {
+		fail("parse data-gaps-json: %v", err)
+	}
+	var findings []auditdata.Finding
+	if strings.TrimSpace(*findingsJSON) != "" {
+		var err error
+		findings, err = auditdata.ParseFindings([]byte(*findingsJSON))
+		if err != nil {
+			fail("parse findings-json: %v", err)
+		}
+	}
+	var entityRef map[string]interface{}
+	if strings.TrimSpace(*entityRefJSON) != "" {
+		_ = json.Unmarshal([]byte(*entityRefJSON), &entityRef)
+	}
+	entityName := "esta entidad"
+	if entityRef != nil {
+		if n, ok := entityRef["name"].(string); ok && n != "" {
+			entityName = n
+		}
+	}
+	questions := []map[string]interface{}{}
+	plan := []map[string]interface{}{}
+	for _, gap := range gaps {
+		gapType := ""
+		if t, ok := gap["type"].(string); ok {
+			gapType = t
+		}
+		var q map[string]interface{}
+		switch gapType {
+		case "missing_contact", "schema_contact_gap", "RuleSchemaContactGap":
+			q = map[string]interface{}{
+				"artifact_type": "framework.question.v1",
+				"id":            fmt.Sprintf("mecanico_contact_%d", time.Now().Unix()),
+				"text":          fmt.Sprintf("Falta un contacto válido para %s. ¿Tenés un email, teléfono o WhatsApp para agregar?", entityName),
+				"gap_type":      gapType,
+				"field":         "contact",
+				"options": []string{
+					"Ingresar email",
+					"Ingresar teléfono",
+					"Ingresar WhatsApp",
+					"No tengo contacto",
+				},
+			}
+		case "missing_email":
+			q = map[string]interface{}{
+				"artifact_type": "framework.question.v1",
+				"id":            fmt.Sprintf("mecanico_email_%d", time.Now().Unix()),
+				"text":          fmt.Sprintf("Necesito un email para contactar a %s. ¿Cuál es?", entityName),
+				"gap_type":      gapType,
+				"field":         "email",
+			}
+		case "missing_smtp", "credentials_smtp":
+			q = map[string]interface{}{
+				"artifact_type": "framework.question.v1",
+				"id":            fmt.Sprintf("mecanico_smtp_%d", time.Now().Unix()),
+				"text":          "Faltan credenciales SMTP para enviar emails. ¿Querés configurarlas ahora?",
+				"gap_type":      gapType,
+				"field":         "credentials.smtp",
+				"options": []string{
+					"Sí, configurar SMTP",
+					"No, saltar envío",
+				},
+			}
+		case "draft_missing":
+			q = map[string]interface{}{
+				"artifact_type": "framework.question.v1",
+				"id":            fmt.Sprintf("mecanico_draft_%d", time.Now().Unix()),
+				"text":          fmt.Sprintf("No hay borrador de mensaje para %s. ¿Querés que prepare uno automáticamente?", entityName),
+				"gap_type":      gapType,
+				"field":         "message.draft",
+				"options": []string{
+					"Sí, borrador automático",
+					"No, saltar",
+				},
+			}
+		default:
+			if desc, ok := gap["description"].(string); ok && desc != "" {
+				q = map[string]interface{}{
+					"artifact_type": "framework.question.v1",
+					"id":            fmt.Sprintf("mecanico_generic_%d", time.Now().Unix()),
+					"text":          fmt.Sprintf("Gap detectado: %s. ¿Cómo querés resolverlo?", desc),
+					"gap_type":      gapType,
+					"description":   desc,
+				}
+			}
+		}
+		if q != nil {
+			questions = append(questions, q)
+			plan = append(plan, map[string]interface{}{
+				"gap_type":      gapType,
+				"action":        "ask_user",
+				"question_id":   q["id"],
+				"question_text": q["text"],
+			})
+		} else {
+			plan = append(plan, map[string]interface{}{
+				"gap_type": gapType,
+				"action":   "auto_resolve",
+			})
+		}
+	}
+	emitJSON(map[string]interface{}{
+		"artifact_type":    "mecanico.resolution_plan.v1",
+		"artifacts":        []string{"mecanico.resolution_plan.v1", "framework.question.v1"},
+		"entity_name":      entityName,
+		"questions_count":  len(questions),
+		"questions":        questions,
+		"plan":             plan,
+		"findings_count":   len(findings),
+		"generated_at":     time.Now().Format(time.RFC3339),
+		"human_summary":    fmt.Sprintf("Mecánico generó %d preguntas para resolver gaps de %s.", len(questions), entityName),
+	})
 }
 
 // ---------- reset ----------
@@ -392,7 +655,7 @@ func cmdNextQuestion(args []string) {
 
 func buildGreeting() string {
 	fp, dp, pp, _, _ := paths()
-	finds, _ := auditdata.LoadFindings(fp)
+	finds, _ := loadFindingsOrJSON("", fp)
 	autoCount := 0
 	for _, f := range finds {
 		if f.AutoFixable {
@@ -409,7 +672,7 @@ func buildGreeting() string {
 	// Si hay autos pendientes y no hay propuestas, generamos las propuestas
 	// proactivamente para que el user vea el plan completo en el primer turno.
 	if len(props) == 0 && autoCount > 0 {
-		ds, err := auditdata.LoadDataset(dp)
+		ds, err := loadDatasetOrJSON("", dp)
 		if err != nil {
 			return fmt.Sprintf("No pude leer el dataset: %v.", err)
 		}
@@ -539,10 +802,65 @@ func interpretMecanico(text string) string {
 		// Pregunta sobre un finding concreto: tarea del auditor.
 		return sentinelDelegateToAuditor
 	}
-	if hasProps {
-		return "Puedo aplicar las propuestas pendientes. Decime \"sí, aplicá todo\" o \"aplicá P-XXX\" para una puntual."
+	// Conversación general → LLM con system prompt del mecánico.
+	return interpretMecanicoWithLLM(text, hasProps)
+}
+
+const mecanicoSystemPrompt = `Eres el Mecánico de datos de Remora. Tu rol es tomar los hallazgos que detectó el Auditor y proponer fixes concretos. Nunca tocás el dataset sin la confirmación explícita del usuario.
+
+Tu personalidad:
+- Eres práctico, directo y confiable.
+- Hablas en español rioplatense informal ("dale", "decime", "listo").
+- Nunca aplicás cambios sin permiso.
+- Si no sabés algo, lo decís.
+
+Capacidades que podés ofrecer al usuario:
+- Proponer fixes auto-corregibles ("proponé los auto")
+- Ver propuestas pendientes ("ver propuestas")
+- Aplicar una propuesta puntual ("aplicá P-001")
+- Aplicar todas las propuestas ("aplicá todo")
+- Generar borrador de email de cobranza ("draft-email")
+- Pedir rescan al auditor ("rescan")
+
+Contexto actual:
+%s
+
+Respondé de forma breve y útil. Si el usuario pregunta algo fuera de tu alcance, explicá qué podés hacer.`
+
+func interpretMecanicoWithLLM(userText string, hasProps bool) string {
+	client, err := llm.NewClient()
+	if err != nil {
+		return fmt.Sprintf("Error iniciando LLM: %v", err)
 	}
-	return "Puedo: \"propone los auto\", \"ver propuestas\", \"aplicá P-001\", \"aplicá todo\"."
+	contextStr := buildProposalsContext(hasProps)
+	system := fmt.Sprintf(mecanicoSystemPrompt, contextStr)
+	reply, err := client.Generate(context.Background(), system, userText)
+	if err != nil {
+		return fmt.Sprintf("Error del LLM: %v", err)
+	}
+	return reply
+}
+
+func buildProposalsContext(hasProps bool) string {
+	_, _, pp, _, _ := paths()
+	props, _ := fixers.LoadProposals(pp)
+	fp, _, _, _, _ := paths()
+	finds, _ := loadFindingsOrJSON("", fp)
+	autoCount := 0
+	for _, f := range finds {
+		if f.AutoFixable {
+			autoCount++
+		}
+	}
+	if len(finds) == 0 {
+		return "No hay findings cargados. El auditor no ha escaneado todavía."
+	}
+	if hasProps {
+		return fmt.Sprintf("%d findings del auditor. %d propuestas pendientes de aprobación. %d auto-corregibles.",
+			len(finds), len(props), autoCount)
+	}
+	return fmt.Sprintf("%d findings del auditor. Sin propuestas generadas aún. %d auto-corregibles.",
+		len(finds), autoCount)
 }
 
 // isPureAffirmative detecta afirmativos cortos sin verbo de acción explícito.
@@ -582,11 +900,11 @@ func extractProposalID(text string) string {
 // para devolverla como respuesta conversacional.
 func runProposeAllAutoCapture() string {
 	fp, dp, pp, _, _ := paths()
-	finds, err := auditdata.LoadFindings(fp)
+	finds, err := loadFindingsOrJSON("", fp)
 	if err != nil {
 		return fmt.Sprintf("No tengo findings: %v. Pedile al auditor un scan primero.", err)
 	}
-	ds, err := auditdata.LoadDataset(dp)
+	ds, err := loadDatasetOrJSON("", dp)
 	if err != nil {
 		return fmt.Sprintf("No pude leer el dataset: %v.", err)
 	}
@@ -713,25 +1031,37 @@ func cmdDraftEmail(args []string) {
 	tono := fs.String("tono", "formal", "amistoso|formal|carta")
 	saldo := fs.Float64("saldo", 0, "monto adeudado")
 	dias := fs.Int("dias-mora", 0, "días de mora")
+	to := fs.String("to", "", "email del destinatario")
+	actionID := fs.String("action-id", "", "id de acción seleccionada (action.selection.v1)")
 	save := fs.Bool("save", true, "guardar en state")
 	fs.Parse(args)
+
+	if strings.TrimSpace(*actionID) == "skip_case" {
+		emitJSON(map[string]interface{}{
+			"artifact_type": "action.skipped.v1",
+			"artifacts":     []string{"action.skipped.v1"},
+			"action_id":     "skip_case",
+			"skip_reason":   "El usuario eligió pasar al siguiente caso; no se genera borrador.",
+			"entity":        *deudor,
+			"generated_at":  time.Now().Format(time.RFC3339),
+		})
+		return
+	}
 
 	if *deudor == "" {
 		fail("draft-email requiere --deudor")
 	}
 
-	draft := generateEmailDraft(*deudor, *tono, *saldo, *dias)
+	draft := generateEmailDraft(*deudor, *tono, *saldo, *dias, *to)
 
 	if *save {
 		stateDir := "temp/mecanico"
 		_ = os.MkdirAll(stateDir, 0755)
 
-		// Guardar draft como JSON
 		draftPath := filepath.Join(stateDir, "last_draft.json")
 		data, _ := json.MarshalIndent(draft, "", "  ")
 		_ = os.WriteFile(draftPath, data, 0644)
 
-		// Guardar respuesta para orquestador
 		statePath := filepath.Join(stateDir, "state.json")
 		resp := map[string]interface{}{
 			"response":   formatDraftForUser(draft),
@@ -743,8 +1073,19 @@ func cmdDraftEmail(args []string) {
 		_ = os.WriteFile(statePath, respData, 0644)
 	}
 
-	// Imprimir respuesta legible
-	fmt.Println(formatDraftForUser(draft))
+	emitJSON(map[string]interface{}{
+		"artifact_type":     "message.draft.v1",
+		"artifacts":         []string{"message.draft.v1", "message.draft"},
+		"channel":           "email",
+		"to":                draft.To,
+		"subject":           draft.Subject,
+		"body":              draft.Body,
+		"body_b64":          base64.StdEncoding.EncodeToString([]byte(draft.Body)),
+		"requires_approval": draft.RequiresApproval,
+		"draft":             draft,
+		"human_preview":     formatDraftForUser(draft),
+		"generated_at":      draft.GeneratedAt,
+	})
 }
 
 type emailDraft struct {
@@ -761,7 +1102,7 @@ type emailDraft struct {
 	GeneratedAt      string `json:"generated_at"`
 }
 
-func generateEmailDraft(deudor, tono string, saldo float64, dias int) *emailDraft {
+func generateEmailDraft(deudor, tono string, saldo float64, dias int, to string) *emailDraft {
 	estudio := os.Getenv("ESTUDIO_NOMBRE")
 	if estudio == "" {
 		estudio = "Estudio Jurídico Remora"
@@ -771,7 +1112,12 @@ func generateEmailDraft(deudor, tono string, saldo float64, dias int) *emailDraf
 		cobrador = "Departamento de Cobranza"
 	}
 	fecha := time.Now().Format("02/01/2006")
-	email := strings.ToLower(strings.ReplaceAll(deudor, " ", "")) + "@ejemplo.cl"
+
+	// Si no hay --to explícito, usamos un placeholder que el flow runner
+	// o el usuario debe reemplazar antes del envío real.
+	if to == "" {
+		to = "(sin destinatario - debe configurarse antes del envío)"
+	}
 
 	var subject, body string
 	switch tono {
@@ -827,7 +1173,7 @@ Atentamente,
 
 	// Gmail compose URL
 	gmailURL := fmt.Sprintf("https://mail.google.com/mail/?view=cm&fs=1&to=%s&su=%s&body=%s",
-		urlEncode(email), urlEncode(subject), urlEncode(body))
+		urlEncode(to), urlEncode(subject), urlEncode(body))
 
 	return &emailDraft{
 		Type:             "action_proposal",
@@ -835,7 +1181,7 @@ Atentamente,
 		Deudor:           deudor,
 		Subject:          subject,
 		Body:             body,
-		To:               email,
+		To:               to,
 		Tono:             tono,
 		GmailOpenURL:     gmailURL,
 		RequiresApproval: true,

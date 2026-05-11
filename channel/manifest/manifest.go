@@ -39,6 +39,8 @@ type Manifest struct {
 	// específico por framework. Todos los campos son opcionales.
 	CapabilitiesSemantic CapabilitiesSemantic `json:"capabilities_semantic,omitempty"`
 
+	Capabilities []CapabilitySpec `json:"capabilities,omitempty"`
+
 	// RequiresInfra declara dependencias de infraestructura que el orquestador
 	// debe proveer vía env vars. Ej: ["postgres+pgvector"].
 	RequiresInfra []string `json:"requires_infra,omitempty"`
@@ -58,6 +60,18 @@ type CapabilitiesSemantic struct {
 	// Requires: artefactos que el framework necesita encontrar disponibles.
 	// El feasibility check empareja Produces de unos con Requires de otros.
 	Requires []string `json:"requires,omitempty"`
+}
+
+type CapabilitySpec struct {
+	ID          string   `json:"id"`
+	Description string   `json:"description"`
+	Command     string   `json:"command"`
+	Inputs      []string `json:"inputs,omitempty"`
+	Outputs     []string `json:"outputs,omitempty"`
+	Requires    []string `json:"requires,omitempty"`
+	Produces    []string `json:"produces,omitempty"`
+	Execution   string   `json:"execution"`
+	Policies    []string `json:"policies,omitempty"`
 }
 
 // ExecutionModeSync identifica frameworks que participan del round-robin.
@@ -85,11 +99,12 @@ func (m *Manifest) EffectiveExecutionMode() string {
 //
 // EnvKey: nombre de la variable de entorno donde la API toma el API key.
 type ModelSpec struct {
-	Provider     string   `json:"provider"`     // "groq", "minimax", "openai", ...
-	Name         string   `json:"name"`         // p.ej "meta-llama/llama-4-scout-17b-16e-instruct"
-	EnvKey       string   `json:"env_key"`      // p.ej "GROQ_API_KEY"
-	Capabilities []string `json:"capabilities"` // ["text"], ["text","multimodal"]
-	BaseURL      string   `json:"base_url,omitempty"`
+	Provider     string     `json:"provider"`     // "groq", "minimax", "openai", ...
+	Name         string     `json:"name"`         // p.ej "meta-llama/llama-4-scout-17b-16e-instruct"
+	EnvKey       string     `json:"env_key"`      // p.ej "GROQ_API_KEY"
+	Capabilities []string   `json:"capabilities"` // ["text"], ["text","multimodal"]
+	BaseURL      string     `json:"base_url,omitempty"`
+	Fallback     *ModelSpec `json:"fallback,omitempty"` // Modelo de respaldo si el primario falla
 }
 
 // UserInputSpec declara cómo el framework interactúa con el usuario humano.
@@ -97,12 +112,12 @@ type ModelSpec struct {
 // preguntas y respuestas. Si Supported=false el framework no necesita input
 // directo del usuario (ej: un compilador puro).
 type UserInputSpec struct {
-	Supported bool     `json:"supported"`
+	Supported bool `json:"supported"`
 	// AskVia "" = pregunta directa al usuario; "echo" = otro framework
 	// (típicamente echo) reformula la pregunta antes de mostrarla.
-	AskVia    string   `json:"ask_via,omitempty"`
+	AskVia string `json:"ask_via,omitempty"`
 	// Modes: tipos de input aceptados, ej "short_answer", "resource_upload".
-	Modes     []string `json:"modes,omitempty"`
+	Modes []string `json:"modes,omitempty"`
 	// NextQuestionCmd: nombre del comando declarado en Commands que devuelve
 	// la próxima pregunta pendiente. Convención: stdout es JSON
 	//   {"id":"...","text":"...","ask_via":""}  (vacío si no hay pregunta).
@@ -127,8 +142,8 @@ type BinarySpec struct {
 // IOPort describe un input o output del framework.
 type IOPort struct {
 	Name        string `json:"name"`
-	Format      string `json:"format"`   // identificador semántico, ej "echo.tree.v1"
-	Path        string `json:"path"`     // path relativo a BaseDir (puede usar templates)
+	Format      string `json:"format"` // identificador semántico, ej "echo.tree.v1"
+	Path        string `json:"path"`   // path relativo a BaseDir (puede usar templates)
 	Required    bool   `json:"required"`
 	Description string `json:"description"`
 }
@@ -191,14 +206,17 @@ func (c Command) ResolveArgs(params, inputs, outputs map[string]string) ([]strin
 }
 
 func substitute(s string, params, inputs, outputs map[string]string) (string, error) {
-	// Sustitución simple: {params.X}, {inputs.X}, {outputs.X}
+	var b strings.Builder
 	for {
 		open := strings.Index(s, "{")
 		if open < 0 {
+			b.WriteString(s)
 			break
 		}
+		b.WriteString(s[:open])
 		close := strings.Index(s[open:], "}")
 		if close < 0 {
+			b.WriteString(s[open:])
 			break
 		}
 		token := s[open+1 : open+close]
@@ -228,9 +246,10 @@ func substitute(s string, params, inputs, outputs map[string]string) (string, er
 		default:
 			return "", fmt.Errorf("unknown token: {%s}", token)
 		}
-		s = s[:open] + val + s[open+close+1:]
+		b.WriteString(val)
+		s = s[open+close+1:]
 	}
-	return s, nil
+	return b.String(), nil
 }
 
 // FindOutput busca un output por nombre.
@@ -354,6 +373,32 @@ func (m *Manifest) Validate() error {
 			problems = append(problems, "user_input.ingest_answer_cmd vacío (requerido cuando supported=true)")
 		} else if _, ok := m.Commands[m.UserInput.IngestAnswerCmd]; !ok {
 			problems = append(problems, fmt.Sprintf("user_input.ingest_answer_cmd %q no existe en commands", m.UserInput.IngestAnswerCmd))
+		}
+	}
+
+	seenCapabilities := map[string]bool{}
+	for _, cap := range m.Capabilities {
+		if strings.TrimSpace(cap.ID) == "" {
+			problems = append(problems, "capabilities[].id vacío")
+			continue
+		}
+		if seenCapabilities[cap.ID] {
+			problems = append(problems, fmt.Sprintf("capability %q duplicada", cap.ID))
+		}
+		seenCapabilities[cap.ID] = true
+		if strings.TrimSpace(cap.Description) == "" {
+			problems = append(problems, fmt.Sprintf("capability %q sin description", cap.ID))
+		}
+		if strings.TrimSpace(cap.Command) == "" {
+			problems = append(problems, fmt.Sprintf("capability %q sin command", cap.ID))
+		} else if _, ok := m.Commands[cap.Command]; !ok {
+			problems = append(problems, fmt.Sprintf("capability %q referencia command inexistente %q", cap.ID, cap.Command))
+		}
+		if strings.TrimSpace(cap.Execution) == "" {
+			problems = append(problems, fmt.Sprintf("capability %q sin execution", cap.ID))
+		}
+		if len(cap.Outputs) == 0 && len(cap.Produces) == 0 {
+			problems = append(problems, fmt.Sprintf("capability %q sin outputs/produces", cap.ID))
 		}
 	}
 

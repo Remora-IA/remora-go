@@ -52,12 +52,25 @@ type lintManifest struct {
 		Produces       []string `json:"produces"`
 		Requires       []string `json:"requires"`
 	} `json:"capabilities_semantic"`
+	Capabilities []lintCapability `json:"capabilities"`
 }
 
 type lintCommand struct {
 	Args     []string          `json:"args"`
 	Params   []string          `json:"params"`
 	Defaults map[string]string `json:"defaults"`
+}
+
+type lintCapability struct {
+	ID          string   `json:"id"`
+	Description string   `json:"description"`
+	Command     string   `json:"command"`
+	Inputs      []string `json:"inputs"`
+	Outputs     []string `json:"outputs"`
+	Requires    []string `json:"requires"`
+	Produces    []string `json:"produces"`
+	Execution   string   `json:"execution"`
+	Policies    []string `json:"policies"`
 }
 
 func LintRepo(root string) (LintResult, error) {
@@ -184,8 +197,79 @@ func lintManifests(root string, result *LintResult) (map[string]bool, error) {
 		if len(manifest.CapabilitiesSemantic.Tags) == 0 && len(manifest.CapabilitiesSemantic.IntentExamples) == 0 && len(manifest.CapabilitiesSemantic.Produces) == 0 {
 			addLint(result, "warn", "manifest_no_capabilities_semantic", path, "sin capabilities_semantic útil; routing capability-based queda ciego")
 		}
+		lintManifestCapabilities(path, manifest, result)
 	}
 	return manifestNames, nil
+}
+
+func lintManifestCapabilities(path string, manifest lintManifest, result *LintResult) {
+	if len(manifest.Capabilities) == 0 {
+		if manifest.ExecutionMode == "" || manifest.ExecutionMode == "sync_chain" {
+			addLint(result, "warn", "manifest_no_typed_capabilities", path, "sync_chain sin capabilities typed; el futuro protocolo de equipo no puede validar act/wait/need_help por contrato")
+		}
+		return
+	}
+	seen := map[string]bool{}
+	for _, cap := range manifest.Capabilities {
+		id := strings.TrimSpace(cap.ID)
+		if id == "" {
+			addLint(result, "fail", "capability_id_empty", path, "capability sin id; el router no puede referenciarla")
+			continue
+		}
+		if seen[id] {
+			addLint(result, "fail", "capability_duplicate", path, fmt.Sprintf("capability %q duplicada", id))
+		}
+		seen[id] = true
+		if strings.TrimSpace(cap.Description) == "" {
+			addLint(result, "fail", "capability_description_empty", path, fmt.Sprintf("capability %q sin description", id))
+		}
+		if strings.TrimSpace(cap.Command) == "" {
+			addLint(result, "fail", "capability_command_empty", path, fmt.Sprintf("capability %q sin command", id))
+		} else if !commandExists(manifest.Commands, cap.Command) {
+			addLint(result, "fail", "capability_command_missing", path, fmt.Sprintf("capability %q referencia command inexistente %q", id, cap.Command))
+		}
+		if strings.TrimSpace(cap.Execution) == "" {
+			addLint(result, "fail", "capability_execution_empty", path, fmt.Sprintf("capability %q sin execution; no se puede auditar si es determinística, LLM, SQL, etc.", id))
+		}
+		if len(cap.Outputs) == 0 && len(cap.Produces) == 0 {
+			addLint(result, "fail", "capability_no_outputs", path, fmt.Sprintf("capability %q no declara outputs/produces", id))
+		}
+		if capabilityUsesMultipleEngines(cap) && !hasPolicy(cap.Policies, "no_silent_fallback") && !hasPolicy(cap.Policies, "explicit_fallback_only") {
+			addLint(result, "fail", "capability_fallback_policy_missing", path, fmt.Sprintf("capability %q mezcla engines/sources y no declara no_silent_fallback o explicit_fallback_only", id))
+		}
+		if capabilityLooksGrounded(cap) && !hasPolicy(cap.Policies, "trace_required") {
+			addLint(result, "warn", "capability_trace_policy_missing", path, fmt.Sprintf("capability %q produce respuesta grounded pero no exige trace_required", id))
+		}
+	}
+}
+
+func hasPolicy(policies []string, want string) bool {
+	for _, policy := range policies {
+		if strings.TrimSpace(policy) == want {
+			return true
+		}
+	}
+	return false
+}
+
+func capabilityUsesMultipleEngines(cap lintCapability) bool {
+	text := strings.ToLower(strings.Join(append(append(append([]string{cap.ID, cap.Description, cap.Execution}, cap.Inputs...), cap.Outputs...), append(cap.Requires, cap.Produces...)...), " "))
+	engineCount := 0
+	if strings.Contains(text, "sql") || strings.Contains(text, "sqlite") {
+		engineCount++
+	}
+	if strings.Contains(text, "bm25") || strings.Contains(text, "semantic") || strings.Contains(text, "vector") || strings.Contains(text, "rag") {
+		engineCount++
+	}
+	if strings.Contains(text, "llm") {
+		engineCount++
+	}
+	return engineCount >= 2
+}
+
+func capabilityLooksGrounded(cap lintCapability) bool {
+	text := strings.ToLower(strings.Join(append(append([]string{cap.ID, cap.Description}, cap.Outputs...), cap.Produces...), " "))
+	return strings.Contains(text, "grounded") || strings.Contains(text, "answer") || strings.Contains(text, "data.")
 }
 
 func commandExists(commands map[string]lintCommand, name string) bool {
@@ -236,7 +320,7 @@ func lintSyncChainSource(frameworkDir string, result *LintResult) {
 
 func lintFlowRules(root string, manifestNames map[string]bool, result *LintResult) error {
 	paths := []string{
-		filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "flow.rules.json"),
+		filepath.Join(root, "remora-flujo", "cmd", "api_rest", "flow.rules.json"),
 		filepath.Join(root, "profiles", "cobranza-chile", "flow.rules.json"),
 	}
 	allowedWhen := map[string]bool{
@@ -320,7 +404,7 @@ func lintFlowRules(root string, manifestNames map[string]bool, result *LintResul
 
 func lintGoArchitecture(root string, manifestNames map[string]bool, result *LintResult) error {
 	corePrefixes := []string{
-		filepath.Join(root, "remora-flujo", "cmd", "flujo_api"),
+		filepath.Join(root, "remora-flujo", "cmd", "api_rest"),
 		filepath.Join(root, "channel", "adapter"),
 		filepath.Join(root, "channel", "internal"),
 		filepath.Join(root, "channel", "manifest"),
@@ -360,7 +444,7 @@ func lintGoArchitecture(root string, manifestNames map[string]bool, result *Lint
 func lintLocalIntegration(root string, result *LintResult) error {
 	frontendPaths := []string{
 		filepath.Join(root, "remora-flujo", "frontends", "frontend-chat", "index.html"),
-		filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "static", "index.html"),
+		filepath.Join(root, "remora-flujo", "cmd", "api_rest", "static", "index.html"),
 	}
 	for _, frontendPath := range frontendPaths {
 		data, err := os.ReadFile(frontendPath)
@@ -382,11 +466,11 @@ func lintLocalIntegration(root string, result *LintResult) error {
 		}
 	}
 
-	apiPath := filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "main.go")
+	apiPath := filepath.Join(root, "remora-flujo", "cmd", "api_rest", "main.go")
 	if data, err := os.ReadFile(apiPath); err == nil {
 		content := string(data)
 		if strings.Contains(content, `envOr("CHANNEL_BASE_DIR", "/workspace")`) {
-			addLint(result, "fail", "api_root_defaults_workspace", apiPath, "flujo_api defaulta REMORA_ROOT a /workspace; en local discovery queda ciego y solo aparecen drivers hardcodeados")
+			addLint(result, "fail", "api_root_defaults_workspace", apiPath, "api_rest defaulta REMORA_ROOT a /workspace; en local discovery queda ciego y solo aparecen drivers hardcodeados")
 		}
 		if !strings.Contains(content, `apiBase+"/frameworks/testable"`) {
 			addLint(result, "fail", "api_missing_testable_frameworks_endpoint", apiPath, "falta /api/v1/frameworks/testable; frontend single no puede separar frameworks testeables de chainables")
@@ -397,12 +481,12 @@ func lintLocalIntegration(root string, result *LintResult) error {
 		if strings.Contains(content, "driverRegistry[req.Framework]") && !strings.Contains(content, "createUniversalSingleMessage") {
 			addLint(result, "fail", "api_single_conversation_uses_driver_registry", apiPath, "conversations-single valida contra driverRegistry sin wrapper universal; frameworks testeables por manifest quedan invisibles")
 		}
-		wrapperPath := filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "single_wrapper.go")
+		wrapperPath := filepath.Join(root, "remora-flujo", "cmd", "api_rest", "single_wrapper.go")
 		if _, err := os.Stat(wrapperPath); err != nil {
 			addLint(result, "fail", "api_missing_universal_single_wrapper", apiPath, "falta wrapper universal para adaptar comandos de manifest a sesión conversacional estándar")
 		}
 	}
-	driversPath := filepath.Join(root, "remora-flujo", "cmd", "flujo_api", "drivers.go")
+	driversPath := filepath.Join(root, "remora-flujo", "cmd", "api_rest", "drivers.go")
 	if data, err := os.ReadFile(driversPath); err == nil {
 		content := string(data)
 		if strings.Contains(content, `"/workspace/framework-`) || strings.Contains(content, `"/frameworks/framework`) {
@@ -643,7 +727,7 @@ func lintCoreGoFile(path string, fset *token.FileSet, file *ast.File, manifestNa
 		}
 		return true
 	})
-	if strings.HasSuffix(path, filepath.Join("flujo_api", "orchestrator.go")) {
+	if strings.HasSuffix(path, filepath.Join("api_rest", "orchestrator.go")) {
 		semantic := paladinCalls["Actor"] + paladinCalls["Goal"] + paladinCalls["Event"] + paladinCalls["Rule"] + paladinCalls["Check"] + paladinCalls["Expect"] + paladinCalls["Handoff"] + paladinCalls["Violation"]
 		if paladinCalls["NewTrace"] > 0 && semantic == 0 {
 			addLint(result, "fail", "paladin_trace_without_semantics", path, "runLoop crea trace pero no declara Actor/Goal/Rule/Check/Expect/Handoff; la IA queda leyendo Vars")
@@ -727,7 +811,7 @@ func isUnderAny(path string, prefixes []string) bool {
 func isRelevantFrameworkPath(path string) bool {
 	owner := frameworkOwner(path)
 	switch owner {
-	case "foco", "sabio", "mecanico", "mensajero", "contactos", "tareas", "hosting", "indexa", "bravo", "gmail":
+	case "foco", "sabio", "mecanico", "mensajero", "tareas", "hosting", "indexa", "bravo", "gmail":
 		return true
 	default:
 		return false

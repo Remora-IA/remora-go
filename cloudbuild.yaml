@@ -1,4 +1,4 @@
-# Cloud Build configuration for flujo_api + Channel + Frameworks
+# Cloud Build configuration for api_rest + Channel + Frameworks
 substitutions:
   _SERVICE_NAME: 'flujo-api'
   _REGION: 'us-central1'
@@ -11,13 +11,13 @@ options:
   substitution_option: 'ALLOW_LOOSE'
 
 steps:
-  # Build flujo_api
+  # Build api_rest
   - name: 'golang:1.26-bookworm'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        cd remora-flujo && go build -o cmd/flujo_api/flujo_api ./cmd/flujo_api
+        cd remora-flujo && go build -o cmd/api_rest/api_rest ./cmd/api_rest
     id: 'build-flujo-api'
     waitFor: ['-']
 
@@ -27,7 +27,7 @@ steps:
     args:
       - '-c'
       - |
-        cd channel && go build -o /workspace/remora-flujo/cmd/flujo_api/channel ./cmd/channel
+        cd channel && go build -o /workspace/remora-flujo/cmd/api_rest/channel ./cmd/channel
     id: 'build-channel'
     waitFor: ['-']
 
@@ -49,6 +49,15 @@ steps:
       - |
         cd framework-alfa && go build -o frameworkalfa ./cmd/frameworkalfa
     id: 'build-alfa'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-arquitecto && go build -o frameworkarquitecto ./cmd/frameworkarquitecto
+    id: 'build-arquitecto'
     waitFor: ['-']
 
   # Build framework-auditor
@@ -121,14 +130,40 @@ steps:
     id: 'build-mensajero'
     waitFor: ['-']
 
-  # Build framework-contactos
   - name: 'golang:1.26-bookworm'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        cd framework-contactos && go build -o frameworkcontactos ./cmd/frameworkcontactos
-    id: 'build-contactos'
+        cd framework-critico && go build -o frameworkcritico ./cmd/frameworkcritico
+    id: 'build-critico'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-deployer && go build -o deployer ./cmd/deployer
+    id: 'build-deployer'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-mecanico && go build -buildvcs=false -o frameworkmecanico ./cmd/frameworkmecanico
+    id: 'build-mecanico'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-paladin && go build -o frameworkpaladin ./cmd/paladin
+    id: 'build-paladin'
     waitFor: ['-']
 
   # Build framework-tareas
@@ -150,7 +185,7 @@ steps:
       - '-t'
       - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest'
       - '-f'
-      - 'remora-flujo/cmd/flujo_api/Dockerfile'
+      - 'remora-flujo/cmd/api_rest/Dockerfile'
       - '.'
     id: 'build-docker'
     waitFor:
@@ -158,6 +193,7 @@ steps:
       - 'build-channel'
       - 'build-echo'
       - 'build-alfa'
+      - 'build-arquitecto'
       - 'build-auditor'
       - 'build-indexa'
       - 'build-sabio'
@@ -165,7 +201,10 @@ steps:
       - 'build-hosting'
       - 'build-vault'
       - 'build-mensajero'
-      - 'build-contactos'
+      - 'build-critico'
+      - 'build-deployer'
+      - 'build-mecanico'
+      - 'build-paladin'
       - 'build-tareas'
 
   # Push to GCR

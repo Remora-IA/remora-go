@@ -11,7 +11,9 @@ temp/
 bin/
 .devin/
 
-# Binarios compilados por framework (mismo nombre que el paquete)
+# Logs y PID files (no versionables, generados en runtime)
+tmp/*.log
+tmp/*.pid
 channel/channel
 channel/channel-new
 channel/orchestrator
@@ -23,19 +25,25 @@ framework-foco/foco
 framework-foco/foco_state.json
 framework-gmail/framework-gmail
 framework-indexa/frameworkindexa
+framework-indexa/data/
 framework-indexa/panalbit-sync
 framework-mecanico/frameworkmecanico
 framework-paladin/bin/
 framework-quine/quine
 framework-sabio/frameworksabio
 remora-flujo/flujo
-remora-flujo/flujo_api
+remora-flujo/api_rest
 remora-flujo/flujo_test
 remora-flujo/agentrpc
 
 # Bases de datos embebidas (no versionables)
 *.db
-framework-indexa/data/panalbit.db
+
+# Frameworks eliminados (no intentar versionar)
+framework-contactos/
+
+# Path viejo de remora-flujo (renombrado a api_rest)
+remora-flujo/cmd/flujo_api/
 
 # Trazas, capturas y logs de Paladin que se regeneran
 trace_pal_*.json
