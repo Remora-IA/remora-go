@@ -3,11 +3,72 @@ package main
 import (
 	"io"
 	"log"
+	"reflect"
 	"strings"
 	"testing"
 
 	"channel/manifest"
 )
+
+func TestFindProviderForCapability(t *testing.T) {
+	s := &server{allManifests: map[string]*manifest.Manifest{
+		"alpha": {Name: "alpha", Capabilities: []manifest.CapabilitySpec{{ID: "data.read"}}},
+		"beta":  {Name: "beta", Capabilities: []manifest.CapabilitySpec{{ID: "contact.lookup"}}},
+		"gamma": {Name: "gamma", Capabilities: []manifest.CapabilitySpec{{ID: "message.send"}}},
+	}}
+
+	m, name, ok := s.findProviderForCapability("contact.lookup")
+	if !ok {
+		t.Fatal("expected provider")
+	}
+	if name != "beta" || m == nil || m.Name != "beta" {
+		t.Fatalf("provider name=%q manifest=%#v", name, m)
+	}
+}
+
+func TestFindProviderForCapabilityNotFound(t *testing.T) {
+	s := &server{allManifests: map[string]*manifest.Manifest{
+		"alpha": {Name: "alpha", Capabilities: []manifest.CapabilitySpec{{ID: "data.read"}}},
+	}}
+
+	if m, name, ok := s.findProviderForCapability("missing.capability"); ok || m != nil || name != "" {
+		t.Fatalf("expected not found, got ok=%v name=%q manifest=%#v", ok, name, m)
+	}
+}
+
+func TestResolutionModeFromPolicies(t *testing.T) {
+	tests := []struct {
+		name     string
+		policies []string
+		want     string
+	}{
+		{name: "interactive", policies: []string{"resolution_interactive"}, want: resolutionInteractive},
+		{name: "hybrid", policies: []string{"resolution_hybrid"}, want: resolutionHybrid},
+		{name: "autonomous", policies: []string{"resolution_autonomous"}, want: resolutionAutonomous},
+		{name: "default", policies: nil, want: resolutionAutonomous},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := resolutionModeFromPolicies(tt.policies); got != tt.want {
+				t.Fatalf("mode=%q want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGapResolutionRegistryUsesCapabilityNotName(t *testing.T) {
+	if _, ok := reflect.TypeOf(gapResolution{}).FieldByName("Framework"); ok {
+		t.Fatal("gapResolution should not contain Framework")
+	}
+	for _, entry := range gapResolutionRegistry() {
+		if strings.TrimSpace(entry.Capability) == "" {
+			t.Fatalf("registry entry missing capability: %#v", entry)
+		}
+		if strings.TrimSpace(entry.Produces) == "" {
+			t.Fatalf("registry entry missing produces: %#v", entry)
+		}
+	}
+}
 
 func TestValidateFlowManifestValidChain(t *testing.T) {
 	manifests := flowTestManifests()
@@ -63,7 +124,7 @@ func TestPrepareFlowManifestLifecyclePromotesPriorityListBeforeFoco(t *testing.T
 		},
 	}
 
-	prepareFlowManifestLifecycle(&flow)
+	prepareFlowManifestLifecycle(&flow, flowTestManifests())
 
 	positions := map[string]int{}
 	for i, node := range flow.Nodes {
@@ -92,7 +153,7 @@ func TestPrepareFlowManifestLifecycleHonorsConfiguredEntry(t *testing.T) {
 		},
 	}
 
-	prepareFlowManifestLifecycle(&flow)
+	prepareFlowManifestLifecycle(&flow, flowTestManifests())
 
 	for _, node := range flow.Nodes {
 		if node.ID == "foco_entry" {
@@ -521,7 +582,7 @@ func flowTestManifests() map[string]*manifest.Manifest {
 					Requires:  []string{"entity.ref.v1", "data.sqlite_db.v1", "business.semantic_pack.v1"},
 					Produces:  []string{"entity_360.v1", "answer.grounded.v1"},
 					Execution: "scoped_readonly_sqlite",
-					Policies:  []string{"readonly_sql", "scope_required"},
+					Policies:  []string{"readonly_sql", "scope_required", "business_sqlite_param"},
 				},
 				{
 					ID:        "dataset.export",
@@ -530,7 +591,7 @@ func flowTestManifests() map[string]*manifest.Manifest {
 					Requires:  []string{"data.sqlite_db.v1"},
 					Produces:  []string{"dataset.raw.v1", "external.api.dump.v1"},
 					Execution: "deterministic_sqlite_readonly_export",
-					Policies:  []string{"readonly_sql", "safe_for_runtime"},
+					Policies:  []string{"readonly_sql", "safe_for_runtime", "business_sqlite_param", "data_mediator"},
 				},
 			},
 		},
@@ -564,7 +625,7 @@ func flowTestManifests() map[string]*manifest.Manifest {
 					Requires:  []string{"collection.priority_list.v1"},
 					Produces:  []string{"focus.next_task.v1", "task.next", "entity.ref.v1"},
 					Execution: "operational_focus_selection",
-					Policies:  []string{"trace_required"},
+					Policies:  []string{"trace_required", "entrypoint", "task_owner", "flow_state_scoped"},
 				},
 			},
 		},
@@ -596,14 +657,14 @@ func flowTestManifests() map[string]*manifest.Manifest {
 					Command:   "provision-smtp",
 					Produces:  []string{"credentials.smtp"},
 					Execution: "vault_write",
-					Policies:  []string{"admin_only"},
+					Policies:  []string{"admin_only", "vault_scoped"},
 				},
 				{
 					ID:        "credentials.smtp.import",
 					Command:   "import-smtp",
 					Produces:  []string{"credentials.smtp"},
 					Execution: "vault_write",
-					Policies:  []string{"admin_only"},
+					Policies:  []string{"admin_only", "vault_scoped"},
 				},
 			},
 		},
@@ -619,7 +680,7 @@ func flowTestManifests() map[string]*manifest.Manifest {
 					Inputs:    []string{"message.draft.v1", "credentials.smtp"},
 					Produces:  []string{"message.sent.v1"},
 					Execution: "smtp_send",
-					Policies:  []string{"external_side_effect"},
+					Policies:  []string{"external_side_effect", "vault_scoped"},
 				},
 			},
 			CapabilitiesSemantic: manifest.CapabilitiesSemantic{

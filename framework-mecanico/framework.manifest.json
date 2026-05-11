@@ -295,6 +295,7 @@
       "execution": "deterministic_or_llm_assisted_fix_proposal",
       "policies": [
         "no_external_side_effect",
+        "resolution_hybrid",
         "approval_required_before_apply"
       ]
     },
@@ -345,6 +346,8 @@
       "policies": [
         "state_mutation",
         "approval_required",
+        "long_running",
+        "long_running",
         "audit_log_required"
       ]
     },

@@ -1,16 +1,12 @@
 package main
 
 import (
-	"encoding/json"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
 
-// ActiveTask es la tarea pendiente #1 del ledger framework-tareas.
+// ActiveTask es la tarea pendiente #1 del estado de tareas de Foco.
 // Representa "sobre qué entidad está trabajando el usuario ahora mismo".
 // Se usa para inyectar contexto en enrichedAnswer antes de pasarle la
 // respuesta al framework que habla.
@@ -23,8 +19,8 @@ type ActiveTask struct {
 	Notes      string `json:"notes"`
 }
 
-// activeTaskCache cachea la respuesta del ledger para no hacer exec del
-// binario en cada turn. TTL corto: la ventana importante es dentro de la
+// activeTaskCache cachea la respuesta de Foco para no leer estado en cada
+// turn. TTL corto: la ventana importante es dentro de la
 // misma conversación, y el ledger cambia cuando llega un email_sent.
 var (
 	activeTaskMu    sync.RWMutex
@@ -34,11 +30,8 @@ var (
 
 const activeTaskTTL = 15 * time.Second
 
-// activeTaskContext devuelve la tarea activa (la primera pendiente o en
-// curso) del ledger del profile actual. Devuelve nil si:
-//   - no hay binario frameworktareas accesible
-//   - el ledger no tiene tareas pendientes
-//   - hay un error (silencioso, best-effort)
+// activeTaskContext devuelve la tarea activa (la primera pendiente o en curso)
+// desde Foco, fuente única de verdad para tareas del operador.
 func activeTaskContext() *ActiveTask {
 	activeTaskMu.RLock()
 	if activeTaskValue != nil && time.Since(activeTaskAt) < activeTaskTTL {
@@ -48,31 +41,14 @@ func activeTaskContext() *ActiveTask {
 	}
 	activeTaskMu.RUnlock()
 
-	bin := tareasBinPath()
-	if bin == "" {
-		return nil
-	}
-	profile := envOr("REMORA_PROFILE", "default")
-	cmd := exec.Command(bin, "next", "--profile", profile)
-	out, err := cmd.Output()
+	task, err := activeTaskFromFoco(currentProfile())
 	if err != nil {
-		return nil
-	}
-	var resp struct {
-		Found bool        `json:"found"`
-		Task  *ActiveTask `json:"task"`
-	}
-	if err := json.Unmarshal(out, &resp); err != nil {
 		return nil
 	}
 
 	activeTaskMu.Lock()
 	defer activeTaskMu.Unlock()
-	if resp.Found && resp.Task != nil {
-		activeTaskValue = resp.Task
-	} else {
-		activeTaskValue = nil
-	}
+	activeTaskValue = task
 	activeTaskAt = time.Now()
 	if activeTaskValue == nil {
 		return nil
@@ -89,21 +65,6 @@ func invalidateActiveTaskCache() {
 	activeTaskValue = nil
 	activeTaskAt = time.Time{}
 	activeTaskMu.Unlock()
-}
-
-// tareasBinPath localiza el binario frameworktareas.
-func tareasBinPath() string {
-	if v := os.Getenv("REMORA_TAREAS_BIN"); v != "" {
-		if _, err := os.Stat(v); err == nil {
-			return v
-		}
-	}
-	root := resolveRemoraRoot()
-	bin := filepath.Join(root, "framework-tareas", "frameworktareas")
-	if _, err := os.Stat(bin); err == nil {
-		return bin
-	}
-	return ""
 }
 
 // buildActiveTaskLine produce una línea de contexto para inyectar al

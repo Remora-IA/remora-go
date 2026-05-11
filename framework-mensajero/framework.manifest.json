@@ -193,6 +193,7 @@
         "approval_required",
         "trace_required",
         "cycle_terminal",
+        "vault_scoped",
         "audit_log_required"
       ]
     }

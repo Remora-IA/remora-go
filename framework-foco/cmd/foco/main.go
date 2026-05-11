@@ -3008,8 +3008,8 @@ func runPriorities(args []string) error {
 	profile := fs.String("profile", "", "perfil de ejecución")
 	fs.Parse(args)
 	_ = dbFlag
-	// 1. Preferir el ledger event-sourced (framework-tareas). Si hay tareas
-	//    pendientes, son la verdad: Foco no debe regenerar prioridades desde
+	// 1. Preferir las tareas pendientes de Foco. Si existen, son la verdad:
+	//    Foco no debe regenerar prioridades desde
 	//    cero ignorando trabajo ya en curso.
 	if items, err := queryTaskLedger(); err != nil {
 		fmt.Fprintf(os.Stderr, "[foco] task ledger error: %v\n", err)
@@ -3606,7 +3606,7 @@ func containsActionOptionID(options []map[string]interface{}, id string) bool {
 
 // emitPriorityList serializa la lista de prioridades a JSON + markdown y la
 // persiste en temp/foco/last_priority_list.json. `source` indica de dónde
-// vinieron los items ("ledger" = framework-tareas, "sqlite" = fallback SQL).
+// vinieron los items ("ledger" = tareas Foco, "sqlite" = fallback SQL).
 func emitPriorityList(items []priorityItem, source, businessID, profile, dbPath string) error {
 	list := map[string]interface{}{
 		"artifact_type": "collection.priority_list.v1",

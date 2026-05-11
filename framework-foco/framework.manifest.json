@@ -285,6 +285,8 @@
       "execution": "operational_entry_briefing",
       "policies": [
         "trace_required",
+        "entrypoint",
+        "flow_state_scoped",
         "framework_speaks_first"
       ]
     },
@@ -342,7 +344,10 @@
       ],
       "execution": "operational_focus_selection",
       "policies": [
-        "trace_required"
+        "trace_required",
+        "entrypoint",
+        "task_owner",
+        "flow_state_scoped"
       ]
     },
     {
@@ -365,7 +370,9 @@
       ],
       "execution": "stateful_conversation",
       "policies": [
-        "trace_required"
+        "trace_required",
+        "entrypoint",
+        "flow_state_scoped"
       ]
     },
     {
@@ -392,6 +399,8 @@
       "policies": [
         "state_mutation",
         "trace_required",
+        "task_owner",
+        "flow_state_scoped",
         "idempotent"
       ]
     }

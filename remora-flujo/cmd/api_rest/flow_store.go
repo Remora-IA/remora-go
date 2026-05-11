@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"channel/manifest"
 	_ "modernc.org/sqlite"
 )
 
@@ -281,18 +282,18 @@ func (s *server) enrichFlowRuntimeStatus(flow *flowWithManifest) {
 	}
 	flow.Installed = s.flowInstalledSnapshot(flow.BusinessID)
 	if flow.Status == "installed" || flow.Status == "active" {
-		flow.Operational = s.flowOperationalSnapshot(flow.BusinessID, flow.Manifest.ID)
+		flow.Operational = s.flowOperationalSnapshot(flow.BusinessID, flow.Manifest)
 		return
 	}
 	if flow.Installed != nil {
 		flow.Installed.Installed = false
 	}
-	flow.Operational = s.flowOperationalSnapshot(flow.BusinessID, flow.Manifest.ID)
+	flow.Operational = s.flowOperationalSnapshot(flow.BusinessID, flow.Manifest)
 }
 
-func flowUsesRadarAnalysis(flow flowManifest) bool {
+func flowUsesInstallableAnalysis(flow flowManifest, manifests map[string]*manifest.Manifest) bool {
 	for _, node := range flow.Nodes {
-		if node.Framework == "radar" && node.Capability == "analysis.configure" {
+		if producesArtifact(node, manifests, "analysis.schema.v1") || nodeHasPolicy(node, manifests, "install_once") {
 			return true
 		}
 	}
@@ -305,7 +306,10 @@ func (s *server) flowInstalledSnapshot(businessID string) *flowInstalledSnapshot
 	if !snapshot.Installed {
 		return snapshot
 	}
-	schemaPath := filepath.Join(filepath.Dir(planPath), "collection_analysis_schema.json")
+	schemaPath := s.latestFlowArtifactPath(businessID, "analysis.schema.v1")
+	if schemaPath == "" {
+		schemaPath = s.legacyAnalysisSchemaPath(businessID)
+	}
 	if !nonEmptyFileExists(schemaPath) {
 		return snapshot
 	}
@@ -346,13 +350,13 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 		result.Summary = "El flujo ya estaba instalado; se reutiliza el plan de análisis existente."
 		return result, nil
 	}
-	m := s.allManifests["radar"]
-	if m == nil {
-		return result, fmt.Errorf("framework radar no encontrado")
+	m, providerName, ok := s.findProviderForCapability("analysis.configure")
+	if !ok || m == nil {
+		return result, fmt.Errorf("provider no encontrado para capability analysis.configure")
 	}
 	cmd, ok := m.Commands["configure-analysis"]
 	if !ok {
-		return result, fmt.Errorf("radar.configure-analysis no está disponible")
+		return result, fmt.Errorf("%s no expone configure-analysis", providerName)
 	}
 	semanticPath := s.businessSemanticPackPath(flow.BusinessID)
 	if semanticPath == "" {
@@ -372,7 +376,7 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 	fullArgs = append(fullArgs, args...)
 	cwdRel := m.Cwd
 	if cwdRel == "" {
-		cwdRel = "framework-radar"
+		cwdRel = "framework-" + providerName
 	}
 	execCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
@@ -386,14 +390,30 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 			msg = strings.TrimSpace(resp.Stderr)
 		}
 		if msg == "" {
-			msg = fmt.Sprintf("radar configure-analysis terminó con exit code %d", resp.ExitCode)
+			msg = fmt.Sprintf("%s configure-analysis terminó con exit code %d", providerName, resp.ExitCode)
 		}
 		return result, fmt.Errorf("%s", msg)
 	}
 	payload := parseArtifactPayload(resp.Stdout)
 	if typ, _ := payload["artifact_type"].(string); typ != "analysis.schema.v1" {
-		return result, fmt.Errorf("radar no devolvió analysis.schema.v1")
+		return result, fmt.Errorf("%s no devolvió analysis.schema.v1", providerName)
 	}
+	runID := "flow_install_" + safeFilePart(flow.ID)
+	_ = s.persistFlowArtifact(runID, "install", "analysis.schema.v1", payload)
+	planPayload := map[string]interface{}{
+		"artifact_type": "analysis.plan.v1",
+		"business_id":   flow.BusinessID,
+		"schema":        payload,
+	}
+	if planPath := jsonFirstString(payload, "plan_path"); planPath != "" {
+		if raw, err := os.ReadFile(filepath.Join(s.rootDir, m.Cwd, planPath)); err == nil {
+			var decoded map[string]interface{}
+			if json.Unmarshal(raw, &decoded) == nil {
+				planPayload = decoded
+			}
+		}
+	}
+	_ = s.persistFlowArtifact(runID, "install", "analysis.plan.v1", planPayload)
 	_ = s.flows.updateFlowStatus(flow.ID, "installed")
 	result.ArtifactType = "flow.installation.v1"
 	result.Artifacts = []string{"flow.installation.v1", "analysis.schema.v1", "analysis.plan.v1"}
@@ -402,8 +422,8 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 	return result, nil
 }
 
-func (s *server) flowOperationalSnapshot(businessID, flowID string) *flowOperationalSnapshot {
-	path := filepath.Join(s.rootDir, "framework-foco", "temp", "foco", "sessions", focoFlowStateConvID(businessID, flowID), "state.json")
+func (s *server) flowOperationalSnapshot(businessID string, flow *flowManifest) *flowOperationalSnapshot {
+	path := s.flowStatePath(businessID, flow)
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return &flowOperationalSnapshot{Date: time.Now().Format("2006-01-02"), StatePath: path}
@@ -435,6 +455,39 @@ func (s *server) flowOperationalSnapshot(businessID, flowID string) *flowOperati
 		}
 	}
 	return snapshot
+}
+
+func (s *server) flowStatePath(businessID string, flow *flowManifest) string {
+	if flow == nil {
+		return ""
+	}
+	providerName := ""
+	for _, node := range flow.Nodes {
+		if isFocoNode(node, s.allManifests) {
+			providerName = node.Framework
+			break
+		}
+	}
+	if providerName == "" {
+		_, providerName, _ = s.findProviderForCapability("focus.complete_cycle")
+	}
+	m := s.allManifests[providerName]
+	if m == nil || strings.TrimSpace(m.State.Dir) == "" {
+		return ""
+	}
+	fileName := "state.json"
+	for _, candidate := range m.State.Files {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == fileName {
+			fileName = candidate
+			break
+		}
+	}
+	cwdRel := m.Cwd
+	if cwdRel == "" {
+		cwdRel = "framework-" + providerName
+	}
+	return filepath.Join(s.rootDir, cwdRel, m.State.Dir, "sessions", focoFlowStateConvID(businessID, flow.ID), fileName)
 }
 
 // --- HTTP handlers ---

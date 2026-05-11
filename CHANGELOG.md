@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.23] - 2026-05-11
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **api_rest/Dockerfile**: -3
+- **api_rest/entrypoint.sh**: -13
+- **api_rest/active_task.go**: +7 / -46
+- **api_rest/flow_backend.go**: funciones: resolutionModeFromPolicies, resolutionModeForCapability, normalizeFlowLifecycleRoles, prepareFlowManifestLifecycle
+- **api_rest/flow_gap_inputs.go**: archivo nuevo
+- **api_rest/flow_proposals.go**: archivo nuevo
+- **api_rest/flow_run_types.go**: archivo nuevo
+- **api_rest/flow_store.go**: funciones: flowUsesInstallableAnalysis, (s *server) flowOperationalSnapshot, (s *server) flowStatePath
+- **api_rest/orchestrator.go**: +2 / -2
+- **api_rest/tareas.go**: funciones: focoTasksList, focoTasksNext, activeTaskFromFoco, createFocoTask | tipos: focoTaskPlan, focoTaskNote, focoTaskEvent
+- **api_rest/flow_artifacts.go**: archivo nuevo
+- **api_rest/flow_cycles.go**: archivo nuevo
+- **api_rest/flow_data_mediation.go**: archivo nuevo
+- **api_rest/flow_dimensions.go**: archivo nuevo
+- **api_rest/flow_execution.go**: archivo nuevo
+- **api_rest/flow_gap_resolution.go**: archivo nuevo
+- **api_rest/flow_installation.go**: archivo nuevo
+- **api_rest/flow_legacy_paths.go**: archivo nuevo
+- **api_rest/flow_params.go**: archivo nuevo
+- **api_rest/flow_preflight.go**: archivo nuevo
+- **api_rest/flow_provider_defaults.go**: archivo nuevo
+- **api_rest/flow_provider_interaction.go**: archivo nuevo
+- **api_rest/flow_readiness.go**: archivo nuevo
+- **api_rest/flow_run.go**: -3431
+- **api_rest/flow_runner.go**: archivo nuevo
+- **api_rest/flow_runtime_approval.go**: archivo nuevo
+- **api_rest/flow_summaries.go**: archivo nuevo
+- **api_rest/flow_backend_test.go**: funciones: TestFindProviderForCapability, TestFindProviderForCapabilityNotFound, TestResolutionModeFromPolicies, TestGapResolutionRegistryUsesCapabilityNotName
+- **api_rest/flow_run_test.go**: +6 / -4
+
+### Repo
+
+- **framework-auditor/framework.manifest.json**: +1
+- **framework-foco/framework.manifest.json**: +11 / -2
+- **framework-hosting/framework.manifest.json**: +6
+- **framework-mecanico/framework.manifest.json**: +3
+- **framework-mensajero/framework.manifest.json**: +1
+- **framework-radar/framework.manifest.json**: +2
+- **framework-sabio/framework.manifest.json**: +3
+- **manifest/manifest.go**: tipos: StateSpec
+- **foco/cobranza_tasks.go**: funciones: parseTaskNotesMap
+- **foco/main.go**: +3 / -3
+
 ## [0.1.22] - 2026-05-11
 
 > **Release**: expandir flujo

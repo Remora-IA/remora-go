@@ -131,7 +131,7 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 		enrichSpan := rootCtx.Child("enrich_answer")
 		enrichSpan.Var("raw_user_answer", userAnswer)
 		enrichedAnswer := userAnswer
-		// Inyectar contexto de la tarea activa (ledger framework-tareas) si el
+		// Inyectar contexto de la tarea activa de Foco si el
 		// profile es cobranza. Esto hace que Sabio/Mensajero sepan sobre qué
 		// cliente hablar sin depender de history parsing. Commit B.
 		if task := activeTaskContext(); task != nil {
@@ -140,7 +140,7 @@ func runLoop(ctx context.Context, ch *adapter.Client, conv *Conversation, rules 
 				enrichedAnswer = ctxLine + enrichedAnswer
 				enrichSpan.Var("active_task_injected", task.Title)
 				enrichSpan.Decision("inject_active_task",
-					fmt.Sprintf("ledger tiene task activa (%s); inyectada como contexto", task.Title))
+					fmt.Sprintf("Foco tiene task activa (%s); inyectada como contexto", task.Title))
 			}
 		}
 		// Si el usuario seleccionó "Gestionar: <deudor>", transformar en query 360°

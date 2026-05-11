@@ -202,7 +202,7 @@ func TestRunFlowManifestUsesInteractiveModeForApprovalPolicy(t *testing.T) {
 				Command:  "import-smtp",
 				Requires: []string{"credentials.smtp.input.v1"},
 				Produces: []string{"credentials.smtp"},
-				Policies: []string{"approval_required"},
+				Policies: []string{"approval_required", "resolution_interactive"},
 			}},
 		},
 	}}
@@ -237,7 +237,7 @@ func TestRunFlowManifestUsesHybridModeForStateMutation(t *testing.T) {
 				Command:  "apply",
 				Requires: []string{"mecanico.proposal.v1"},
 				Produces: []string{"mecanico.applied.v1"},
-				Policies: []string{"state_mutation", "approval_required"},
+				Policies: []string{"state_mutation", "approval_required", "resolution_hybrid"},
 			}},
 		},
 	}}
@@ -358,6 +358,7 @@ func TestRunFlowManifestSkipsInstalledRadarAnalysis(t *testing.T) {
 				Command:  "configure-analysis",
 				Requires: []string{"business.semantic_pack.v1"},
 				Produces: []string{"analysis.schema.v1", "analysis.plan.v1"},
+				Policies: []string{"install_once"},
 			}},
 		},
 		"foco": {
@@ -407,7 +408,7 @@ func TestRunFlowManifestPausesForRadarAnalysisAcceptance(t *testing.T) {
 				"prioritize":         {Args: []string{"-c", "prioritize"}},
 			},
 			Capabilities: []manifest.CapabilitySpec{
-				{ID: "analysis.configure", Command: "configure-analysis", Requires: []string{"business.semantic_pack.v1"}, Produces: []string{"analysis.schema.v1", "analysis.proposal.v1"}},
+				{ID: "analysis.configure", Command: "configure-analysis", Requires: []string{"business.semantic_pack.v1"}, Produces: []string{"analysis.schema.v1", "analysis.proposal.v1"}, Policies: []string{"human_acceptance_before_continue"}},
 				{ID: "collection.priority_list", Command: "prioritize", Requires: []string{"business.semantic_pack.v1"}, Produces: []string{"collection.priority_list.v1"}},
 			},
 		},
@@ -473,6 +474,7 @@ func TestInstallFlowAnalysisRunsRadarAndMarksInstalled(t *testing.T) {
 				Command:  "configure-analysis",
 				Requires: []string{"business.semantic_pack.v1"},
 				Produces: []string{"analysis.schema.v1", "analysis.plan.v1"},
+				Policies: []string{"install_once", "human_acceptance_before_continue"},
 			}},
 		},
 	}}
@@ -1195,7 +1197,7 @@ func TestRunFlowManifestRequestsApprovalForMecanicoProposals(t *testing.T) {
 				Command:  "propose-all-auto",
 				Requires: []string{"auditor.findings.v1"},
 				Produces: []string{"mecanico.proposals.v1", "mecanico.proposal.v1"},
-				Policies: []string{"no_external_side_effect", "approval_required_before_apply"},
+				Policies: []string{"no_external_side_effect", "resolution_hybrid", "approval_required_before_apply"},
 			}},
 		},
 	}, channel: adapter.New(channel.URL, "test-key")}

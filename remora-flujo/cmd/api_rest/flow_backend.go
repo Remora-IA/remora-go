@@ -80,40 +80,45 @@ const (
 	resolutionHybrid      = "hybrid"      // tries autonomous, falls back to user (Mecánico)
 )
 
-// frameworkResolutionMode returns how a framework typically resolves issues.
-func frameworkResolutionMode(framework string) string {
-	switch framework {
-	case "radar", "sabio", "auditor", "foco":
-		return resolutionAutonomous
-	case "mecanico":
-		return resolutionHybrid
-	case "mensajero", "hosting":
+func resolutionModeFromPolicies(policies []string) string {
+	if containsString(policies, "resolution_interactive") {
 		return resolutionInteractive
-	default:
-		return resolutionAutonomous
 	}
+	if containsString(policies, "resolution_hybrid") {
+		return resolutionHybrid
+	}
+	return resolutionAutonomous
 }
 
-// gapResolution maps a gap kind to the framework/capability that can resolve it.
+func resolutionModeForCapability(m *manifest.Manifest, capability string) string {
+	if m == nil {
+		return resolutionAutonomous
+	}
+	if cap, ok := findManifestCapability(m, capability); ok {
+		return resolutionModeFromPolicies(cap.Policies)
+	}
+	return resolutionAutonomous
+}
+
+// gapResolution maps a gap kind to the capability/artifact that can resolve it.
 type gapResolution struct {
 	GapKind    string
-	Framework  string
 	Capability string
-	Mode       string
+	Produces   string
 }
 
 // gapResolutionRegistry returns strategies for resolving different data gap kinds.
 func gapResolutionRegistry() []gapResolution {
 	return []gapResolution{
-		{GapKind: "contact", Framework: "sabio", Capability: "contact.lookup", Mode: resolutionAutonomous},
-		{GapKind: "email", Framework: "sabio", Capability: "contact.lookup", Mode: resolutionAutonomous},
-		{GapKind: "correo", Framework: "sabio", Capability: "contact.lookup", Mode: resolutionAutonomous},
-		{GapKind: "credentials", Framework: "hosting", Capability: "credentials.smtp.check", Mode: resolutionInteractive},
-		{GapKind: "smtp", Framework: "hosting", Capability: "credentials.smtp.check", Mode: resolutionInteractive},
-		{GapKind: "data_quality", Framework: "mecanico", Capability: "action.fix.propose_all_auto", Mode: resolutionHybrid},
-		{GapKind: "schema", Framework: "mecanico", Capability: "action.fix.propose_all_auto", Mode: resolutionHybrid},
-		{GapKind: "empty_required", Framework: "mecanico", Capability: "action.fix.propose_all_auto", Mode: resolutionHybrid},
-		{GapKind: "fk_orphan", Framework: "mecanico", Capability: "action.fix.propose_all_auto", Mode: resolutionHybrid},
+		{GapKind: "contact", Capability: "contact.lookup", Produces: "contact.destination.v1"},
+		{GapKind: "email", Capability: "contact.lookup", Produces: "contact.destination.v1"},
+		{GapKind: "correo", Capability: "contact.lookup", Produces: "contact.destination.v1"},
+		{GapKind: "credentials", Capability: "credentials.smtp.check", Produces: "credentials.status.v1"},
+		{GapKind: "smtp", Capability: "credentials.smtp.check", Produces: "credentials.status.v1"},
+		{GapKind: "data_quality", Capability: "action.fix.propose_all_auto", Produces: "mecanico.proposals.v1"},
+		{GapKind: "schema", Capability: "action.fix.propose_all_auto", Produces: "mecanico.proposals.v1"},
+		{GapKind: "empty_required", Capability: "action.fix.propose_all_auto", Produces: "mecanico.proposals.v1"},
+		{GapKind: "fk_orphan", Capability: "action.fix.propose_all_auto", Produces: "mecanico.proposals.v1"},
 	}
 }
 
@@ -128,13 +133,17 @@ func findGapResolution(kind string) (gapResolution, bool) {
 	return gapResolution{}, false
 }
 
-func normalizeFlowLifecycleRoles(f *flowManifest) {
+func normalizeFlowLifecycleRoles(f *flowManifest, manifestSets ...map[string]*manifest.Manifest) {
 	if f == nil {
 		return
 	}
+	var manifests map[string]*manifest.Manifest
+	if len(manifestSets) > 0 {
+		manifests = manifestSets[0]
+	}
 	hasFoco := false
 	for _, n := range f.Nodes {
-		if isFocoNode(n) {
+		if isFocoNode(n, manifests) {
 			hasFoco = true
 			break
 		}
@@ -142,7 +151,7 @@ func normalizeFlowLifecycleRoles(f *flowManifest) {
 	hasEntry := false
 	for i := range f.Nodes {
 		f.Nodes[i].Role = normalizeFlowNodeRole(f.Nodes[i].Role)
-		if isFocoNode(f.Nodes[i]) {
+		if isFocoNode(f.Nodes[i], manifests) {
 			f.Nodes[i].Role = flowRoleEntry
 		} else if hasFoco && f.Nodes[i].Role == flowRoleEntry {
 			f.Nodes[i].Role = flowRolePipeline
@@ -174,14 +183,18 @@ func normalizeFlowLifecycleRoles(f *flowManifest) {
 	}
 }
 
-func prepareFlowManifestLifecycle(f *flowManifest) {
+func prepareFlowManifestLifecycle(f *flowManifest, manifestSets ...map[string]*manifest.Manifest) {
+	var manifests map[string]*manifest.Manifest
+	if len(manifestSets) > 0 {
+		manifests = manifestSets[0]
+	}
 	migrateLegacyFlowNodes(f)
-	normalizeFlowLifecycleRoles(f)
+	normalizeFlowLifecycleRoles(f, manifests)
 	applyConfiguredFlowEntry(f)
-	ensureFocoEntry(f)
-	normalizeFlowLifecycleRoles(f)
+	ensureFocoEntry(f, manifests)
+	normalizeFlowLifecycleRoles(f, manifests)
 	applyConfiguredFlowEntry(f)
-	promotePriorityListProducersBeforeFocoEntry(f)
+	promotePriorityListProducersBeforeFocoEntry(f, manifests)
 	orderFlowLifecycleNodes(f)
 }
 
@@ -191,18 +204,18 @@ func migrateLegacyFlowNodes(f *flowManifest) {
 	}
 }
 
-func ensureFocoEntry(f *flowManifest) {
+func ensureFocoEntry(f *flowManifest, manifests map[string]*manifest.Manifest) {
 	if f == nil || len(f.Nodes) == 0 {
 		return
 	}
-	if entryFramework, _ := configuredFlowEntry(f); entryFramework != "" && entryFramework != "foco" {
+	if entryFramework, _ := configuredFlowEntry(f); entryFramework != "" {
 		return
 	}
 	if strings.TrimSpace(f.BusinessID) == "" {
 		return
 	}
 	for _, n := range f.Nodes {
-		if isFocoNode(n) {
+		if isFocoNode(n, manifests) {
 			return
 		}
 	}
@@ -212,12 +225,7 @@ func ensureFocoEntry(f *flowManifest) {
 		if isBootstrapCandidate(n) {
 			insertAt = i + 1
 		}
-		for _, produced := range append(n.Produces, n.Outputs...) {
-			if produced == "collection.priority_list.v1" {
-				hasPriorityList = true
-			}
-		}
-		if n.Framework == "radar" && n.Capability == "collection.priority_list" {
+		if producesArtifact(n, manifests, "collection.priority_list.v1") {
 			hasPriorityList = true
 		}
 	}
@@ -225,9 +233,13 @@ func ensureFocoEntry(f *flowManifest) {
 	if hasPriorityList {
 		capability = "focus.next_collection_task"
 	}
+	_, provider, ok := findProviderForCapabilityInManifests(manifests, capability)
+	if !ok {
+		return
+	}
 	node := flowNode{
 		ID:         uniqueFlowNodeID(f.Nodes, "node_foco_entry"),
-		Framework:  "foco",
+		Framework:  provider,
 		Capability: capability,
 		Role:       flowRoleEntry,
 	}
@@ -260,13 +272,13 @@ func applyConfiguredFlowEntry(f *flowManifest) {
 	}
 }
 
-func promotePriorityListProducersBeforeFocoEntry(f *flowManifest) {
+func promotePriorityListProducersBeforeFocoEntry(f *flowManifest, manifests map[string]*manifest.Manifest) {
 	if f == nil {
 		return
 	}
 	needsPriorityList := false
 	for _, n := range f.Nodes {
-		if n.Framework == "foco" && n.Capability == "focus.next_collection_task" {
+		if isFocoNode(n, manifests) && requiresArtifact(n, manifests, "collection.priority_list.v1") {
 			needsPriorityList = true
 			break
 		}
@@ -275,28 +287,17 @@ func promotePriorityListProducersBeforeFocoEntry(f *flowManifest) {
 		return
 	}
 	for i := range f.Nodes {
-		if isFocoNode(f.Nodes[i]) {
+		if isFocoNode(f.Nodes[i], manifests) {
 			continue
 		}
-		if producesPriorityList(f.Nodes[i]) {
+		if producesPriorityList(f.Nodes[i], manifests) {
 			f.Nodes[i].Role = flowRoleBootstrap
 		}
 	}
 }
 
-func producesPriorityList(n flowNode) bool {
-	if n.Framework == "radar" && n.Capability == "collection.priority_list" {
-		return true
-	}
-	if n.Framework == "foco" && n.Capability == "collection.priority_list" {
-		return true
-	}
-	for _, produced := range append(n.Produces, n.Outputs...) {
-		if produced == "collection.priority_list.v1" {
-			return true
-		}
-	}
-	return false
+func producesPriorityList(n flowNode, manifests map[string]*manifest.Manifest) bool {
+	return producesArtifact(n, manifests, "collection.priority_list.v1")
 }
 
 func orderFlowLifecycleNodes(f *flowManifest) {
@@ -321,8 +322,65 @@ func orderFlowLifecycleNodes(f *flowManifest) {
 	rebuildLinearFlowEdges(f)
 }
 
-func isFocoNode(n flowNode) bool {
-	return n.Framework == "foco" && (n.Capability == "focus.next_collection_task" || n.Capability == "focus.entry_briefing" || n.Capability == "focus.conversation")
+func isFocoNode(n flowNode, manifests map[string]*manifest.Manifest) bool {
+	return n.Role == flowRoleEntry || nodeHasPolicy(n, manifests, "entrypoint")
+}
+
+func producesArtifact(n flowNode, manifests map[string]*manifest.Manifest, artifact string) bool {
+	if containsString(append(n.Produces, n.Outputs...), artifact) {
+		return true
+	}
+	if m := manifests[n.Framework]; m != nil {
+		if cap, ok := findManifestCapability(m, n.Capability); ok {
+			return containsString(append(cap.Produces, cap.Outputs...), artifact)
+		}
+	}
+	return false
+}
+
+func requiresArtifact(n flowNode, manifests map[string]*manifest.Manifest, artifact string) bool {
+	if containsString(append(n.Requires, n.Inputs...), artifact) {
+		return true
+	}
+	if m := manifests[n.Framework]; m != nil {
+		if cap, ok := findManifestCapability(m, n.Capability); ok {
+			return containsString(append(cap.Requires, cap.Inputs...), artifact)
+		}
+	}
+	return false
+}
+
+func nodeHasPolicy(n flowNode, manifests map[string]*manifest.Manifest, policy string) bool {
+	if containsString(n.Policies, policy) {
+		return true
+	}
+	if m := manifests[n.Framework]; m != nil {
+		if cap, ok := findManifestCapability(m, n.Capability); ok {
+			return containsString(cap.Policies, policy)
+		}
+	}
+	return false
+}
+
+func findProviderForCapabilityInManifests(manifests map[string]*manifest.Manifest, capability string) (*manifest.Manifest, string, bool) {
+	if len(manifests) == 0 {
+		return nil, "", false
+	}
+	names := make([]string, 0, len(manifests))
+	for name := range manifests {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		m := manifests[name]
+		if m == nil {
+			continue
+		}
+		if _, ok := findManifestCapability(m, capability); ok {
+			return m, name, true
+		}
+	}
+	return nil, "", false
 }
 
 func uniqueFlowNodeID(nodes []flowNode, base string) string {
@@ -465,7 +523,7 @@ func (s *server) validateFlow(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "JSON inválido: "+err.Error())
 		return
 	}
-	prepareFlowManifestLifecycle(&f)
+	prepareFlowManifestLifecycle(&f, s.allManifests)
 	var businessArtifacts []string
 	if strings.TrimSpace(f.BusinessID) != "" {
 		if _, _, ok := s.requireMembershipContext(w, r, f.BusinessID, nil); !ok {
@@ -485,7 +543,7 @@ func (s *server) simulateFlow(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "JSON inválido: "+err.Error())
 		return
 	}
-	prepareFlowManifestLifecycle(&req.Flow)
+	prepareFlowManifestLifecycle(&req.Flow, s.allManifests)
 	var businessArtifacts []string
 	if strings.TrimSpace(req.Flow.BusinessID) != "" {
 		if _, _, ok := s.requireMembershipContext(w, r, req.Flow.BusinessID, nil); !ok {
@@ -788,6 +846,28 @@ func findManifestCapability(m *manifest.Manifest, id string) (manifest.Capabilit
 		}
 	}
 	return manifest.CapabilitySpec{}, false
+}
+
+func (s *server) findProviderForCapability(capability string) (*manifest.Manifest, string, bool) {
+	capability = strings.TrimSpace(capability)
+	if capability == "" {
+		return nil, "", false
+	}
+	names := make([]string, 0, len(s.allManifests))
+	for name := range s.allManifests {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		m := s.allManifests[name]
+		if m == nil {
+			continue
+		}
+		if _, ok := findManifestCapability(m, capability); ok {
+			return m, name, true
+		}
+	}
+	return nil, "", false
 }
 
 func systemFlowArtifacts() map[string]bool {

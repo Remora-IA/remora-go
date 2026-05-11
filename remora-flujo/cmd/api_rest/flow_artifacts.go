@@ -1,0 +1,287 @@
+package main
+
+import (
+	"os"
+	"strings"
+	"time"
+
+	"encoding/json"
+	"path/filepath"
+)
+
+func recordDynamicFlowNode(result *flowRunResult, node flowNode) {
+	if result == nil || node.ID == "" {
+		return
+	}
+	for _, existing := range result.DynamicNodes {
+		if existing.ID == node.ID {
+			return
+		}
+	}
+	if node.Role == "" {
+		node.Role = flowRoleResolution
+	}
+	result.DynamicNodes = append(result.DynamicNodes, node)
+	if !containsString(result.ExecutionOrder, node.ID) {
+		result.ExecutionOrder = append(result.ExecutionOrder, node.ID)
+	}
+}
+
+func artifactStringNested(payload interface{}, path []string) (string, bool) {
+	current := payload
+	for _, part := range path {
+		obj, ok := current.(map[string]interface{})
+		if !ok {
+			return "", false
+		}
+		current = obj[part]
+	}
+	s, ok := current.(string)
+	return s, ok && s != ""
+}
+
+func isLikelyEmail(s string) bool {
+	s = strings.TrimSpace(s)
+	return strings.Contains(s, "@") && strings.Contains(s, ".") && !strings.Contains(strings.ToLower(s), "sin destinatario") && !strings.Contains(strings.ToLower(s), "@ejemplo.")
+}
+
+func artifactLabelForAPI(artifact string) string {
+	switch artifact {
+	case "credentials.smtp":
+		return "credenciales de correo del negocio"
+	case "contact.destination.v1":
+		return "email del destinatario"
+	case "message.draft.v1":
+		return "borrador del mensaje"
+	default:
+		return artifact
+	}
+}
+
+// inferCheckedCredential extracts the credential capability being checked
+// from the contract. Convention: a capability like "credentials.smtp.check"
+// checks "credentials.smtp".
+func inferCheckedCredential(contract nodeContract) string {
+	for _, out := range contract.Outputs {
+		if out == "credentials.status.v1" || out == "message.send_readiness.v1" {
+			// Look through requires/inputs for the pattern
+			for _, inp := range append(contract.Inputs, contract.Requires...) {
+				if strings.HasPrefix(inp, "credentials.") && inp != "credentials.status.v1" {
+					return inp
+				}
+			}
+			// Fallback: infer from command name
+			if strings.Contains(contract.Command, "smtp") || strings.Contains(contract.Command, "has-smtp") {
+				return "credentials.smtp"
+			}
+			if strings.Contains(contract.Command, "can-send") {
+				return "credentials.smtp"
+			}
+		}
+	}
+	return ""
+}
+
+func (s *server) recordNodeArtifacts(runID, nodeID string, contract nodeContract, stdout string, available map[string]bool, artifacts map[string]flowRunArtifact) []string {
+	types := uniqueStrings(append(contract.Outputs, contract.Produces...))
+	payload := parseArtifactPayload(stdout)
+	if typ, ok := payload["artifact_type"].(string); ok && typ != "" && !containsString(types, typ) {
+		types = append(types, typ)
+	}
+	if declared, ok := payload["artifacts"].([]interface{}); ok {
+		for _, item := range declared {
+			if typ, ok := item.(string); ok && typ != "" && !containsString(types, typ) {
+				types = append(types, typ)
+			}
+		}
+	}
+	if !payloadDeclaresDataRequest(payload) {
+		types = removeString(types, "data.request.v1")
+	}
+	for _, typ := range types {
+		if typ == "" {
+			continue
+		}
+		available[typ] = true
+		artifactPayload := payloadForArtifactType(typ, payload)
+		path := s.persistFlowArtifact(runID, nodeID, typ, artifactPayload)
+		artifacts[typ] = flowRunArtifact{Type: typ, Source: "framework_stdout", Node: nodeID, Path: path, Payload: artifactPayload, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	}
+	// credential check promotion: when a credential-check node reports
+	// available=true for a capability, mark that capability as available
+	// so downstream nodes (e.g. mensajero.send) can use it.
+	promoteCredentialCheckArtifacts(payload, available, artifacts, runID, nodeID)
+	return types
+}
+
+func payloadDeclaresDataRequest(payload map[string]interface{}) bool {
+	if req, ok := payload["request"]; ok && req != nil {
+		return true
+	}
+	if typ, _ := payload["artifact_type"].(string); typ == "data.request.v1" {
+		return true
+	}
+	if declared, ok := payload["artifacts"].([]interface{}); ok {
+		for _, item := range declared {
+			if typ, _ := item.(string); typ == "data.request.v1" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func removeString(values []string, target string) []string {
+	out := values[:0]
+	for _, value := range values {
+		if value != target {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+// promoteCredentialCheckArtifacts inspects the stdout payload of credential-
+// check commands (hosting has-smtp, mensajero can-send). If the output
+// indicates the credential is available ({"available": true, "capability": X}),
+// we add the capability artifact to the available set. This bridges the gap
+// between vault-based credentials and the flow artifact graph.
+func promoteCredentialCheckArtifacts(payload map[string]interface{}, available map[string]bool, artifacts map[string]flowRunArtifact, runID, nodeID string) {
+	avail, _ := payload["available"].(bool)
+	cap, _ := payload["capability"].(string)
+	if cap == "" {
+		// Also check missing_capability for mensajero can-send negative case
+		cap, _ = payload["missing_capability"].(string)
+	}
+	if cap == "" {
+		return
+	}
+	if avail {
+		available[cap] = true
+		artifacts[cap] = flowRunArtifact{
+			Type:      cap,
+			Source:    "vault_check",
+			Node:      nodeID,
+			Payload:   map[string]interface{}{"from_vault": true, "checked_by": nodeID},
+			CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		}
+	}
+}
+
+func payloadForArtifactType(typ string, payload map[string]interface{}) interface{} {
+	if typ == "task.next" {
+		if task, ok := payload["task_next"]; ok {
+			return task
+		}
+		if task, ok := payload["task"]; ok {
+			return task
+		}
+	}
+	if typ == "action.options.v1" {
+		if options, ok := payload["action_options"]; ok {
+			return options
+		}
+	}
+	if typ == "data.gaps.v1" {
+		if gaps, ok := payload["data_gaps"]; ok {
+			return gaps
+		}
+	}
+	if typ == "data.request.v1" {
+		if req, ok := payload["request"]; ok {
+			return req
+		}
+	}
+	if typ == "dataset.raw.v1" || typ == "external.api.dump.v1" {
+		if updated, ok := payload["updated_dataset"]; ok {
+			return updated
+		}
+	}
+	if typ == "mecanico.applied.v1" {
+		if applied, ok := payload["applied"]; ok {
+			return applied
+		}
+	}
+	if selected, ok := payload["selected"].(map[string]interface{}); ok {
+		if selectedType, _ := selected["artifact_type"].(string); selectedType == typ {
+			return selected
+		}
+	}
+	if item, ok := payload["priority_item"].(map[string]interface{}); ok && typ == "collection.priority_item.v1" {
+		return item
+	}
+	return payload
+}
+
+func parseArtifactPayload(stdout string) map[string]interface{} {
+	payload := map[string]interface{}{"raw_stdout": stdout}
+	var decoded map[string]interface{}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(stdout)), &decoded); err == nil {
+		return decoded
+	}
+	return payload
+}
+
+func (s *server) persistFlowRun(result flowRunResult) error {
+	dir := filepath.Join(s.rootDir, "temp", "flow_runs", result.RunID)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	raw, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "run.json"), raw, 0644)
+}
+
+func (s *server) persistFlowArtifact(runID, nodeID, typ string, payload interface{}) string {
+	dir := filepath.Join(s.rootDir, "temp", "flow_runs", runID, "artifacts")
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return ""
+	}
+	path := filepath.Join(dir, safeFilePart(nodeID)+"__"+safeFilePart(typ)+".json")
+	raw, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return ""
+	}
+	if err := os.WriteFile(path, raw, 0644); err != nil {
+		return ""
+	}
+	return path
+}
+
+func (s *server) latestFlowArtifactPath(businessID, typ string) string {
+	businessID = strings.TrimSpace(businessID)
+	typ = strings.TrimSpace(typ)
+	if businessID == "" || typ == "" {
+		return ""
+	}
+	root := filepath.Join(s.rootDir, "temp", "flow_runs")
+	var latestPath string
+	var latestMod time.Time
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".json") {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		var payload map[string]interface{}
+		if json.Unmarshal(raw, &payload) != nil {
+			return nil
+		}
+		if jsonFirstString(payload, "artifact_type", "type") != typ {
+			return nil
+		}
+		if payloadBusiness := jsonFirstString(payload, "business_id"); payloadBusiness != "" && payloadBusiness != businessID {
+			return nil
+		}
+		if latestPath == "" || info.ModTime().After(latestMod) {
+			latestPath = path
+			latestMod = info.ModTime()
+		}
+		return nil
+	})
+	return latestPath
+}

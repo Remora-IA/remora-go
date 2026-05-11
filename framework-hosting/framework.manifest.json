@@ -269,6 +269,9 @@
       "execution": "vault_write_after_remote_login_check",
       "policies": [
         "secret_write",
+        "vault_scoped",
+        "vault_scoped",
+        "vault_scoped",
         "approval_required",
         "audit_log_required"
       ]
@@ -295,6 +298,7 @@
       "policies": [
         "external_side_effect",
         "secret_write",
+        "vault_scoped",
         "approval_required",
         "audit_log_required"
       ]
@@ -342,6 +346,8 @@
       "execution": "vault_capability_check",
       "policies": [
         "safe_for_runtime",
+        "resolution_interactive",
+        "vault_scoped",
         "no_external_side_effect"
       ]
     },

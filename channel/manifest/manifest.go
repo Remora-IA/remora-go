@@ -25,6 +25,7 @@ type Manifest struct {
 	AsksHuman   AsksHuman          `json:"asks_human"`
 	UserInput   UserInputSpec      `json:"user_input"`
 	Model       ModelSpec          `json:"model"`
+	State       StateSpec          `json:"state,omitempty"`
 
 	// ExecutionMode declara cómo el orquestador ejecuta el framework.
 	//   - "sync_chain"    (default) participa del round-robin conversacional
@@ -72,6 +73,11 @@ type CapabilitySpec struct {
 	Produces    []string `json:"produces,omitempty"`
 	Execution   string   `json:"execution"`
 	Policies    []string `json:"policies,omitempty"`
+}
+
+type StateSpec struct {
+	Dir   string   `json:"dir,omitempty"`
+	Files []string `json:"files,omitempty"`
 }
 
 // ExecutionModeSync identifica frameworks que participan del round-robin.

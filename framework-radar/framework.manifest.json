@@ -123,6 +123,8 @@
       "execution": "analysis_schema_generation_from_semantic_pack",
       "policies": [
         "trace_required",
+        "install_once",
+        "human_acceptance_before_continue",
         "human_acceptance_before_prioritization"
       ]
     },

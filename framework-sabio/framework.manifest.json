@@ -582,6 +582,7 @@
       "policies": [
         "no_llm_required",
         "no_contact_fabrication",
+        "resolution_autonomous",
         "profile_scoped"
       ]
     },
@@ -659,6 +660,8 @@
       "policies": [
         "readonly_sql",
         "no_external_side_effect",
+        "business_sqlite_param",
+        "data_mediator",
         "safe_for_runtime"
       ]
     }

@@ -170,6 +170,7 @@
       "execution": "deterministic_data_quality_scan_sabio_dataset",
       "policies": [
         "no_external_side_effect",
+        "resolution_autonomous",
         "safe_for_runtime"
       ]
     }

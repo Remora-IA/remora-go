@@ -1,17 +1,11 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
 	"strconv"
 	"strings"
 )
 
-// tasksLedgerItem es la representación parcial de una tarea pendiente leída
-// del ledger (`frameworktareas list --status pending`). Mapea solo los
-// campos que Foco necesita para reconstruir un priorityItem.
+// tasksLedgerItem es la representación parcial de una tarea pendiente de Foco.
 type tasksLedgerItem struct {
 	ID         string `json:"id"`
 	EntityType string `json:"entity_type"`
@@ -28,41 +22,42 @@ type tasksLedgerResp struct {
 	Count int               `json:"count"`
 }
 
-// queryTaskLedger invoca el binario `frameworktareas` para listar las tareas
-// pendientes del perfil. Devuelve nil, nil si el binario no está accesible o
-// no hay tareas pendientes (caller cae al fallback SQL configurado).
-//
-// Variables de entorno:
-//   - REMORA_TAREAS_BIN: path al binario (default: ../framework-tareas/frameworktareas)
-//   - REMORA_PROFILE:    perfil activo (default: cobranza-chile)
+// queryTaskLedger lista las tareas pendientes desde el estado de Foco.
 func queryTaskLedger() ([]priorityItem, error) {
-	bin := os.Getenv("REMORA_TAREAS_BIN")
-	if bin == "" {
-		bin = "../framework-tareas/frameworktareas"
-	}
-	if _, err := os.Stat(bin); err != nil {
-		return nil, nil
-	}
-	profile := os.Getenv("REMORA_PROFILE")
-	if profile == "" {
-		profile = "cobranza-chile"
-	}
-
-	cmd := exec.Command(bin, "list", "--profile", profile, "--status", "pending", "--limit", "5")
-	out, err := cmd.Output()
+	plan, err := load()
 	if err != nil {
-		return nil, fmt.Errorf("tareas list: %w", err)
-	}
-	var resp tasksLedgerResp
-	if err := json.Unmarshal(out, &resp); err != nil {
-		return nil, fmt.Errorf("parse tareas list: %w", err)
-	}
-	if resp.Count == 0 {
 		return nil, nil
 	}
+	tasks := []tasksLedgerItem{}
+	for _, task := range plan.Tasks {
+		if task.Status == "done" || task.Status == "completed" {
+			continue
+		}
+		meta := parseTaskNotesMap(task.Evidence + " " + task.Why)
+		entityRef := firstNonEmptyStr(meta["entity_ref"], task.ID)
+		priority := task.Importance
+		if priority == 0 {
+			if n, err := strconv.Atoi(strings.TrimSpace(task.Priority)); err == nil {
+				priority = n
+			}
+		}
+		if priority == 0 {
+			priority = len(tasks) + 1
+		}
+		tasks = append(tasks, tasksLedgerItem{
+			ID:         task.ID,
+			EntityType: meta["entity_type"],
+			EntityRef:  entityRef,
+			Action:     firstNonEmptyStr(meta["action"], task.Expected),
+			Title:      task.Title,
+			Priority:   priority,
+			Status:     task.Status,
+			Notes:      task.Evidence + " " + task.Why,
+		})
+	}
 
-	items := make([]priorityItem, 0, len(resp.Tasks))
-	for _, t := range resp.Tasks {
+	items := make([]priorityItem, 0, len(tasks))
+	for _, t := range tasks {
 		saldo, mora := parseTaskNotes(t.Notes)
 		razon, accion := classifyDebtor(saldo, mora)
 		score := computeScore(saldo, mora)
@@ -86,8 +81,19 @@ func queryTaskLedger() ([]priorityItem, error) {
 	return items, nil
 }
 
+func parseTaskNotesMap(notes string) map[string]string {
+	out := map[string]string{}
+	for _, kv := range strings.Fields(notes) {
+		key, value, ok := strings.Cut(kv, "=")
+		if ok {
+			out[key] = strings.ReplaceAll(value, "_", " ")
+		}
+	}
+	return out
+}
+
 // parseTaskNotes extrae saldo + mora de notes con formato
-// "saldo=2500000 mora=45" (producido por framework-tareas seed-from-foco).
+// "saldo=2500000 mora=45".
 // Devuelve ceros si no encuentra los campos.
 func parseTaskNotes(notes string) (saldo float64, mora int) {
 	for _, kv := range strings.Fields(notes) {
