@@ -147,7 +147,9 @@
         "--dry-run",
         "{params.dry_run}",
         "--priority-list-json",
-        "{params.priority_list_json}"
+        "{params.priority_list_json}",
+        "--priority-list-path",
+        "{params.priority_list_path}"
       ],
       "params": [
         "business_id",
@@ -161,7 +163,8 @@
         "strategy_json",
         "conv_id",
         "dry_run",
-        "priority_list_json"
+        "priority_list_json",
+        "priority_list_path"
       ],
       "defaults": {
         "business_id": "",
@@ -175,7 +178,8 @@
         "strategy_json": "",
         "conv_id": "",
         "dry_run": "false",
-        "priority_list_json": ""
+        "priority_list_json": "",
+        "priority_list_path": ""
       }
     },
     "complete-cycle": {

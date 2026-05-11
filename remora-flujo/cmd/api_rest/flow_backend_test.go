@@ -80,6 +80,30 @@ func TestPrepareFlowManifestLifecyclePromotesPriorityListBeforeFoco(t *testing.T
 	}
 }
 
+func TestPrepareFlowManifestLifecycleHonorsConfiguredEntry(t *testing.T) {
+	flow := flowManifest{
+		ID:         "cobranza",
+		BusinessID: "biz-1",
+		Lifecycle:  flowLifecycle{Entry: flowLifecycleEntry{Framework: "radar", Capability: "collection.priority_list"}},
+		Nodes: []flowNode{
+			{ID: "configure", Framework: "radar", Capability: "analysis.configure"},
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+	}
+
+	prepareFlowManifestLifecycle(&flow)
+
+	for _, node := range flow.Nodes {
+		if node.ID == "foco_entry" {
+			t.Fatalf("configured non-Foco entry should not inject foco_entry: %#v", flow.Nodes)
+		}
+		if node.ID == "prioritize" && node.Role != flowRoleEntry {
+			t.Fatalf("configured entry role=%q want entry; nodes=%#v", node.Role, flow.Nodes)
+		}
+	}
+}
+
 func TestValidateFlowManifestMissingRequirementAllowsRuntimeCredentials(t *testing.T) {
 	manifests := flowTestManifests()
 	flow := flowManifest{

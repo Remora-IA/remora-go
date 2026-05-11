@@ -71,6 +71,7 @@ func queryTaskLedger() ([]priorityItem, error) {
 			deudor = t.EntityRef
 		}
 		items = append(items, priorityItem{
+			TaskID:         t.ID,
 			Rank:           t.Priority,
 			Deudor:         deudor,
 			DeudorID:       t.EntityRef,

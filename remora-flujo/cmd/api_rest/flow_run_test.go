@@ -387,6 +387,61 @@ func TestRunFlowManifestSkipsInstalledRadarAnalysis(t *testing.T) {
 	}
 }
 
+func TestRunFlowManifestPausesForRadarAnalysisAcceptance(t *testing.T) {
+	root := t.TempDir()
+	var calls int
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		stdout := `{"artifact_type":"analysis.schema.v1","artifacts":["analysis.schema.v1","analysis.proposal.v1"],"text":"Radar propone 40/30/30"}`
+		if calls == 3 {
+			stdout = `{"artifact_type":"collection.priority_list.v1","artifacts":["collection.priority_list.v1"],"items":[]}`
+		}
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: stdout})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: root, channel: adapter.New(channel.URL, "test-key"), allManifests: map[string]*manifest.Manifest{
+		"radar": {
+			Name: "radar", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"configure-analysis": {Args: []string{"-c", "radar"}},
+				"prioritize":         {Args: []string{"-c", "prioritize"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{
+				{ID: "analysis.configure", Command: "configure-analysis", Requires: []string{"business.semantic_pack.v1"}, Produces: []string{"analysis.schema.v1", "analysis.proposal.v1"}},
+				{ID: "collection.priority_list", Command: "prioritize", Requires: []string{"business.semantic_pack.v1"}, Produces: []string{"collection.priority_list.v1"}},
+			},
+		},
+	}}
+	req := flowRunRequest{Flow: flowManifest{
+		ID:                "bootstrap_gate",
+		ProvidedArtifacts: []string{"business.semantic_pack.v1"},
+		Nodes: []flowNode{
+			{ID: "configure", Framework: "radar", Capability: "analysis.configure", Role: flowRoleBootstrap},
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list", Role: flowRolePipeline},
+		},
+	}}
+
+	result := s.runFlowManifest(context.Background(), req, nil)
+	if result.Status != "needs_input" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+	if len(result.NeedsInput) == 0 || result.NeedsInput[0].Artifact != "analysis.accepted.v1" {
+		t.Fatalf("expected analysis acceptance need, got %#v", result.NeedsInput)
+	}
+	if _, ok := result.Artifacts["collection.priority_list.v1"]; ok {
+		t.Fatalf("prioritize should not run before acceptance: %#v", result.Artifacts)
+	}
+
+	req.InitialArtifacts = map[string]interface{}{"analysis.accepted.v1": map[string]interface{}{"accepted": true}}
+	result = s.runFlowManifest(context.Background(), req, nil)
+	if result.Status != "completed" {
+		t.Fatalf("accepted status=%s result=%#v", result.Status, result)
+	}
+	if _, ok := result.Artifacts["collection.priority_list.v1"]; !ok {
+		t.Fatalf("expected priority list after acceptance: %#v", result.Artifacts)
+	}
+}
+
 func TestInstallFlowAnalysisRunsRadarAndMarksInstalled(t *testing.T) {
 	root := t.TempDir()
 	packPath := filepath.Join(root, "framework-sabio", "businesses", "biz-1", "sabio.business.json")
@@ -637,6 +692,9 @@ func TestRunFlowManifestMediatesSQLiteThroughSabioBeforePipeline(t *testing.T) {
 	}
 	if len(result.Timeline) != 2 || result.Timeline[0].Node != "sabio_data_mediation" || result.Timeline[0].Framework != "sabio" {
 		t.Fatalf("expected Sabio mediation before pipeline, got %#v", result.Timeline)
+	}
+	if result.Timeline[0].Visibility != flowStepVisibilityInfrastructure || result.Timeline[0].TriggeredBy == nil || result.Timeline[0].TriggeredBy.Node != "rank" {
+		t.Fatalf("expected infrastructure mediation tied to rank, got %#v", result.Timeline[0])
 	}
 	if len(result.DynamicNodes) != 1 || result.DynamicNodes[0].ID != "sabio_data_mediation" || result.DynamicNodes[0].Role != flowRoleResolution {
 		t.Fatalf("expected Sabio mediation as dynamic node, got %#v", result.DynamicNodes)
@@ -1079,6 +1137,9 @@ func TestRunFlowManifestInjectsAuditorPreflightBeforeExternalSideEffect(t *testi
 	if len(result.DynamicNodes) != 1 || result.DynamicNodes[0].Framework != "auditor" {
 		t.Fatalf("expected auditor dynamic preflight node, got %#v", result.DynamicNodes)
 	}
+	if len(result.Timeline) == 0 || result.Timeline[0].Visibility != flowStepVisibilityInfrastructure || result.Timeline[0].TriggeredBy == nil || result.Timeline[0].TriggeredBy.Node != "send" {
+		t.Fatalf("expected infrastructure preflight tied to sender, got %#v", result.Timeline)
+	}
 	if len(result.NeedsInput) != 1 || result.NeedsInput[0].Artifact != "contact.destination.v1" || result.NeedsInput[0].Context["reported_by"] != "auditor" {
 		t.Fatalf("expected auditor-driven contact input, got %#v", result.NeedsInput)
 	}
@@ -1336,10 +1397,109 @@ func TestRunFlowManifestEmitsCycleCompletedOnMessageSent(t *testing.T) {
 	}
 }
 
+func TestCycleTerminalPolicyClosesCycle(t *testing.T) {
+	root := t.TempDir()
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{
+			Success:    true,
+			ExitCode:   0,
+			Stdout:     `{"artifact_type":"review.completed.v1","review_id":"rev_123"}`,
+			DurationMs: 2,
+		})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: root, allManifests: map[string]*manifest.Manifest{
+		"reviewer": {
+			Name:   "reviewer",
+			Cwd:    ".",
+			Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"complete": {Args: []string{"-c", "true"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "review.complete",
+				Command:  "complete",
+				Produces: []string{"review.completed.v1"},
+				Policies: []string{"cycle_terminal"},
+			}},
+		},
+	}, channel: adapter.New(channel.URL, "test-key")}
+
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "cycle_terminal_policy",
+			Nodes: []flowNode{{ID: "review", Framework: "reviewer", Capability: "review.complete"}},
+		},
+	}, nil)
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+	cycle, ok := result.Artifacts["flow.cycle.completed.v1"]
+	if !ok {
+		t.Fatalf("missing flow.cycle.completed.v1 in %#v", result.Artifacts)
+	}
+	payload, ok := cycle.Payload.(map[string]interface{})
+	if !ok || payload["cycle_kind"] != "review.complete" {
+		t.Fatalf("unexpected cycle payload %#v", cycle.Payload)
+	}
+	evidence, ok := payload["evidence"].(map[string]interface{})
+	if !ok || evidence["completed_by"] != "review" || evidence["capability"] != "review.complete" {
+		t.Fatalf("unexpected cycle evidence %#v", payload["evidence"])
+	}
+	if !containsString(result.Timeline[0].ArtifactTypes, "flow.cycle.completed.v1") {
+		t.Fatalf("timeline should mention cycle artifact: %#v", result.Timeline[0])
+	}
+}
+
+func TestNoCycleWithoutTerminalPolicy(t *testing.T) {
+	root := t.TempDir()
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{
+			Success:    true,
+			ExitCode:   0,
+			Stdout:     `{"artifact_type":"review.completed.v1","review_id":"rev_123"}`,
+			DurationMs: 2,
+		})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: root, allManifests: map[string]*manifest.Manifest{
+		"reviewer": {
+			Name:   "reviewer",
+			Cwd:    ".",
+			Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"complete": {Args: []string{"-c", "true"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "review.complete",
+				Command:  "complete",
+				Produces: []string{"review.completed.v1"},
+			}},
+		},
+	}, channel: adapter.New(channel.URL, "test-key")}
+
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "no_cycle_without_terminal_policy",
+			Nodes: []flowNode{{ID: "review", Framework: "reviewer", Capability: "review.complete"}},
+		},
+	}, nil)
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+	if _, ok := result.Artifacts["flow.cycle.completed.v1"]; ok {
+		t.Fatalf("unexpected flow.cycle.completed.v1 in %#v", result.Artifacts)
+	}
+	if containsString(result.Timeline[0].ArtifactTypes, "flow.cycle.completed.v1") {
+		t.Fatalf("timeline should not mention cycle artifact: %#v", result.Timeline[0])
+	}
+}
+
 func TestRunFlowManifestExecutesActionBranchesInDryRun(t *testing.T) {
 	root := t.TempDir()
 	var activeBranches int32
 	var maxActiveBranches int32
+	var branchDryRuns int32
 	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -1355,6 +1515,14 @@ func TestRunFlowManifestExecutesActionBranchesInDryRun(t *testing.T) {
 			}
 		}
 		if isBranch {
+			for _, arg := range args {
+				if arg == "dry_run=true" {
+					atomic.AddInt32(&branchDryRuns, 1)
+				}
+				if arg == "dry_run=false" {
+					t.Fatalf("branch executed without dry_run: %#v", args)
+				}
+			}
 			now := atomic.AddInt32(&activeBranches, 1)
 			for {
 				prev := atomic.LoadInt32(&maxActiveBranches)
@@ -1387,7 +1555,7 @@ func TestRunFlowManifestExecutesActionBranchesInDryRun(t *testing.T) {
 			Cwd:    ".",
 			Binary: manifest.BinarySpec{Command: "/bin/sh"},
 			Commands: map[string]manifest.Command{
-				"next-task": {Args: []string{"-c", "true", "{params.action_id}"}, Params: []string{"action_id"}, Defaults: map[string]string{"action_id": ""}},
+				"next-task": {Args: []string{"-c", "true", "{params.action_id}", "dry_run={params.dry_run}"}, Params: []string{"action_id", "dry_run"}, Defaults: map[string]string{"action_id": "", "dry_run": "false"}},
 			},
 			Capabilities: []manifest.CapabilitySpec{{
 				ID:       "focus.next_collection_task",
@@ -1421,8 +1589,20 @@ func TestRunFlowManifestExecutesActionBranchesInDryRun(t *testing.T) {
 	if atomic.LoadInt32(&maxActiveBranches) < 2 {
 		t.Fatalf("expected branch runs to overlap, max concurrency=%d", atomic.LoadInt32(&maxActiveBranches))
 	}
+	if atomic.LoadInt32(&branchDryRuns) != 3 {
+		t.Fatalf("expected 3 dry-run branches, got %d", atomic.LoadInt32(&branchDryRuns))
+	}
 	if containsString(events, "branch_simulation") || containsString(events, "human_acceptance") {
 		t.Fatalf("did not expect simulated human events without simulate_human=true, got %#v", events)
+	}
+}
+
+func TestFlowBranchLimitUsesEnvironmentCap(t *testing.T) {
+	t.Setenv("REMORA_FLOW_MAX_BRANCHES", "2")
+
+	limit := flowBranchLimit(flowRunRequest{MaxBranches: 10})
+	if limit != 2 {
+		t.Fatalf("limit=%d want 2", limit)
 	}
 }
 

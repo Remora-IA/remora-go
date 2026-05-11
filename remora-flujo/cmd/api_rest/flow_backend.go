@@ -28,13 +28,23 @@ type capabilityProviderInfo struct {
 type capabilityRegistry map[string][]capabilityProviderInfo
 
 type flowManifest struct {
-	ID                string     `json:"id"`
-	BusinessID        string     `json:"business_id,omitempty"`
-	Audience          string     `json:"audience,omitempty"`
-	ProvidedArtifacts []string   `json:"provided_artifacts,omitempty"`
-	Nodes             []flowNode `json:"nodes"`
-	Edges             []flowEdge `json:"edges,omitempty"`
-	Policies          []string   `json:"policies,omitempty"`
+	ID                string        `json:"id"`
+	BusinessID        string        `json:"business_id,omitempty"`
+	Audience          string        `json:"audience,omitempty"`
+	Lifecycle         flowLifecycle `json:"lifecycle,omitempty"`
+	ProvidedArtifacts []string      `json:"provided_artifacts,omitempty"`
+	Nodes             []flowNode    `json:"nodes"`
+	Edges             []flowEdge    `json:"edges,omitempty"`
+	Policies          []string      `json:"policies,omitempty"`
+}
+
+type flowLifecycle struct {
+	Entry flowLifecycleEntry `json:"entry,omitempty"`
+}
+
+type flowLifecycleEntry struct {
+	Framework  string `json:"framework,omitempty"`
+	Capability string `json:"capability,omitempty"`
 }
 
 type flowNode struct {
@@ -167,8 +177,10 @@ func normalizeFlowLifecycleRoles(f *flowManifest) {
 func prepareFlowManifestLifecycle(f *flowManifest) {
 	migrateLegacyFlowNodes(f)
 	normalizeFlowLifecycleRoles(f)
+	applyConfiguredFlowEntry(f)
 	ensureFocoEntry(f)
 	normalizeFlowLifecycleRoles(f)
+	applyConfiguredFlowEntry(f)
 	promotePriorityListProducersBeforeFocoEntry(f)
 	orderFlowLifecycleNodes(f)
 }
@@ -181,6 +193,9 @@ func migrateLegacyFlowNodes(f *flowManifest) {
 
 func ensureFocoEntry(f *flowManifest) {
 	if f == nil || len(f.Nodes) == 0 {
+		return
+	}
+	if entryFramework, _ := configuredFlowEntry(f); entryFramework != "" && entryFramework != "foco" {
 		return
 	}
 	if strings.TrimSpace(f.BusinessID) == "" {
@@ -220,6 +235,29 @@ func ensureFocoEntry(f *flowManifest) {
 	copy(f.Nodes[insertAt+1:], f.Nodes[insertAt:])
 	f.Nodes[insertAt] = node
 	rebuildLinearFlowEdges(f)
+}
+
+func configuredFlowEntry(f *flowManifest) (string, string) {
+	if f == nil {
+		return "", ""
+	}
+	return strings.TrimSpace(f.Lifecycle.Entry.Framework), strings.TrimSpace(f.Lifecycle.Entry.Capability)
+}
+
+func applyConfiguredFlowEntry(f *flowManifest) {
+	framework, capability := configuredFlowEntry(f)
+	if f == nil || framework == "" {
+		return
+	}
+	for i := range f.Nodes {
+		if f.Nodes[i].Framework != framework {
+			continue
+		}
+		if capability != "" && f.Nodes[i].Capability != capability {
+			continue
+		}
+		f.Nodes[i].Role = flowRoleEntry
+	}
 }
 
 func promotePriorityListProducersBeforeFocoEntry(f *flowManifest) {

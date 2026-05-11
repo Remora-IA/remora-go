@@ -17,12 +17,13 @@ import (
 )
 
 var (
-	statePath        = "foco_state.json"
-	mdPath           = "foco_state.md"
-	legacyStatePath  = "temp/foco/today.json"
-	legacyMDPath     = "temp/foco/today.md"
-	pendingReplyPath = "temp/foco/pending_reply.json"
-	priorityListPath = "temp/foco/last_priority_list.json"
+	statePath           = "foco_state.json"
+	mdPath              = "foco_state.md"
+	legacyStatePath     = "temp/foco/today.json"
+	legacyMDPath        = "temp/foco/today.md"
+	pendingReplyPath    = "temp/foco/pending_reply.json"
+	priorityListPath    = "temp/foco/last_priority_list.json"
+	persistentStatePath string
 )
 
 // Dependency representa una dependencia entre tareas
@@ -95,6 +96,7 @@ type Task struct {
 	Priority    string `json:"priority,omitempty"`
 	PreConflict string `json:"pre_conflict,omitempty"`
 	DueDate     string `json:"due_date,omitempty"`
+	CarriedFrom string `json:"carried_from,omitempty"`
 	Importance  int    `json:"importance,omitempty"`
 	Evidence    string `json:"evidence,omitempty"`
 }
@@ -490,6 +492,21 @@ func configureFocoSession(convID string) {
 	legacyMDPath = filepath.Join(dir, "today.md")
 	pendingReplyPath = filepath.Join(dir, "pending_reply.json")
 	priorityListPath = filepath.Join(dir, "last_priority_list.json")
+	persistentKey := persistentKeyFromConvID(convID)
+	persistentStatePath = filepath.Join("temp", "foco", "persistent", safePathSegment(persistentKey), "flow_state.json")
+}
+
+func persistentKeyFromConvID(convID string) string {
+	convID = strings.TrimSpace(convID)
+	lastSep := strings.LastIndex(convID, "__")
+	if lastSep <= 0 || lastSep+2 >= len(convID) {
+		return convID
+	}
+	datePart := convID[lastSep+2:]
+	if _, err := time.Parse("2006-01-02", datePart); err != nil {
+		return convID
+	}
+	return convID[:lastSep]
 }
 
 func safePathSegment(value string) string {
@@ -2403,10 +2420,27 @@ func load() (DayPlan, error) {
 		}
 		legacyData, legacyErr := os.ReadFile(legacyStatePath)
 		if legacyErr != nil {
+			fresh := newSessionPlan()
+			_, persistentExists, persistentErr := loadPersistentState()
+			if persistentErr != nil {
+				return DayPlan{}, persistentErr
+			}
+			_, mergeErr := mergePersistentCarryOver(&fresh)
+			if mergeErr != nil {
+				return DayPlan{}, mergeErr
+			}
+			if persistentExists {
+				normalizePlan(&fresh)
+				return fresh, nil
+			}
 			return DayPlan{}, fmt.Errorf("no hay estado de foco; ejecuta foco init primero")
 		}
 		var migrated DayPlan
 		if err := json.Unmarshal(legacyData, &migrated); err != nil {
+			return DayPlan{}, err
+		}
+		normalizePlan(&migrated)
+		if _, err := mergePersistentCarryOver(&migrated); err != nil {
 			return DayPlan{}, err
 		}
 		normalizePlan(&migrated)
@@ -2417,6 +2451,10 @@ func load() (DayPlan, error) {
 	}
 	var plan DayPlan
 	if err := json.Unmarshal(data, &plan); err != nil {
+		return DayPlan{}, err
+	}
+	normalizePlan(&plan)
+	if _, err := mergePersistentCarryOver(&plan); err != nil {
 		return DayPlan{}, err
 	}
 	normalizePlan(&plan)
@@ -2438,7 +2476,154 @@ func save(plan DayPlan) error {
 	if err := os.WriteFile(mdPath, []byte(formatMarkdown(plan)), 0644); err != nil {
 		return err
 	}
+	if err := savePersistentState(plan); err != nil {
+		return err
+	}
 	return cleanupLegacyStateArtifacts()
+}
+
+func loadPersistentState() (DayPlan, bool, error) {
+	if strings.TrimSpace(persistentStatePath) == "" {
+		return DayPlan{}, false, nil
+	}
+	data, err := os.ReadFile(persistentStatePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return DayPlan{}, false, nil
+		}
+		return DayPlan{}, false, err
+	}
+	var plan DayPlan
+	if err := json.Unmarshal(data, &plan); err != nil {
+		return DayPlan{}, false, err
+	}
+	if plan.Tasks == nil {
+		plan.Tasks = []Task{}
+	}
+	if plan.Events == nil {
+		plan.Events = []Event{}
+	}
+	return plan, true, nil
+}
+
+func mergePersistentCarryOver(plan *DayPlan) (bool, error) {
+	persistent, ok, err := loadPersistentState()
+	if err != nil || !ok {
+		return false, err
+	}
+	existing := map[string]bool{}
+	for _, task := range plan.Tasks {
+		if strings.TrimSpace(task.ID) != "" {
+			existing[task.ID] = true
+		}
+	}
+	merged := false
+	for _, task := range persistent.Tasks {
+		if task.Status == "done" || existing[task.ID] || !taskDueBefore(task.DueDate, plan.Date) {
+			continue
+		}
+		if strings.TrimSpace(task.Status) == "" {
+			task.Status = "pending"
+		}
+		task.CarriedFrom = task.DueDate
+		task.DueDate = plan.Date
+		plan.Tasks = append(plan.Tasks, task)
+		existing[task.ID] = true
+		merged = true
+	}
+	return merged, nil
+}
+
+func taskDueBefore(dueDate, planDate string) bool {
+	dueDate = strings.TrimSpace(dueDate)
+	planDate = strings.TrimSpace(planDate)
+	if dueDate == "" || planDate == "" {
+		return false
+	}
+	due, dueErr := time.Parse("2006-01-02", dueDate)
+	plan, planErr := time.Parse("2006-01-02", planDate)
+	if dueErr == nil && planErr == nil {
+		return due.Before(plan)
+	}
+	return dueDate < planDate
+}
+
+func savePersistentState(plan DayPlan) error {
+	if strings.TrimSpace(persistentStatePath) == "" {
+		return nil
+	}
+	persistent, ok, err := loadPersistentState()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		persistent = DayPlan{Version: "persistent", Tasks: []Task{}, Events: []Event{}}
+	}
+	reduced := DayPlan{
+		Date:         plan.Date,
+		Version:      "persistent",
+		Notes:        []Note{},
+		Nodes:        []Node{},
+		Events:       mergeEventsByID(persistent.Events, plan.Events),
+		Tasks:        mergeTasksByID(persistent.Tasks, plan.Tasks),
+		Axioms:       []Axiom{},
+		Conflicts:    []PreConflict{},
+		Dependencies: []Dependency{},
+	}
+	data, err := json.MarshalIndent(reduced, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(persistentStatePath), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(persistentStatePath, data, 0644)
+}
+
+func mergeTasksByID(existing, current []Task) []Task {
+	result := append([]Task(nil), existing...)
+	index := map[string]int{}
+	for i, task := range result {
+		if strings.TrimSpace(task.ID) != "" {
+			index[task.ID] = i
+		}
+	}
+	for _, task := range current {
+		if strings.TrimSpace(task.ID) == "" {
+			result = append(result, task)
+			continue
+		}
+		if i, ok := index[task.ID]; ok {
+			result[i] = task
+			continue
+		}
+		index[task.ID] = len(result)
+		result = append(result, task)
+	}
+	return result
+}
+
+func mergeEventsByID(existing, current []Event) []Event {
+	result := append([]Event(nil), existing...)
+	index := map[string]int{}
+	for i, event := range result {
+		if strings.TrimSpace(event.ID) != "" {
+			index[event.ID] = i
+		}
+	}
+	for _, event := range current {
+		if strings.TrimSpace(event.ID) == "" {
+			result = append(result, event)
+			continue
+		}
+		if i, ok := index[event.ID]; ok {
+			result[i] = event
+			continue
+		}
+		index[event.ID] = len(result)
+		result = append(result, event)
+	}
+	return result
 }
 
 func formatMarkdown(plan DayPlan) string {
@@ -2960,6 +3145,7 @@ func runNextCollectionTask(args []string) error {
 	convID := fs.String("conv-id", "", "id de sesión/estado de Foco")
 	dryRunRaw := fs.String("dry-run", "false", "true si es simulación/dry-run")
 	priorityListJSON := fs.String("priority-list-json", "", "collection.priority_list.v1 como JSON string")
+	priorityListFilePath := fs.String("priority-list-path", "", "path a collection.priority_list.v1 como archivo JSON")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -2975,19 +3161,31 @@ func runNextCollectionTask(args []string) error {
 	} else if strings.TrimSpace(*strategyJSON) != "" {
 		_ = json.Unmarshal([]byte(*strategyJSON), &strategy)
 	}
+	// Read priority list from file if path provided, fallback to inline JSON
+	resolvedPriorityListJSON := strings.TrimSpace(*priorityListJSON)
+	if strings.TrimSpace(*priorityListFilePath) != "" {
+		raw, err := os.ReadFile(*priorityListFilePath)
+		if err == nil {
+			resolvedPriorityListJSON = string(raw)
+		}
+	}
 	selectedAction := strings.TrimSpace(*actionID)
 	name := strings.TrimSpace(*deudor)
 	id := strings.TrimSpace(*entityRef)
 	entityTypeValue := firstNonEmptyStr(*entityType, "customer")
-	if selectedAction == "" && strings.TrimSpace(*priorityListJSON) != "" {
+	selectedCandidate := priorityCandidate{}
+	if resolvedPriorityListJSON != "" {
 		plan, err := load()
 		if err != nil {
 			plan = newSessionPlan()
 		}
-		if candidate, ok := firstOpenPriorityCandidate(plan, *priorityListJSON); ok {
-			id = candidate.ID
-			name = candidate.Name
-			entityTypeValue = firstNonEmptyStr(candidate.Type, entityTypeValue)
+		if candidate, ok := firstOpenPriorityCandidate(plan, resolvedPriorityListJSON); ok {
+			selectedCandidate = candidate
+			if selectedAction == "" {
+				id = candidate.ID
+				name = candidate.Name
+				entityTypeValue = firstNonEmptyStr(candidate.Type, entityTypeValue)
+			}
 		}
 	}
 	if name == "" {
@@ -3054,7 +3252,12 @@ func runNextCollectionTask(args []string) error {
 		"recommended_next": recommendedNext,
 		"entity_ref":       entity,
 	}
-	if !dryRun {
+	if selectedCandidate.TaskID != "" {
+		task["id"] = selectedCandidate.TaskID
+		task["task_id"] = selectedCandidate.TaskID
+		task["status"] = "pending"
+	}
+	if !dryRun && selectedCandidate.TaskID == "" {
 		persisted := persistNextCollectionTask(*businessID, id, name, title, recommendedNext, selectedAction, strings.TrimSpace(*actionLabel))
 		if persisted.ID != "" {
 			task["id"] = persisted.ID
@@ -3124,9 +3327,10 @@ func contextIsDryRun(contextB64 string) bool {
 }
 
 type priorityCandidate struct {
-	ID   string
-	Name string
-	Type string
+	ID     string
+	Name   string
+	Type   string
+	TaskID string
 }
 
 func firstOpenPriorityCandidate(plan DayPlan, priorityListJSON string) (priorityCandidate, bool) {
@@ -3163,9 +3367,10 @@ func firstOpenPriorityCandidate(plan DayPlan, priorityListJSON string) (priority
 
 func priorityCandidateFromMap(item map[string]interface{}) priorityCandidate {
 	candidate := priorityCandidate{
-		ID:   jsonString(item, "deudor_id", "id", "entity_ref", "ref"),
-		Name: jsonString(item, "deudor", "name", "cliente", "label"),
-		Type: jsonString(item, "type", "entity_type"),
+		ID:     jsonString(item, "deudor_id", "id", "entity_ref", "ref"),
+		Name:   jsonString(item, "deudor", "name", "cliente", "label"),
+		Type:   jsonString(item, "type", "entity_type"),
+		TaskID: jsonString(item, "task_id"),
 	}
 	if entity, ok := item["entity_ref"].(map[string]interface{}); ok {
 		candidate.ID = firstNonEmptyStr(jsonString(entity, "id", "entity_ref", "ref"), candidate.ID)
@@ -3296,11 +3501,7 @@ func uniqueTaskID(plan DayPlan, base string) string {
 // strategy.recommendation.v1. Si no hay estrategia, fallback al set fijo.
 func buildActionOptionsFromStrategy(strategy map[string]interface{}, entityName string) []map[string]interface{} {
 	if strategy == nil {
-		return []map[string]interface{}{
-			{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Pedir evidencia y contexto antes de cobrar."},
-			{"id": "quick_collection", "label": "Preparar cobranza rápida", "description": "Generar borrador con la evidencia disponible."},
-			{"id": "skip_case", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y revisar otra prioridad."},
-		}
+		return normalizeActionOptions(nil)
 	}
 	options := []map[string]interface{}{}
 	if recs, ok := strategy["recommendations"].([]interface{}); ok {
@@ -3338,28 +3539,69 @@ func buildActionOptionsFromStrategy(strategy map[string]interface{}, entityName 
 	}
 	// Si la estrategia no generó opciones válidas, fallback al set fijo
 	if len(options) == 0 {
+		return normalizeActionOptions(options)
+	}
+	return normalizeActionOptions(options)
+}
+
+func normalizeActionOptions(options []map[string]interface{}) []map[string]interface{} {
+	if len(options) == 0 {
 		return []map[string]interface{}{
-			{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Pedir evidencia y contexto antes de cobrar."},
-			{"id": "quick_collection", "label": "Preparar cobranza rápida", "description": "Generar borrador con la evidencia disponible."},
-			{"id": "skip_case", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y revisar otra prioridad."},
+			{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Revisar evidencia y contexto antes de actuar."},
+			{"id": "quick_action", "label": "Acción directa", "description": "Proceder con la información disponible."},
+			{"id": "skip_case", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y continuar con otra prioridad."},
 		}
 	}
-	// Siempre agregar skip_case como última opción si no está ya
-	hasSkip := false
+	nonSkip := []map[string]interface{}{}
+	var skip map[string]interface{}
 	for _, opt := range options {
 		if id, ok := opt["id"].(string); ok && id == "skip_case" {
-			hasSkip = true
-			break
+			if skip == nil {
+				skip = opt
+			}
+			continue
 		}
+		nonSkip = append(nonSkip, opt)
 	}
-	if !hasSkip {
-		options = append(options, map[string]interface{}{
+	if skip == nil {
+		skip = map[string]interface{}{
 			"id":          "skip_case",
 			"label":       "Pasar al siguiente caso",
-			"description": "Dejar este caso para después y revisar otra prioridad.",
-		})
+			"description": "Dejar este caso para después y continuar con otra prioridad.",
+		}
 	}
-	return options
+	result := append([]map[string]interface{}{}, nonSkip...)
+	genericOptions := []map[string]interface{}{
+		{"id": "detailed_review", "label": "Revisar en detalle", "description": "Explorar más contexto antes de decidir."},
+		{"id": "quick_action", "label": "Acción directa", "description": "Proceder con la información disponible."},
+	}
+	for len(result) < 2 {
+		added := false
+		for _, generic := range genericOptions {
+			if !containsActionOptionID(result, fmt.Sprint(generic["id"])) {
+				result = append(result, generic)
+				added = true
+				break
+			}
+		}
+		if !added {
+			result = append(result, genericOptions[0])
+		}
+	}
+	if len(result) > 2 {
+		result = result[:2]
+	}
+	result = append(result, skip)
+	return result
+}
+
+func containsActionOptionID(options []map[string]interface{}, id string) bool {
+	for _, option := range options {
+		if fmt.Sprint(option["id"]) == id {
+			return true
+		}
+	}
+	return false
 }
 
 // emitPriorityList serializa la lista de prioridades a JSON + markdown y la

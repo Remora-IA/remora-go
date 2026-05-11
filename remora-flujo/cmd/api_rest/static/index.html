@@ -4652,7 +4652,8 @@ function renderHumanRunResult(r) {
   if (!timeline.length) return `<div class="composer-pre">${escapeHtml(JSON.stringify(r, null, 2))}</div>`;
 
   const flow = flowsState.selectedFlow || {};
-  const statusBadge = { completed: 'completado', failed: 'error', needs_input: 'falta input', needs_approval: 'requiere aprobación' };
+  const isAnalysisGate = r.status === 'needs_input' && (r.needs_input || []).some(n => n.kind === 'analysis_acceptance');
+  const statusBadge = { completed: 'completado', failed: 'error', needs_input: isAnalysisGate ? 'esperando aprobación' : 'falta input', needs_approval: 'requiere aprobación' };
 
   // Determine final progress step
   const resultNodes = (flowsState.selectedFlow && flowsState.selectedFlow.manifest || {}).nodes || [];
@@ -4672,9 +4673,11 @@ function renderHumanRunResult(r) {
 
   html += renderFlowChatMessage('assistant', 'Rémora', 'Inicio el flujo con datos reales del negocio. El usuario no tiene que decir qué hacer; el primer framework prepara o presenta el trabajo.');
 
+  const infraGroups = groupInfrastructureSteps(timeline);
+  const visibleTimeline = timeline.filter(step => stepVisibility(step) !== 'infrastructure');
   let lastCycleIndex = -1;
-  timeline.forEach((step, i) => {
-    const next = timeline[i + 1];
+  visibleTimeline.forEach((step, i) => {
+    const next = visibleTimeline[i + 1];
     const ok = step.status === 'completed';
 
     // Multi-cycle: show cycle separator when cycle_index changes
@@ -4705,6 +4708,10 @@ function renderHumanRunResult(r) {
     if (step.action_options && step.action_options.length) {
       html += renderFlowActionOptions(step.action_options, step.node || 'action_options');
     }
+    const infra = infraGroups.byTrigger.get(step.node || '') || [];
+    if (infra.length) {
+      html += renderCollapsedInfrastructureSteps(infra);
+    }
 
     if (ok && next) {
       const produced = (step.produces || step.outputs || []).map(artifactLabel).slice(0, 2).join(', ');
@@ -4712,8 +4719,17 @@ function renderHumanRunResult(r) {
     }
   });
 
+  if (infraGroups.unassigned.length) {
+    html += renderCollapsedInfrastructureSteps(infraGroups.unassigned, 'Infraestructura');
+  }
+
   if (r.status === 'needs_input') {
-    html += renderFlowChatMessage('assistant', 'Rémora', 'El flujo ejecutó correctamente hasta que un paso necesitó información que no está disponible. Revisa los datos faltantes arriba.');
+    const isAnalysisAcceptance = (r.needs_input || []).some(n => n.kind === 'analysis_acceptance');
+    if (isAnalysisAcceptance) {
+      html += renderFlowChatMessage('assistant', 'Rémora', 'Radar terminó de analizar la cartera y propone una configuración. Revisala y aceptá para que el flujo continúe con la priorización.');
+    } else {
+      html += renderFlowChatMessage('assistant', 'Rémora', 'El flujo ejecutó correctamente hasta que un paso necesitó información que no está disponible. Revisa los datos faltantes arriba.');
+    }
   } else if (r.status === 'needs_approval') {
     html += renderFlowChatMessage('assistant', 'Rémora', 'Todos los pasos seguros se ejecutaron con éxito. Queda pendiente la aprobación para acciones con efectos externos.');
   } else if (r.status === 'max_cycles_reached') {
@@ -4748,6 +4764,41 @@ function renderHumanRunResult(r) {
   }
 
   return html;
+}
+
+
+function stepVisibility(step) {
+  return (step && step.visibility) || 'user_facing';
+}
+
+function groupInfrastructureSteps(timeline) {
+  const byTrigger = new Map();
+  const unassigned = [];
+  (timeline || []).forEach(step => {
+    if (stepVisibility(step) !== 'infrastructure') return;
+    const trigger = step.triggered_by || {};
+    const key = trigger.node || '';
+    if (!key) {
+      unassigned.push(step);
+      return;
+    }
+    if (!byTrigger.has(key)) byTrigger.set(key, []);
+    byTrigger.get(key).push(step);
+  });
+  return { byTrigger, unassigned };
+}
+
+function renderCollapsedInfrastructureSteps(steps, title = 'Infraestructura usada') {
+  if (!steps || !steps.length) return '';
+  return `<div class="flow-chat-row system"><details class="flow-branch-details" style="margin:4px 0 10px 44px;max-width:760px;">
+    <summary>${escapeHtml(title)} (${steps.length})</summary>
+    <div style="padding-top:8px;display:flex;flex-direction:column;gap:6px;">
+      ${steps.map(step => {
+        const reason = step.triggered_by && step.triggered_by.reason ? ` · ${step.triggered_by.reason}` : '';
+        return `<div class="composer-muted" style="font-size:12px;">↳ ${escapeHtml(speakerForStep(step))}${escapeHtml(reason)} — ${escapeHtml(extractHumanSummaryFromStdout(step))}${step.duration_ms ? ` (${step.duration_ms}ms)` : ''}</div>`;
+      }).join('')}
+    </div>
+  </details></div>`;
 }
 
 function extractHumanSummaryFromStdout(step) {
@@ -4957,6 +5008,16 @@ function renderFlowNeedsInput(items) {
             <button class="modal-btn cancel" onclick="rejectMecanicoProposals()">Rechazar por ahora</button>
           </div>`;
       }
+      if (item.kind === 'analysis_acceptance') {
+        return `<div style="margin-bottom:10px;">
+            <div style="font-weight:600;margin-bottom:6px;">Radar propone esta configuración de análisis</div>
+            <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="modal-btn confirm" onclick="acceptAnalysisConfiguration()">Aceptar configuración</button>
+              <button class="modal-btn cancel" onclick="rejectAnalysisConfiguration()">Reconfigurar</button>
+            </div>
+          </div>`;
+      }
       return `<div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta información')}</div>`;
     }).join('')}
   </div>`;
@@ -5012,6 +5073,27 @@ function rejectMecanicoProposals() {
     selected_at: new Date().toISOString()
   };
   renderFlowDetail();
+}
+
+function acceptAnalysisConfiguration() {
+  flowsState.detail.initialArtifacts = flowsState.detail.initialArtifacts || {};
+  flowsState.detail.initialArtifacts['analysis.accepted.v1'] = {
+    artifact_type: 'analysis.accepted.v1',
+    accepted: true,
+    source: 'user_click',
+    accepted_at: new Date().toISOString()
+  };
+  dryRunCurrentFlow();
+}
+
+function rejectAnalysisConfiguration() {
+  flowsState.detail.initialArtifacts = flowsState.detail.initialArtifacts || {};
+  flowsState.detail.initialArtifacts['flow.reconfigure.v1'] = {
+    artifact_type: 'flow.reconfigure.v1',
+    source: 'user_click',
+    requested_at: new Date().toISOString()
+  };
+  dryRunCurrentFlow();
 }
 
 function carryRunArtifactToInitial(type) {
@@ -6354,7 +6436,7 @@ function flowNodeGridPosition(index, total) {
   };
 }
 
-function addNode(id, name, type, posOverride = null) {
+function addNode(id, name, type, posOverride = null, meta = {}) {
   console.log('addNode called with:', id, name, type);
   console.log('  canvas element:', canvas);
   console.log('  canvas children before:', canvas.children.length);
@@ -6372,7 +6454,7 @@ function addNode(id, name, type, posOverride = null) {
   nodeEl.classList.add('new'); // Play appear animation
   canvas.appendChild(nodeEl);
   
-  activeNodes.push({ id, name, type });
+  activeNodes.push({ id, name, type, visibility: meta.visibility || 'user_facing', triggeredBy: meta.triggeredBy || null });
   drawConnections();
   
   return nodeEl;
@@ -6385,6 +6467,7 @@ function drawConnections() {
   connectionsSvg.innerHTML = '';
   
   activeNodes.forEach((node, index) => {
+    if (node.visibility === 'infrastructure') return;
     const nodeEl = document.getElementById(`node-${node.id}`);
     if (!nodeEl || !userDot) return;
     
@@ -6530,11 +6613,24 @@ async function runCanvasFlowReal() {
 
 function ensureCanvasNodeForStep(step) {
   const id = step.node || step.framework || `step_${activeNodes.length + 1}`;
+  const isInfra = stepVisibility(step) === 'infrastructure';
+  if (isInfra) ensureDataNode();
   if (!document.getElementById(`node-${id}`)) {
-    addNode(id, speakerForStep(step), frameworkType(step.framework), flowNodeGridPosition(activeNodes.length, activeNodes.length + 1));
+    const pos = isInfra ? infrastructureNodePosition(activeNodes.length) : flowNodeGridPosition(activeNodes.filter(n => n.visibility !== 'infrastructure').length, activeNodes.length + 1);
+    addNode(id, speakerForStep(step), frameworkType(step.framework), pos, { visibility: stepVisibility(step), triggeredBy: step.triggered_by || null });
     requestAnimationFrame(drawConnections);
   }
   return id;
+}
+
+function infrastructureNodePosition(index) {
+  const infraIndex = activeNodes.filter(n => n.visibility === 'infrastructure').length;
+  return { x: 20 + (infraIndex % 4) * 20, y: 68 + Math.floor(infraIndex / 4) * 10 };
+}
+
+function ensureDataNode() {
+  if (document.getElementById('node-db')) return;
+  addNode('db', 'DB', 'sabio', { x: 50, y: 84 }, { visibility: 'infrastructure' });
 }
 
 // ============================================

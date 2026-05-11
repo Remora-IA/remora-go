@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -72,6 +73,8 @@ type flowRunStep struct {
 	Capability       string              `json:"capability,omitempty"`
 	Command          string              `json:"command,omitempty"`
 	Role             string              `json:"role,omitempty"`
+	Visibility       string              `json:"visibility,omitempty"`
+	TriggeredBy      *flowStepTrigger    `json:"triggered_by,omitempty"`
 	ResolutionMode   string              `json:"resolution_mode,omitempty"`
 	CycleIndex       int                 `json:"cycle_index,omitempty"`
 	Status           string              `json:"status"`
@@ -92,6 +95,18 @@ type flowRunStep struct {
 	StderrPreview    string              `json:"stderr_preview,omitempty"`
 	ActionOptions    []map[string]string `json:"action_options,omitempty"`
 }
+
+type flowStepTrigger struct {
+	Node       string `json:"node,omitempty"`
+	Framework  string `json:"framework,omitempty"`
+	Capability string `json:"capability,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+const (
+	flowStepVisibilityUserFacing     = "user_facing"
+	flowStepVisibilityInfrastructure = "infrastructure"
+)
 
 type flowRunArtifact struct {
 	Type      string      `json:"type"`
@@ -293,7 +308,7 @@ cycleStart:
 			continue
 		}
 		if !sabioMediated && s.shouldMediateSabioDataBeforeNode(node, available) {
-			s.ensureSabioDataMediation(ctx, runID, req, available, &result, emitStep, cyclesDone)
+			s.ensureSabioDataMediation(ctx, runID, req, available, &result, emitStep, cyclesDone, triggerForFlowNode(node, "dataset_required"))
 			sabioMediated = true
 		}
 		if !mecanicoApprovalApplied && shouldApplyMecanicoProposals(result.Artifacts) && (available["external.api.dump.v1"] || available["dataset.raw.v1"]) {
@@ -438,9 +453,20 @@ cycleStart:
 		}
 		step.Status = "completed"
 		step.ArtifactTypes = s.recordNodeArtifacts(runID, node.ID, contract, resp.Stdout, available, result.Artifacts)
-		if containsString(step.ArtifactTypes, "analysis.schema.v1") && !req.DryRun {
+		analysisAccepted := flowAnalysisAccepted(req)
+		if containsString(step.ArtifactTypes, "analysis.schema.v1") && !req.DryRun && (!shouldEmitHumanAcceptance(node) || analysisAccepted || req.SimulateHuman) {
 			s.markFlowInstalled(req.Flow)
 			step.ArtifactTypes = append(step.ArtifactTypes, s.recordFlowInstallation(runID, node.ID, req.Flow.BusinessID, available, result.Artifacts))
+		}
+		if shouldPauseForAnalysisAcceptance(req, node, step.ArtifactTypes) {
+			step.Status = "needs_input"
+			result.Status = "needs_input"
+			result.NeedsInput = append(result.NeedsInput, inputRequestForAnalysisAcceptance(node, result.Artifacts))
+			step.ArtifactTypes = append(step.ArtifactTypes, s.recordFlowReadiness(runID, node.ID, false, result.NeedsInput, available, result.Artifacts))
+			finished := finishFlowRunStep(step)
+			emitStep("step_complete", finished)
+			result.Timeline = append(result.Timeline, finished)
+			break
 		}
 		if containsString(step.ArtifactTypes, "action.options.v1") {
 			step.ActionOptions = flowActionOptionsFromArtifacts(result.Artifacts)
@@ -468,8 +494,11 @@ cycleStart:
 				break
 			}
 		}
-		if containsString(step.ArtifactTypes, "message.sent.v1") {
-			step.ArtifactTypes = append(step.ArtifactTypes, s.recordFlowCycleCompleted(runID, node.ID, available, result.Artifacts))
+		if isCycleTerminalStep(node, contract, step) {
+			step.ArtifactTypes = append(step.ArtifactTypes, s.recordFlowCycleCompleted(runID, node.ID, node.Capability, available, result.Artifacts))
+			if !req.DryRun {
+				s.recordTaskLedgerCycleCompleted(result.Artifacts)
+			}
 			if s.notifyFocoCycleCompleted(ctx, runID, req.Flow.BusinessID, req.Flow.ID, available, result.Artifacts) {
 				step.ArtifactTypes = append(step.ArtifactTypes, "focus.cycle_status.v1", "task.done")
 			}
@@ -567,6 +596,7 @@ func resetCycleArtifacts(available map[string]bool, artifacts map[string]flowRun
 		"message.draft.v1",
 		"message.channel.v1",
 		"message.sent.v1",
+		"cycle.result.v1",
 		"flow.cycle.completed.v1",
 		"focus.cycle_status.v1",
 		"task.done",
@@ -579,6 +609,10 @@ func resetCycleArtifacts(available map[string]bool, artifacts map[string]flowRun
 		delete(available, a)
 		delete(artifacts, a)
 	}
+}
+
+func isCycleTerminalStep(node flowNode, contract nodeContract, step flowRunStep) bool {
+	return step.Status == "completed" && (containsString(contract.Policies, "cycle_terminal") || containsString(step.ArtifactTypes, "message.sent.v1"))
 }
 
 func (s *server) shouldSkipInstalledAnalysis(req flowRunRequest, node flowNode) bool {
@@ -653,6 +687,55 @@ func (s *server) flowMarkedInstalled(businessID, manifestID string) bool {
 
 func shouldEmitHumanAcceptance(node flowNode) bool {
 	return node.Role == flowRoleBootstrap && node.Framework == "radar" && node.Capability == "analysis.configure"
+}
+
+func flowAnalysisAccepted(req flowRunRequest) bool {
+	if req.InitialArtifacts == nil {
+		return false
+	}
+	for _, artifact := range []string{"analysis.accepted.v1", "human.acceptance.v1", "flow.bootstrap.accepted.v1", "flow.reconfigure.v1"} {
+		if _, ok := req.InitialArtifacts[artifact]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func shouldPauseForAnalysisAcceptance(req flowRunRequest, node flowNode, artifactTypes []string) bool {
+	return shouldEmitHumanAcceptance(node) && containsString(artifactTypes, "analysis.schema.v1") && !req.SimulateHuman && !flowAnalysisAccepted(req)
+}
+
+func inputRequestForAnalysisAcceptance(node flowNode, artifacts map[string]flowRunArtifact) flowRequiredInput {
+	message := "Radar propuso una configuración de análisis. Aceptala o pedí ajustar los pesos antes de priorizar deudores."
+	if summary := extractAnalysisProposalSummary(artifacts); summary != "" {
+		message = summary
+	}
+	return flowRequiredInput{
+		Artifact:   "analysis.accepted.v1",
+		Kind:       "analysis_acceptance",
+		Framework:  node.Framework,
+		Capability: node.Capability,
+		Title:      "Aceptar configuración de análisis",
+		Message:    message,
+		Suggestions: []string{
+			"aceptar configuración",
+			"ajustar pesos",
+			"reconfigurar análisis",
+		},
+	}
+}
+
+func extractAnalysisProposalSummary(artifacts map[string]flowRunArtifact) string {
+	for _, typ := range []string{"analysis.proposal.v1", "analysis.schema.v1", "analysis.plan.v1"} {
+		payload, _ := artifacts[typ].Payload.(map[string]interface{})
+		if payload == nil {
+			continue
+		}
+		if text := jsonFirstString(payload, "text", "summary", "description", "configuration_reason"); text != "" {
+			return text
+		}
+	}
+	return ""
 }
 
 func (s *server) executeFlowNode(ctx context.Context, runID string, req flowRunRequest, node flowNode, contract nodeContract, artifacts map[string]flowRunArtifact) (*adapter.Response, error) {
@@ -1337,6 +1420,8 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 		Framework:      "mecanico",
 		Capability:     "action.fix.resolve_gaps_conversational",
 		Role:           flowRoleResolution,
+		Visibility:     flowStepVisibilityInfrastructure,
+		TriggeredBy:    triggerForFlowNode(flowNode{Framework: "auditor", Capability: "data.quality.audit"}, "gap_resolution"),
 		ResolutionMode: frameworkResolutionMode("mecanico"),
 		CycleIndex:     cycleIdx,
 		Status:         "completed",
@@ -1442,7 +1527,7 @@ func (s *server) flowRequiresArtifact(flow flowManifest, artifact string) bool {
 }
 
 func (s *server) shouldRunPreflightAudit(node flowNode, contract nodeContract, available map[string]bool) bool {
-	if node.Framework == "auditor" || available["auditor.findings.v1"] {
+	if node.Framework == "auditor" {
 		return false
 	}
 	if s.allManifests["auditor"] == nil {
@@ -1469,7 +1554,7 @@ func contractNeedsOperationalReadinessAudit(contract nodeContract) bool {
 
 func (s *server) ensureFlowPreflightAudit(ctx context.Context, runID string, req flowRunRequest, target flowNode, available map[string]bool, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int) bool {
 	if !available["external.api.dump.v1"] && !available["dataset.raw.v1"] && available["data.sqlite_db.v1"] {
-		s.ensureSabioDataMediation(ctx, runID, req, available, result, emitStep, cycleIdx)
+		s.ensureSabioDataMediation(ctx, runID, req, available, result, emitStep, cycleIdx, triggerForFlowNode(target, "preflight"))
 	}
 	if !available["external.api.dump.v1"] && !available["dataset.raw.v1"] {
 		return true
@@ -1490,6 +1575,8 @@ func (s *server) ensureFlowPreflightAudit(ctx context.Context, runID string, req
 		Capability:     node.Capability,
 		Command:        contract.Command,
 		Role:           flowRoleResolution,
+		Visibility:     flowStepVisibilityInfrastructure,
+		TriggeredBy:    triggerForFlowNode(target, "preflight"),
 		ResolutionMode: frameworkResolutionMode(node.Framework),
 		CycleIndex:     cycleIdx,
 		Status:         "running",
@@ -1594,7 +1681,14 @@ func (s *server) recordFlowPreflight(runID string, target flowNode, ready bool, 
 	return "flow.preflight.v1"
 }
 
-func (s *server) ensureSabioDataMediation(ctx context.Context, runID string, req flowRunRequest, available map[string]bool, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int) {
+func triggerForFlowNode(node flowNode, reason string) *flowStepTrigger {
+	if node.ID == "" && node.Framework == "" && node.Capability == "" {
+		return nil
+	}
+	return &flowStepTrigger{Node: node.ID, Framework: node.Framework, Capability: node.Capability, Reason: reason}
+}
+
+func (s *server) ensureSabioDataMediation(ctx context.Context, runID string, req flowRunRequest, available map[string]bool, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int, trigger *flowStepTrigger) {
 	const nodeID = "sabio_data_mediation"
 	m := s.allManifests["sabio"]
 	node := flowNode{ID: nodeID, Framework: "sabio", Capability: "dataset.export", Role: flowRoleResolution}
@@ -1604,6 +1698,8 @@ func (s *server) ensureSabioDataMediation(ctx context.Context, runID string, req
 		Framework:      "sabio",
 		Capability:     "dataset.export",
 		Role:           flowRoleResolution,
+		Visibility:     flowStepVisibilityInfrastructure,
+		TriggeredBy:    trigger,
 		ResolutionMode: frameworkResolutionMode("sabio"),
 		CycleIndex:     cycleIdx,
 		Status:         "running",
@@ -1745,7 +1841,7 @@ func (s *server) resolveDataRequestAndRerunNode(ctx context.Context, runID strin
 	}
 	reqPayload, _ := requestPayload.(map[string]interface{})
 	reason := jsonFirstString(reqPayload, "reason", "message", "description", "configuration_reason")
-	s.ensureSabioDataMediation(ctx, runID, req, available, result, emitStep, cycleIdx)
+	s.ensureSabioDataMediation(ctx, runID, req, available, result, emitStep, cycleIdx, triggerForFlowNode(node, "data_request"))
 	if !available["dataset.raw.v1"] && !available["external.api.dump.v1"] {
 		return flowRunStep{}, false
 	}
@@ -1965,10 +2061,17 @@ func requestMecanicoProposalApproval(result *flowRunResult, step flowRunStep) {
 	})
 }
 
-func (s *server) recordFlowCycleCompleted(runID, nodeID string, available map[string]bool, artifacts map[string]flowRunArtifact) string {
+func (s *server) recordFlowCycleCompleted(runID, nodeID, capability string, available map[string]bool, artifacts map[string]flowRunArtifact) string {
+	cycleKind := strings.TrimSpace(capability)
+	if _, ok := artifacts["message.sent.v1"]; ok {
+		cycleKind = "message_sent"
+	}
+	if cycleKind == "" {
+		cycleKind = nodeID
+	}
 	payload := map[string]interface{}{
 		"artifact_type": "flow.cycle.completed.v1",
-		"cycle_kind":    "message_sent",
+		"cycle_kind":    cycleKind,
 		"completed_by":  nodeID,
 		"completed_at":  time.Now().UTC().Format(time.RFC3339Nano),
 	}
@@ -1985,6 +2088,11 @@ func (s *server) recordFlowCycleCompleted(runID, nodeID string, available map[st
 			"message_id": jsonFirstString(sent, "message_id", "id"),
 			"to":         jsonFirstString(sent, "to", "destination"),
 			"channel":    jsonFirstString(sent, "channel"),
+		}
+	} else {
+		payload["evidence"] = map[string]interface{}{
+			"completed_by": nodeID,
+			"capability":   capability,
 		}
 	}
 	path := s.persistFlowArtifact(runID, nodeID+"_cycle_completed", "flow.cycle.completed.v1", payload)
@@ -2047,6 +2155,32 @@ func (s *server) notifyFocoCycleCompleted(ctx context.Context, runID, businessID
 		return true
 	}
 	return false
+}
+
+func (s *server) recordTaskLedgerCycleCompleted(artifacts map[string]flowRunArtifact) {
+	cycle, _ := artifacts["flow.cycle.completed.v1"].Payload.(map[string]interface{})
+	if cycle == nil {
+		return
+	}
+	taskID := jsonFirstString(cycle, "task_id")
+	if taskID == "" {
+		if task, ok := artifacts["task.next"].Payload.(map[string]interface{}); ok {
+			taskID = jsonFirstString(task, "task_id", "id")
+		}
+	}
+	if taskID == "" {
+		return
+	}
+	evidence, _ := cycle["evidence"].(map[string]interface{})
+	emitTaskEvent(taskID, "flow", "task_done", map[string]interface{}{
+		"cycle_kind":  jsonFirstString(cycle, "cycle_kind"),
+		"entity_ref":  jsonFirstString(cycle, "entity_ref"),
+		"entity_type": jsonFirstString(cycle, "entity_type"),
+		"message_id":  jsonFirstString(evidence, "message_id"),
+		"to":          jsonFirstString(evidence, "to"),
+		"channel":     jsonFirstString(evidence, "channel"),
+		"result_ref":  "flow.cycle.completed.v1",
+	})
 }
 
 func (s *server) recordFlowReadiness(runID, nodeID string, ready bool, needs []flowRequiredInput, available map[string]bool, artifacts map[string]flowRunArtifact) string {
@@ -2499,6 +2633,14 @@ func promoteCredentialCheckArtifacts(payload map[string]interface{}, available m
 }
 
 func payloadForArtifactType(typ string, payload map[string]interface{}) interface{} {
+	if typ == "task.next" {
+		if task, ok := payload["task_next"]; ok {
+			return task
+		}
+		if task, ok := payload["task"]; ok {
+			return task
+		}
+	}
 	if typ == "action.options.v1" {
 		if options, ok := payload["action_options"]; ok {
 			return options
@@ -2934,10 +3076,7 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 	if len(options) == 0 {
 		return nil
 	}
-	limit := req.MaxBranches
-	if limit <= 0 || limit > 3 {
-		limit = 3
-	}
+	limit := flowBranchLimit(req)
 	if len(options) < limit {
 		limit = len(options)
 	}
@@ -2952,13 +3091,9 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 		go func() {
 			defer wg.Done()
 			branchReq := req
-			if req.TestMode {
-				branchReq.DryRun = false
-				branchReq.Approved = true
-			} else {
-				branchReq.DryRun = true
-				branchReq.Approved = false
-			}
+			branchReq.DryRun = true
+			branchReq.Approved = false
+			branchReq.TestMode = false
 			branchReq.BranchMode = true
 			branchReq.InitialArtifacts = cloneInitialArtifacts(req.InitialArtifacts)
 			branchReq.InitialArtifacts["action.selection.v1"] = map[string]interface{}{
@@ -2990,6 +3125,19 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 	}
 	wg.Wait()
 	return branches
+}
+
+func flowBranchLimit(req flowRunRequest) int {
+	limit := req.MaxBranches
+	if limit <= 0 {
+		limit = 3
+	}
+	if maxRaw := strings.TrimSpace(os.Getenv("REMORA_FLOW_MAX_BRANCHES")); maxRaw != "" {
+		if max, err := strconv.Atoi(maxRaw); err == nil && max > 0 && limit > max {
+			limit = max
+		}
+	}
+	return limit
 }
 
 func cloneInitialArtifacts(in map[string]interface{}) map[string]interface{} {

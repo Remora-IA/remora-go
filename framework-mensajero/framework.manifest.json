@@ -192,6 +192,7 @@
         "external_side_effect",
         "approval_required",
         "trace_required",
+        "cycle_terminal",
         "audit_log_required"
       ]
     }

@@ -8,6 +8,7 @@ import (
 
 // priorityItem representa una prioridad operativa ya calculada por un ledger o artifact externo.
 type priorityItem struct {
+	TaskID         string  `json:"task_id,omitempty"`
 	Rank           int     `json:"rank"`
 	Deudor         string  `json:"deudor"`
 	DeudorID       string  `json:"deudor_id"`

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.22] - 2026-05-11
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **static/index.html**: +103 / -7
+- **api_rest/flow_backend.go**: funciones: configuredFlowEntry, applyConfiguredFlowEntry | tipos: flowLifecycle, flowLifecycleEntry
+- **api_rest/flow_run.go**: funciones: isCycleTerminalStep, flowAnalysisAccepted, shouldPauseForAnalysisAcceptance, inputRequestForAnalysisAcceptance | tipos: flowStepTrigger
+- **api_rest/flow_backend_test.go**: funciones: TestPrepareFlowManifestLifecycleHonorsConfiguredEntry
+- **api_rest/flow_run_test.go**: funciones: TestRunFlowManifestPausesForRadarAnalysisAcceptance, TestCycleTerminalPolicyClosesCycle, TestNoCycleWithoutTerminalPolicy, TestFlowBranchLimitUsesEnvironmentCap
+
+### Repo
+
+- **data/findings.json**: +1 / -1
+- **framework-foco/framework.manifest.json**: +7 / -3
+- **framework-foco/frameworkfoco**: configuracion
+- **framework-mensajero/framework.manifest.json**: +1
+- **foco/cobranza_sql.go**: +1
+- **foco/cobranza_tasks.go**: +1
+- **foco/main.go**: funciones: persistentKeyFromConvID, loadPersistentState, mergePersistentCarryOver, taskDueBefore
+- **foco/main_test.go**: funciones: TestPriorityCandidatePreservesLedgerTaskID, TestNormalizeActionOptionsFromNil, TestNormalizeActionOptionsFromOneRecommendation, TestNormalizeActionOptionsFromFiveRecommendations
+
 ## [0.1.21] - 2026-05-10
 
 > **Release**: expandir alfa, bravo, charlie, echo, excel, flujo, gmail, paladin, quine
