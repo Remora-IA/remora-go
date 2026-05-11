@@ -28,11 +28,14 @@ channel/orchestrator
 channel/cmd/channel/channel
 channel/cmd/vault/vault
 framework-alfa/frameworkalfa
+framework-arquitecto/frameworkarquitecto
 framework-auditor/frameworkauditor
 framework-charlie/charlie
+framework-critico/frameworkcritico
 framework-echo/frameworkecho
 framework-excel/frameworkexcel
 framework-foco/foco
+framework-foco/frameworkfoco
 framework-foco/foco_state.json
 framework-gmail/framework-gmail
 framework-gmail/frameworkgmail
@@ -40,17 +43,27 @@ framework-hosting/frameworkhosting
 framework-indexa/frameworkindexa
 framework-indexa/panalbit-sync
 framework-mecanico/frameworkmecanico
+framework-mecanico/mecanico
 framework-mensajero/frameworkmensajero
 framework-paladin/bin/
+framework-paladin/frameworkpaladin
+framework-pingpong/framework-pingpong
+framework-pingpong/pingpong
+framework-pingpong/two_sum
 framework-quine/quine
+framework-radar/frameworkradar
 framework-sabio/frameworksabio
 framework-tareas/frameworktareas
+remora-cli/remora
 remora-flujo/flujo
+remora-flujo/flujo_api
 remora-flujo/api_rest
 remora-flujo/flujo_test
+remora-flujo/framework_session
 remora-flujo/agentrpc
 remora-flujo/cmd/api_rest/api_rest
 remora-flujo/cmd/api_rest/channel
+remora-flujo/cmd/api_rest/flujo_api
 
 # Go build/test outputs
 *.test
@@ -104,3 +117,8 @@ framework-auditor/data/working.json
 framework-auditor/data/findings.json
 framework-mecanico/data/applied.jsonl
 framework-mecanico/data/proposals.json
+
+# --- Session state (datos de sesion activa, regenerables) -------------------
+framework-echo/frameworkecho.json
+framework-echo/frameworkecho_backup_*.json
+framework-bravo/examples/*/temp/
