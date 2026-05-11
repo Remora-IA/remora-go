@@ -17,6 +17,7 @@ type flowRunRequest struct {
 
 type flowRunResult struct {
 	RunID             string                     `json:"run_id"`
+	FlowID            string                     `json:"flow_id,omitempty"`
 	Status            string                     `json:"status"`
 	CyclesDone        int                        `json:"cycles_done,omitempty"`
 	Valid             bool                       `json:"valid"`
@@ -109,6 +110,9 @@ type flowRequiredInput struct {
 	Suggestions []string          `json:"suggestions,omitempty"`
 	Context     map[string]string `json:"context,omitempty"`
 	QuestionID  string            `json:"question_id,omitempty"`
+	EntityRef   string            `json:"entity_ref,omitempty"`
+	GapType     string            `json:"gap_type,omitempty"`
+	Field       string            `json:"field,omitempty"`
 }
 
 type flowInputField struct {

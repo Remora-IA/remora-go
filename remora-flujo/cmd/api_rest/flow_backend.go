@@ -31,11 +31,20 @@ type flowManifest struct {
 	ID                string        `json:"id"`
 	BusinessID        string        `json:"business_id,omitempty"`
 	Audience          string        `json:"audience,omitempty"`
+	Intent            flowIntent    `json:"intent,omitempty"`
 	Lifecycle         flowLifecycle `json:"lifecycle,omitempty"`
 	ProvidedArtifacts []string      `json:"provided_artifacts,omitempty"`
 	Nodes             []flowNode    `json:"nodes"`
 	Edges             []flowEdge    `json:"edges,omitempty"`
 	Policies          []string      `json:"policies,omitempty"`
+}
+
+type flowIntent struct {
+	Goal            string   `json:"goal,omitempty"`
+	OperatorRole    string   `json:"operator_role,omitempty"`
+	SuccessCriteria string   `json:"success_criteria,omitempty"`
+	Constraints     []string `json:"constraints,omitempty"`
+	Description     string   `json:"description,omitempty"`
 }
 
 type flowLifecycle struct {
@@ -885,6 +894,8 @@ func canResolveArtifactStructurally(artifact string, available map[string]bool) 
 	switch artifact {
 	case "contact.destination.v1":
 		return available["entity.ref.v1"] || available["entity_360.v1"] || available["message.draft.v1"]
+	case "work.context.v1":
+		return available["focus.next_task.v1"] || available["task.next"] || available["entity.ref.v1"]
 	case "dataset.raw.v1", "external.api.dump.v1":
 		return available["data.sqlite_db.v1"]
 	case "credentials.smtp":

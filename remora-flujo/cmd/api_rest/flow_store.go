@@ -86,7 +86,7 @@ func openFlowStore(dbPath string) (*flowStore, error) {
 }
 
 func (fs *flowStore) migrate() error {
-	_, err := fs.db.Exec(`CREATE TABLE IF NOT EXISTS flows (
+	if _, err := fs.db.Exec(`CREATE TABLE IF NOT EXISTS flows (
 		id TEXT PRIMARY KEY,
 		business_id TEXT NOT NULL,
 		name TEXT NOT NULL,
@@ -95,8 +95,55 @@ func (fs *flowStore) migrate() error {
 		status TEXT NOT NULL DEFAULT 'draft',
 		created_at TEXT NOT NULL,
 		updated_at TEXT NOT NULL
-	)`)
-	return err
+	)`); err != nil {
+		return err
+	}
+	stmts := []string{
+		`CREATE INDEX IF NOT EXISTS idx_flows_business_updated ON flows (business_id, updated_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS flow_runs (
+			run_id TEXT PRIMARY KEY,
+			flow_id TEXT NOT NULL,
+			business_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			dry_run INTEGER NOT NULL DEFAULT 0,
+			approved INTEGER NOT NULL DEFAULT 0,
+			test_mode INTEGER NOT NULL DEFAULT 0,
+			created_at TEXT NOT NULL,
+			finished_at TEXT NOT NULL DEFAULT ''
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_flow_runs_business_created ON flow_runs (business_id, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_flow_runs_flow_created ON flow_runs (flow_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS flow_artifacts (
+			id TEXT PRIMARY KEY,
+			run_id TEXT NOT NULL,
+			flow_id TEXT NOT NULL,
+			business_id TEXT NOT NULL,
+			type TEXT NOT NULL,
+			node_id TEXT NOT NULL DEFAULT '',
+			source TEXT NOT NULL DEFAULT '',
+			path TEXT NOT NULL,
+			created_at TEXT NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_flow_artifacts_lookup ON flow_artifacts (business_id, type, created_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_flow_artifacts_run ON flow_artifacts (run_id)`,
+		`CREATE TABLE IF NOT EXISTS flow_installations (
+			flow_id TEXT PRIMARY KEY,
+			business_id TEXT NOT NULL,
+			installed INTEGER NOT NULL DEFAULT 0,
+			analysis_plan_path TEXT NOT NULL DEFAULT '',
+			analysis_schema_path TEXT NOT NULL DEFAULT '',
+			schema_id TEXT NOT NULL DEFAULT '',
+			weights_json TEXT NOT NULL DEFAULT '',
+			updated_at TEXT NOT NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_flow_installations_business ON flow_installations (business_id)`,
+	}
+	for _, stmt := range stmts {
+		if _, err := fs.db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (fs *flowStore) createFlow(name, description, businessID string, manifest *flowManifest) (*storedFlow, error) {
@@ -232,6 +279,112 @@ func (fs *flowStore) updateFlowStatus(id, status string) error {
 	return err
 }
 
+func (fs *flowStore) recordRun(result flowRunResult) error {
+	if result.RunID == "" || result.BusinessID == "" {
+		return nil
+	}
+	_, err := fs.db.Exec(
+		`INSERT OR REPLACE INTO flow_runs (run_id, flow_id, business_id, status, dry_run, approved, test_mode, created_at, finished_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		result.RunID, result.FlowID, result.BusinessID, result.Status, boolInt(result.DryRun), boolInt(result.Approved), boolInt(result.TestMode), result.CreatedAt, result.FinishedAt,
+	)
+	return err
+}
+
+func (fs *flowStore) recordArtifact(runID, flowID, businessID, nodeID, typ, source, path, createdAt string) error {
+	if runID == "" || businessID == "" || typ == "" || path == "" {
+		return nil
+	}
+	id := strings.Join([]string{runID, safeFilePart(nodeID), safeFilePart(typ)}, "::")
+	_, err := fs.db.Exec(
+		`INSERT OR REPLACE INTO flow_artifacts (id, run_id, flow_id, business_id, type, node_id, source, path, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, runID, flowID, businessID, typ, nodeID, source, path, createdAt,
+	)
+	return err
+}
+
+func (fs *flowStore) latestArtifactPath(businessID, typ string) string {
+	if businessID == "" || typ == "" {
+		return ""
+	}
+	var path string
+	err := fs.db.QueryRow(
+		`SELECT path FROM flow_artifacts WHERE business_id = ? AND type = ? ORDER BY created_at DESC LIMIT 1`,
+		businessID, typ,
+	).Scan(&path)
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
+func (fs *flowStore) upsertInstallation(flowID, businessID string, snapshot *flowInstalledSnapshot) error {
+	if flowID == "" || businessID == "" || snapshot == nil {
+		return nil
+	}
+	weightsRaw := ""
+	if len(snapshot.Weights) > 0 {
+		if raw, err := json.Marshal(snapshot.Weights); err == nil {
+			weightsRaw = string(raw)
+		}
+	}
+	updatedAt := snapshot.UpdatedAt
+	if updatedAt == "" {
+		updatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+	_, err := fs.db.Exec(
+		`INSERT INTO flow_installations (flow_id, business_id, installed, analysis_plan_path, analysis_schema_path, schema_id, weights_json, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(flow_id) DO UPDATE SET
+		   business_id = excluded.business_id,
+		   installed = excluded.installed,
+		   analysis_plan_path = excluded.analysis_plan_path,
+		   analysis_schema_path = excluded.analysis_schema_path,
+		   schema_id = excluded.schema_id,
+		   weights_json = excluded.weights_json,
+		   updated_at = excluded.updated_at`,
+		flowID, businessID, boolInt(snapshot.Installed), snapshot.AnalysisPlan, snapshot.AnalysisSchema, snapshot.SchemaID, weightsRaw, updatedAt,
+	)
+	return err
+}
+
+func (fs *flowStore) installation(flowID string) *flowInstalledSnapshot {
+	if flowID == "" {
+		return nil
+	}
+	var snapshot flowInstalledSnapshot
+	var weightsRaw string
+	var installed int
+	err := fs.db.QueryRow(
+		`SELECT installed, analysis_plan_path, analysis_schema_path, schema_id, weights_json, updated_at
+		 FROM flow_installations WHERE flow_id = ?`,
+		flowID,
+	).Scan(&installed, &snapshot.AnalysisPlan, &snapshot.AnalysisSchema, &snapshot.SchemaID, &weightsRaw, &snapshot.UpdatedAt)
+	if err != nil {
+		return nil
+	}
+	snapshot.Installed = installed != 0
+	if weightsRaw != "" {
+		_ = json.Unmarshal([]byte(weightsRaw), &snapshot.Weights)
+	}
+	return &snapshot
+}
+
+func boolInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+func mapStringInterface(v interface{}) map[string]interface{} {
+	if m, ok := v.(map[string]interface{}); ok {
+		return m
+	}
+	return nil
+}
+
 func (fs *flowStore) updateFlowStatusByManifestID(businessID, manifestID, status string) error {
 	rows, err := fs.db.Query(`SELECT id, manifest_json FROM flows WHERE business_id = ?`, businessID)
 	if err != nil {
@@ -280,7 +433,9 @@ func (s *server) enrichFlowRuntimeStatus(flow *flowWithManifest) {
 	if flow == nil || flow.Manifest == nil {
 		return
 	}
-	flow.Installed = s.flowInstalledSnapshot(flow.BusinessID)
+	if s.flows != nil {
+		flow.Installed = s.flows.installation(flow.ID)
+	}
 	if flow.Status == "installed" || flow.Status == "active" {
 		flow.Operational = s.flowOperationalSnapshot(flow.BusinessID, flow.Manifest)
 		return
@@ -338,12 +493,15 @@ func (s *server) flowInstalledSnapshot(businessID string) *flowInstalledSnapshot
 }
 
 func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest, opts flowInstallOptions) (flowInstallationResult, error) {
-	result := flowInstallationResult{FlowID: flow.ID, BusinessID: flow.BusinessID, Status: "installed"}
 	if flow == nil || flow.Manifest == nil {
-		return result, fmt.Errorf("flow sin manifest")
+		return flowInstallationResult{Status: "installed"}, fmt.Errorf("flow sin manifest")
 	}
+	result := flowInstallationResult{FlowID: flow.ID, BusinessID: flow.BusinessID, Status: "installed"}
 	if s.radarAnalysisInstalled(flow.BusinessID) && !opts.Reconfigure {
 		_ = s.flows.updateFlowStatus(flow.ID, "installed")
+		if s.flows != nil {
+			_ = s.flows.upsertInstallation(flow.ID, flow.BusinessID, s.flowInstalledSnapshot(flow.BusinessID))
+		}
 		result.Already = true
 		result.ArtifactType = "flow.installation.v1"
 		result.Artifacts = []string{"flow.installation.v1", "analysis.plan.v1"}
@@ -382,6 +540,9 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 	defer cancel()
 	resp, err := s.scoped("install_"+flow.ID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, filepath.Join(s.rootDir, cwdRel))
 	if err != nil {
+		if isChannelUnavailableError(err) {
+			return result, fmt.Errorf("%s", channelUnavailableMessage(s.channel.BaseURL))
+		}
 		return result, err
 	}
 	if !resp.Success || resp.ExitCode != 0 {
@@ -399,7 +560,10 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 		return result, fmt.Errorf("%s no devolvió analysis.schema.v1", providerName)
 	}
 	runID := "flow_install_" + safeFilePart(flow.ID)
-	_ = s.persistFlowArtifact(runID, "install", "analysis.schema.v1", payload)
+	schemaArtifactPath := s.persistFlowArtifact(runID, "install", "analysis.schema.v1", payload)
+	if s.flows != nil {
+		_ = s.flows.recordArtifact(runID, flow.ID, flow.BusinessID, "install", "analysis.schema.v1", "framework_stdout", schemaArtifactPath, time.Now().UTC().Format(time.RFC3339Nano))
+	}
 	planPayload := map[string]interface{}{
 		"artifact_type": "analysis.plan.v1",
 		"business_id":   flow.BusinessID,
@@ -413,7 +577,26 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 			}
 		}
 	}
-	_ = s.persistFlowArtifact(runID, "install", "analysis.plan.v1", planPayload)
+	planArtifactPath := s.persistFlowArtifact(runID, "install", "analysis.plan.v1", planPayload)
+	if s.flows != nil {
+		_ = s.flows.recordArtifact(runID, flow.ID, flow.BusinessID, "install", "analysis.plan.v1", "flow_engine", planArtifactPath, time.Now().UTC().Format(time.RFC3339Nano))
+		_ = s.flows.recordRun(flowRunResult{
+			RunID:      runID,
+			FlowID:     flow.ID,
+			BusinessID: flow.BusinessID,
+			Status:     "installed",
+			CreatedAt:  time.Now().UTC().Format(time.RFC3339Nano),
+			FinishedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		})
+		_ = s.flows.upsertInstallation(flow.ID, flow.BusinessID, &flowInstalledSnapshot{
+			Installed:      true,
+			AnalysisPlan:   planArtifactPath,
+			AnalysisSchema: schemaArtifactPath,
+			SchemaID:       jsonFirstString(payload, "schema_id", "plan_id"),
+			UpdatedAt:      jsonFirstString(payload, "updated_at", "generated_at"),
+			Weights:        mapStringInterface(payload["weights"]),
+		})
+	}
 	_ = s.flows.updateFlowStatus(flow.ID, "installed")
 	result.ArtifactType = "flow.installation.v1"
 	result.Artifacts = []string{"flow.installation.v1", "analysis.schema.v1", "analysis.plan.v1"}
@@ -501,9 +684,6 @@ func (s *server) handleListFlows(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "no se pudieron listar flujos: "+err.Error())
 		return
-	}
-	for i := range flows {
-		s.enrichFlowRuntimeStatus(&flows[i])
 	}
 	writeOK(w, flows)
 }

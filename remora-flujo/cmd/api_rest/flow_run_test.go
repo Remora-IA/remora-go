@@ -528,6 +528,454 @@ func TestFlowInstalledSnapshotReadsRadarSchema(t *testing.T) {
 	}
 }
 
+func TestRunFlowManifestEmitsFlowIntentArtifact(t *testing.T) {
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"intent.consumer.v1"}`})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: flowIntentTestManifests(false)}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{Flow: flowManifest{
+		ID: "postventa_whatsapp",
+		Intent: flowIntent{
+			Goal:            "hacer seguimiento post-venta",
+			OperatorRole:    "vendedor",
+			SuccessCriteria: "respuesta del cliente registrada",
+			Constraints:     []string{"no contactar fuera de horario laboral"},
+		},
+		Nodes: []flowNode{{ID: "first", Framework: "consumer", Capability: "intent.consume"}},
+	}}, nil)
+
+	artifact, ok := result.Artifacts["flow.intent.v1"]
+	if !ok {
+		t.Fatalf("expected flow.intent.v1 in artifacts: %#v", result.Artifacts)
+	}
+	payload, ok := artifact.Payload.(map[string]interface{})
+	if !ok || payload["goal"] != "hacer seguimiento post-venta" || payload["operator_role"] != "vendedor" {
+		t.Fatalf("unexpected intent payload %#v", artifact.Payload)
+	}
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+}
+
+func TestRunFlowManifestWithoutIntentDoesNotEmitFlowIntentArtifact(t *testing.T) {
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"intent.consumer.v1"}`})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: flowIntentTestManifests(false)}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{Flow: flowManifest{
+		ID:    "sin_intent",
+		Nodes: []flowNode{{ID: "first", Framework: "consumer", Capability: "intent.consume"}},
+	}}, nil)
+
+	if _, ok := result.Artifacts["flow.intent.v1"]; ok {
+		t.Fatalf("did not expect flow.intent.v1 in %#v", result.Artifacts["flow.intent.v1"])
+	}
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+}
+
+func TestFlowIntentAvailableToFirstNode(t *testing.T) {
+	var args []string
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var rpc struct {
+			Params struct {
+				Args []string `json:"args"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&rpc)
+		args = append([]string{}, rpc.Params.Args...)
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"intent.consumer.v1"}`})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: flowIntentTestManifests(true)}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{Flow: flowManifest{
+		ID: "intent_first_node",
+		Intent: flowIntent{
+			Goal:         "actualizar CRM",
+			OperatorRole: "soporte",
+		},
+		Nodes: []flowNode{{ID: "first", Framework: "consumer", Capability: "intent.consume", Params: map[string]string{"goal": "{artifacts.flow.intent.v1.goal}"}}},
+	}}, nil)
+
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+	if !containsString(args, "actualizar CRM") {
+		t.Fatalf("first node did not receive intent goal, args=%#v", args)
+	}
+}
+
+func flowIntentTestManifests(requireIntent bool) map[string]*manifest.Manifest {
+	requires := []string{}
+	args := []string{"-c", "true"}
+	params := []string{}
+	if requireIntent {
+		requires = []string{"flow.intent.v1"}
+		args = []string{"--goal", "{params.goal}"}
+		params = []string{"goal"}
+	}
+	return map[string]*manifest.Manifest{
+		"consumer": {
+			Name: "consumer",
+			Cwd:  ".",
+			Binary: manifest.BinarySpec{
+				Command: "/bin/sh",
+			},
+			Commands: map[string]manifest.Command{
+				"consume": {
+					Args:   args,
+					Params: params,
+				},
+			},
+			Capabilities: []manifest.CapabilitySpec{
+				{
+					ID:       "intent.consume",
+					Command:  "consume",
+					Requires: requires,
+					Produces: []string{"intent.consumer.v1"},
+				},
+			},
+		},
+	}
+}
+
+func TestWorkContextCreatedAfterEntryNode(t *testing.T) {
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: workContextEntryStdout("task_1", "cust_1")})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:     "work_context_flow",
+			Intent: flowIntent{SuccessCriteria: "email enviado"},
+			Nodes:  []flowNode{{ID: "entry", Framework: "entry", Capability: "focus.next", Role: flowRoleEntry}},
+		},
+		InitialArtifacts: map[string]interface{}{
+			"action.selection.v1": map[string]interface{}{"artifact_type": "action.selection.v1", "id": "send_email", "label": "Enviar email"},
+		},
+	}, nil)
+
+	artifact, ok := result.Artifacts["work.context.v1"]
+	if !ok {
+		t.Fatalf("expected work.context.v1 in artifacts: %#v", result.Artifacts)
+	}
+	payload, ok := artifact.Payload.(map[string]interface{})
+	if !ok {
+		t.Fatalf("unexpected work.context payload %#v", artifact.Payload)
+	}
+	if payload["task_id"] != "task_1" || payload["entity_ref"] != "cust_1" {
+		t.Fatalf("unexpected work.context payload %#v", payload)
+	}
+}
+
+func TestWorkContextContainsTaskEntityAndSelectedAction(t *testing.T) {
+	var pipelineArgs []string
+	call := 0
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		var rpc struct {
+			Params struct {
+				Args []string `json:"args"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&rpc)
+		if len(rpc.Params.Args) > 0 && rpc.Params.Args[0] == "pipeline" {
+			pipelineArgs = append([]string{}, rpc.Params.Args...)
+		}
+		stdout := `{"artifact_type":"pipeline.done.v1"}`
+		if call == 1 {
+			stdout = workContextEntryStdout("task_1", "cust_1")
+		}
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: stdout})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextCycleTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:         "work_context_pipeline",
+			BusinessID: "biz_1",
+			Intent:     flowIntent{SuccessCriteria: "mensaje enviado"},
+			Edges:      []flowEdge{{From: "entry", To: "pipeline"}},
+			Nodes: []flowNode{
+				{ID: "entry", Framework: "entry", Capability: "focus.next", Role: flowRoleEntry},
+				{ID: "pipeline", Framework: "pipeline", Capability: "pipeline.consume", Params: map[string]string{"task_id": "{artifacts.work.context.v1.task_id}"}},
+			},
+		},
+		InitialArtifacts: map[string]interface{}{
+			"action.selection.v1": map[string]interface{}{"artifact_type": "action.selection.v1", "id": "send_email", "label": "Enviar email"},
+		},
+	}, nil)
+
+	payload := result.Artifacts["work.context.v1"].Payload.(map[string]interface{})
+	selected, ok := payload["selected_action"].(map[string]interface{})
+	if !ok || selected["id"] != "send_email" {
+		t.Fatalf("unexpected selected action %#v in %#v", payload["selected_action"], payload)
+	}
+	if payload["expected_outcome"] != "mensaje enviado" {
+		t.Fatalf("unexpected expected_outcome %#v", payload)
+	}
+	if !containsString(pipelineArgs, "task_1") {
+		t.Fatalf("pipeline did not receive work.context task_id, args=%#v", pipelineArgs)
+	}
+}
+
+func TestWorkContextResetsBetweenCycles(t *testing.T) {
+	entryCalls := 0
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var rpc struct {
+			Params struct {
+				Args []string `json:"args"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&rpc)
+		stdout := `{"artifact_type":"message.sent.v1","message_id":"msg_1"}`
+		if len(rpc.Params.Args) > 0 && rpc.Params.Args[0] == "entry" {
+			entryCalls++
+			stdout = workContextEntryStdoutNoActions(fmt.Sprintf("task_%d", entryCalls), fmt.Sprintf("cust_%d", entryCalls))
+		}
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: stdout})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "work_context_cycles",
+			Edges: []flowEdge{{From: "entry", To: "terminal"}},
+			Nodes: []flowNode{
+				{ID: "entry", Framework: "entry", Capability: "focus.next", Role: flowRoleEntry},
+				{ID: "terminal", Framework: "terminal", Capability: "message.send"},
+			},
+		},
+		MaxCycles: 2,
+	}, nil)
+
+	payload := result.Artifacts["work.context.v1"].Payload.(map[string]interface{})
+	if payload["task_id"] != "task_2" || payload["entity_ref"] != "cust_2" {
+		t.Fatalf("work.context should reflect second cycle only, got %#v", payload)
+	}
+	if _, ok := payload["selected_action"]; ok {
+		t.Fatalf("work.context should not infer selected action from options: %#v", payload)
+	}
+}
+
+func TestWorkContextNotCreatedWithoutEntryTaskContext(t *testing.T) {
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"pipeline.done.v1"}`})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "no_entry_context",
+			Nodes: []flowNode{{ID: "pipeline", Framework: "pipeline", Capability: "pipeline.consume"}},
+		},
+	}, nil)
+
+	if _, ok := result.Artifacts["work.context.v1"]; ok {
+		t.Fatalf("did not expect work.context.v1, got %#v", result.Artifacts["work.context.v1"])
+	}
+}
+
+func TestCycleResultCreatedWhenCycleCompletes(t *testing.T) {
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var rpc struct {
+			Params struct {
+				Args []string `json:"args"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&rpc)
+		stdout := `{"artifact_type":"message.sent.v1","message_id":"msg_1","to":"cliente@example.com","channel":"email","summary":"Email enviado al cliente"}`
+		if len(rpc.Params.Args) > 0 && rpc.Params.Args[0] == "entry" {
+			stdout = workContextEntryStdoutNoActions("task_1", "cust_1")
+		}
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: stdout})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextCycleTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "cycle_result_flow",
+			Edges: []flowEdge{{From: "entry", To: "terminal"}},
+			Nodes: []flowNode{
+				{ID: "entry", Framework: "entry", Capability: "focus.next", Role: flowRoleEntry},
+				{ID: "terminal", Framework: "terminal", Capability: "message.send"},
+			},
+		},
+	}, nil)
+
+	artifact, ok := result.Artifacts["cycle.result.v1"]
+	if !ok {
+		t.Fatalf("expected cycle.result.v1 in %#v", result.Artifacts)
+	}
+	payload, ok := artifact.Payload.(map[string]interface{})
+	if !ok {
+		t.Fatalf("unexpected cycle.result payload %#v", artifact.Payload)
+	}
+	if payload["status"] != "done" {
+		t.Fatalf("expected done status, got %#v", payload)
+	}
+	if payload["task_id"] != "task_1" || payload["entity_ref"] != "cust_1" || payload["completed_by_capability"] != "message.send" {
+		t.Fatalf("unexpected cycle.result context %#v", payload)
+	}
+	evidence, ok := payload["evidence"].(map[string]interface{})
+	if !ok || evidence["message_id"] != "msg_1" || evidence["to"] != "cliente@example.com" {
+		t.Fatalf("unexpected cycle.result evidence %#v in %#v", payload["evidence"], payload)
+	}
+	if !containsString(result.Timeline[len(result.Timeline)-1].ArtifactTypes, "cycle.result.v1") {
+		t.Fatalf("terminal step should include cycle.result.v1: %#v", result.Timeline)
+	}
+}
+
+func TestCycleResultResetsBetweenCycles(t *testing.T) {
+	entryCalls := 0
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var rpc struct {
+			Params struct {
+				Args []string `json:"args"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&rpc)
+		stdout := fmt.Sprintf(`{"artifact_type":"message.sent.v1","message_id":"msg_%d","to":"cliente_%d@example.com","channel":"email"}`, entryCalls, entryCalls)
+		if len(rpc.Params.Args) > 0 && rpc.Params.Args[0] == "entry" {
+			entryCalls++
+			stdout = workContextEntryStdoutNoActions(fmt.Sprintf("task_%d", entryCalls), fmt.Sprintf("cust_%d", entryCalls))
+		}
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: stdout})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextCycleTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "cycle_result_cycles",
+			Edges: []flowEdge{{From: "entry", To: "terminal"}},
+			Nodes: []flowNode{
+				{ID: "entry", Framework: "entry", Capability: "focus.next", Role: flowRoleEntry},
+				{ID: "terminal", Framework: "terminal", Capability: "message.send"},
+			},
+		},
+		MaxCycles: 2,
+	}, nil)
+
+	payload := result.Artifacts["cycle.result.v1"].Payload.(map[string]interface{})
+	if payload["cycle_index"] != float64(1) && payload["cycle_index"] != 1 {
+		t.Fatalf("expected second cycle index, got %#v", payload)
+	}
+	if payload["task_id"] != "task_2" || payload["entity_ref"] != "cust_2" {
+		t.Fatalf("cycle.result should reflect second cycle only, got %#v", payload)
+	}
+	evidence, _ := payload["evidence"].(map[string]interface{})
+	if evidence["message_id"] != "msg_2" {
+		t.Fatalf("cycle.result evidence should reflect second cycle, got %#v", payload)
+	}
+}
+
+func TestCycleResultNotCreatedWithoutCycleTerminalStep(t *testing.T) {
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"pipeline.done.v1"}`})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: t.TempDir(), channel: adapter.New(channel.URL, "test-key"), allManifests: workContextTestManifests()}
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:    "cycle_result_no_terminal",
+			Nodes: []flowNode{{ID: "pipeline", Framework: "pipeline", Capability: "pipeline.consume"}},
+		},
+	}, nil)
+
+	if _, ok := result.Artifacts["cycle.result.v1"]; ok {
+		t.Fatalf("did not expect cycle.result.v1, got %#v", result.Artifacts["cycle.result.v1"])
+	}
+}
+
+func workContextTestManifests() map[string]*manifest.Manifest {
+	return map[string]*manifest.Manifest{
+		"entry": {
+			Name: "entry",
+			Cwd:  ".",
+			Binary: manifest.BinarySpec{
+				Command: "/bin/sh",
+			},
+			Commands: map[string]manifest.Command{
+				"next": {Args: []string{"entry"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "focus.next",
+				Command:  "next",
+				Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"},
+			}},
+		},
+		"pipeline": {
+			Name: "pipeline",
+			Cwd:  ".",
+			Binary: manifest.BinarySpec{
+				Command: "/bin/sh",
+			},
+			Commands: map[string]manifest.Command{
+				"consume": {Args: []string{"pipeline", "{params.task_id}"}, Params: []string{"task_id"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "pipeline.consume",
+				Command:  "consume",
+				Requires: []string{"work.context.v1"},
+				Produces: []string{"pipeline.done.v1"},
+			}},
+		},
+		"terminal": {
+			Name: "terminal",
+			Cwd:  ".",
+			Binary: manifest.BinarySpec{
+				Command: "/bin/sh",
+			},
+			Commands: map[string]manifest.Command{
+				"send": {Args: []string{"terminal"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "message.send",
+				Command:  "send",
+				Produces: []string{"message.sent.v1"},
+				Policies: []string{"cycle_terminal"},
+			}},
+		},
+	}
+}
+
+func workContextCycleTestManifests() map[string]*manifest.Manifest {
+	manifests := workContextTestManifests()
+	entry := *manifests["entry"]
+	entry.Capabilities = []manifest.CapabilitySpec{{
+		ID:       "focus.next",
+		Command:  "next",
+		Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1"},
+	}}
+	manifests["entry"] = &entry
+	return manifests
+}
+
+func workContextEntryStdout(taskID, entityID string) string {
+	return fmt.Sprintf(`{
+		"artifact_type":"focus.next_task.v1",
+		"artifacts":["focus.next_task.v1","task.next","entity.ref.v1","action.options.v1"],
+		"task_id":%q,
+		"task":{"id":%q,"title":"Contactar cliente","expected":"mensaje enviado"},
+		"selected":{"artifact_type":"entity.ref.v1","type":"client","id":%q,"name":"Cliente Uno"},
+		"action_options":[{"id":"send_email","label":"Enviar email","description":"Contactar por email"}]
+	}`, taskID, taskID, entityID)
+}
+
+func workContextEntryStdoutNoActions(taskID, entityID string) string {
+	return fmt.Sprintf(`{
+		"artifact_type":"focus.next_task.v1",
+		"artifacts":["focus.next_task.v1","task.next","entity.ref.v1"],
+		"task_id":%q,
+		"task":{"id":%q,"title":"Contactar cliente","expected":"mensaje enviado"},
+		"selected":{"artifact_type":"entity.ref.v1","type":"client","id":%q,"name":"Cliente Uno"}
+	}`, taskID, taskID, entityID)
+}
+
 func dryRunExecutionTestManifests() map[string]*manifest.Manifest {
 	return map[string]*manifest.Manifest{
 		"safe": {
@@ -608,14 +1056,16 @@ func TestRunFlowManifestEmitsReadinessForMissingContact(t *testing.T) {
 	if result.Status != "needs_input" {
 		t.Fatalf("status = %q want needs_input; result=%#v", result.Status, result)
 	}
-	if len(result.NeedsInput) != 1 || result.NeedsInput[0].Kind != "contact_email" {
+	if len(result.NeedsInput) != 1 || result.NeedsInput[0].Kind != "conversational_question" {
 		t.Fatalf("unexpected needs_input %#v", result.NeedsInput)
 	}
-	if result.NeedsInput[0].Framework != "sabio" || result.NeedsInput[0].Capability != "contact.lookup" {
-		t.Fatalf("contact should resolve through Sabio, got %#v", result.NeedsInput[0])
+	// The JIT pipeline asks via Mecanico's conversational gap resolver, not Sabio directly.
+	ni := result.NeedsInput[0]
+	if ni.Artifact != "contact.destination.v1" {
+		t.Fatalf("expected artifact contact.destination.v1, got %q in %#v", ni.Artifact, ni)
 	}
-	if result.NeedsInput[0].Context["entity_ref"] != "184" {
-		t.Fatalf("entity context missing in %#v", result.NeedsInput[0].Context)
+	if ni.EntityRef != "184" && (ni.Context == nil || ni.Context["entity_ref"] != "184") {
+		t.Fatalf("entity context missing in %#v", ni)
 	}
 	readiness, ok := result.Artifacts["flow.readiness.v1"]
 	if !ok {
@@ -1842,8 +2292,16 @@ func TestCollectionFlowActivatesHostingWhenSMTPMissing(t *testing.T) {
 	if result.Status != "needs_input" {
 		t.Fatalf("status=%s result=%#v", result.Status, result)
 	}
-	if len(result.NeedsInput) == 0 || result.NeedsInput[0].Framework != "hosting" {
-		t.Fatalf("expected Hosting question for missing SMTP, got %#v", result.NeedsInput)
+	// Hosting is now invisible. Mecanico asks for SMTP credentials conversationally.
+	if len(result.NeedsInput) == 0 {
+		t.Fatalf("expected needs_input for missing SMTP, got none")
+	}
+	ni := result.NeedsInput[0]
+	if ni.Kind != "conversational_question" {
+		t.Fatalf("expected conversational_question for missing SMTP, got kind=%q: %#v", ni.Kind, result.NeedsInput)
+	}
+	if ni.Artifact != "credentials.smtp" {
+		t.Fatalf("expected artifact credentials.smtp, got %q: %#v", ni.Artifact, ni)
 	}
 	if _, ok := result.Artifacts["message.draft.v1"]; !ok {
 		t.Fatalf("expected draft before SMTP block: %#v", result.Artifacts)

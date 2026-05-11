@@ -36,13 +36,16 @@ func (s *server) resolveMissingFlowArtifacts(ctx context.Context, runID string, 
 				providerName := s.providerNameForCapability("action.fix.resolve_gaps_conversational")
 				for _, q := range questions {
 					needs = append(needs, flowRequiredInput{
-						Artifact:   "framework.question.v1",
-						Kind:       "framework_question",
+						Artifact:   "contact.destination.v1",
+						Kind:       "conversational_question",
 						Framework:  providerName,
 						Capability: "action.fix.resolve_gaps_conversational",
 						Title:      "Resolución de contacto faltante",
 						Message:    jsonFirstString(q, "text", "message", "question"),
 						QuestionID: jsonFirstString(q, "id", "question_id"),
+						EntityRef:  jsonFirstString(q, "entity_ref"),
+						GapType:    jsonFirstString(q, "gap_type"),
+						Field:      jsonFirstString(q, "field"),
 					})
 				}
 				continue
@@ -88,15 +91,17 @@ func (s *server) resolveMissingFlowArtifacts(ctx context.Context, runID string, 
 			}
 			// Activar el provider conversacionalmente: invocar next-question para obtener
 			// la primera pregunta del asistente.
-			if qID, qText, providerName, ok := s.invokeProviderNextQuestion(ctx, req.Flow.BusinessID, "credentials.smtp.check"); ok {
+			if qID, qText, _, ok := s.invokeProviderNextQuestion(ctx, req.Flow.BusinessID, "credentials.smtp.check"); ok {
 				needs = append(needs, flowRequiredInput{
 					Artifact:   "credentials.smtp",
-					Kind:       "framework_question",
-					Framework:  providerName,
-					Capability: "credentials.smtp.check",
-					Title:      "Configurar SMTP con Hosting",
+					Kind:       "conversational_question",
+					Framework:  "mecanico",
+					Capability: "action.fix.resolve_gaps_conversational",
+					Title:      "Faltan credenciales SMTP",
 					Message:    qText,
 					QuestionID: qID,
+					GapType:    "credentials_smtp",
+					Field:      "credentials.smtp",
 				})
 			} else {
 				needs = append(needs, s.inputRequestForHostingConnect())

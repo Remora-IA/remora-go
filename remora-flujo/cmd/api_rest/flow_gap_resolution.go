@@ -56,7 +56,7 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 				// Antes de poner needs_input directo, delegamos a Mecánico como
 				// resolvedor conversacional estándar de gaps.
 				if questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, gaps, result.Artifacts, available, result, emitStep, cycleIdx); hasQuestions {
-					_, questionProviderName, _ := s.findProviderForCapability("action.fix.resolve_gaps_conversational")
+					questionProviderName := s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps")
 					for _, q := range questions {
 						qText := ""
 						if t, ok := q["text"].(string); ok {
@@ -71,13 +71,16 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 							gapType = gt
 						}
 						result.NeedsInput = append(result.NeedsInput, flowRequiredInput{
-							Artifact:   "framework.question.v1",
-							Kind:       "framework_question",
+							Artifact:   "contact.destination.v1",
+							Kind:       "conversational_question",
 							Framework:  questionProviderName,
 							Capability: "action.fix.resolve_gaps_conversational",
 							Title:      "Resolución de gap: " + gapType,
 							Message:    qText,
 							QuestionID: qID,
+							EntityRef:  jsonFirstString(q, "entity_ref"),
+							GapType:    gapType,
+							Field:      jsonFirstString(q, "field"),
 						})
 					}
 					result.Status = "needs_input"
@@ -245,7 +248,10 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 	const capability = "action.fix.resolve_gaps_conversational"
 	m, providerName, ok := s.findProviderForCapability(capability)
 	if !ok {
-		return nil, false
+		m, providerName, ok = s.findProviderWithCommand("resolve-gaps")
+		if !ok {
+			return nil, false
+		}
 	}
 	cmd, ok := m.Commands["resolve-gaps"]
 	if !ok {
@@ -265,6 +271,11 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 	if entityArt, ok := artifacts["entity.ref.v1"]; ok {
 		if payload, err := json.Marshal(entityArt.Payload); err == nil {
 			params["entity_ref_json"] = string(payload)
+		}
+	}
+	for _, p := range cmd.Params {
+		if _, ok := params[p]; !ok {
+			params[p] = ""
 		}
 	}
 	args, err := cmd.ResolveArgs(params, nil, nil)
@@ -326,4 +337,26 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 	emitStep("step_complete", step)
 	result.Timeline = append(result.Timeline, step)
 	return questions, len(questions) > 0
+}
+
+func (s *server) findProviderWithCommand(command string) (*manifest.Manifest, string, bool) {
+	for name, m := range s.allManifests {
+		if m == nil {
+			continue
+		}
+		if _, ok := m.Commands[command]; ok {
+			return m, name, true
+		}
+	}
+	return nil, "", false
+}
+
+func (s *server) providerNameForCapabilityOrCommand(capability, command string) string {
+	if _, providerName, ok := s.findProviderForCapability(capability); ok {
+		return providerName
+	}
+	if _, providerName, ok := s.findProviderWithCommand(command); ok {
+		return providerName
+	}
+	return ""
 }

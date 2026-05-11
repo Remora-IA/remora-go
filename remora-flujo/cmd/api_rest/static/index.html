@@ -395,48 +395,12 @@
       font-size: 13px;
     }
 
-    /* Framework-specific colors */
-    .node.echo.active .node-dot {
-      background: var(--echo-color);
-      border-color: var(--echo-color);
-      box-shadow: 0 0 40px var(--echo-glow);
+    .node.framework.active .node-dot {
+      background: var(--framework-color, var(--accent));
+      border-color: var(--framework-color, var(--accent));
+      box-shadow: 0 0 40px var(--framework-glow, rgba(37,99,235,0.25));
     }
-    .node.echo.active .node-dot svg { opacity: 1; }
-
-    .node.alfa.active .node-dot {
-      background: var(--alfa-color);
-      border-color: var(--alfa-color);
-      box-shadow: 0 0 40px var(--alfa-glow);
-    }
-    .node.alfa.active .node-dot svg { opacity: 1; }
-
-    .node.bravo.active .node-dot {
-      background: var(--bravo-color);
-      border-color: var(--bravo-color);
-      box-shadow: 0 0 40px var(--bravo-glow);
-    }
-    .node.bravo.active .node-dot svg { opacity: 1; }
-
-    .node.sabio.active .node-dot {
-      background: var(--sabio-color);
-      border-color: var(--sabio-color);
-      box-shadow: 0 0 40px var(--sabio-glow);
-    }
-    .node.sabio.active .node-dot svg { opacity: 1; }
-
-    .node.auditor.active .node-dot {
-      background: var(--auditor-color);
-      border-color: var(--auditor-color);
-      box-shadow: 0 0 40px var(--auditor-glow);
-    }
-    .node.auditor.active .node-dot svg { opacity: 1; }
-
-    .node.mecanico.active .node-dot {
-      background: var(--mecanico-color);
-      border-color: var(--mecanico-color);
-      box-shadow: 0 0 40px var(--mecanico-glow);
-    }
-    .node.mecanico.active .node-dot svg { opacity: 1; }
+    .node.framework.active .node-dot svg { opacity: 1; }
 
     .node.user.active .node-dot {
       background: var(--text);
@@ -724,13 +688,8 @@
       color: var(--text-muted);
     }
 
-    /* Thought bubble types */
-    .thought-bubble.echo .thought-header { color: var(--echo-color); }
-    .thought-bubble.echo .thought-header .dot { background: var(--echo-color); }
-    .thought-bubble.alfa .thought-header { color: var(--alfa-color); }
-    .thought-bubble.alfa .thought-header .dot { background: var(--alfa-color); }
-    .thought-bubble.bravo .thought-header { color: var(--bravo-color); }
-    .thought-bubble.bravo .thought-header .dot { background: var(--bravo-color); }
+    .thought-bubble .thought-header { color: var(--bubble-color, var(--accent)); }
+    .thought-bubble .thought-header .dot { background: var(--bubble-color, var(--accent)); }
     .thought-bubble.sabio .thought-header { color: var(--sabio-color); }
     .thought-bubble.sabio .thought-header .dot { background: var(--sabio-color); }
     .thought-bubble.auditor .thought-header { color: var(--auditor-color); }
@@ -2355,9 +2314,10 @@
     .flow-chat-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; font-size: 10px; font-weight: 900; color: var(--text); background: var(--surface); border: 1px solid var(--border); }
     .flow-chat-avatar.user { color: #fff; background: var(--accent); border-color: var(--accent); }
     .flow-chat-avatar.remora { color: var(--accent); background: rgba(37,99,235,0.10); border-color: rgba(37,99,235,0.20); }
+    .flow-chat-row.assistant .flow-chat-avatar:not(.remora) { color: var(--framework-color, var(--text)); border-color: color-mix(in srgb, var(--framework-color, var(--border)) 32%, var(--border)); background: color-mix(in srgb, var(--framework-color, var(--surface)) 10%, var(--surface)); }
     .flow-chat-bubble { max-width: min(90%, 680px); border: 1px solid var(--border); border-radius: 15px; padding: 10px 14px; background: var(--surface); box-shadow: 0 8px 20px rgba(15,23,42,0.04); }
     .flow-chat-row.user .flow-chat-bubble { color: #fff; background: var(--accent); border-color: var(--accent); border-bottom-right-radius: 5px; }
-    .flow-chat-row.assistant .flow-chat-bubble { border-bottom-left-radius: 5px; }
+    .flow-chat-row.assistant .flow-chat-bubble { border-bottom-left-radius: 5px; border-left-color: color-mix(in srgb, var(--framework-color, var(--border)) 45%, var(--border)); }
     .flow-chat-speaker { font-size: 10px; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 5px; }
     .flow-chat-row.user .flow-chat-speaker { color: rgba(255,255,255,0.72); }
     .flow-chat-text { font-size: 14px; line-height: 1.55; color: var(--text); }
@@ -2372,6 +2332,14 @@
     .flow-chat-metadata { display: grid; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); }
     .flow-chat-meta-line { font-size: 11px; color: var(--text-muted); line-height: 1.35; }
     .flow-chat-meta-line strong { color: var(--text); }
+    .flow-semantic-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin: 2px 0 4px; }
+    .flow-semantic-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface); }
+    .flow-semantic-card.intent { border-color: rgba(37,99,235,0.18); background: rgba(37,99,235,0.06); }
+    .flow-semantic-card.work { border-color: rgba(217,119,6,0.20); background: rgba(217,119,6,0.06); }
+    .flow-semantic-card.cycle { border-color: rgba(22,163,74,0.22); background: rgba(22,163,74,0.07); }
+    .flow-semantic-label { font-size: 10px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+    .flow-semantic-value { font-size: 14px; font-weight: 750; color: var(--text); line-height: 1.35; }
+    .flow-semantic-sub { font-size: 12px; color: var(--text-muted); line-height: 1.35; margin-top: 2px; }
     .flow-command-log { margin-top: 8px; }
     .flow-command-log summary { cursor: pointer; font-size: 11px; font-weight: 800; color: var(--text-muted); }
     .flow-command-log pre { white-space: pre-wrap; overflow: auto; max-height: 180px; margin: 6px 0 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text-muted); font-size: 10px; line-height: 1.35; }
@@ -2485,6 +2453,7 @@
     .flows-action-grid {
       display: grid; gap: 12px; margin: 0 0 20px;
     }
+    .flows-action-grid.single { grid-template-columns: 1fr; }
     .flows-action-card-v2 {
       display: flex; align-items: center; gap: 14px;
       padding: 16px 18px; border: 1px solid var(--border); border-radius: 12px;
@@ -2515,8 +2484,23 @@
     .flows-action-card-v2.primary .flows-action-inline-desc { color: var(--bg); opacity: 0.7; }
     .flows-action-arrow { color: var(--text-muted); font-size: 18px; flex: 0 0 auto; }
     .flows-action-card-v2.primary .flows-action-arrow { color: var(--bg); opacity: 0.5; }
+    .flow-secondary-preflight { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+    .flow-secondary-preflight summary { cursor: pointer; font-size: 12px; font-weight: 800; color: var(--text-muted); }
+    .flow-secondary-preflight .modal-btn { margin-top: 10px; }
 
     /* ─── Flow Topology DAG (node bubbles) ─── */
+    .flow-execution-map { margin: 0 0 18px; padding: 14px; border: 1px solid var(--border); border-radius: 16px; background: linear-gradient(135deg, rgba(14,165,233,0.06), rgba(22,163,74,0.04)); }
+    .flow-execution-map-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 8px; }
+    .flow-execution-map-title { font-size: 14px; font-weight: 850; color: var(--text); }
+    .flow-execution-map-sub { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin-top: 2px; }
+    .flow-execution-map-legend { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-size: 10px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .flow-execution-map-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; background: var(--text-muted); }
+    .legend-dot.bootstrap { background: #2563eb; }
+    .legend-dot.entry { background: #0f766e; }
+    .legend-dot.resolution { background: #0891b2; }
+    .flow-phase-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+    .flow-phase-chips span { font-size: 11px; font-weight: 800; color: var(--text-muted); border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 8px; }
     .flow-dag { position: relative; margin: 0 0 24px; min-height: 200px; }
     .flow-dag-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
     .flow-dag-canvas line { stroke: var(--border); stroke-width: 1.5; }
@@ -2556,8 +2540,8 @@
     }
     .flow-dag-node.l-user .flow-dag-node-label { font-weight: 800; }
     /* layer colors */
-    .flow-dag-node.l-entry .flow-dag-bubble { border-color: #7c3aed; background: rgba(139,92,246,0.1); color: #7c3aed; }
-    .flow-dag-node.l-entry .flow-dag-node-badge { background: #7c3aed; color: #fff; }
+    .flow-dag-node.l-entry .flow-dag-bubble { border-color: #0f766e; background: rgba(15,118,110,0.1); color: #0f766e; }
+    .flow-dag-node.l-entry .flow-dag-node-badge { background: #0f766e; color: #fff; }
     .flow-dag-node.l-bootstrap .flow-dag-bubble { border-color: #2563eb; background: rgba(37,99,235,0.1); color: #2563eb; }
     .flow-dag-node.l-bootstrap .flow-dag-node-badge { background: #2563eb; color: #fff; }
     .flow-dag-node.l-pipeline .flow-dag-bubble { border-color: var(--text-muted); background: var(--surface2); color: var(--text-muted); }
@@ -3222,10 +3206,35 @@ const FRAMEWORK_INFO = {
   }
 };
 
-// Devuelve la "clase visual" de un framework. Si está en FRAMEWORK_ICONS
-// usa su propio nombre como type; si no, cae a 'echo' como default seguro.
 function frameworkType(name) {
-  return FRAMEWORK_ICONS[name] ? name : 'echo';
+  const clean = String(name || 'framework').toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  return clean || 'framework';
+}
+
+function frameworkColor(name) {
+  const key = frameworkType(name);
+  const cssVarMap = {
+    echo: 'var(--echo-color)',
+    alfa: 'var(--alfa-color)',
+    bravo: 'var(--bravo-color)',
+    sabio: 'var(--sabio-color)',
+    auditor: 'var(--auditor-color)',
+    mecanico: 'var(--mecanico-color)',
+    foco: 'var(--foco-color)'
+  };
+  if (cssVarMap[key]) return cssVarMap[key];
+  let hash = 0;
+  for (const ch of key) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 68%, 54%)`;
+}
+
+function frameworkGlow(name) {
+  const key = frameworkType(name);
+  let hash = 0;
+  for (const ch of key) hash = ((hash << 5) - hash + ch.charCodeAt(0)) | 0;
+  const hue = Math.abs(hash) % 360;
+  return `hsla(${hue}, 72%, 58%, 0.28)`;
 }
 
 let selectedFlow = null;
@@ -3384,6 +3393,7 @@ function getFrameworkDisplayInfo(fw) {
     name: hardcoded?.name || fw.name,
     desc: hardcoded?.desc || fw.description || 'Framework sin descripción',
     icon: FRAMEWORK_ICONS[fw.name] || FRAMEWORK_ICONS.echo,
+    color: frameworkColor(fw.name),
     type: frameworkType(fw.name)
   };
 }
@@ -3468,6 +3478,7 @@ const flowsLibraryView = document.getElementById('flows-library-view');
 const flowsExecutionView = document.getElementById('flows-execution-view');
 const flowsBuilderView = document.getElementById('flows-builder-view');
 const flowsDetailView = document.getElementById('flows-detail-view');
+const flowsDetailContent = document.getElementById('flows-detail-content');
 const flowsLibraryList = document.getElementById('flows-library-list');
 const flowsExecutionList = document.getElementById('flows-execution-list');
 const flowsFooter = document.getElementById('flows-footer');
@@ -3587,8 +3598,8 @@ function renderFlowsExecution() {
         <span class="flows-status-badge">${escapeHtml(flowStatusLabel(f.status))}</span>
       </div>
       <div class="flows-library-actions">
-        <button class="flows-action-btn run" data-id="${f.id}">Probar</button>
-        <button class="flows-action-btn edit open-nodes" data-id="${f.id}">Abrir en nodos</button>
+        <button class="flows-action-btn run" data-id="${f.id}">Ver ejecución</button>
+        <button class="flows-action-btn edit open-nodes" data-id="${f.id}">Nodos en vivo</button>
       </div>
     </div>`;
   }).join('');
@@ -3601,7 +3612,7 @@ function renderFlowsExecution() {
         await openFlowDetail(btn.dataset.id, 'execution');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Probar';
+        btn.textContent = 'Ver ejecución';
       }
     });
   });
@@ -3788,6 +3799,42 @@ function capInputs(cap) {
 
 function capOutputs(cap) {
   return [...(cap.produces || []), ...(cap.outputs || [])].filter(Boolean);
+}
+
+function capabilityProviderName(capability) {
+  const cap = (flowsState.caps || []).find(c => c.id === capability);
+  return cap && cap.framework ? cap.framework : '';
+}
+
+function flowNodeConsumesBusinessData(node) {
+  if (!node || node.role === 'resolution') return false;
+  const cap = selectedCapInfo(node);
+  const inputs = capInputs(cap);
+  const dataArtifacts = ['data.sqlite_db.v1', 'dataset.raw.v1', 'external.api.dump.v1', 'business.semantic_pack.v1', 'collection.priority_list.v1', 'collection.priority_item.v1', 'entity.ref.v1', 'entity_360.v1'];
+  return inputs.some(a => dataArtifacts.includes(a) || String(a).startsWith('business.') || String(a).startsWith('collection.') || String(a).startsWith('entity.'));
+}
+
+function flowExecutionTopologyNodes(nodes, result = null) {
+  const out = (nodes || []).map(n => ({ ...n }));
+  const byFramework = new Set(out.map(n => n.framework));
+  const hasBusinessData = out.some(flowNodeConsumesBusinessData) || out.some(n => capInputs(selectedCapInfo(n)).includes('data.sqlite_db.v1'));
+  const addProviderNode = (capability, role = 'resolution') => {
+    const framework = capabilityProviderName(capability);
+    if (!framework || byFramework.has(framework)) return;
+    byFramework.add(framework);
+    out.push({ id: `${framework}_${capability.replace(/[^a-z0-9]+/gi, '_')}`, framework, capability, role });
+  };
+  if (hasBusinessData) {
+    addProviderNode('dataset.export');
+    addProviderNode('data.quality.audit');
+    addProviderNode('action.fix.propose_all_auto');
+  }
+  for (const dyn of ((result && result.dynamic_nodes) || [])) {
+    if (!dyn || !dyn.framework || byFramework.has(dyn.framework)) continue;
+    byFramework.add(dyn.framework);
+    out.push({ ...dyn, role: dyn.role || 'resolution' });
+  }
+  return out;
 }
 
 function frontendBootstrapCandidate(n) {
@@ -4047,17 +4094,32 @@ async function saveFlow() {
 
 // --- DETAIL ---
 async function openFlowDetail(flowId, mode = 'design') {
-  const res = await apiFetch(`${API_BASE}/flows/${encodeURIComponent(flowId)}`).then(r => r.json());
-  if (!res.success) { alert('No se pudo cargar el flujo.'); return; }
+  showFlowsView('detail');
+  flowsDetailContent.innerHTML = '<div class="composer-empty">Cargando detalle del flujo...</div>';
+  flowsFooter.innerHTML = '';
+  let res;
+  try {
+    res = await apiFetch(`${API_BASE}/flows/${encodeURIComponent(flowId)}`).then(r => r.json());
+  } catch (e) {
+    flowsDetailContent.innerHTML = `<div class="composer-empty">Error al cargar detalle: ${escapeHtml(e.message || String(e))}</div>`;
+    flowsFooter.innerHTML = `<button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>`;
+    document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView(mode === 'execution' ? 'execution' : 'library'); mode === 'execution' ? renderFlowsExecution() : renderFlowsLibrary(); });
+    return;
+  }
+  if (!res.success) {
+    flowsDetailContent.innerHTML = `<div class="composer-empty">No se pudo cargar el flujo: ${escapeHtml(res.error || 'error desconocido')}</div>`;
+    flowsFooter.innerHTML = `<button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>`;
+    document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView(mode === 'execution' ? 'execution' : 'library'); mode === 'execution' ? renderFlowsExecution() : renderFlowsLibrary(); });
+    return;
+  }
   flowsState.selectedFlow = res.data;
   flowsState.detailMode = mode;
   flowsState.detail = { validation: null, simulation: null, runResult: null, smtpStatus: null };
-  showFlowsView('detail');
   if (mode === 'execution') {
     flowsFooter.innerHTML = `
       <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
       <button class="modal-btn cancel" id="flows-detail-validate" style="display:none;">Revisar preparaci\u00f3n</button>
-      <button class="modal-btn confirm" id="flows-detail-dryrun" style="display:none;">Probar flujo completo</button>
+      <button class="modal-btn confirm" id="flows-detail-dryrun" style="display:none;">Probar</button>
     `;
     document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('execution'); renderFlowsExecution(); });
     document.getElementById('flows-detail-validate').addEventListener('click', validateCurrentFlow);
@@ -4071,23 +4133,21 @@ async function openFlowDetail(flowId, mode = 'design') {
     document.getElementById('flows-detail-edit-btn').addEventListener('click', () => startFlowBuilder(flowsState.selectedFlow));
   }
   renderFlowDetail();
-  // Auto-check SMTP status for flows that mention mensajero/send
-  const nodes = (flowsState.selectedFlow.manifest || {}).nodes || [];
-  const needsSMTP = nodes.some(n => n.framework === 'mensajero' || (n.capability || '').includes('send'));
-  if (needsSMTP) checkSMTPStatus();
+  // Las credenciales de hosting las maneja Framework Hosting durante la
+  // ejecucion del flujo, no el Staff desde este modal. El Staff solo prueba.
 }
 
 function flowRoleLabelShort(role, framework) {
-  if (role === 'bootstrap') return 'Análisis';
-  if (role === 'entry') return 'Foco';
-  if (role === 'resolution') return 'Resolución';
-  // For pipeline nodes, show the framework name instead of generic "Ejecución"
+  // Siempre mostrar el nombre real del framework si esta disponible.
+  // Nada de roles abstractos como "Analisis" — el Staff necesita saber
+  // que framework esta actuando en cada fase.
   if (framework) {
     const fwLabels = {
       'radar': 'Radar',
       'foco': 'Foco',
+      'sabio': 'Sabio',
       'auditor': 'Auditor',
-      'mecanico': 'Mecánico',
+      'mecanico': 'Mecanico',
       'mensajero': 'Mensajero',
       'hosting': 'Hosting',
       'consultor': 'Consultor',
@@ -4095,6 +4155,9 @@ function flowRoleLabelShort(role, framework) {
     };
     return fwLabels[framework] || framework.charAt(0).toUpperCase() + framework.slice(1);
   }
+  // Fallback solo cuando no hay framework conocido
+  if (role === 'entry') return 'Foco';
+  if (role === 'resolution') return 'Resolucion';
   return 'Paso';
 }
 
@@ -4188,21 +4251,38 @@ function computeFlowTopology(nodes) {
   // 3. Build framework-level dependency edges with artifact labels
   const edges = [];
   const edgeSet = new Set();
+  const ensureEdge = (from, to, artifact) => {
+    if (!from || !to || from === to) return;
+    const key = `${from}->${to}`;
+    if (!edgeSet.has(key)) {
+      edgeSet.add(key);
+      edges.push({ from, to, artifacts: [] });
+    }
+    const edge = edges.find(e => e.from === from && e.to === to);
+    if (edge && artifact && !edge.artifacts.includes(artifact)) edge.artifacts.push(artifact);
+  };
   for (const n of nodes) {
     const cap = selectedCapInfo(n);
     for (const inp of capInputs(cap)) {
       const producers = artifactProducers[inp] || [];
       for (const src of producers) {
-        if (src !== n.framework) {
-          const key = `${src}->${n.framework}`;
-          if (!edgeSet.has(key)) {
-            edgeSet.add(key);
-            edges.push({ from: src, to: n.framework, artifacts: [] });
-          }
-          const edge = edges.find(e => e.from === src && e.to === n.framework);
-          if (edge && !edge.artifacts.includes(inp)) edge.artifacts.push(inp);
-        }
+        ensureEdge(src, n.framework, inp);
       }
+    }
+  }
+  const dataProvider = capabilityProviderName('dataset.export');
+  const auditProvider = capabilityProviderName('data.quality.audit');
+  const fixProvider = capabilityProviderName('action.fix.propose_all_auto') || capabilityProviderName('action.fix.resolve_gaps_conversational');
+  const frameworksInTopology = new Set(nodes.map(n => n.framework));
+  if (dataProvider && auditProvider && frameworksInTopology.has(dataProvider) && frameworksInTopology.has(auditProvider)) {
+    ensureEdge(dataProvider, auditProvider, 'dataset validado');
+    for (const n of nodes) {
+      if (n.framework !== auditProvider && n.framework !== dataProvider && flowNodeConsumesBusinessData(n)) {
+        ensureEdge(auditProvider, n.framework, 'datos validados');
+      }
+    }
+    if (fixProvider && frameworksInTopology.has(fixProvider)) {
+      ensureEdge(auditProvider, fixProvider, 'brechas de datos');
     }
   }
 
@@ -4356,6 +4436,34 @@ function renderFlowTopology(nodes) {
   </div>`;
 }
 
+function renderFlowExecutionTopology(manifest, result = null) {
+  const nodes = flowExecutionTopologyNodes((manifest || {}).nodes || [], result);
+  const installed = Boolean((flowsState.selectedFlow || {}).installed && (flowsState.selectedFlow || {}).installed.installed);
+  const hasBootstrap = nodes.some(n => n.role === 'bootstrap');
+  return `<div class="flow-execution-map">
+    <div class="flow-execution-map-head">
+      <div>
+        <div class="flow-execution-map-title">Topología real de ejecución</div>
+        <div class="flow-execution-map-sub">${installed ? 'Fase operativa: Radar queda instalado y Foco toma el entry point.' : hasBootstrap ? 'Fase bootstrap: Radar configura, el usuario acepta y luego Foco opera.' : 'Fase operativa: los nodos principales invocan auxiliares por capability.'}</div>
+      </div>
+      <div class="flow-execution-map-legend">
+        <span><b class="legend-dot bootstrap"></b>Bootstrap</span>
+        <span><b class="legend-dot entry"></b>User-facing</span>
+        <span><b class="legend-dot resolution"></b>Aux/Data</span>
+      </div>
+    </div>
+    ${hasBootstrap ? `<div class="flow-phase-chips"><span>Radar</span><span>Aceptación del usuario</span><span>Instalación</span><span>${installed ? 'Foco activo' : 'Foco después de instalar'}</span></div>` : ''}
+    ${renderFlowTopology(nodes)}
+  </div>`;
+}
+
+function flushPendingDagDraw() {
+  if (!window.__dagPending) return;
+  const dp = window.__dagPending;
+  window.__dagPending = null;
+  requestAnimationFrame(() => drawDagEdges(dp.id, dp.edges));
+}
+
 function drawDagEdges(dagId, edges) {
   const container = document.getElementById(dagId);
   const svg = document.getElementById(dagId + '-svg');
@@ -4429,7 +4537,6 @@ function renderFlowDetail() {
   const nodes = m.nodes || [];
   const d = flowsState.detail;
   const content = document.getElementById('flows-detail-content');
-  const needsSMTP = nodes.some(n => n.framework === 'mensajero' || (n.capability || '').includes('send'));
   const isExec = flowsState.detailMode === 'execution';
   const flowContent = document.querySelector('#flows-modal .flows-content');
   const branchCount = ((d.runResult || {}).branches || []).length;
@@ -4492,47 +4599,24 @@ function renderFlowDetail() {
         <div class="flow-loading-text">Ejecutando operaci\u00f3n... los frameworks est\u00e1n trabajando</div>
       </div>`;
     } else {
-      // Show progress bar for the flow phases
-      html += renderFlowProgressBar(nodes, 0);
-
-      html += `<div class="flows-action-grid">`;
-
-      // SMTP status - show only if relevant and pending
-      if (needsSMTP && d.smtpStatus !== null && !d.smtpStatus.available) {
-        html += `<div class="flows-action-card-v2 warning" onclick="startHostingConversationFromFlow()">
-          <div class="flows-action-icon">&#9993;</div>
-          <div class="flows-action-text">
-            <div class="flows-action-inline-title">Conectar correo</div>
-            <div class="flows-action-inline-desc">Este flujo env\u00eda emails. Configura las credenciales SMTP primero.</div>
-          </div>
-          <div class="flows-action-arrow">&rsaquo;</div>
-        </div>`;
-      }
-
+      html += renderFlowExecutionTopology(m, d.runResult);
+      html += `<div class="flows-action-grid single">`;
       html += `
-        <div class="flows-action-card-v2" onclick="document.getElementById('flows-detail-validate').click()">
-          <div class="flows-action-icon">&#9745;</div>
-          <div class="flows-action-text">
-            <div class="flows-action-inline-title">Revisar preparaci\u00f3n</div>
-            <div class="flows-action-inline-desc">Verifica que los datos, credenciales y configuraci\u00f3n est\u00e9n listos.</div>
-          </div>
-          <div class="flows-action-arrow">&rsaquo;</div>
-        </div>
         <div class="flows-action-card-v2 primary" onclick="document.getElementById('flows-detail-dryrun').click()">
           <div class="flows-action-icon">&#9654;</div>
           <div class="flows-action-text">
-            <div class="flows-action-inline-title">Probar flujo completo</div>
-            <div class="flows-action-inline-desc">Ejecuta todas las dimensiones y acciones de forma segura; los emails se redirigen al correo de prueba configurado.</div>
+            <div class="flows-action-inline-title">Probar</div>
+            <div class="flows-action-inline-desc">Ejecuta el flujo completo con datos reales. Los emails se redirigen al correo de prueba. El sistema simula las respuestas del usuario en todas las dimensiones.</div>
           </div>
           <div class="flows-action-arrow">&rsaquo;</div>
         </div>
+        <details class="flow-secondary-preflight">
+          <summary>Opción secundaria: revisar preparación técnica</summary>
+          <div class="composer-muted">Valida manifest, artefactos declarados y configuración del flujo sin convertirlo en una prueba separada.</div>
+          <button class="modal-btn cancel" onclick="document.getElementById('flows-detail-validate').click()">Revisar preparación</button>
+        </details>
       </div>`;
     }
-  }
-
-  // SMTP ready indicator (subtle, only if available)
-  if (needsSMTP && d.smtpStatus !== null && d.smtpStatus.available && isExec) {
-    html += `<div class="flows-status-ok">&#10003; Correo configurado</div>`;
   }
 
   if (d.validation) {
@@ -4556,12 +4640,7 @@ function renderFlowDetail() {
     const anchor = document.getElementById('flow-stream-anchor');
     if (anchor) anchor.replaceWith(d.streamingEl);
   }
-  // Draw DAG edges after DOM is ready
-  if (window.__dagPending) {
-    const dp = window.__dagPending;
-    window.__dagPending = null;
-    requestAnimationFrame(() => drawDagEdges(dp.id, dp.edges));
-  }
+  flushPendingDagDraw();
 }
 
 function paintFlowStarting(title) {
@@ -4580,6 +4659,73 @@ function paintFlowStarting(title) {
 
 function nextPaint() {
   return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+function flowArtifacts(result) {
+  return (result && result.artifacts) || {};
+}
+
+function artifactPayload(result, type) {
+  const art = flowArtifacts(result)[type];
+  if (!art) return null;
+  return art.payload || art;
+}
+
+function manifestIntentPayload(manifest) {
+  const intent = (manifest || {}).intent || {};
+  return intent && Object.keys(intent).some(k => intent[k] && (!Array.isArray(intent[k]) || intent[k].length)) ? intent : null;
+}
+
+function renderFlowSemanticArtifacts(result, manifest, opts = {}) {
+  const cards = [];
+  const intent = artifactPayload(result, 'flow.intent.v1') || manifestIntentPayload(manifest);
+  const work = artifactPayload(result, 'work.context.v1');
+  const cycle = artifactPayload(result, 'cycle.result.v1');
+  const totalCycles = opts.maxCycles || ((flowsState.detail || {}).maxCycles) || (result && result.cycles_done) || 0;
+  const currentCycle = cycle && cycle.cycle_index !== undefined ? Number(cycle.cycle_index) + 1 : (result && result.cycles_done) || 1;
+  const operational = (flowsState.selectedFlow || {}).operational || {};
+
+  if (intent && intent.goal) {
+    cards.push(`<div class="flow-semantic-card intent">
+      <div class="flow-semantic-label">Propósito</div>
+      <div class="flow-semantic-value">${escapeHtml(intent.goal)}</div>
+      ${intent.success_criteria ? `<div class="flow-semantic-sub">Éxito: ${escapeHtml(intent.success_criteria)}</div>` : ''}
+    </div>`);
+  }
+  if (work) {
+    const entity = work.entity_name || work.entity_ref || 'caso actual';
+    const task = work.task_title || work.task_id || 'tarea priorizada';
+    cards.push(`<div class="flow-semantic-card work">
+      <div class="flow-semantic-label">Ahora</div>
+      <div class="flow-semantic-value">${escapeHtml(entity)} — ${escapeHtml(task)}</div>
+      ${work.expected_outcome ? `<div class="flow-semantic-sub">${escapeHtml(work.expected_outcome)}</div>` : ''}
+    </div>`);
+  }
+  if (cycle) {
+    cards.push(`<div class="flow-semantic-card cycle">
+      <div class="flow-semantic-label">Último ciclo</div>
+      <div class="flow-semantic-value">Ciclo ${escapeHtml(String(currentCycle))}${totalCycles ? ` de ${escapeHtml(String(totalCycles))}` : ''} completado</div>
+      <div class="flow-semantic-sub">${escapeHtml(cycle.result_summary || cycle.cycle_kind || cycle.status || 'Resultado registrado')}</div>
+    </div>`);
+  } else if (totalCycles || operational.completed_tasks !== undefined) {
+    cards.push(`<div class="flow-semantic-card cycle">
+      <div class="flow-semantic-label">Progreso</div>
+      <div class="flow-semantic-value">Ciclo ${escapeHtml(String(currentCycle))}${totalCycles ? ` de ${escapeHtml(String(totalCycles))}` : ''}</div>
+      ${operational.completed_tasks !== undefined ? `<div class="flow-semantic-sub">Tareas completadas hoy: ${escapeHtml(String(operational.completed_tasks || 0))}</div>` : ''}
+    </div>`);
+  }
+  return cards.length ? `<div class="flow-semantic-cards">${cards.join('')}</div>` : '';
+}
+
+function renderCycleResultMessage(result) {
+  const cycle = artifactPayload(result, 'cycle.result.v1');
+  if (!cycle) return '';
+  const n = cycle.cycle_index !== undefined ? Number(cycle.cycle_index) + 1 : (result && result.cycles_done) || 1;
+  const summary = cycle.result_summary || cycle.cycle_kind || 'ciclo completado';
+  return renderFlowChatMessage('assistant', 'Rémora', `Ciclo ${n} completado: ${summary}`, {
+    status: cycle.status === 'done' ? 'ciclo completado' : (cycle.status || 'resultado'),
+    outputs: ['cycle.result.v1']
+  });
 }
 
 function renderFlowNodeMap(nodes) {
@@ -4655,20 +4801,18 @@ function renderHumanRunResult(r) {
   const isAnalysisGate = r.status === 'needs_input' && (r.needs_input || []).some(n => n.kind === 'analysis_acceptance');
   const statusBadge = { completed: 'completado', failed: 'error', needs_input: isAnalysisGate ? 'esperando aprobación' : 'falta input', needs_approval: 'requiere aprobación' };
 
-  // Determine final progress step
-  const resultNodes = (flowsState.selectedFlow && flowsState.selectedFlow.manifest || {}).nodes || [];
-  const resultPhaseCount = new Set((resultNodes).map(n => n.role || 'pipeline')).size;
-  const progressStep = r.status === 'completed' ? resultPhaseCount : Math.max(0, resultPhaseCount - 1);
+  const resultManifest = (flowsState.selectedFlow && flowsState.selectedFlow.manifest) || {};
 
   let html = `<div class="flow-chat-sim">
     <div class="flow-chat-header">
       <div>
         <div class="flow-chat-title">Resultado de la prueba</div>
-        <div class="flow-chat-subtitle">Los frameworks ejecutan comandos reales sobre artifacts del flujo. Las dimensiones de prueba usan dry-run y pueden incluir input humano simulado.</div>
+        <div class="flow-chat-subtitle">Los frameworks ejecutan comandos reales sobre artifacts del flujo. Las dimensiones se auto-prueban con input humano simulado y correo redirigido.</div>
       </div>
       <div class="flow-chat-badge">${escapeHtml(statusBadge[r.status] || r.status || 'resultado')}</div>
     </div>
-    ${renderFlowProgressBar(resultNodes, progressStep)}
+    ${renderFlowExecutionTopology(resultManifest, r)}
+    ${renderFlowSemanticArtifacts(r, flow.manifest || {})}
     <div class="flow-chat-thread">`;
 
   html += renderFlowChatMessage('assistant', 'Rémora', 'Inicio el flujo con datos reales del negocio. El usuario no tiene que decir qué hacer; el primer framework prepara o presenta el trabajo.');
@@ -4722,11 +4866,15 @@ function renderHumanRunResult(r) {
   if (infraGroups.unassigned.length) {
     html += renderCollapsedInfrastructureSteps(infraGroups.unassigned, 'Infraestructura');
   }
+  html += renderCycleResultMessage(r);
 
   if (r.status === 'needs_input') {
     const isAnalysisAcceptance = (r.needs_input || []).some(n => n.kind === 'analysis_acceptance');
+    const conversational = (r.needs_input || []).find(n => n.kind === 'conversational_question');
     if (isAnalysisAcceptance) {
       html += renderFlowChatMessage('assistant', 'Rémora', 'Radar terminó de analizar la cartera y propone una configuración. Revisala y aceptá para que el flujo continúe con la priorización.');
+    } else if (conversational) {
+      html += renderFlowChatMessage('assistant', 'Rémora', conversational.message || 'Necesito un dato para continuar.');
     } else {
       html += renderFlowChatMessage('assistant', 'Rémora', 'El flujo ejecutó correctamente hasta que un paso necesitó información que no está disponible. Revisa los datos faltantes arriba.');
     }
@@ -4853,7 +5001,7 @@ function renderFlowBranches(branches) {
   if (!branches || !branches.length) return '';
   return `<div class="flow-branches-panel">
     <div class="flow-branches-title">Dimensiones paralelas ejecutadas (${branches.length})</div>
-    <div class="composer-muted" style="margin-bottom:10px;">Cada columna es un flujo completo en dry-run seguro, ejecutado en paralelo con una acción distinta. No es solo simulación visual: cada dimensión tiene timeline, artifacts y comandos propios.</div>
+    <div class="composer-muted" style="margin-bottom:10px;">Cada columna es un flujo completo de prueba, ejecutado en paralelo con una acción distinta. No es solo simulación visual: cada dimensión tiene timeline, artifacts y comandos propios.</div>
     <div class="flow-branches-grid">
       ${branches.map((b, idx) => renderFlowBranchThread(b, idx)).join('')}
     </div>
@@ -4925,19 +5073,15 @@ function renderBranchStepMessage(step) {
 
 function renderFlowActionOptions(options, source) {
   if (!options || !options.length) return '';
-  const sel = ((flowsState.detail || {}).initialArtifacts || {})['action.selection.v1'];
   return `<div class="flow-chat-row assistant"><div class="flow-chat-bubble" style="border-color:#3b82f6;">
     <div style="font-weight:600;margin-bottom:6px;">Acciones sugeridas / dimensiones</div>
-    <div class="composer-muted" style="margin-bottom:10px;">Estas opciones vienen del pipeline de decisión (Radar produce estrategia/contexto y Foco las convierte en acciones operativas). Elegí una para probar esa dimensión completa en modo seguro.</div>
+    <div class="composer-muted" style="margin-bottom:10px;">Estas opciones vienen del pipeline de decisión. La prueba ejecuta automáticamente hasta 3 dimensiones completas en modo seguro, sin intervención del Staff.</div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
       ${options.map((opt, idx) => {
-        const isSelected = sel && sel.id === (opt.id || String(idx + 1));
-        return `<button class="modal-btn flow-action-opt-btn${isSelected ? ' confirm' : ''}" data-idx="${idx}" style="border-color:#3b82f6;" onclick="selectFlowActionOption('${escapeAttr(source || 'action_options')}', ${idx})" title="${escapeAttr(opt.description || '')}">
-          ${escapeHtml(opt.label || opt.id || ('Opción ' + (idx + 1)))}
-        </button>`;
+        return `<span class="flow-chat-artifact out" title="${escapeAttr(opt.description || '')}">Dimensión ${idx + 1}: ${escapeHtml(opt.label || opt.id || ('Opción ' + (idx + 1)))}</span>`;
       }).join('')}
     </div>
-    <div class="composer-muted" style="margin-top:8px;">Clickeá un botón para re-probar el flujo con esa acción seleccionada.</div>
+    <div class="composer-muted" style="margin-top:8px;">Los timelines independientes aparecen en el panel de dimensiones al terminar la prueba.</div>
   </div></div>`;
 }
 
@@ -4987,12 +5131,20 @@ function renderFlowCommandDetails(step) {
 }
 
 function renderFlowNeedsInput(items) {
-  return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid #f59e0b;border-radius:8px;">
-    <div style="font-weight:600;margin-bottom:6px;">Falta información para continuar</div>
+  const hasConversational = (items || []).some(item => item.kind === 'conversational_question');
+  return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid ${hasConversational ? 'var(--border)' : '#f59e0b'};border-radius:8px;">
+    <div style="font-weight:600;margin-bottom:6px;">${hasConversational ? 'Responder para continuar' : 'Falta información para continuar'}</div>
     ${items.map((item, idx) => {
+      if (item.kind === 'conversational_question') {
+        return renderConversationalFlowQuestion(item, idx);
+      }
       if (item.kind === 'hosting_connect') {
         return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
           <button class="modal-btn confirm" onclick="startHostingConversationFromFlow()">Conectar hosting</button>`;
+      }
+      if (item.kind === 'framework_question' && item.framework === 'hosting') {
+        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+          <button class="modal-btn confirm" onclick="startHostingConversationFromFlow()">Continuar con Hosting</button>`;
       }
       if (item.kind === 'contact_email') {
         return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
@@ -5021,6 +5173,60 @@ function renderFlowNeedsInput(items) {
       return `<div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta información')}</div>`;
     }).join('')}
   </div>`;
+}
+
+function renderConversationalFlowQuestion(item, idx) {
+  const isSMTP = item.artifact === 'credentials.smtp' || (item.field || '').includes('smtp');
+  const placeholder = isSMTP ? 'Ej: smtp.midominio.com, puerto 587, usuario...' : 'Escribe la respuesta...';
+  const inputType = (item.field || '').includes('email') || item.artifact === 'contact.destination.v1' ? 'email' : 'text';
+  const showObservability = !!(((flowsState.detail || {}).runResult || {}).test_mode);
+  const obs = showObservability ? `<details class="flow-branch-details" style="margin-top:8px;">
+    <summary>Observabilidad staff</summary>
+    <div class="flow-chat-metadata">
+      <div class="flow-chat-meta-line"><strong>Pregunta:</strong> ${escapeHtml(item.framework || 'mecanico')} · ${escapeHtml(item.capability || '')}</div>
+      <div class="flow-chat-meta-line"><strong>Gap:</strong> ${escapeHtml(item.gap_type || 'missing_data')}${item.field ? ' · ' + escapeHtml(item.field) : ''}</div>
+      <div class="flow-chat-meta-line"><strong>Entidad:</strong> ${escapeHtml(item.entity_ref || (item.context && item.context.entity_ref) || 'actual')}</div>
+      <div class="flow-chat-meta-line"><strong>Trace:</strong> Sabio buscó el dato, Auditor lo validó y Mecánico formuló esta pregunta.</div>
+    </div>
+  </details>` : '';
+  return `<div style="margin-bottom:10px;">
+    <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input id="flow-conversation-answer-${idx}" type="${inputType}" placeholder="${escapeAttr(placeholder)}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
+      <button class="modal-btn confirm" onclick="answerFlowConversationalQuestion(${idx})">Responder</button>
+    </div>
+    ${obs}
+  </div>`;
+}
+
+function answerFlowConversationalQuestion(idx) {
+  const el = document.getElementById(`flow-conversation-answer-${idx}`);
+  const answer = (el && el.value || '').trim();
+  if (!answer) { alert('Escribe una respuesta.'); return; }
+  const needs = ((flowsState.detail || {}).runResult || {}).needs_input || [];
+  const item = needs[idx] || {};
+  flowsState.detail.initialArtifacts = flowsState.detail.initialArtifacts || {};
+  if (item.artifact === 'contact.destination.v1') {
+    const ctx = item.context || {};
+    flowsState.detail.initialArtifacts['contact.destination.v1'] = {
+      artifact_type: 'contact.destination.v1',
+      channel: 'email',
+      destination: answer,
+      value: answer,
+      to: answer,
+      source: 'user_input',
+      entity_type: ctx.entity_type || '',
+      entity_ref: item.entity_ref || ctx.entity_ref || ''
+    };
+  } else if (item.artifact === 'credentials.smtp') {
+    flowsState.detail.initialArtifacts['credentials.smtp.input.v1'] = {
+      artifact_type: 'credentials.smtp.input.v1',
+      value: answer,
+      source: 'user_input'
+    };
+  }
+  flowsState.detail.lastInput = answer;
+  dryRunCurrentFlow();
 }
 
 function saveFlowContactDestination(idx) {
@@ -5110,7 +5316,7 @@ async function startHostingConversationFromFlow() {
   assistedSetupReturn = {
     mode: 'assisted_setup',
     framework: 'hosting',
-    required_artifact: 'credentials.smtp',
+    required_artifact: 'credentials.cpanel',
     parent_flow_id: flowId,
     return_to: 'flow_detail'
   };
@@ -5118,10 +5324,10 @@ async function startHostingConversationFromFlow() {
   if (typeof flowModal !== 'undefined') flowModal.classList.remove('visible');
   await createConversationAndStart(['hosting'], '', {
     session_mode: 'assisted_setup',
-    goal: 'connect_smtp_for_flow',
-    required_artifact: 'credentials.smtp',
+    goal: 'connect_hosting_for_flow',
+    required_artifact: 'credentials.cpanel',
     parent_flow_id: flowId,
-    parent_node_id: 'hosting.credentials.smtp.check',
+    parent_node_id: 'hosting.credentials.cpanel.connect',
     return_to: 'flow_detail'
   });
 }
@@ -5135,11 +5341,15 @@ function artifactLabel(artifact) {
     'answer.grounded.v1': 'respuesta basada en datos',
     'contact.destination.v1': 'destinatario/contacto',
     'message.draft.v1': 'borrador del mensaje',
-    'credentials.smtp': 'credenciales de correo SMTP',
+    'credentials.smtp': 'credenciales de envío gestionadas por Hosting',
+    'credentials.cpanel': 'credenciales de hosting cPanel',
     'message.sent.v1': 'mensaje enviado',
     'message.channel.v1': 'canal de contacto',
     'data.sqlite_db.v1': 'base de datos del negocio',
-    'business.semantic_pack.v1': 'configuración semántica del negocio'
+    'business.semantic_pack.v1': 'configuración semántica del negocio',
+    'flow.intent.v1': 'propósito del flujo',
+    'work.context.v1': 'contexto de trabajo actual',
+    'cycle.result.v1': 'resultado del ciclo'
   };
   return map[artifact] || artifact;
 }
@@ -5205,6 +5415,8 @@ function renderFlowChatMessage(role, speaker, text, opts = {}) {
   const avatarClass = role === 'user' ? ' user' : (speaker === 'Rémora' ? ' remora' : '');
   const avatarText = opts.avatar || (role === 'user' ? 'TÚ' : frameworkInitials(speaker));
   const idAttr = opts.id ? ` id="${opts.id}"` : '';
+  const frameworkName = opts.framework || (opts.step && opts.step.framework) || speaker;
+  const styleAttr = role === 'assistant' && speaker !== 'Rémora' ? ` style="--framework-color:${frameworkColor(frameworkName)};"` : '';
   let meta = '';
   if (opts.loading) {
     meta += `<div class="flow-chat-status"><div class="flow-loading-spinner" style="width:14px;height:14px;border-width:2px;"></div> Ejecutando</div>`;
@@ -5223,7 +5435,7 @@ function renderFlowChatMessage(role, speaker, text, opts = {}) {
       ${commandDetails}
     </div>`;
   }
-  return `<div class="flow-chat-row ${role}"${idAttr}>
+  return `<div class="flow-chat-row ${role}"${idAttr}${styleAttr}>
     ${role !== 'user' ? `<div class="flow-chat-avatar${avatarClass}">${escapeHtml(avatarText)}</div>` : ''}
     <div class="flow-chat-bubble">
       <div class="flow-chat-speaker">${escapeHtml(speaker)}</div>
@@ -5513,7 +5725,8 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
       </div>
       <div class="flow-chat-badge running" id="flow-stream-badge"><span class="flow-loading-spinner" style="width:12px;height:12px;border-width:2px;"></span> ejecutando</div>
     </div>
-    <div id="flow-stream-progress">${renderFlowProgressBar(nodes, 0)}</div>
+    <div id="flow-stream-progress">${renderFlowExecutionTopology(manifest)}</div>
+    <div id="flow-semantic-live">${renderFlowSemanticArtifacts(null, manifest, opts)}</div>
     <div class="flow-run-live" id="flow-run-live">
       <div class="flow-loading-spinner" style="width:18px;height:18px;border-width:2px;"></div>
       <div>Operación iniciada. Preparando Channel y esperando el primer paso del flujo...</div>
@@ -5598,9 +5811,9 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
           if (result.branches && result.branches.length) {
             thread.insertAdjacentHTML('beforeend', renderFlowBranches(result.branches));
           } else {
-            thread.insertAdjacentHTML('beforeend', renderFlowChatMessage('assistant', 'Foco · dimensiones', step.human_summary || 'Dimensiones ejecutadas en dry-run seguro.', {
+            thread.insertAdjacentHTML('beforeend', renderFlowChatMessage('assistant', 'Foco · dimensiones', step.human_summary || 'Dimensiones ejecutadas en prueba segura.', {
               avatar: frameworkInitials('foco'),
-              status: 'dimensiones dry-run'
+              status: 'dimensiones probadas'
             }));
           }
           scrollStreamBottom(thread);
@@ -5632,7 +5845,10 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
           if (fwIdx >= 0 && fwIdx >= currentPhaseIdx) {
             currentPhaseIdx = fwIdx;
             const pb = el.querySelector('#flow-stream-progress');
-            if (pb) pb.innerHTML = renderFlowProgressBar(nodes, currentPhaseIdx);
+            if (pb) {
+              pb.innerHTML = renderFlowExecutionTopology(manifest);
+              flushPendingDagDraw();
+            }
           }
 
           thread.insertAdjacentHTML('beforeend',
@@ -5700,13 +5916,18 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
           if (live) live.remove();
           // Mark progress bar as fully completed
           const pb = el.querySelector('#flow-stream-progress');
-          if (pb && data.status === 'completed') pb.innerHTML = renderFlowProgressBar(nodes, phaseFrameworks.length);
+          if (pb && data.status === 'completed') {
+            pb.innerHTML = renderFlowExecutionTopology(manifest, data);
+            flushPendingDagDraw();
+          }
           const badge = el.querySelector('#flow-stream-badge');
           const statusBadge = { completed: 'completado', failed: 'error', needs_input: 'falta input', needs_approval: 'requiere aprobación', max_cycles_reached: 'ciclos completos' };
           if (badge) {
             badge.classList.remove('running');
             badge.textContent = statusBadge[data.status] || data.status || 'terminado';
           }
+          const semanticLive = el.querySelector('#flow-semantic-live');
+          if (semanticLive) semanticLive.innerHTML = renderFlowSemanticArtifacts(data, manifest, opts);
 
           let summary = '';
           if (data.status === 'needs_input') {
@@ -5722,6 +5943,8 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
             summary = 'El flujo falló durante la ejecución. Revisa los errores en los pasos marcados.';
           }
           if (summary) {
+            const cycleMessage = renderCycleResultMessage(data);
+            if (cycleMessage) thread.insertAdjacentHTML('beforeend', cycleMessage);
             thread.insertAdjacentHTML('beforeend', renderFlowChatMessage('assistant', 'Rémora', summary));
           }
 
@@ -5770,10 +5993,15 @@ function flowRunPayload(flow, dryRun, approved, opts = {}) {
   const payload = { flow, dry_run: dryRun, approved };
   if (opts.testMode) {
     payload.test_mode = true;
+    payload.simulate_human = true;
+    payload.max_branches = 3;
     payload.test_recipient = opts.testRecipient || (window.__remoraConfig && window.__remoraConfig.dev_recipient) || 'tom3bs@gmail.com';
   }
   if (flowsState.detail && flowsState.detail.initialArtifacts) {
     payload.initial_artifacts = flowsState.detail.initialArtifacts;
+  }
+  if (flowsState.detail && flowsState.detail.lastInput) {
+    payload.input = flowsState.detail.lastInput;
   }
   if (flowsState.detail && flowsState.detail.maxCycles > 0) {
     payload.max_cycles = flowsState.detail.maxCycles;
@@ -6410,9 +6638,11 @@ thoughtInput.addEventListener('input', () => {
 
 function createNodeElement(id, name, type, x, y) {
   const node = document.createElement('div');
-  node.className = `node ${type}`;
+  node.className = `node framework ${type}`;
   node.id = `node-${id}`;
   node.style.cssText = `top: ${y}%; left: ${x}%;`;
+  node.style.setProperty('--framework-color', frameworkColor(type || id || name));
+  node.style.setProperty('--framework-glow', frameworkGlow(type || id || name));
   node.innerHTML = `
     <div class="node-dot">
       ${FRAMEWORK_ICONS[type] || FRAMEWORK_ICONS.echo}
@@ -6552,7 +6782,7 @@ async function runCanvasFlowReal() {
   if (!canvasFlowState || !canvasFlowState.manifest) return;
   if (!confirm('¿Ejecutar esta operación real ahora?')) return;
   const manifest = canvasFlowState.manifest;
-  const payload = { flow: manifest, dry_run: false, approved: true };
+  const payload = flowRunPayload(manifest, false, true);
   deactivateAllNodes();
   setNodeActive('user', true);
   showThoughtBubble('user', 'Rémora', 'Iniciando operación real... conectando con Channel y preparando frameworks.', false, 'pos-above');
@@ -6602,7 +6832,8 @@ async function runCanvasFlowReal() {
           const msg = status === 'completed'
             ? 'Operación real completada. El flujo terminó todos sus pasos.'
             : `Operación terminó con estado: ${status}. Revisá el último framework activo para el detalle.`;
-          showThoughtBubble('user', 'Rémora', msg, false, 'pos-above');
+          const semantic = renderFlowSemanticArtifacts(data, manifest);
+          showThoughtBubble('user', 'Rémora', `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}${escapeHtml(msg)}`, false, 'pos-above');
         }
       }
     }
@@ -6670,7 +6901,8 @@ function showThoughtBubble(type, header, content, hasInput = false, position = '
   const headerText = thoughtBubble.querySelector('.header-text');
   
   thoughtBubble.className = `thought-bubble ${type} ${position}`;
-  dot.style.background = 'var(--text)';
+  thoughtBubble.style.setProperty('--bubble-color', type === 'user' ? 'var(--text)' : frameworkColor(type || header));
+  dot.style.background = '';
   headerText.textContent = header;
   thoughtBody.innerHTML = renderContent(cleanVisibleContent(content));
   

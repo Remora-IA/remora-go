@@ -25,7 +25,12 @@ cd framework-hosting && go run ./cmd/frameworkhosting genkey
 # 4. Compilar todos los binarios
 go build ./...
 
-# 5. Arrancar el API
+# 5. Arrancar Channel (broker JSON-RPC)
+docker compose up channel
+# Alternativa sin Docker, desde el root:
+(cd channel && go run ./cmd/channel -addr :8765 -base-dir "$(pwd)/.." -api-keys test-key-001)
+
+# 6. Arrancar el API
 cd remora-flujo && go run ./cmd/api_rest
 # Abrir http://localhost:8080
 ```

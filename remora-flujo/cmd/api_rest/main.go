@@ -111,6 +111,9 @@ func main() {
 	channelURL := envOr("CHANNEL_URL", "http://localhost:8765")
 	apiKey := envOr("CHANNEL_API_KEY", "test-key-001")
 	port := envOr("API_REST_PORT", envOr("FLUJO_API_PORT", "8084"))
+
+	// Auto-discovery de root antes de Channel para pasarle el baseDir
+	rootDir := resolveRemoraRoot()
 	authStore, authErr := openAuthStore()
 	if authErr != nil {
 		fmt.Fprintf(os.Stderr, "no pude abrir auth store: %v\n", authErr)
@@ -136,10 +139,12 @@ func main() {
 		rules = &FlowRules{Version: 1}
 	}
 
+	// Ensure Channel is available: try external first, start embedded if not.
+	channelURL = ensureChannel(channelURL, apiKey, rootDir)
+
 	// Auto-discovery de frameworks vía manifests. Los drivers hardcodeados
 	// (echo, alfa) se mantienen; cualquier framework adicional con manifest
 	// válido se registra automáticamente vía genericDriver.
-	rootDir := resolveRemoraRoot()
 	bootLog := log.New(os.Stderr, "[boot] ", log.LstdFlags)
 	loadedManifests, skippedManifests := initDriverRegistry(rootDir, bootLog)
 	if len(skippedManifests) > 0 {
@@ -473,11 +478,15 @@ func (s *server) healthz(w http.ResponseWriter, r *http.Request) {
 		Detail: fmt.Sprintf("%d reglas activas", rulesCount),
 	})
 
-	// 4. Channel adapter inicializado (no se hace ping para evitar dependency loop).
+	// 4. Channel disponible.
 	chOK := s.channel != nil
 	chDetail := "adapter inicializado"
 	if !chOK {
 		chDetail = "channel adapter nil"
+		allOK = false
+	} else if err := pingChannel(r.Context(), s.channel.BaseURL); err != nil {
+		chOK = false
+		chDetail = channelUnavailableMessage(s.channel.BaseURL)
 		allOK = false
 	}
 	checks = append(checks, checkResult{Name: "channel", OK: chOK, Detail: chDetail})

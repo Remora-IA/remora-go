@@ -254,6 +254,9 @@ func encodeFlowRunContext(req flowRunRequest) string {
 		"flow_id":     req.Flow.ID,
 		"dry_run":     req.DryRun,
 	}
+	if flowIntentDefined(req.Flow.Intent) {
+		ctx["intent"] = flowIntentArtifactPayload(req.Flow)
+	}
 	raw, err := json.Marshal(ctx)
 	if err != nil {
 		return ""

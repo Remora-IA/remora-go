@@ -86,7 +86,11 @@ func (s *server) executeFlowNode(ctx context.Context, runID string, req flowRunR
 	}
 	execCtx, cancel := context.WithTimeout(ctx, nodeTimeout)
 	defer cancel()
-	return s.scoped(runID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(runID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+	if err != nil && isChannelUnavailableError(err) {
+		return nil, fmt.Errorf("%s", channelUnavailableMessage(s.channel.BaseURL))
+	}
+	return resp, err
 }
 
 func (s *server) materializePortableArtifactParams(runID, nodeID string, cmd manifest.Command, params map[string]string) {

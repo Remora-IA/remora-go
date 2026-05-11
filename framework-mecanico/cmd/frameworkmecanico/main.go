@@ -495,70 +495,12 @@ func cmdResolveGaps(args []string) {
 	}
 	questions := []map[string]interface{}{}
 	plan := []map[string]interface{}{}
-	for _, gap := range gaps {
+	for idx, gap := range gaps {
 		gapType := ""
 		if t, ok := gap["type"].(string); ok {
 			gapType = t
 		}
-		var q map[string]interface{}
-		switch gapType {
-		case "missing_contact", "schema_contact_gap", "RuleSchemaContactGap":
-			q = map[string]interface{}{
-				"artifact_type": "framework.question.v1",
-				"id":            fmt.Sprintf("mecanico_contact_%d", time.Now().Unix()),
-				"text":          fmt.Sprintf("Falta un contacto válido para %s. ¿Tenés un email, teléfono o WhatsApp para agregar?", entityName),
-				"gap_type":      gapType,
-				"field":         "contact",
-				"options": []string{
-					"Ingresar email",
-					"Ingresar teléfono",
-					"Ingresar WhatsApp",
-					"No tengo contacto",
-				},
-			}
-		case "missing_email":
-			q = map[string]interface{}{
-				"artifact_type": "framework.question.v1",
-				"id":            fmt.Sprintf("mecanico_email_%d", time.Now().Unix()),
-				"text":          fmt.Sprintf("Necesito un email para contactar a %s. ¿Cuál es?", entityName),
-				"gap_type":      gapType,
-				"field":         "email",
-			}
-		case "missing_smtp", "credentials_smtp":
-			q = map[string]interface{}{
-				"artifact_type": "framework.question.v1",
-				"id":            fmt.Sprintf("mecanico_smtp_%d", time.Now().Unix()),
-				"text":          "Faltan credenciales SMTP para enviar emails. ¿Querés configurarlas ahora?",
-				"gap_type":      gapType,
-				"field":         "credentials.smtp",
-				"options": []string{
-					"Sí, configurar SMTP",
-					"No, saltar envío",
-				},
-			}
-		case "draft_missing":
-			q = map[string]interface{}{
-				"artifact_type": "framework.question.v1",
-				"id":            fmt.Sprintf("mecanico_draft_%d", time.Now().Unix()),
-				"text":          fmt.Sprintf("No hay borrador de mensaje para %s. ¿Querés que prepare uno automáticamente?", entityName),
-				"gap_type":      gapType,
-				"field":         "message.draft",
-				"options": []string{
-					"Sí, borrador automático",
-					"No, saltar",
-				},
-			}
-		default:
-			if desc, ok := gap["description"].(string); ok && desc != "" {
-				q = map[string]interface{}{
-					"artifact_type": "framework.question.v1",
-					"id":            fmt.Sprintf("mecanico_generic_%d", time.Now().Unix()),
-					"text":          fmt.Sprintf("Gap detectado: %s. ¿Cómo querés resolverlo?", desc),
-					"gap_type":      gapType,
-					"description":   desc,
-				}
-			}
-		}
+		q := questionForGapWithLLM(gap, entityRef, entityName, idx)
 		if q != nil {
 			questions = append(questions, q)
 			plan = append(plan, map[string]interface{}{
@@ -575,16 +517,148 @@ func cmdResolveGaps(args []string) {
 		}
 	}
 	emitJSON(map[string]interface{}{
-		"artifact_type":    "mecanico.resolution_plan.v1",
-		"artifacts":        []string{"mecanico.resolution_plan.v1", "framework.question.v1"},
-		"entity_name":      entityName,
-		"questions_count":  len(questions),
-		"questions":        questions,
-		"plan":             plan,
-		"findings_count":   len(findings),
-		"generated_at":     time.Now().Format(time.RFC3339),
-		"human_summary":    fmt.Sprintf("Mecánico generó %d preguntas para resolver gaps de %s.", len(questions), entityName),
+		"artifact_type":   "mecanico.resolution_plan.v1",
+		"artifacts":       []string{"mecanico.resolution_plan.v1", "framework.question.v1"},
+		"entity_name":     entityName,
+		"questions_count": len(questions),
+		"questions":       questions,
+		"plan":            plan,
+		"findings_count":  len(findings),
+		"generated_at":    time.Now().Format(time.RFC3339),
+		"human_summary":   fmt.Sprintf("Mecánico generó %d preguntas para resolver gaps de %s.", len(questions), entityName),
 	})
+}
+
+func questionForGapWithLLM(gap map[string]interface{}, entityRef map[string]interface{}, entityName string, idx int) map[string]interface{} {
+	gapType := jsonString(gap, "type", "kind", "rule", "gap_type")
+	field := jsonString(gap, "field")
+	if field == "" {
+		field = inferGapField(gapType, jsonString(gap, "description", "message"))
+	}
+	system := `Eres un asistente operativo que ayuda a completar tareas de negocio. Cuando falta un dato para continuar, lo pides de forma clara, directa y amable. Nunca mencionas terminos tecnicos como "base de datos", "gap", "framework", "artifact", "tabla" ni "campo". Hablas como un companero de trabajo que necesita un dato para hacer su trabajo. Siempre explicas POR QUE necesitas el dato (ej: "para poder enviar el correo de cobranza"). Hablas en espanol.
+
+Devuelve solamente JSON valido con esta forma:
+{"text":"pregunta natural","field":"dato faltante","gap_type":"tipo interno"}`
+	payload := map[string]interface{}{
+		"gap":         gap,
+		"entity":      entityRef,
+		"entity_name": entityName,
+		"flow_context": map[string]interface{}{
+			"purpose": "continuar una tarea operativa del negocio",
+			"channel": "conversacional",
+		},
+	}
+	rawPayload, _ := json.Marshal(payload)
+	text := ""
+	if client, err := llm.NewClient(); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
+		if out, err := client.Generate(ctx, system, string(rawPayload)); err == nil {
+			text, field = parseLLMQuestion(out, field)
+		}
+	}
+	if strings.TrimSpace(text) == "" {
+		text = fallbackNaturalQuestion(gapType, field, entityName)
+	}
+	return map[string]interface{}{
+		"artifact_type": "framework.question.v1",
+		"id":            fmt.Sprintf("mecanico_%s_%d_%d", safeToken(firstNonEmpty(gapType, field, "question")), time.Now().Unix(), idx),
+		"text":          scrubTechnicalQuestion(text),
+		"gap_type":      gapType,
+		"field":         field,
+	}
+}
+
+func parseLLMQuestion(raw, fallbackField string) (string, string) {
+	raw = strings.TrimSpace(raw)
+	raw = strings.TrimPrefix(raw, "```json")
+	raw = strings.TrimPrefix(raw, "```")
+	raw = strings.TrimSuffix(raw, "```")
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(strings.TrimSpace(raw)), &parsed); err != nil {
+		return strings.TrimSpace(raw), fallbackField
+	}
+	field := jsonString(parsed, "field")
+	if field == "" {
+		field = fallbackField
+	}
+	return jsonString(parsed, "text", "question", "message"), field
+}
+
+func fallbackNaturalQuestion(gapType, field, entityName string) string {
+	needle := strings.ToLower(gapType + " " + field)
+	switch {
+	case strings.Contains(needle, "smtp") || strings.Contains(needle, "credential"):
+		return "Para poder enviar correos necesito acceso a tu cuenta de email. ¿Me pasás los datos SMTP o de tu hosting?"
+	case strings.Contains(needle, "email") || strings.Contains(needle, "contact"):
+		return fmt.Sprintf("Para enviar el cobro a %s necesito su email. ¿Cuál es?", entityName)
+	case strings.Contains(needle, "draft"):
+		return fmt.Sprintf("Para avanzar con %s necesito preparar el texto del mensaje. ¿Querés que lo redacte ahora?", entityName)
+	default:
+		return fmt.Sprintf("Para continuar con %s necesito completar un dato. ¿Me lo pasás?", entityName)
+	}
+}
+
+func inferGapField(gapType, description string) string {
+	needle := strings.ToLower(gapType + " " + description)
+	switch {
+	case strings.Contains(needle, "smtp") || strings.Contains(needle, "credential"):
+		return "credentials.smtp"
+	case strings.Contains(needle, "email"):
+		return "email"
+	case strings.Contains(needle, "contact"):
+		return "contact"
+	case strings.Contains(needle, "draft"):
+		return "message.draft"
+	default:
+		return ""
+	}
+}
+
+func scrubTechnicalQuestion(text string) string {
+	text = strings.TrimSpace(text)
+	replacements := map[string]string{
+		"Gap detectado": "Necesito un dato",
+		"gap":           "dato faltante",
+		"framework":     "sistema",
+		"artifact":      "dato",
+		"tabla":         "registro",
+		"campo":         "dato",
+		"base de datos": "informacion guardada",
+	}
+	for from, to := range replacements {
+		text = strings.ReplaceAll(text, from, to)
+		text = strings.ReplaceAll(text, strings.Title(from), to)
+	}
+	return text
+}
+
+func jsonString(m map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if v, ok := m[key].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+	}
+	return ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func safeToken(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	replacer := strings.NewReplacer(".", "_", "-", "_", " ", "_", "/", "_")
+	value = replacer.Replace(value)
+	if value == "" {
+		return "question"
+	}
+	return value
 }
 
 // ---------- reset ----------

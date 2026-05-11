@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.24] - 2026-05-11
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **static/index.html**: +382 / -150
+- **api_rest/flow_backend.go**: tipos: flowIntent
+- **api_rest/flow_gap_inputs.go**: +12 / -7
+- **api_rest/flow_run_types.go**: +4
+- **api_rest/flow_store.go**: funciones: (fs *flowStore) recordRun, (fs *flowStore) recordArtifact, (fs *flowStore) latestArtifactPath, (fs *flowStore) upsertInstallation | tipos: TEXT
+- **api_rest/main.go**: +11 / -2
+- **api_rest/flow_artifacts.go**: +30 / -1
+- **api_rest/flow_channel.go**: archivo nuevo
+- **api_rest/flow_cycles.go**: funciones: (s *server) recordCycleResult, cycleResultStatus
+- **api_rest/flow_data_pipeline.go**: archivo nuevo
+- **api_rest/flow_execution.go**: +5 / -1
+- **api_rest/flow_gap_resolution.go**: funciones: (s *server) findProviderWithCommand, (s *server) providerNameForCapabilityOrCommand
+- **api_rest/flow_intent.go**: archivo nuevo
+- **api_rest/flow_params.go**: +3
+- **api_rest/flow_preflight.go**: funciones: (s *server) shouldRunLayeredDataValidation, isBusinessDataArtifact
+- **api_rest/flow_runner.go**: +47 / -1
+- **api_rest/flow_work_context.go**: archivo nuevo
+- **api_rest/flow_run_test.go**: funciones: TestRunFlowManifestEmitsFlowIntentArtifact, TestRunFlowManifestWithoutIntentDoesNotEmitFlowIntentArtifact, TestFlowIntentAvailableToFirstNode, flowIntentTestManifests
+- **api_rest/flow_store_test.go**: archivo nuevo
+
+### Repo
+
+- **data/findings.json**: +585 / -64928
+- **framework-hosting/frameworkhosting**: configuracion
+- **PROMPT_VISION_COMPLETA.md**: archivo nuevo
+- **README.md**: +6 / -1
+- **frameworkmecanico/main.go**: funciones: questionForGapWithLLM, parseLLMQuestion, fallbackNaturalQuestion, inferGapField
+
 ## [0.1.23] - 2026-05-11
 
 > **Release**: expandir flujo

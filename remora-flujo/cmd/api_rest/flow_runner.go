@@ -16,6 +16,9 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 		businessArtifacts = s.businessArtifacts(req.Flow.BusinessID).Artifacts
 	}
 	autoArtifacts := uniqueStrings(append(businessArtifacts, req.FixtureArtifacts...))
+	if flowIntentDefined(req.Flow.Intent) {
+		autoArtifacts = append(autoArtifacts, "flow.intent.v1")
+	}
 	validation := validateFlowManifestWithArtifacts(req.Flow, s.allManifests, autoArtifacts)
 	nodeOrder, err := flowExecutionOrder(req.Flow)
 	if err != nil {
@@ -23,6 +26,7 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 	}
 	result := flowRunResult{
 		RunID:             runID,
+		FlowID:            req.Flow.ID,
 		Status:            "completed",
 		Valid:             validation.Valid,
 		DryRun:            req.DryRun,
@@ -56,6 +60,11 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 		available[artifact] = true
 		result.Artifacts[artifact] = flowRunArtifact{Type: artifact, Source: "provided", CreatedAt: result.CreatedAt}
 	}
+	if flowIntentDefined(req.Flow.Intent) {
+		payload := flowIntentArtifactPayload(req.Flow)
+		result.Artifacts["flow.intent.v1"] = flowRunArtifact{Type: "flow.intent.v1", Source: "flow_manifest", Payload: payload, CreatedAt: result.CreatedAt}
+		available["flow.intent.v1"] = true
+	}
 	for artifact, payload := range req.InitialArtifacts {
 		artifact = strings.TrimSpace(artifact)
 		if artifact == "" {
@@ -80,11 +89,13 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 	cyclesDone := 0
 	cycleCompletedThisPass := false
 	sabioMediated := false
+	dataValidationApplied := false
 	mecanicoApprovalApplied := false
 
 cycleStart:
 	cycleCompletedThisPass = false
 	sabioMediated = false
+	dataValidationApplied = false
 	for _, node := range nodeOrder {
 		if cyclesDone > 0 && node.Role == flowRoleBootstrap {
 			result.ExecutionOrder = append(result.ExecutionOrder, node.ID+"_skip_cycle")
@@ -158,7 +169,9 @@ cycleStart:
 		step.Produces = uniqueStrings(contract.Produces)
 		step.Policies = uniqueStrings(contract.Policies)
 		step.ResolutionMode = resolutionModeFromPolicies(contract.Policies)
-		if s.shouldRunPreflightAudit(node, contract, available) {
+		dataValidationRequired := !dataValidationApplied && s.shouldRunLayeredDataValidation(node, contract, available)
+		preflightRequired := s.shouldRunPreflightAudit(node, contract, available)
+		if dataValidationRequired || preflightRequired {
 			if !s.ensureFlowPreflightAudit(ctx, runID, req, node, available, &result, emitStep, cyclesDone) {
 				step.Status = result.Status
 				if step.Status == "" || step.Status == "completed" {
@@ -172,10 +185,37 @@ cycleStart:
 				result.Timeline = append(result.Timeline, finished)
 				break
 			}
+			if dataValidationRequired {
+				dataValidationApplied = true
+			}
 		}
 		for _, reqArtifact := range uniqueStrings(append(contract.Inputs, contract.Requires...)) {
 			if reqArtifact != "" && !available[reqArtifact] {
 				step.MissingArtifacts = append(step.MissingArtifacts, reqArtifact)
+			}
+		}
+		if len(step.MissingArtifacts) > 0 {
+			entityRef := ""
+			if _, ref, ok := contactIdentityFromArtifacts(result.Artifacts); ok {
+				entityRef = ref
+			}
+			remaining := []string{}
+			for _, missingArtifact := range step.MissingArtifacts {
+				if isJustInTimeDataArtifact(missingArtifact) && s.ensureDataPipeline(ctx, runID, req, missingArtifact, entityRef, available, &result, emitStep, cyclesDone) {
+					step.ArtifactTypes = append(step.ArtifactTypes, missingArtifact)
+					continue
+				}
+				remaining = append(remaining, missingArtifact)
+			}
+			step.MissingArtifacts = remaining
+			if result.Status == "needs_input" {
+				step.Status = "needs_input"
+				readinessType := s.recordFlowReadiness(runID, node.ID, false, result.NeedsInput, available, result.Artifacts)
+				step.ArtifactTypes = append(step.ArtifactTypes, readinessType)
+				finished := finishFlowRunStep(step)
+				emitStep("step_complete", finished)
+				result.Timeline = append(result.Timeline, finished)
+				break
 			}
 		}
 		if len(step.MissingArtifacts) > 0 {
@@ -274,6 +314,11 @@ cycleStart:
 		if containsString(step.ArtifactTypes, "action.options.v1") {
 			step.ActionOptions = flowActionOptionsFromArtifacts(result.Artifacts)
 		}
+		if node.Role == flowRoleEntry {
+			if artifactType := s.recordWorkContext(runID, req, node.ID, cyclesDone, available, result.Artifacts); artifactType != "" {
+				step.ArtifactTypes = append(step.ArtifactTypes, artifactType)
+			}
+		}
 		if containsString(step.ArtifactTypes, "data.request.v1") {
 			rerunSteps := s.resolveDataRequestsAndRerunNode(ctx, runID, req, node, contract, available, &result, emitStep, cyclesDone)
 			for _, rerunStep := range rerunSteps {
@@ -299,6 +344,7 @@ cycleStart:
 		}
 		if isCycleTerminalStep(node, contract, step) {
 			step.ArtifactTypes = append(step.ArtifactTypes, s.recordFlowCycleCompleted(runID, node.ID, node.Capability, available, result.Artifacts))
+			step.ArtifactTypes = append(step.ArtifactTypes, s.recordCycleResult(runID, node.ID, node.Capability, step, cyclesDone, available, result.Artifacts))
 			if !req.DryRun {
 				s.recordTaskLedgerCycleCompleted(result.Artifacts)
 			}

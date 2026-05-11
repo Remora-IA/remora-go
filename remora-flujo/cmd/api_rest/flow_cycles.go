@@ -28,6 +28,7 @@ func resetCycleArtifacts(available map[string]bool, artifacts map[string]flowRun
 		"auditor.findings.v1",
 		"action.options.v1",
 		"action.selection.v1",
+		"work.context.v1",
 	}
 	for _, a := range cycleSpecific {
 		delete(available, a)
@@ -77,6 +78,91 @@ func (s *server) recordFlowCycleCompleted(runID, nodeID, capability string, avai
 	available["flow.cycle.completed.v1"] = true
 	artifacts["flow.cycle.completed.v1"] = flowRunArtifact{Type: "flow.cycle.completed.v1", Source: "flow_engine", Node: nodeID, Path: path, Payload: payload, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	return "flow.cycle.completed.v1"
+}
+
+func (s *server) recordCycleResult(runID, nodeID, capability string, step flowRunStep, cycleIdx int, available map[string]bool, artifacts map[string]flowRunArtifact) string {
+	completedAt := time.Now().UTC().Format(time.RFC3339Nano)
+	payload := map[string]interface{}{
+		"artifact_type":            "cycle.result.v1",
+		"status":                   cycleResultStatus(step),
+		"completed_by_capability":  capability,
+		"completed_by_node":        nodeID,
+		"result_summary":           strings.TrimSpace(step.HumanSummary),
+		"cycle_index":              cycleIdx,
+		"completed_at":             completedAt,
+		"terminal_step_status":     step.Status,
+		"terminal_step_artifacts":  append([]string(nil), step.ArtifactTypes...),
+		"terminal_step_started_at": step.StartedAt,
+	}
+	if step.FinishedAt != "" {
+		payload["terminal_step_finished_at"] = step.FinishedAt
+	}
+	if work, ok := artifacts["work.context.v1"].Payload.(map[string]interface{}); ok {
+		if taskID := jsonFirstString(work, "task_id"); taskID != "" {
+			payload["task_id"] = taskID
+		}
+		if taskTitle := jsonFirstString(work, "task_title"); taskTitle != "" {
+			payload["task_title"] = taskTitle
+		}
+		if entityRef := jsonFirstString(work, "entity_ref"); entityRef != "" {
+			payload["entity_ref"] = entityRef
+		}
+		if entityName := jsonFirstString(work, "entity_name"); entityName != "" {
+			payload["entity_name"] = entityName
+		}
+		if selected, ok := work["selected_action"]; ok {
+			payload["selected_action"] = selected
+		}
+	}
+	if payload["task_id"] == nil {
+		if task, ok := artifacts["task.next"].Payload.(map[string]interface{}); ok {
+			if taskID := jsonFirstString(task, "task_id", "id"); taskID != "" {
+				payload["task_id"] = taskID
+			}
+		}
+	}
+	if payload["entity_ref"] == nil {
+		if entity, ok := artifacts["entity.ref.v1"].Payload.(map[string]interface{}); ok {
+			if entityRef := jsonFirstString(entity, "entity_ref", "id", "ref", "code"); entityRef != "" {
+				payload["entity_ref"] = entityRef
+			}
+		}
+	}
+	if cycle, ok := artifacts["flow.cycle.completed.v1"].Payload.(map[string]interface{}); ok {
+		if evidence, ok := cycle["evidence"]; ok {
+			payload["evidence"] = evidence
+		}
+		if kind := jsonFirstString(cycle, "cycle_kind"); kind != "" {
+			payload["cycle_kind"] = kind
+		}
+	}
+	if _, ok := payload["evidence"]; !ok {
+		payload["evidence"] = map[string]interface{}{
+			"completed_by": nodeID,
+			"capability":   capability,
+			"artifacts":    append([]string(nil), step.ArtifactTypes...),
+		}
+	}
+	path := s.persistFlowArtifact(runID, nodeID+"_cycle_result", "cycle.result.v1", payload)
+	available["cycle.result.v1"] = true
+	artifacts["cycle.result.v1"] = flowRunArtifact{Type: "cycle.result.v1", Source: "flow_engine", Node: nodeID, Path: path, Payload: payload, CreatedAt: completedAt}
+	return "cycle.result.v1"
+}
+
+func cycleResultStatus(step flowRunStep) string {
+	switch step.Status {
+	case "completed", "max_cycles_reached":
+		return "done"
+	case "skipped":
+		return "skipped"
+	case "needs_input", "needs_approval", "blocked":
+		return "needs_followup"
+	default:
+		if step.Status == "" {
+			return "needs_followup"
+		}
+		return "failed"
+	}
 }
 
 func (s *server) notifyFocoCycleCompleted(ctx context.Context, runID, businessID, flowID string, available map[string]bool, artifacts map[string]flowRunArtifact) bool {

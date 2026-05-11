@@ -231,7 +231,31 @@ func (s *server) persistFlowRun(result flowRunResult) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, "run.json"), raw, 0644)
+	if err := os.WriteFile(filepath.Join(dir, "run.json"), raw, 0644); err != nil {
+		return err
+	}
+	if s.flows == nil {
+		return nil
+	}
+	if err := s.flows.recordRun(result); err != nil {
+		return err
+	}
+	for _, artifact := range result.Artifacts {
+		if artifact.Path == "" {
+			continue
+		}
+		createdAt := artifact.CreatedAt
+		if createdAt == "" {
+			createdAt = result.FinishedAt
+		}
+		if createdAt == "" {
+			createdAt = result.CreatedAt
+		}
+		if err := s.flows.recordArtifact(result.RunID, result.FlowID, result.BusinessID, artifact.Node, artifact.Type, artifact.Source, artifact.Path, createdAt); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *server) persistFlowArtifact(runID, nodeID, typ string, payload interface{}) string {
@@ -255,6 +279,11 @@ func (s *server) latestFlowArtifactPath(businessID, typ string) string {
 	typ = strings.TrimSpace(typ)
 	if businessID == "" || typ == "" {
 		return ""
+	}
+	if s.flows != nil {
+		if path := s.flows.latestArtifactPath(businessID, typ); path != "" {
+			return path
+		}
 	}
 	root := filepath.Join(s.rootDir, "temp", "flow_runs")
 	var latestPath string

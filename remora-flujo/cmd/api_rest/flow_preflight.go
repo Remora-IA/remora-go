@@ -28,6 +28,9 @@ func (s *server) shouldRunPreflightAudit(node flowNode, contract nodeContract, a
 	if node.Capability == "data.quality.audit" {
 		return false
 	}
+	if !available["entity.ref.v1"] {
+		return false
+	}
 	if _, _, ok := s.findProviderForCapability("data.quality.audit"); !ok {
 		return false
 	}
@@ -35,6 +38,42 @@ func (s *server) shouldRunPreflightAudit(node flowNode, contract nodeContract, a
 		return false
 	}
 	return available["external.api.dump.v1"] || available["dataset.raw.v1"] || available["data.sqlite_db.v1"]
+}
+
+func (s *server) shouldRunLayeredDataValidation(node flowNode, contract nodeContract, available map[string]bool) bool {
+	if node.Role == flowRoleResolution {
+		return false
+	}
+	if !available["entity.ref.v1"] {
+		return false
+	}
+	if node.Capability == "data.quality.audit" || strings.HasPrefix(node.Capability, "data.") {
+		return false
+	}
+	if containsString(contract.Policies, "data_mediator") {
+		return false
+	}
+	if _, _, ok := s.findProviderForCapability("data.quality.audit"); !ok {
+		return false
+	}
+	if !available["data.sqlite_db.v1"] && !available["external.api.dump.v1"] && !available["dataset.raw.v1"] {
+		return false
+	}
+	for _, artifact := range uniqueStrings(append(contract.Inputs, contract.Requires...)) {
+		if isBusinessDataArtifact(artifact) {
+			return true
+		}
+	}
+	return node.Role == flowRoleEntry || node.Role == flowRoleBootstrap
+}
+
+func isBusinessDataArtifact(artifact string) bool {
+	switch artifact {
+	case "data.sqlite_db.v1", "dataset.raw.v1", "external.api.dump.v1", "business.semantic_pack.v1", "collection.priority_list.v1", "collection.priority_item.v1", "entity.ref.v1", "entity_360.v1":
+		return true
+	default:
+		return strings.HasPrefix(artifact, "business.") || strings.HasPrefix(artifact, "collection.") || strings.HasPrefix(artifact, "entity.")
+	}
 }
 
 func contractNeedsOperationalReadinessAudit(contract nodeContract) bool {
