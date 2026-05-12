@@ -201,7 +201,7 @@
       }
     },
     "resolve-gaps": {
-      "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano.",
+      "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano. Filtra por scope_tables si se proveen.",
       "args": [
         "resolve-gaps",
         "--data-gaps-json",
@@ -209,16 +209,20 @@
         "--findings-json",
         "{params.findings_json}",
         "--entity-ref-json",
-        "{params.entity_ref_json}"
+        "{params.entity_ref_json}",
+        "--scope-tables-json",
+        "{params.scope_tables_json}"
       ],
       "params": [
         "data_gaps_json",
         "findings_json",
-        "entity_ref_json"
+        "entity_ref_json",
+        "scope_tables_json"
       ],
       "defaults": {
         "findings_json": "",
-        "entity_ref_json": ""
+        "entity_ref_json": "",
+        "scope_tables_json": ""
       }
     }
   },

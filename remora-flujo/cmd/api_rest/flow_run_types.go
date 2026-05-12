@@ -67,6 +67,7 @@ type flowRunStep struct {
 	Policies         []string            `json:"policies,omitempty"`
 	MissingArtifacts []string            `json:"missing_artifacts,omitempty"`
 	ArtifactTypes    []string            `json:"artifact_types,omitempty"`
+	ActionBounds     []string            `json:"action_bounds,omitempty"`
 	StartedAt        string              `json:"started_at,omitempty"`
 	FinishedAt       string              `json:"finished_at,omitempty"`
 	ExitCode         int                 `json:"exit_code,omitempty"`

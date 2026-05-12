@@ -50,8 +50,7 @@ done
 # en la primera revisión se siembra, en las siguientes ya está hecho.
 PROFILE_DIR="$REMORA_PROFILE_PATH/$REMORA_PROFILE"
 CONTACTS_SEED="$PROFILE_DIR/contacts.seed.csv"
-CONTACTS_DB="$PROFILE_DIR/contacts.db"
-if [ -f "$CONTACTS_SEED" ] && [ ! -s "$CONTACTS_DB" ]; then
+if [ -f "$CONTACTS_SEED" ]; then
     echo "Sembrando contactos desde $CONTACTS_SEED..."
     /workspace/framework-sabio/frameworksabio contact-import-csv \
         --profile "$REMORA_PROFILE" \

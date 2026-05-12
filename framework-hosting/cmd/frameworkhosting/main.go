@@ -32,7 +32,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
+	"net/smtp"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,6 +79,8 @@ func main() {
 		cmdProvisionSMTP(os.Args[2:])
 	case "import-smtp":
 		cmdImportSMTP(os.Args[2:])
+	case "verify-smtp":
+		cmdVerifySMTP(os.Args[2:])
 	case "has-smtp":
 		cmdHasSMTP(os.Args[2:])
 	case "delete-smtp":
@@ -643,6 +647,103 @@ func cmdImportSMTP(args []string) {
 	})
 }
 
+// cmdVerifySMTP lee las credenciales SMTP del vault y hace un login real
+// contra el servidor SMTP para verificar que funcionan. Devuelve
+// {"verified": bool, "error": "..."} sin enviar ningún email.
+func cmdVerifySMTP(args []string) {
+	fs := flag.NewFlagSet("verify-smtp", flag.ExitOnError)
+	convID := fs.String("conv-id", "", "id de la conversación")
+	_ = fs.Parse(args)
+	bundle, err := vaultGet(*convID, "credentials.smtp")
+	if err != nil || bundle == nil {
+		emitJSON(map[string]interface{}{
+			"artifact_type": "credentials.smtp.verification.v1",
+			"verified":      false,
+			"error":         "No hay credenciales SMTP guardadas en el vault.",
+		})
+		return
+	}
+	host := bundle["host"]
+	port := bundle["port"]
+	user := bundle["user"]
+	pass := bundle["pass"]
+	if host == "" || user == "" || pass == "" {
+		emitJSON(map[string]interface{}{
+			"artifact_type": "credentials.smtp.verification.v1",
+			"verified":      false,
+			"error":         "Credenciales SMTP incompletas (falta host, user o pass).",
+		})
+		return
+	}
+	if port == "" {
+		port = "587"
+	}
+	verifyErr := verifySMTPLogin(host, port, user, pass)
+	if verifyErr != nil {
+		emitJSON(map[string]interface{}{
+			"artifact_type": "credentials.smtp.verification.v1",
+			"verified":      false,
+			"error":         verifyErr.Error(),
+			"host":          host,
+			"port":          port,
+			"user":          user,
+		})
+		return
+	}
+	emitJSON(map[string]interface{}{
+		"artifact_type": "credentials.smtp.verification.v1",
+		"verified":      true,
+		"host":          host,
+		"port":          port,
+		"user":          user,
+	})
+}
+
+// verifySMTPLogin intenta hacer login SMTP real (STARTTLS o TLS directo)
+// sin enviar ningún email. Timeout de 10 segundos.
+func verifySMTPLogin(host, port, user, pass string) error {
+	addr := net.JoinHostPort(host, port)
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
+	tlsCfg := &tls.Config{ServerName: host}
+
+	var c *smtp.Client
+	if port == "465" {
+		conn, err := tls.DialWithDialer(dialer, "tcp", addr, tlsCfg)
+		if err != nil {
+			return fmt.Errorf("no pude conectar a %s (TLS): %v", addr, err)
+		}
+		client, err := smtp.NewClient(conn, host)
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("handshake SMTP falló en %s: %v", addr, err)
+		}
+		c = client
+	} else {
+		conn, err := dialer.Dial("tcp", addr)
+		if err != nil {
+			return fmt.Errorf("no pude conectar a %s: %v", addr, err)
+		}
+		client, err := smtp.NewClient(conn, host)
+		if err != nil {
+			conn.Close()
+			return fmt.Errorf("handshake SMTP falló en %s: %v", addr, err)
+		}
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			if err := client.StartTLS(tlsCfg); err != nil {
+				client.Close()
+				return fmt.Errorf("STARTTLS falló en %s: %v", addr, err)
+			}
+		}
+		c = client
+	}
+	defer c.Close()
+	auth := smtp.PlainAuth("", user, pass, host)
+	if err := c.Auth(auth); err != nil {
+		return fmt.Errorf("login SMTP falló (%s@%s): %v", user, host, err)
+	}
+	return nil
+}
+
 // cmdHasSMTP imprime {"available": bool} consultando el vault.
 // Permite al orquestador chequear sin desencriptar.
 func cmdHasSMTP(args []string) {
@@ -776,6 +877,25 @@ func vaultBin() string {
 	return "../channel/bin/vault"
 }
 
+func vaultEnv() []string {
+	env := os.Environ()
+	if strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")) != "" {
+		return env
+	}
+	if dir := defaultVaultDir(); dir != "" {
+		env = append(env, "REMORA_VAULT_DIR="+dir)
+	}
+	return env
+}
+
+func defaultVaultDir() string {
+	abs, err := filepath.Abs(vaultBin())
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(abs)), "vault_data")
+}
+
 func vaultSet(convID, key string, value interface{}) error {
 	conv := strings.TrimSpace(convID)
 	if conv == "" {
@@ -786,7 +906,7 @@ func vaultSet(convID, key string, value interface{}) error {
 		return err
 	}
 	cmd := exec.Command(vaultBin(), "set", "--conv", conv, "--key", key, "--stdin")
-	cmd.Env = os.Environ()
+	cmd.Env = vaultEnv()
 	cmd.Stdin = strings.NewReader(string(data))
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -795,14 +915,40 @@ func vaultSet(convID, key string, value interface{}) error {
 	return nil
 }
 
+func vaultGet(convID, key string) (map[string]string, error) {
+	conv := strings.TrimSpace(convID)
+	if conv == "" {
+		conv = "default"
+	}
+	cmd := exec.Command(vaultBin(), "get", "--conv", conv, "--key", key)
+	cmd.Env = vaultEnv()
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("vault get %s: %w", key, err)
+	}
+	var result map[string]string
+	if err := json.Unmarshal(out, &result); err != nil {
+		return nil, fmt.Errorf("vault get %s: parse: %w", key, err)
+	}
+	return result, nil
+}
+
 func vaultHas(convID, key string) bool {
 	conv := strings.TrimSpace(convID)
 	if conv == "" {
 		conv = "default"
 	}
 	cmd := exec.Command(vaultBin(), "has", "--conv", conv, "--key", key)
-	cmd.Env = os.Environ()
-	return cmd.Run() == nil
+	cmd.Env = vaultEnv()
+	if cmd.Run() == nil {
+		return true
+	}
+	if migrateLegacyVaultFile(conv, key) {
+		cmd = exec.Command(vaultBin(), "has", "--conv", conv, "--key", key)
+		cmd.Env = vaultEnv()
+		return cmd.Run() == nil
+	}
+	return false
 }
 
 func vaultDelete(convID, key string) error {
@@ -811,8 +957,56 @@ func vaultDelete(convID, key string) error {
 		conv = "default"
 	}
 	cmd := exec.Command(vaultBin(), "delete", "--conv", conv, "--key", key)
-	cmd.Env = os.Environ()
+	cmd.Env = vaultEnv()
 	return cmd.Run()
+}
+
+func migrateLegacyVaultFile(conv, key string) bool {
+	if strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")) != "" {
+		return false
+	}
+	dstDir := defaultVaultDir()
+	if dstDir == "" {
+		return false
+	}
+	src := filepath.Join("channel", "vault_data", vaultSafe(conv), vaultSafe(key)+".enc")
+	dst := filepath.Join(dstDir, vaultSafe(conv), vaultSafe(key)+".enc")
+	srcAbs, srcErr := filepath.Abs(src)
+	dstAbs, dstErr := filepath.Abs(dst)
+	if srcErr != nil || dstErr != nil || srcAbs == dstAbs {
+		return false
+	}
+	if _, err := os.Stat(dstAbs); err == nil {
+		return false
+	}
+	data, err := os.ReadFile(srcAbs)
+	if err != nil {
+		return false
+	}
+	if err := os.MkdirAll(filepath.Dir(dstAbs), 0700); err != nil {
+		return false
+	}
+	return os.WriteFile(dstAbs, data, 0600) == nil
+}
+
+func vaultSafe(s string) string {
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		switch {
+		case ch >= 'a' && ch <= 'z',
+			ch >= 'A' && ch <= 'Z',
+			ch >= '0' && ch <= '9',
+			ch == '_', ch == '-', ch == '.':
+			out = append(out, ch)
+		default:
+			out = append(out, '_')
+		}
+	}
+	if len(out) == 0 {
+		return "_"
+	}
+	return string(out)
 }
 
 // emitJSON / emitJSONErr son wrappers para mantener formato consistente

@@ -42,6 +42,8 @@ type Manifest struct {
 
 	Capabilities []CapabilitySpec `json:"capabilities,omitempty"`
 
+	ActionBounds []ActionBoundSpec `json:"action_bounds,omitempty"`
+
 	// RequiresInfra declara dependencias de infraestructura que el orquestador
 	// debe proveer vía env vars. Ej: ["postgres+pgvector"].
 	RequiresInfra []string `json:"requires_infra,omitempty"`
@@ -73,6 +75,12 @@ type CapabilitySpec struct {
 	Produces    []string `json:"produces,omitempty"`
 	Execution   string   `json:"execution"`
 	Policies    []string `json:"policies,omitempty"`
+}
+
+type ActionBoundSpec struct {
+	Type        string   `json:"type"`
+	Description string   `json:"description,omitempty"`
+	Examples    []string `json:"examples,omitempty"`
 }
 
 type StateSpec struct {

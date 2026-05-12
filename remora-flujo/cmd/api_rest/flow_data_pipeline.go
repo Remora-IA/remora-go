@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -129,7 +130,7 @@ func (s *server) ensureSMTPCredentialsPipeline(ctx context.Context, runID string
 		return true
 	}
 	if answer := strings.TrimSpace(req.Input); answer != "" {
-		if _, ok := s.ingestProviderAnswer(ctx, req.Flow.BusinessID, "credentials.smtp.check", "", answer); ok {
+		if responseText, ok := s.ingestProviderAnswer(ctx, req.Flow.BusinessID, "credentials.smtp.check", "", answer); ok {
 			step := flowRunStep{
 				Node:          "hosting_persist_smtp",
 				Framework:     "hosting",
@@ -138,7 +139,7 @@ func (s *server) ensureSMTPCredentialsPipeline(ctx context.Context, runID string
 				Visibility:    flowStepVisibilityInfrastructure,
 				CycleIndex:    cycleIdx,
 				Status:        "completed",
-				HumanSummary:  "Hosting procesó la respuesta de credenciales de correo de forma interna.",
+				HumanSummary:  hostingCredentialVerificationSummary(responseText),
 				ArtifactTypes: []string{"credentials.smtp.input.v1"},
 				StartedAt:     time.Now().UTC().Format(time.RFC3339Nano),
 				FinishedAt:    time.Now().UTC().Format(time.RFC3339Nano),
@@ -148,11 +149,23 @@ func (s *server) ensureSMTPCredentialsPipeline(ctx context.Context, runID string
 		}
 	}
 	if s.checkSMTPCredentialsAvailable(ctx, runID, req.Flow.BusinessID, available, result, emitStep, cycleIdx) {
-		return true
+		if verifyErr := s.verifySMTPCredentialsReal(ctx, runID, req.Flow.BusinessID, available, result, emitStep, cycleIdx); verifyErr != "" {
+			result.Artifacts["credentials.smtp.verification.v1"] = flowRunArtifact{
+				Type: "credentials.smtp.verification.v1", Source: "hosting", Node: "hosting_verify_smtp",
+				Payload:   map[string]interface{}{"verified": false, "error": verifyErr},
+				CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+			}
+			delete(available, "credentials.smtp")
+		} else {
+			return true
+		}
 	}
 	gap := dataGap{Kind: "credentials_smtp", Description: "Faltan credenciales de correo para enviar emails.", Field: "credentials.smtp"}
 	questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, []dataGap{gap}, result.Artifacts, available, result, emitStep, cycleIdx)
 	message := "Para poder enviar correos necesito acceso a tu cuenta de email. ¿Cuál es tu proveedor y los datos SMTP?"
+	if last := lastHostingCredentialFailure(result.Artifacts); last != "" {
+		message = "No pude verificar esas credenciales de correo: " + last + "\nProbemos de nuevo. Enviame host SMTP, usuario, contraseña y remitente."
+	}
 	questionID := ""
 	field := "credentials.smtp"
 	if hasQuestions {
@@ -204,6 +217,83 @@ func (s *server) checkSMTPCredentialsAvailable(ctx context.Context, runID, busin
 		}
 	}
 	return available["credentials.smtp"]
+}
+
+// verifySMTPCredentialsReal invokes Hosting's verify-smtp capability to do
+// a real SMTP login. Returns "" on success, or an error description on failure.
+func (s *server) verifySMTPCredentialsReal(ctx context.Context, runID, businessID string, available map[string]bool, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int) string {
+	m, providerName, ok := s.findProviderForCapability("credentials.smtp.verify")
+	if !ok {
+		return ""
+	}
+	node := flowNode{ID: "hosting_verify_smtp", Framework: providerName, Capability: "credentials.smtp.verify", Role: flowRoleResolution}
+	recordDynamicFlowNode(result, node)
+	contract, err := resolveFlowNodeContract(node, m)
+	if err != nil {
+		return ""
+	}
+	req := flowRunRequest{Flow: flowManifest{BusinessID: businessID}}
+	step := flowRunStep{Node: node.ID, Framework: providerName, Capability: node.Capability, Command: contract.Command, Role: flowRoleResolution, Visibility: flowStepVisibilityInfrastructure, CycleIndex: cycleIdx, Status: "running", StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	emitStep("step_start", step)
+	resp, execErr := s.executeFlowNode(ctx, runID, req, node, contract, result.Artifacts)
+	if execErr != nil {
+		step.Status = "failed"
+		step.HumanSummary = "Error al verificar credenciales SMTP: " + execErr.Error()
+		finished := finishFlowRunStep(step)
+		emitStep("step_complete", finished)
+		result.Timeline = append(result.Timeline, finished)
+		return step.HumanSummary
+	}
+	step.Status = "completed"
+	step.ArtifactTypes = s.recordNodeArtifacts(runID, node.ID, contract, resp.Stdout, available, result.Artifacts)
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(resp.Stdout), &parsed); err == nil {
+		if verified, _ := parsed["verified"].(bool); verified {
+			step.HumanSummary = "Credenciales SMTP verificadas correctamente."
+			finished := finishFlowRunStep(step)
+			emitStep("step_complete", finished)
+			result.Timeline = append(result.Timeline, finished)
+			return ""
+		}
+		errMsg := jsonFirstString(parsed, "error")
+		if errMsg == "" {
+			errMsg = "Las credenciales SMTP no son válidas."
+		}
+		step.HumanSummary = "Verificación SMTP falló: " + errMsg
+		finished := finishFlowRunStep(step)
+		emitStep("step_complete", finished)
+		result.Timeline = append(result.Timeline, finished)
+		return errMsg
+	}
+	step.HumanSummary = "Verificación SMTP completada."
+	finished := finishFlowRunStep(step)
+	emitStep("step_complete", finished)
+	result.Timeline = append(result.Timeline, finished)
+	return ""
+}
+
+func hostingCredentialVerificationSummary(responseText string) string {
+	responseText = strings.TrimSpace(responseText)
+	if responseText == "" || responseText == "ok" {
+		return "Hosting verificó internamente las credenciales de correo."
+	}
+	return "Hosting verificó las credenciales de correo: " + responseText
+}
+
+func lastHostingCredentialFailure(artifacts map[string]flowRunArtifact) string {
+	for _, key := range []string{"credentials.smtp.verification.v1", "credentials.status.v1", "credentials.smtp.input.v1"} {
+		if art, ok := artifacts[key]; ok {
+			if payload, ok := art.Payload.(map[string]interface{}); ok {
+				if err := jsonFirstString(payload, "error", "reason", "message"); err != "" {
+					return err
+				}
+				if avail, ok := payload["available"].(bool); ok && !avail {
+					return "las credenciales todavía no están disponibles"
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func (s *server) recordContactDestination(runID, nodeID string, payload map[string]interface{}, source string, available map[string]bool, result *flowRunResult) {

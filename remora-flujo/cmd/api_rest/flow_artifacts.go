@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"channel/manifest"
+
 	"encoding/json"
 	"path/filepath"
 )
@@ -114,6 +116,92 @@ func (s *server) recordNodeArtifacts(runID, nodeID string, contract nodeContract
 	return types
 }
 
+func (s *server) validateActionOptionsForNode(runID, nodeID string, m *manifest.Manifest, available map[string]bool, artifacts map[string]flowRunArtifact) []map[string]string {
+	if m == nil || len(m.ActionBounds) == 0 {
+		return flowActionOptionsFromArtifacts(artifacts)
+	}
+	payload, ok := artifacts["action.options.v1"].Payload.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	rawOptions, _ := payload["action_options"].([]interface{})
+	if len(rawOptions) == 0 {
+		return nil
+	}
+	allowed := map[string]manifest.ActionBoundSpec{}
+	for _, bound := range m.ActionBounds {
+		if bound.Type != "" {
+			allowed[bound.Type] = bound
+		}
+	}
+	accepted := []map[string]interface{}{}
+	rejected := []map[string]interface{}{}
+	used := map[string]bool{}
+	for _, raw := range rawOptions {
+		opt, ok := raw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		boundID := jsonFirstString(opt, "bound_id", "type")
+		if _, ok := allowed[boundID]; ok && !used[boundID] {
+			accepted = append(accepted, opt)
+			used[boundID] = true
+		} else {
+			rejected = append(rejected, opt)
+		}
+	}
+	if len(accepted) == 0 {
+		for _, bound := range m.ActionBounds {
+			accepted = append(accepted, fallbackActionOptionForBound(bound))
+			break
+		}
+	}
+	for _, bound := range m.ActionBounds {
+		if len(accepted) >= 3 {
+			break
+		}
+		if bound.Type == "" || used[bound.Type] {
+			continue
+		}
+		accepted = append(accepted, fallbackActionOptionForBound(bound))
+		used[bound.Type] = true
+	}
+	payload["action_options"] = accepted
+	payload["action_bounds"] = m.ActionBounds
+	if len(rejected) > 0 {
+		payload["rejected_action_options"] = rejected
+	}
+	path := s.persistFlowArtifact(runID, nodeID+"_action_bounds", "action.bounds.validation.v1", payload)
+	available["action.bounds.validation.v1"] = true
+	artifacts["action.bounds.validation.v1"] = flowRunArtifact{Type: "action.bounds.validation.v1", Source: "flow.engine", Node: nodeID, Path: path, Payload: payload, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	artifacts["action.options.v1"] = flowRunArtifact{Type: "action.options.v1", Source: "flow.engine", Node: nodeID, Path: path, Payload: payload, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	return flowActionOptionsFromArtifacts(artifacts)
+}
+
+func fallbackActionOptionForBound(bound manifest.ActionBoundSpec) map[string]interface{} {
+	label := ""
+	if len(bound.Examples) > 0 {
+		label = strings.TrimSpace(bound.Examples[0])
+	}
+	if label == "" {
+		label = strings.TrimSpace(bound.Description)
+	}
+	if label == "" {
+		label = bound.Type
+	}
+	desc := strings.TrimSpace(bound.Description)
+	if desc == "" {
+		desc = label
+	}
+	return map[string]interface{}{
+		"id":          safeFilePart(bound.Type),
+		"bound_id":    bound.Type,
+		"label":       label,
+		"description": desc,
+		"fallback":    true,
+	}
+}
+
 func payloadDeclaresDataRequest(payload map[string]interface{}) bool {
 	if req, ok := payload["request"]; ok && req != nil {
 		return true
@@ -179,7 +267,7 @@ func payloadForArtifactType(typ string, payload map[string]interface{}) interfac
 	}
 	if typ == "action.options.v1" {
 		if options, ok := payload["action_options"]; ok {
-			return options
+			return map[string]interface{}{"action_options": options}
 		}
 	}
 	if typ == "data.gaps.v1" {
@@ -288,8 +376,9 @@ func (s *server) latestFlowArtifactPath(businessID, typ string) string {
 	root := filepath.Join(s.rootDir, "temp", "flow_runs")
 	var latestPath string
 	var latestMod time.Time
+	typeFileSuffix := "__" + safeFilePart(typ) + ".json"
 	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || info == nil || info.IsDir() || !strings.HasSuffix(info.Name(), ".json") {
+		if err != nil || info == nil || info.IsDir() || !strings.HasSuffix(info.Name(), typeFileSuffix) {
 			return nil
 		}
 		raw, err := os.ReadFile(path)

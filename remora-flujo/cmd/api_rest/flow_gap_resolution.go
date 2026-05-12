@@ -13,8 +13,31 @@ import (
 
 func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, req flowRunRequest, auditorNode flowNode, available map[string]bool, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int) {
 	const maxResolutionPasses = 2
+	scopeTables := s.loadBusinessScopeTables(req.Flow.BusinessID)
+	packPath := s.businessSemanticPackPath(req.Flow.BusinessID)
+	terminalReqs := flowTerminalRequirements(req.Flow)
+	requiredFields := flowRequiredDataFields(terminalReqs, packPath)
+	entityTable := entityTableFromPack(packPath)
 	for pass := 0; pass < maxResolutionPasses; pass++ {
-		gaps := parseDataGaps(result.Artifacts)
+		allGaps := filterGapsByScope(parseDataGaps(result.Artifacts), scopeTables)
+		gaps := filterGapsByFlowPurpose(allGaps, requiredFields)
+		// Filter out gaps for fields the current entity already has data for.
+		entityRef := entityRefFromArtifacts(result.Artifacts)
+		gaps = filterGapsByExistingEntityData(gaps, entityRef, entityTable)
+		// Generate prerequisites artifact on first pass for observability.
+		if pass == 0 {
+			prereqPayload := s.generateFlowPrerequisites(runID, req.Flow, entityRef, result.Artifacts, available, allGaps)
+			path := s.persistFlowArtifact(runID, auditorNode.ID+"_prerequisites", "flow.prerequisites.v1", prereqPayload)
+			result.Artifacts["flow.prerequisites.v1"] = flowRunArtifact{
+				Type:      "flow.prerequisites.v1",
+				Source:    "flow_engine.prerequisites",
+				Node:      auditorNode.ID,
+				Path:      path,
+				Payload:   prereqPayload,
+				CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+			}
+			available["flow.prerequisites.v1"] = true
+		}
 		if len(gaps) == 0 {
 			break
 		}
@@ -259,18 +282,30 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 	}
 	gapPayload := []map[string]interface{}{}
 	for _, g := range gaps {
-		gapPayload = append(gapPayload, map[string]interface{}{"type": g.Kind, "description": g.Description, "field": g.Field})
+		entry := map[string]interface{}{"type": g.Kind, "description": g.Description, "field": g.Field}
+		if g.Endpoint != "" {
+			entry["endpoint"] = g.Endpoint
+		}
+		gapPayload = append(gapPayload, entry)
 	}
 	gapsJSON, _ := json.Marshal(gapPayload)
 	params := map[string]string{"data_gaps_json": string(gapsJSON)}
-	if findingsArt, ok := artifacts["auditor.findings.v1"]; ok {
+	if findingsArt, ok := artifacts["auditor.findings.v1"]; ok && len(gapPayload) <= 20 {
 		if payload, err := json.Marshal(findingsArt.Payload); err == nil {
-			params["findings_json"] = string(payload)
+			if len(payload) <= inlineArtifactArgMaxBytes {
+				params["findings_json"] = string(payload)
+			}
 		}
 	}
 	if entityArt, ok := artifacts["entity.ref.v1"]; ok {
 		if payload, err := json.Marshal(entityArt.Payload); err == nil {
 			params["entity_ref_json"] = string(payload)
+		}
+	}
+	if scopeTables := s.loadBusinessScopeTables(req.Flow.BusinessID); len(scopeTables) > 0 {
+		names := sortedKeys(scopeTables)
+		if stJSON, err := json.Marshal(names); err == nil {
+			params["scope_tables_json"] = string(stJSON)
 		}
 	}
 	for _, p := range cmd.Params {

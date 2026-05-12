@@ -104,6 +104,7 @@ type dataGap struct {
 	Description string
 	Severity    string
 	Field       string
+	Endpoint    string
 }
 
 // parseDataGaps extracts structured gaps from the data.gaps.v1 artifact.
@@ -134,11 +135,12 @@ func parseDataGaps(artifacts map[string]flowRunArtifact) []dataGap {
 		desc := jsonFirstString(gmap, "description", "message", "label", "gap")
 		sev := jsonFirstString(gmap, "severity", "level", "priority")
 		field := jsonFirstString(gmap, "field", "column", "property")
+		endpoint := jsonFirstString(gmap, "endpoint", "table")
 		if kind == "" && desc != "" {
 			kind = "unknown"
 		}
 		if kind != "" {
-			gaps = append(gaps, dataGap{Kind: kind, Description: desc, Severity: sev, Field: field})
+			gaps = append(gaps, dataGap{Kind: kind, Description: desc, Severity: sev, Field: field, Endpoint: endpoint})
 		}
 	}
 	return gaps

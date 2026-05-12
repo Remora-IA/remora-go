@@ -175,6 +175,53 @@ func dataSourcePathFromSemanticPack(rootDir, packPath string) string {
 	return ""
 }
 
+// loadBusinessScopeTables returns the set of table/endpoint names that are in
+// scope of the primary entity (e.g. portfolio_client) for a given business.
+// It reads scope_policies.tables from sabio.business.json.
+// If the file is missing or has no scope_policies, returns nil (no filtering).
+func (s *server) loadBusinessScopeTables(businessID string) map[string]bool {
+	packPath := s.businessSemanticPackPath(businessID)
+	if packPath == "" {
+		return nil
+	}
+	raw, err := os.ReadFile(packPath)
+	if err != nil {
+		return nil
+	}
+	var doc struct {
+		ScopePolicies struct {
+			Tables map[string]json.RawMessage `json:"tables"`
+		} `json:"scope_policies"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil
+	}
+	if len(doc.ScopePolicies.Tables) == 0 {
+		return nil
+	}
+	tables := make(map[string]bool, len(doc.ScopePolicies.Tables))
+	for name := range doc.ScopePolicies.Tables {
+		tables[name] = true
+	}
+	return tables
+}
+
+// filterGapsByScope removes gaps whose endpoint is not in the scope tables
+// for the current business entity. Gaps without an endpoint (e.g. structural
+// gaps like missing SMTP credentials) are always kept.
+func filterGapsByScope(gaps []dataGap, scopeTables map[string]bool) []dataGap {
+	if len(scopeTables) == 0 {
+		return gaps
+	}
+	var filtered []dataGap
+	for _, g := range gaps {
+		if g.Endpoint == "" || scopeTables[g.Endpoint] {
+			filtered = append(filtered, g)
+		}
+	}
+	return filtered
+}
+
 func resolveBusinessDataSourceCandidates(rootDir, packPath, declared string) []string {
 	if filepath.IsAbs(declared) {
 		return []string{filepath.Clean(declared)}

@@ -43,6 +43,7 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 				"id":            option["id"],
 				"label":         option["label"],
 				"description":   option["description"],
+				"bound_id":      option["bound_id"],
 				"source":        "dimension_branch",
 				"selected_at":   time.Now().UTC().Format(time.RFC3339Nano),
 			}
@@ -133,7 +134,15 @@ func flowActionOptionsFromArtifacts(artifacts map[string]flowRunArtifact) []map[
 	rawOptions, ok := payload.([]interface{})
 	if !ok {
 		if m, ok := payload.(map[string]interface{}); ok {
-			rawOptions, _ = m["action_options"].([]interface{})
+			rawOptions, ok = m["action_options"].([]interface{})
+			if !ok {
+				if typed, ok := m["action_options"].([]map[string]interface{}); ok {
+					rawOptions = make([]interface{}, 0, len(typed))
+					for _, option := range typed {
+						rawOptions = append(rawOptions, option)
+					}
+				}
+			}
 		}
 	}
 	options := []map[string]string{}
@@ -145,10 +154,11 @@ func flowActionOptionsFromArtifacts(artifacts map[string]flowRunArtifact) []map[
 		id := jsonFirstString(m, "id")
 		label := jsonFirstString(m, "label")
 		description := jsonFirstString(m, "description")
+		boundID := jsonFirstString(m, "bound_id", "type")
 		if label == "" {
 			continue
 		}
-		options = append(options, map[string]string{"id": id, "label": label, "description": description})
+		options = append(options, map[string]string{"id": id, "label": label, "description": description, "bound_id": boundID})
 	}
 	return options
 }

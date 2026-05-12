@@ -123,6 +123,21 @@
     "No usar billing_documents.amount como saldo pendiente.",
     "No exponer datos fuera del scope de sesión."
   ],
+  "artifact_requirements": {
+    "contact.destination.v1": {
+      "fields": [
+        {"table": "clients", "field": "email", "label": "Correo electronico del cliente/deudor", "reason": "Para enviar comunicacion al destinatario"}
+      ]
+    },
+    "message.draft.v1": {
+      "fields": [
+        {"table": "clients", "field": "name", "label": "Nombre del cliente/deudor", "reason": "Para personalizar el mensaje"},
+        {"table": "milestones", "field": "amount", "label": "Monto adeudado", "reason": "Para indicar el saldo pendiente en el mensaje", "derived": true},
+        {"table": "milestones", "field": "date", "label": "Dias de mora", "reason": "Para indicar la antiguedad de la deuda", "derived": true},
+        {"table": "billing_documents", "field": "number", "label": "Numero de factura", "reason": "Para referenciar documentos en el mensaje", "derived": true}
+      ]
+    }
+  },
   "scope_policies": {
     "scope_entity": "portfolio_client",
     "tables": {

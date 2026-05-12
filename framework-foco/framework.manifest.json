@@ -18,6 +18,32 @@
   "cwd": "framework-foco",
   "execution_mode": "sync_chain",
   "requires_infra": [],
+  "action_bounds": [
+    {
+      "type": "proceed",
+      "description": "Avanzar con la tarea propuesta usando el canal o siguiente paso recomendado.",
+      "examples": [
+        "Enviar correo de cobranza",
+        "Contactar al deudor"
+      ]
+    },
+    {
+      "type": "escalate",
+      "description": "Profundizar, escalar o cambiar de estrategia antes de actuar.",
+      "examples": [
+        "Revisar evidencia",
+        "Escalar a revisión legal"
+      ]
+    },
+    {
+      "type": "postpone",
+      "description": "Postergar o saltar el caso actual para continuar con otra prioridad.",
+      "examples": [
+        "Dejar para después",
+        "Pasar al siguiente caso"
+      ]
+    }
+  ],
   "model": {
     "provider": "groq",
     "name": "meta-llama/llama-4-scout-17b-16e-instruct",

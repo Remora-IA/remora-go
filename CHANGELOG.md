@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.25] - 2026-05-11
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **api_rest/entrypoint.sh**: +1 / -2
+- **static/index.html**: +676 / -40
+- **api_rest/business_artifacts.go**: funciones: (s *server) loadBusinessScopeTables, filterGapsByScope
+- **api_rest/flow_prerequisites.go**: archivo nuevo
+- **api_rest/flow_proposals.go**: +3 / -1
+- **api_rest/flow_run_types.go**: +1
+- **api_rest/flow_artifacts.go**: funciones: (s *server) validateActionOptionsForNode, fallbackActionOptionForBound
+- **api_rest/flow_data_pipeline.go**: funciones: (s *server) verifySMTPCredentialsReal, hostingCredentialVerificationSummary, lastHostingCredentialFailure
+- **api_rest/flow_dimensions.go**: +12 / -2
+- **api_rest/flow_gap_resolution.go**: +39 / -4
+- **api_rest/flow_installation.go**: +7 / -1
+- **api_rest/flow_provider_interaction.go**: +4 / -1
+- **api_rest/flow_runner.go**: funciones: actionBoundTypes
+- **api_rest/flow_run_test.go**: funciones: TestRunFlowManifestValidatesActionOptionsAgainstManifestBounds
+
+### Repo
+
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (frameworkmecanico/main.go)
+- **data/findings.json**: +64928 / -585
+- **framework-foco/framework.manifest.json**: +26
+- **framework-hosting/framework.manifest.json**: +38
+- **framework-hosting/frameworkhosting**: configuracion
+- **framework-mecanico/framework.manifest.json**: +8 / -4
+- **framework-mensajero/frameworkmensajero**: configuracion
+- **biz_vh9T64yrCmdnR5Xf/sabio.business.json**: +15
+- **panalbit/sabio.business.json**: +15
+- **PROMPT_PROBLEMAS_DETECTADOS.md**: archivo nuevo
+- **PROMPT_PROBLEMAS_RONDA2.md**: archivo nuevo
+- **manifest/manifest.go**: tipos: ActionBoundSpec
+- **foco/main.go**: funciones: actionBoundForID
+- **frameworkhosting/main.go**: funciones: cmdVerifySMTP, verifySMTPLogin, vaultEnv, defaultVaultDir
+- **frameworkmensajero/main.go**: funciones: vaultEnv, defaultVaultDir
+
 ## [0.1.24] - 2026-05-11
 
 > **Release**: expandir flujo

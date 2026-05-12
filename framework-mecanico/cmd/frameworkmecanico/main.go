@@ -467,6 +467,7 @@ func cmdResolveGaps(args []string) {
 	dataGapsJSON := fs.String("data-gaps-json", "", "data.gaps.v1 como JSON string")
 	findingsJSON := fs.String("findings-json", "", "auditor.findings.v1 como JSON string")
 	entityRefJSON := fs.String("entity-ref-json", "", "entity.ref.v1 como JSON string")
+	scopeTablesJSON := fs.String("scope-tables-json", "", "tables in scope for current entity (JSON array of strings)")
 	fs.Parse(args)
 	if strings.TrimSpace(*dataGapsJSON) == "" {
 		fail("resolve-gaps: --data-gaps-json requerido")
@@ -474,6 +475,25 @@ func cmdResolveGaps(args []string) {
 	var gaps []map[string]interface{}
 	if err := json.Unmarshal([]byte(*dataGapsJSON), &gaps); err != nil {
 		fail("parse data-gaps-json: %v", err)
+	}
+	// Filter gaps by scope tables if provided.
+	var scopeTables map[string]bool
+	if strings.TrimSpace(*scopeTablesJSON) != "" {
+		var tableNames []string
+		if err := json.Unmarshal([]byte(*scopeTablesJSON), &tableNames); err == nil && len(tableNames) > 0 {
+			scopeTables = make(map[string]bool, len(tableNames))
+			for _, t := range tableNames {
+				scopeTables[t] = true
+			}
+			var filtered []map[string]interface{}
+			for _, gap := range gaps {
+				endpoint := jsonString(gap, "endpoint", "table")
+				if endpoint == "" || scopeTables[endpoint] {
+					filtered = append(filtered, gap)
+				}
+			}
+			gaps = filtered
+		}
 	}
 	var findings []auditdata.Finding
 	if strings.TrimSpace(*findingsJSON) != "" {
@@ -493,6 +513,11 @@ func cmdResolveGaps(args []string) {
 			entityName = n
 		}
 	}
+	// Filter out gaps where the entity already has a value for the field.
+	// This prevents asking for data that already exists in the DB (e.g.
+	// asking for the client name when we already have it in entity ref).
+	gaps = filterGapsByEntityData(gaps, entityRef)
+
 	questions := []map[string]interface{}{}
 	plan := []map[string]interface{}{}
 	for idx, gap := range gaps {
@@ -613,6 +638,81 @@ func inferGapField(gapType, description string) string {
 	default:
 		return ""
 	}
+}
+
+// filterGapsByEntityData removes gaps where the entity ref already has
+// a non-empty value for the gap's field. This prevents asking the user
+// for data that already exists in the database (e.g. asking for client
+// name when entity ref already has name="Thiel-Effertz").
+//
+// Schema-level gaps (like schema_contact_gap) are never filtered since
+// they represent structural issues, not missing values.
+func filterGapsByEntityData(gaps []map[string]interface{}, entityRef map[string]interface{}) []map[string]interface{} {
+	if entityRef == nil || len(gaps) == 0 {
+		return gaps
+	}
+	var filtered []map[string]interface{}
+	for _, gap := range gaps {
+		gapType := jsonString(gap, "type", "kind", "rule", "gap_type")
+		field := jsonString(gap, "field")
+		// Schema-level gaps are structural -- always keep them.
+		if gapType == "schema_contact_gap" || gapType == "missing_contact_destination" || gapType == "missing_contact" {
+			filtered = append(filtered, gap)
+			continue
+		}
+		// Bulk data quality gaps (empty_required / null_required) on
+		// non-entity tables are noise for conversational resolution.
+		if gapType == "empty_required" || gapType == "null_required" {
+			endpoint := jsonString(gap, "endpoint", "table")
+			// If the entity ref already has the field value, skip.
+			if field != "" && entityRefHasValue(entityRef, field) {
+				continue
+			}
+			// If the gap is about a table that is not the entity table,
+			// skip -- these are mass data quality issues.
+			if endpoint != "" {
+				entityTable := jsonString(entityRef, "table", "entity_table")
+				if entityTable != "" && endpoint != entityTable {
+					continue
+				}
+			}
+		}
+		// For any other gap, check if entity ref has the field value.
+		if field != "" && entityRefHasValue(entityRef, field) {
+			filtered = append(filtered, gap)
+			// Mark it but still include -- the question generator may
+			// decide to skip it based on the value.
+			continue
+		}
+		filtered = append(filtered, gap)
+	}
+	return filtered
+}
+
+// entityRefHasValue checks if the entity ref has a non-empty value for
+// the given field name, trying common aliases.
+func entityRefHasValue(entityRef map[string]interface{}, field string) bool {
+	if entityRef == nil || field == "" {
+		return false
+	}
+	// Direct match
+	if v, ok := entityRef[field].(string); ok && strings.TrimSpace(v) != "" {
+		return true
+	}
+	// Try aliases for common fields
+	switch field {
+	case "name":
+		if v, ok := entityRef["display_name"].(string); ok && strings.TrimSpace(v) != "" {
+			return true
+		}
+	case "code":
+		for _, k := range []string{"code", "client_code", "entity_code"} {
+			if v, ok := entityRef[k].(string); ok && strings.TrimSpace(v) != "" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func scrubTechnicalQuestion(text string) string {

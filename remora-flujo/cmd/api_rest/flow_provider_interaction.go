@@ -88,6 +88,9 @@ func (s *server) ingestProviderAnswer(ctx context.Context, businessID, capabilit
 	if err != nil || resp.ExitCode != 0 {
 		return "", false
 	}
-	// ingest-answer no devuelve stdout directo; la respuesta queda en el state para next-question
+	if _, text, _, nextOK := s.invokeProviderNextQuestion(ctx, businessID, capability); nextOK {
+		return text, true
+	}
+	// ingest-answer normalmente no devuelve stdout directo; la respuesta puede quedar en el state para next-question
 	return "ok", true
 }

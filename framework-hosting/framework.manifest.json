@@ -177,6 +177,20 @@
         "conv_id": ""
       }
     },
+    "verify-smtp": {
+      "description": "Lee credenciales SMTP del vault y hace login real al servidor para verificar que funcionan. No envía emails.",
+      "args": [
+        "verify-smtp",
+        "--conv-id",
+        "{params.conv_id}"
+      ],
+      "params": [
+        "conv_id"
+      ],
+      "defaults": {
+        "conv_id": ""
+      }
+    },
     "discover-cpanel": {
       "description": "Dado un dominio, prueba endpoints estándar de cPanel y devuelve el mejor candidato",
       "args": [
@@ -349,6 +363,30 @@
         "resolution_interactive",
         "vault_scoped",
         "no_external_side_effect"
+      ]
+    },
+    {
+      "id": "credentials.smtp.verify",
+      "description": "Hace login real al servidor SMTP con las credenciales del vault para verificar que funcionan.",
+      "command": "verify-smtp",
+      "inputs": [
+        "credentials.smtp",
+        "session.context.v1"
+      ],
+      "outputs": [
+        "credentials.smtp.verification.v1"
+      ],
+      "requires": [
+        "credentials.smtp"
+      ],
+      "produces": [
+        "credentials.smtp.verification.v1"
+      ],
+      "execution": "smtp_login_verify",
+      "policies": [
+        "external_network_access",
+        "no_side_effect",
+        "vault_scoped"
       ]
     },
     {

@@ -39,11 +39,17 @@ func (s *server) radarAnalysisPlanPath(businessID string) string {
 }
 
 func (s *server) recordFlowInstallation(runID, nodeID, businessID string, available map[string]bool, artifacts map[string]flowRunArtifact) string {
+	analysisPlan := ""
+	if art := artifacts["analysis.plan.v1"]; art.Path != "" {
+		analysisPlan = art.Path
+	} else {
+		analysisPlan = s.radarAnalysisPlanPath(businessID)
+	}
 	payload := map[string]interface{}{
 		"artifact_type": "flow.installation.v1",
 		"status":        "installed",
 		"business_id":   businessID,
-		"analysis_plan": s.radarAnalysisPlanPath(businessID),
+		"analysis_plan": analysisPlan,
 		"installed_at":  time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	path := s.persistFlowArtifact(runID, nodeID+"_installation", "flow.installation.v1", payload)

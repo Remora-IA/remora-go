@@ -3530,6 +3530,7 @@ func buildActionOptionsFromStrategy(strategy map[string]interface{}, entityName 
 				}
 				options = append(options, map[string]interface{}{
 					"id":            actionID,
+					"bound_id":      actionBoundForID(actionID),
 					"label":         label,
 					"description":   desc,
 					"from_strategy": true,
@@ -3547,9 +3548,9 @@ func buildActionOptionsFromStrategy(strategy map[string]interface{}, entityName 
 func normalizeActionOptions(options []map[string]interface{}) []map[string]interface{} {
 	if len(options) == 0 {
 		return []map[string]interface{}{
-			{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Revisar evidencia y contexto antes de actuar."},
-			{"id": "quick_action", "label": "Acción directa", "description": "Proceder con la información disponible."},
-			{"id": "skip_case", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y continuar con otra prioridad."},
+			{"id": "deep_analysis", "bound_id": "escalate", "label": "Ver análisis profundo", "description": "Revisar evidencia y contexto antes de actuar."},
+			{"id": "quick_action", "bound_id": "proceed", "label": "Acción directa", "description": "Proceder con la información disponible."},
+			{"id": "skip_case", "bound_id": "postpone", "label": "Pasar al siguiente caso", "description": "Dejar este caso para después y continuar con otra prioridad."},
 		}
 	}
 	nonSkip := []map[string]interface{}{}
@@ -3566,14 +3567,15 @@ func normalizeActionOptions(options []map[string]interface{}) []map[string]inter
 	if skip == nil {
 		skip = map[string]interface{}{
 			"id":          "skip_case",
+			"bound_id":    "postpone",
 			"label":       "Pasar al siguiente caso",
 			"description": "Dejar este caso para después y continuar con otra prioridad.",
 		}
 	}
 	result := append([]map[string]interface{}{}, nonSkip...)
 	genericOptions := []map[string]interface{}{
-		{"id": "detailed_review", "label": "Revisar en detalle", "description": "Explorar más contexto antes de decidir."},
-		{"id": "quick_action", "label": "Acción directa", "description": "Proceder con la información disponible."},
+		{"id": "detailed_review", "bound_id": "escalate", "label": "Revisar en detalle", "description": "Explorar más contexto antes de decidir."},
+		{"id": "quick_action", "bound_id": "proceed", "label": "Acción directa", "description": "Proceder con la información disponible."},
 	}
 	for len(result) < 2 {
 		added := false
@@ -3592,7 +3594,24 @@ func normalizeActionOptions(options []map[string]interface{}) []map[string]inter
 		result = result[:2]
 	}
 	result = append(result, skip)
+	for _, option := range result {
+		if strings.TrimSpace(fmt.Sprint(option["bound_id"])) == "" {
+			option["bound_id"] = actionBoundForID(fmt.Sprint(option["id"]))
+		}
+	}
 	return result
+}
+
+func actionBoundForID(id string) string {
+	id = strings.ToLower(strings.TrimSpace(id))
+	switch {
+	case strings.Contains(id, "skip"), strings.Contains(id, "postpone"), strings.Contains(id, "defer"):
+		return "postpone"
+	case strings.Contains(id, "deep"), strings.Contains(id, "detail"), strings.Contains(id, "review"), strings.Contains(id, "escalate"), strings.Contains(id, "legal"):
+		return "escalate"
+	default:
+		return "proceed"
+	}
 }
 
 func containsActionOptionID(options []map[string]interface{}, id string) bool {

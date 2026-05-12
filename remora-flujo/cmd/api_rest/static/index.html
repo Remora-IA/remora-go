@@ -419,11 +419,90 @@
     }
 
     .node.dimmed {
-      opacity: 0.25;
+      opacity: 0.55;
     }
 
     .node.dimmed .node-dot {
       transform: scale(0.85) !important;
+    }
+
+    .node.dimmed .node-speech-bubble.visible {
+      opacity: 1;
+    }
+
+    .node-speech-bubble {
+      position: absolute;
+      top: 78px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 260px;
+      min-height: 54px;
+      max-height: 210px;
+      overflow: auto;
+      padding: 10px 12px;
+      border: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--surface) 94%, white 6%);
+      color: var(--text);
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+      font-size: 12px;
+      line-height: 1.45;
+      text-transform: none;
+      letter-spacing: 0;
+      opacity: 0;
+      pointer-events: auto;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      z-index: 20;
+    }
+
+    .node-speech-bubble.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(4px);
+    }
+
+    .node-speech-bubble::before {
+      content: '';
+      position: absolute;
+      top: -7px;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      transform: translateX(-50%) rotate(45deg);
+      background: inherit;
+      border-left: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
+      border-top: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
+    }
+
+    .node-speech-meta {
+      margin-bottom: 6px;
+      color: var(--framework-color, var(--accent));
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .node-speech-actions {
+      display: grid;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .node-speech-action {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface2);
+      padding: 7px 8px;
+      color: var(--text);
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .thought-bubble.canvas-global {
+      top: 24px !important;
+      left: 24px !important;
+      transform: none !important;
+      max-width: 360px;
     }
 
     @keyframes node-appear {
@@ -2343,6 +2422,11 @@
     .flow-command-log { margin-top: 8px; }
     .flow-command-log summary { cursor: pointer; font-size: 11px; font-weight: 800; color: var(--text-muted); }
     .flow-command-log pre { white-space: pre-wrap; overflow: auto; max-height: 180px; margin: 6px 0 0; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface2); color: var(--text-muted); font-size: 10px; line-height: 1.35; }
+    .flow-step-observability { margin-top: 8px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .flow-step-observability-toggle { cursor: pointer; font-size: 11px; font-weight: 600; color: var(--text-muted); padding: 6px 10px; background: var(--surface2); user-select: none; }
+    .flow-step-observability-toggle:hover { color: var(--text); background: var(--surface); }
+    .flow-step-observability[open] .flow-step-observability-toggle { border-bottom: 1px solid var(--border); }
+    .flow-step-observability .flow-chat-metadata { padding: 8px 10px; margin-top: 0; border-top: none; }
     .flow-branches-panel { margin-top: 12px; padding: 12px; background: var(--surface); border: 1px solid #3b82f6; border-radius: 8px; }
     .flow-branches-title { font-size: 16px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
     .flow-branches-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; align-items: start; }
@@ -4118,11 +4202,9 @@ async function openFlowDetail(flowId, mode = 'design') {
   if (mode === 'execution') {
     flowsFooter.innerHTML = `
       <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
-      <button class="modal-btn cancel" id="flows-detail-validate" style="display:none;">Revisar preparaci\u00f3n</button>
-      <button class="modal-btn confirm" id="flows-detail-dryrun" style="display:none;">Probar</button>
+      <button class="modal-btn confirm" id="flows-detail-dryrun">Probar</button>
     `;
     document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('execution'); renderFlowsExecution(); });
-    document.getElementById('flows-detail-validate').addEventListener('click', validateCurrentFlow);
     document.getElementById('flows-detail-dryrun').addEventListener('click', dryRunCurrentFlow);
   } else {
     flowsFooter.innerHTML = `
@@ -4600,8 +4682,7 @@ function renderFlowDetail() {
       </div>`;
     } else {
       html += renderFlowExecutionTopology(m, d.runResult);
-      html += `<div class="flows-action-grid single">`;
-      html += `
+      html += `<div class="flows-action-grid single">
         <div class="flows-action-card-v2 primary" onclick="document.getElementById('flows-detail-dryrun').click()">
           <div class="flows-action-icon">&#9654;</div>
           <div class="flows-action-text">
@@ -4610,11 +4691,6 @@ function renderFlowDetail() {
           </div>
           <div class="flows-action-arrow">&rsaquo;</div>
         </div>
-        <details class="flow-secondary-preflight">
-          <summary>Opción secundaria: revisar preparación técnica</summary>
-          <div class="composer-muted">Valida manifest, artefactos declarados y configuración del flujo sin convertirlo en una prueba separada.</div>
-          <button class="modal-btn cancel" onclick="document.getElementById('flows-detail-validate').click()">Revisar preparación</button>
-        </details>
       </div>`;
     }
   }
@@ -4904,6 +4980,12 @@ function renderHumanRunResult(r) {
         </div>`;
   }
 
+  // Staff observability: show prerequisites semaphore for any terminal state
+  const prereqArt = r.artifacts && r.artifacts['flow.prerequisites.v1'];
+  if (prereqArt) {
+    html += renderStaffPrerequisitesPanel(prereqArt);
+  }
+
   if (r.status === 'needs_input' && (r.needs_input || []).length) {
     html += renderFlowNeedsInput(r.needs_input);
   }
@@ -5121,13 +5203,28 @@ function escapeAttr(s) {
 function renderFlowCommandDetails(step) {
   if (!step) return '';
   const lines = [];
-  if (step.command) lines.push(`<div class="flow-chat-meta-line"><strong>Comando:</strong> ${escapeHtml(step.command)}</div>`);
   if (step.framework) lines.push(`<div class="flow-chat-meta-line"><strong>Framework:</strong> ${escapeHtml(step.framework)}${step.capability ? ' · ' + escapeHtml(step.capability) : ''}</div>`);
+  if (step.command) lines.push(`<div class="flow-chat-meta-line"><strong>Comando:</strong> ${escapeHtml(step.command)}</div>`);
+  if (step.role) lines.push(`<div class="flow-chat-meta-line"><strong>Rol:</strong> ${escapeHtml(step.role)}</div>`);
+  if (step.resolution_mode) lines.push(`<div class="flow-chat-meta-line"><strong>Modo resolución:</strong> ${escapeHtml(step.resolution_mode)}</div>`);
   if (step.duration_ms) lines.push(`<div class="flow-chat-meta-line"><strong>Duración:</strong> ${escapeHtml(String(step.duration_ms))}ms</div>`);
   if (step.exit_code !== undefined && step.exit_code !== null) lines.push(`<div class="flow-chat-meta-line"><strong>Exit code:</strong> ${escapeHtml(String(step.exit_code))}</div>`);
+  const reqList = [...(step.requires || []), ...(step.inputs || [])].filter(Boolean);
+  if (reqList.length) lines.push(`<div class="flow-chat-meta-line"><strong>Consumió:</strong> ${reqList.map(a => escapeHtml(artifactLabel(a))).join(', ')}</div>`);
+  const prodList = [...(step.produces || []), ...(step.outputs || []), ...(step.artifact_types || [])].filter(Boolean);
+  const prodUnique = [...new Set(prodList)];
+  if (prodUnique.length) lines.push(`<div class="flow-chat-meta-line"><strong>Produjo:</strong> ${prodUnique.map(a => escapeHtml(artifactLabel(a))).join(', ')}</div>`);
+  if (step.missing_artifacts && step.missing_artifacts.length) lines.push(`<div class="flow-chat-meta-line" style="color:#ef4444;"><strong>Faltantes:</strong> ${step.missing_artifacts.map(a => escapeHtml(artifactLabel(a))).join(', ')}</div>`);
+  if (step.policies && step.policies.length) lines.push(`<div class="flow-chat-meta-line"><strong>Políticas:</strong> ${step.policies.map(p => escapeHtml(p)).join(', ')}</div>`);
+  if (step.action_bounds && step.action_bounds.length) lines.push(`<div class="flow-chat-meta-line"><strong>Action bounds:</strong> ${step.action_bounds.map(b => escapeHtml(b)).join(', ')}</div>`);
+  if (step.triggered_by) {
+    const tb = step.triggered_by;
+    lines.push(`<div class="flow-chat-meta-line"><strong>Disparado por:</strong> ${escapeHtml(tb.framework || '')}${tb.capability ? ' · ' + escapeHtml(tb.capability) : ''}${tb.reason ? ' (' + escapeHtml(tb.reason) + ')' : ''}</div>`);
+  }
   if (step.stdout_preview) lines.push(`<details class="flow-command-log"><summary>stdout capturado</summary><pre>${escapeHtml(step.stdout_preview)}</pre></details>`);
   if (step.stderr_preview) lines.push(`<details class="flow-command-log"><summary>stderr capturado</summary><pre>${escapeHtml(step.stderr_preview)}</pre></details>`);
-  return lines.length ? `<div class="flow-chat-metadata">${lines.join('')}</div>` : '';
+  if (!lines.length) return '';
+  return `<details class="flow-step-observability"><summary class="flow-step-observability-toggle">Detalle interno</summary><div class="flow-chat-metadata">${lines.join('')}</div></details>`;
 }
 
 function renderFlowNeedsInput(items) {
@@ -5198,6 +5295,308 @@ function renderConversationalFlowQuestion(item, idx) {
     ${obs}
   </div>`;
 }
+
+// ---- Canvas-specific rendering for needs_input and prerequisites ----
+
+function renderCanvasPrerequisites(prereqs) {
+  let payload = prereqs;
+  if (payload && payload.payload) payload = payload.payload;
+  if (!payload) return '';
+  const items = payload.prerequisites || [];
+  const entityName = payload.entity_name || 'la entidad';
+  const notNeeded = payload.not_needed_gaps || [];
+  const summary = payload.human_summary || '';
+  if (!items.length && !summary) return '';
+  const rows = items.map(p => {
+    const icon = p.status === 'available' ? '<span style="color:#22c55e;">&#9679;</span>'
+               : p.status === 'not_needed' ? '<span style="color:#94a3b8;">&#9679;</span>'
+               : '<span style="color:#ef4444;">&#9679;</span>';
+    const val = p.value ? ` = ${escapeHtml(String(p.value))}` : '';
+    const src = p.source ? ` <span class="composer-muted">(${escapeHtml(p.source)})</span>` : '';
+    return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">${icon} <strong>${escapeHtml(p.label || p.field || '')}</strong>${val}${src}</div>`;
+  }).join('');
+  const omitted = notNeeded.length
+    ? `<details style="margin-top:6px;"><summary class="composer-muted">${notNeeded.length} brechas omitidas (no afectan esta operacion)</summary>
+       <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${notNeeded.map(g =>
+         `<div style="padding:2px 0;">${escapeHtml(g.endpoint || '')}.${escapeHtml(g.field || '')} (${escapeHtml(g.kind || '')}): ${escapeHtml(g.reason || '')}</div>`
+       ).join('')}</div></details>`
+    : '';
+  return `<div style="margin-bottom:12px;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+    <div style="font-weight:600;margin-bottom:6px;">Prerequisitos para ${escapeHtml(entityName)}</div>
+    ${rows}
+    ${summary ? `<div class="composer-muted" style="margin-top:6px;font-size:12px;">${escapeHtml(summary)}</div>` : ''}
+    ${omitted}
+  </div>`;
+}
+
+// Staff observability panel: detailed view of prerequisites with table layout,
+// showing exactly what data is available, what's missing, and why.
+// This allows staff to validate the system's decisions without understanding
+// the underlying database structure.
+function renderStaffPrerequisitesPanel(prereqArt) {
+  let payload = prereqArt;
+  if (payload && payload.payload) payload = payload.payload;
+  if (!payload) return '';
+  const items = payload.prerequisites || [];
+  const entityName = payload.entity_name || 'la entidad';
+  const notNeeded = payload.not_needed_gaps || [];
+  const availableCount = payload.available_count || 0;
+  const missingCount = payload.missing_count || 0;
+  const totalCount = availableCount + missingCount;
+  const allSatisfied = payload.all_satisfied || false;
+
+  const borderColor = allSatisfied ? '#22c55e' : (missingCount > 0 ? '#f59e0b' : 'var(--border)');
+  const headerIcon = allSatisfied ? '<span style="color:#22c55e;font-size:16px;">&#10003;</span>' : '<span style="color:#f59e0b;font-size:16px;">&#9888;</span>';
+
+  const tableRows = items.map(p => {
+    const statusIcon = p.status === 'available' ? '<span style="color:#22c55e;">&#9679;</span>'
+                     : p.status === 'not_needed' ? '<span style="color:#94a3b8;">&#9679;</span>'
+                     : '<span style="color:#ef4444;">&#9679;</span>';
+    const statusLabel = p.status === 'available' ? 'Disponible'
+                      : p.status === 'not_needed' ? 'No necesario'
+                      : 'Faltante';
+    const val = p.value ? escapeHtml(String(p.value)) : '<span class="composer-muted">-</span>';
+    const src = p.source ? escapeHtml(p.source) : '';
+    const tableField = (p.gap_endpoint && p.gap_field) ? `${escapeHtml(p.gap_endpoint)}.${escapeHtml(p.gap_field)}` : '';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:6px 8px;white-space:nowrap;">${statusIcon} ${escapeHtml(p.label || p.field || '')}</td>
+      <td style="padding:6px 8px;">${statusLabel}</td>
+      <td style="padding:6px 8px;">${val}</td>
+      <td style="padding:6px 8px;font-size:11px;" class="composer-muted">${src}</td>
+      <td style="padding:6px 8px;font-size:11px;font-family:monospace;" class="composer-muted">${tableField}</td>
+    </tr>`;
+  }).join('');
+
+  const omittedSection = notNeeded.length > 0
+    ? `<details style="margin-top:8px;">
+        <summary class="composer-muted" style="cursor:pointer;">${notNeeded.length} brechas de datos omitidas (no afectan esta operacion)</summary>
+        <div style="margin-top:6px;font-size:12px;">
+          <table style="width:100%;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:4px 8px;text-align:left;font-weight:600;">Tabla.Campo</th>
+              <th style="padding:4px 8px;text-align:left;font-weight:600;">Tipo</th>
+              <th style="padding:4px 8px;text-align:left;font-weight:600;">Razon de omision</th>
+            </tr></thead>
+            <tbody>${notNeeded.map(g => `<tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:4px 8px;font-family:monospace;">${escapeHtml((g.endpoint || '') + '.' + (g.field || ''))}</td>
+              <td style="padding:4px 8px;">${escapeHtml(g.kind || '')}</td>
+              <td style="padding:4px 8px;" class="composer-muted">${escapeHtml(g.reason || '')}</td>
+            </tr>`).join('')}</tbody>
+          </table>
+        </div>
+      </details>`
+    : '';
+
+  return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid ${borderColor};border-radius:8px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      ${headerIcon}
+      <div>
+        <div style="font-weight:600;">Datos requeridos para ${escapeHtml(entityName)}</div>
+        <div class="composer-muted" style="font-size:12px;">${availableCount} de ${totalCount} disponibles${missingCount > 0 ? `. ${missingCount} faltante(s) se preguntaran al usuario.` : '. Todo listo para enviar.'}</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="border-bottom:2px solid var(--border);">
+        <th style="padding:6px 8px;text-align:left;font-weight:600;">Dato</th>
+        <th style="padding:6px 8px;text-align:left;font-weight:600;">Estado</th>
+        <th style="padding:6px 8px;text-align:left;font-weight:600;">Valor</th>
+        <th style="padding:6px 8px;text-align:left;font-weight:600;">Fuente</th>
+        <th style="padding:6px 8px;text-align:left;font-weight:600;">Ref. DB</th>
+      </tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+    ${omittedSection}
+  </div>`;
+}
+
+function renderCanvasNeedsInput(items) {
+  if (!items || !items.length) return '';
+  const hasConversational = items.some(item => item.kind === 'conversational_question');
+  return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid ${hasConversational ? 'var(--border)' : '#f59e0b'};border-radius:8px;">
+    <div style="font-weight:600;margin-bottom:6px;">${hasConversational ? 'Responder para continuar' : 'Falta informacion para continuar'}</div>
+    ${items.map((item, idx) => {
+      if (item.kind === 'conversational_question') {
+        return renderCanvasConversationalQuestion(item, idx);
+      }
+      if (item.kind === 'hosting_connect') {
+        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+          <button class="modal-btn confirm" onclick="startHostingConversationFromCanvas()">Conectar hosting</button>`;
+      }
+      if (item.kind === 'framework_question' && item.framework === 'hosting') {
+        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+          <button class="modal-btn confirm" onclick="startHostingConversationFromCanvas()">Continuar con Hosting</button>`;
+      }
+      if (item.kind === 'contact_email') {
+        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input id="canvas-contact-email-${idx}" type="email" placeholder="cliente@empresa.com" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
+            <button class="modal-btn confirm" onclick="saveCanvasContactDestination(${idx})">Guardar destinatario</button>
+          </div>`;
+      }
+      if (item.kind === 'approval' && item.framework === 'mecanico') {
+        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="modal-btn confirm" onclick="approveCanvasMecanicoProposals()">Aplicar propuestas aprobadas</button>
+            <button class="modal-btn cancel" onclick="rejectCanvasMecanicoProposals()">Rechazar por ahora</button>
+          </div>`;
+      }
+      if (item.kind === 'analysis_acceptance') {
+        return `<div style="margin-bottom:10px;">
+            <div style="font-weight:600;margin-bottom:6px;">Radar propone esta configuracion de analisis</div>
+            <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="modal-btn confirm" onclick="acceptCanvasAnalysisConfiguration()">Aceptar configuracion</button>
+              <button class="modal-btn cancel" onclick="rejectCanvasAnalysisConfiguration()">Reconfigurar</button>
+            </div>
+          </div>`;
+      }
+      return `<div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta informacion')}</div>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderCanvasConversationalQuestion(item, idx) {
+  const isSMTP = item.artifact === 'credentials.smtp' || (item.field || '').includes('smtp');
+  const placeholder = isSMTP ? 'Ej: smtp.midominio.com, puerto 587, usuario...' : 'Escribe la respuesta...';
+  const inputType = (item.field || '').includes('email') || item.artifact === 'contact.destination.v1' ? 'email' : 'text';
+  return `<div style="margin-bottom:10px;">
+    <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input id="canvas-conversation-answer-${idx}" type="${inputType}" placeholder="${escapeAttr(placeholder)}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
+      <button class="modal-btn confirm" onclick="answerCanvasConversationalQuestion(${idx})">Responder</button>
+    </div>
+  </div>`;
+}
+
+function answerCanvasConversationalQuestion(idx) {
+  const el = document.getElementById(`canvas-conversation-answer-${idx}`);
+  const answer = (el && el.value || '').trim();
+  if (!answer) { alert('Escribe una respuesta.'); return; }
+  if (!canvasFlowState) return;
+  const needs = canvasFlowState.needsInput || [];
+  const item = needs[idx] || {};
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  if (item.artifact === 'contact.destination.v1') {
+    canvasFlowState.initialArtifacts['contact.destination.v1'] = {
+      artifact_type: 'contact.destination.v1',
+      channel: 'email',
+      destination: answer,
+      value: answer,
+      to: answer,
+      source: 'user_input',
+      entity_ref: item.entity_ref || ''
+    };
+  } else if (item.artifact === 'credentials.smtp') {
+    canvasFlowState.initialArtifacts['credentials.smtp.input.v1'] = {
+      artifact_type: 'credentials.smtp.input.v1',
+      value: answer,
+      source: 'user_input'
+    };
+  }
+  canvasFlowState.lastInput = answer;
+  runCanvasFlowReal();
+}
+
+function saveCanvasContactDestination(idx) {
+  const el = document.getElementById(`canvas-contact-email-${idx}`);
+  const email = (el && el.value || '').trim();
+  if (!email || !email.includes('@')) { alert('Ingresa un email valido.'); return; }
+  if (!canvasFlowState) return;
+  const needs = canvasFlowState.needsInput || [];
+  const ctx = (needs[idx] && needs[idx].context) || {};
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['contact.destination.v1'] = {
+    artifact_type: 'contact.destination.v1',
+    channel: 'email',
+    destination: email,
+    value: email,
+    to: email,
+    source: 'user_input',
+    entity_type: ctx.entity_type || '',
+    entity_ref: ctx.entity_ref || ''
+  };
+  if (confirm('Destinatario guardado. Re-ejecutar el flujo ahora?')) {
+    runCanvasFlowReal();
+  }
+}
+
+function acceptCanvasAnalysisConfiguration() {
+  if (!canvasFlowState) return;
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['analysis.accepted.v1'] = {
+    artifact_type: 'analysis.accepted.v1',
+    accepted: true,
+    source: 'canvas_user_click',
+    accepted_at: new Date().toISOString()
+  };
+  runCanvasFlowReal();
+}
+
+function rejectCanvasAnalysisConfiguration() {
+  if (!canvasFlowState) return;
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['flow.reconfigure.v1'] = {
+    artifact_type: 'flow.reconfigure.v1',
+    source: 'canvas_user_click',
+    requested_at: new Date().toISOString()
+  };
+  runCanvasFlowReal();
+}
+
+function approveCanvasMecanicoProposals() {
+  if (!canvasFlowState) return;
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['action.selection.v1'] = {
+    artifact_type: 'action.selection.v1',
+    id: 'apply_mecanico_proposals',
+    label: 'Aplicar propuestas de Mecanico',
+    source: 'canvas_user_click',
+    selected_at: new Date().toISOString()
+  };
+  const lastData = canvasFlowState.lastFlowData || {};
+  const arts = lastData.artifacts || {};
+  ['dataset.raw.v1', 'external.api.dump.v1', 'auditor.findings.v1', 'data.gaps.v1', 'mecanico.proposals.v1', 'mecanico.proposal.v1'].forEach(type => {
+    const art = arts[type];
+    if (art && art.payload !== undefined && art.payload !== null) {
+      canvasFlowState.initialArtifacts[type] = art.payload;
+    }
+  });
+  runCanvasFlowReal();
+}
+
+function rejectCanvasMecanicoProposals() {
+  if (!canvasFlowState) return;
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['action.selection.v1'] = {
+    artifact_type: 'action.selection.v1',
+    id: 'reject_mecanico_proposals',
+    label: 'Rechazar propuestas de Mecanico',
+    source: 'canvas_user_click',
+    selected_at: new Date().toISOString()
+  };
+  showCanvasThought('Remora', 'Propuestas rechazadas.');
+}
+
+function startHostingConversationFromCanvas() {
+  const flowId = (canvasFlowState && canvasFlowState.flow && canvasFlowState.flow.id) || '';
+  assistedSetupReturn = {
+    mode: 'assisted_setup',
+    framework: 'hosting',
+    required_artifact: 'credentials.cpanel',
+    parent_flow_id: flowId,
+    return_to: 'flow_detail'
+  };
+  createConversationAndStart(['hosting'], '', {
+    session_mode: 'assisted_setup',
+    goal: 'connect_hosting_for_flow',
+    required_artifact: 'credentials.cpanel',
+    parent_flow_id: flowId,
+    parent_node_id: 'hosting.credentials.cpanel.connect',
+    return_to: 'flow_detail'
+  });
+}
+
+// ---- End canvas-specific rendering ----
 
 function answerFlowConversationalQuestion(idx) {
   const el = document.getElementById(`flow-conversation-answer-${idx}`);
@@ -5807,15 +6206,10 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
 
         if (event === 'branch_runs') {
           const step = data.step || {};
-          const result = flowsState.detail.runResult || {};
-          if (result.branches && result.branches.length) {
-            thread.insertAdjacentHTML('beforeend', renderFlowBranches(result.branches));
-          } else {
-            thread.insertAdjacentHTML('beforeend', renderFlowChatMessage('assistant', 'Foco · dimensiones', step.human_summary || 'Dimensiones ejecutadas en prueba segura.', {
-              avatar: frameworkInitials('foco'),
-              status: 'dimensiones probadas'
-            }));
-          }
+          thread.insertAdjacentHTML('beforeend', `<div id="flow-branches-placeholder" class="flow-branches-panel" style="opacity:0.7;">
+            <div class="flow-branches-title">Dimensiones paralelas</div>
+            <div class="composer-muted">${escapeHtml(step.human_summary || 'Ejecutando dimensiones en paralelo...')} Los paneles comparativos aparecen al terminar.</div>
+          </div>`);
           scrollStreamBottom(thread);
         }
 
@@ -5962,11 +6356,21 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
               </div>`);
             }
           }
+          // Staff observability: show prerequisites panel
+          const prereqArtStream = data.artifacts && data.artifacts['flow.prerequisites.v1'];
+          if (prereqArtStream) {
+            el.insertAdjacentHTML('beforeend', renderStaffPrerequisitesPanel(prereqArtStream));
+          }
           if (data.status === 'needs_input' && (data.needs_input || []).length) {
             el.insertAdjacentHTML('beforeend', renderFlowNeedsInput(data.needs_input));
           }
           if (data.branches && data.branches.length) {
-            el.insertAdjacentHTML('beforeend', renderFlowBranches(data.branches));
+            const placeholder = document.getElementById('flow-branches-placeholder');
+            if (placeholder) {
+              placeholder.outerHTML = renderFlowBranches(data.branches);
+            } else {
+              el.insertAdjacentHTML('beforeend', renderFlowBranches(data.branches));
+            }
           }
 
           flowsState.detail.runResult = data;
@@ -6648,6 +7052,7 @@ function createNodeElement(id, name, type, x, y) {
       ${FRAMEWORK_ICONS[type] || FRAMEWORK_ICONS.echo}
     </div>
     <span class="node-label">${name}</span>
+    <div class="node-speech-bubble" id="speech-${id}"></div>
   `;
   return node;
 }
@@ -6745,47 +7150,65 @@ function setNodeSpeaking(nodeId, isSpeaking) {
   }
 }
 
-function deactivateAllNodes() {
-  activeNodes.forEach(node => {
-    setNodeActive(node.id, false);
-    setNodeSpeaking(node.id, false);
-  });
+function setNodeSpeech(nodeId, header, content, actionOptions = []) {
+  const bubble = document.getElementById(`speech-${nodeId}`);
+  if (!bubble) return;
+  const actions = (actionOptions || []).slice(0, 3);
+  bubble.innerHTML = `
+    <div class="node-speech-meta">${escapeHtml(header || 'Rémora')}</div>
+    <div>${renderContent(cleanVisibleContent(content || 'Listo.'))}</div>
+    ${actions.length ? `<div class="node-speech-actions">
+      ${actions.map((opt, idx) => `<button class="node-speech-action" type="button" onclick="selectCanvasAction('${escapeAttr(nodeId)}', ${idx})">
+        ${escapeHtml(opt.label || opt.id || 'Acción')}
+        ${opt.bound_id ? `<span class="composer-muted"> · ${escapeHtml(opt.bound_id)}</span>` : ''}
+      </button>`).join('')}
+    </div>` : ''}
+  `;
+  bubble.classList.add('visible');
+  if (actions.length) {
+    window.__canvasActionOptions = window.__canvasActionOptions || {};
+    window.__canvasActionOptions[nodeId] = actions;
+  }
 }
 
-function openFlowInNodeView(flow) {
-  if (!flow || !flow.manifest) return;
-  hideFlowsModal();
-  resetWorkspace();
-  hideLauncher();
-  initialInputArea.classList.add('hidden');
-  addNodeBtn.classList.add('hidden');
-  nodeUser.classList.remove('dimmed');
-  nodeUser.classList.add('active');
-
-  const nodes = (flow.manifest.nodes || []);
-  nodes.forEach((n, idx) => {
-    const fw = discoveredFrameworks.find(f => f.name === n.framework);
-    const info = getFrameworkDisplayInfo(fw || { name: n.framework });
-    const label = `${info.name}${n.role ? ' · ' + flowRoleLabelShort(n.role, n.framework) : ''}`;
-    addNode(n.id || n.framework || `step_${idx + 1}`, label, frameworkType(n.framework), flowNodeGridPosition(idx, nodes.length));
-  });
-  requestAnimationFrame(drawConnections);
-  canvasFlowState = { flow, manifest: flow.manifest };
-  showThoughtBubble('user', 'Operación real lista', `<div>
-    <p><strong>${escapeHtml(flow.name || 'Flujo')}</strong></p>
-    <p>Este espacio de nodos es donde se ejecutan operaciones reales. Vas a ver cada framework activarse y responder con su globo mientras corre.</p>
-    <button class="modal-btn confirm" onclick="runCanvasFlowReal()">Ejecutar operación real</button>
-  </div>`, false, 'pos-above');
-}
-
-async function runCanvasFlowReal() {
+function selectCanvasAction(nodeId, idx) {
+  const options = (window.__canvasActionOptions || {})[nodeId] || [];
+  const opt = options[idx];
+  if (!opt) return;
   if (!canvasFlowState || !canvasFlowState.manifest) return;
-  if (!confirm('¿Ejecutar esta operación real ahora?')) return;
+  const selection = {
+    artifact_type: 'action.selection.v1',
+    id: opt.id || String(idx + 1),
+    label: opt.label || '',
+    description: opt.description || '',
+    bound_id: opt.bound_id || '',
+    source: 'canvas_user_click',
+    selected_at: new Date().toISOString()
+  };
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['action.selection.v1'] = selection;
+  const btns = document.querySelectorAll(`#speech-${nodeId} .node-speech-action`);
+  btns.forEach((b, i) => b.style.opacity = i === idx ? '1' : '0.4');
+  showCanvasThought('Usuario', `Seleccionaste: ${escapeHtml(opt.label || opt.id || 'opción')}`);
+  runCanvasFlowWithSelection(selection);
+}
+
+async function runCanvasFlowWithSelection(selection) {
+  if (!canvasFlowState || !canvasFlowState.manifest) return;
   const manifest = canvasFlowState.manifest;
   const payload = flowRunPayload(manifest, false, true);
+  payload.initial_artifacts = payload.initial_artifacts || {};
+  // Merge canvas-specific initial artifacts (from needs_input handlers)
+  if (canvasFlowState.initialArtifacts) {
+    Object.assign(payload.initial_artifacts, canvasFlowState.initialArtifacts);
+  }
+  if (canvasFlowState.lastInput) {
+    payload.input = canvasFlowState.lastInput;
+  }
+  payload.initial_artifacts['action.selection.v1'] = selection;
   deactivateAllNodes();
   setNodeActive('user', true);
-  showThoughtBubble('user', 'Rémora', 'Iniciando operación real... conectando con Channel y preparando frameworks.', false, 'pos-above');
+  showCanvasThought('Rémora', 'Continuando flujo con la acción seleccionada...');
   await nextPaint();
   try {
     const response = await fetch(`${API_BASE}/flows/run/stream`, {
@@ -6810,35 +7233,248 @@ async function runCanvasFlowReal() {
         const event = eventLine.slice(7);
         let data;
         try { data = JSON.parse(dataLine.slice(6)); } catch (e) { continue; }
+        if (event === 'human_acceptance') {
+          transitionToOperativePhase();
+        }
+        if (event === 'step_start') {
+          const step = data.step || {};
+          const nid = ensureCanvasNodeForStep(step);
+          deactivateAllNodes();
+          setNodeActive(nid, true);
+          setNodeSpeaking(nid, true);
+          showCanvasThought(speakerForStep(step), `Ejecutando ${capSemanticName(step)}...`);
+          setNodeSpeech(nid, speakerForStep(step), 'Procesando...');
+        }
+        if (event === 'step_complete') {
+          const step = data.step || {};
+          const nid = ensureCanvasNodeForStep(step);
+          setNodeSpeaking(nid, false);
+          setNodeActive(nid, true);
+          showCanvasThought(speakerForStep(step), step.status === 'completed' ? 'Paso completado.' : (step.error || step.status || 'Paso detenido.'));
+          setNodeSpeech(nid, speakerForStep(step), extractHumanSummaryFromStdout(step), step.action_options || []);
+        }
+        if (event === 'flow_complete') {
+          deactivateAllNodes();
+          nodeUser.classList.add('active');
+          const status = data.status || 'completed';
+          const semantic = renderFlowSemanticArtifacts(data, manifest);
+          let thoughtContent = '';
+          if (status === 'needs_input' && (data.needs_input || []).length) {
+            const prereqs = data.prerequisites || (data.artifacts && data.artifacts['flow.prerequisites.v1']);
+            if (prereqs) {
+              thoughtContent += renderCanvasPrerequisites(prereqs);
+            }
+            thoughtContent += renderCanvasNeedsInput(data.needs_input);
+          } else if (status === 'completed') {
+            thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}Operacion completada.`;
+          } else {
+            const msg = `Operacion termino con estado: ${status}. Revisa el ultimo framework activo para el detalle.`;
+            thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}${escapeHtml(msg)}`;
+          }
+          showCanvasThought('Remora', thoughtContent);
+          if (status === 'needs_input') {
+            canvasFlowState.needsInput = data.needs_input;
+            canvasFlowState.lastFlowData = data;
+          }
+        }
+      }
+    }
+  } catch (e) {
+    showCanvasThought('Remora', 'Error: ' + e.message);
+  }
+}
+
+function showCanvasThought(header, content) {
+  showThoughtBubble('user', header || 'Pensamiento', content || '', false, 'pos-above');
+  thoughtBubble.classList.add('canvas-global');
+}
+
+function deactivateAllNodes() {
+  activeNodes.forEach(node => {
+    setNodeActive(node.id, false);
+    setNodeSpeaking(node.id, false);
+  });
+}
+
+function openFlowInNodeView(flow) {
+  if (!flow || !flow.manifest) return;
+  hideFlowsModal();
+  resetWorkspace();
+  hideLauncher();
+  initialInputArea.classList.add('hidden');
+  addNodeBtn.classList.add('hidden');
+  nodeUser.classList.remove('dimmed');
+  nodeUser.classList.add('active');
+
+  const nodes = (flow.manifest.nodes || []);
+  const bootstrapNodes = nodes.filter(n => n.role === 'bootstrap');
+  const operativeNodes = nodes.filter(n => n.role !== 'bootstrap');
+  const isInstalled = flow.status === 'installed' || flow.status === 'active';
+  canvasFlowState = { flow, manifest: flow.manifest, phase: isInstalled ? 'operative' : 'bootstrap' };
+
+  if (!isInstalled && bootstrapNodes.length > 0) {
+    // Phase bootstrap: only show HUMANO + bootstrap nodes (e.g. Radar)
+    bootstrapNodes.forEach((n, idx) => {
+      const fw = discoveredFrameworks.find(f => f.name === n.framework);
+      const info = getFrameworkDisplayInfo(fw || { name: n.framework });
+      const label = `${info.name} · Bootstrap`;
+      addNode(n.id || n.framework || `bootstrap_${idx}`, label, frameworkType(n.framework), { x: 50, y: 42 });
+    });
+    requestAnimationFrame(drawConnections);
+    showCanvasThought('Rémora', `<div>
+      <p><strong>${escapeHtml(flow.name || 'Flujo')}</strong></p>
+      <p>Fase de configuración inicial. Radar va a proponer la configuración de análisis. Una vez aceptada, el flujo se instala y aparecen los demás nodos operativos.</p>
+      <button class="modal-btn confirm" onclick="runCanvasFlowReal()">Iniciar configuración</button>
+    </div>`);
+  } else {
+    // Phase operative: show all non-bootstrap nodes
+    operativeNodes.forEach((n, idx) => {
+      const fw = discoveredFrameworks.find(f => f.name === n.framework);
+      const info = getFrameworkDisplayInfo(fw || { name: n.framework });
+      const label = `${info.name}${n.role ? ' · ' + flowRoleLabelShort(n.role, n.framework) : ''}`;
+      addNode(n.id || n.framework || `step_${idx + 1}`, label, frameworkType(n.framework), flowNodeCanvasPosition(n, idx, operativeNodes));
+    });
+    requestAnimationFrame(drawConnections);
+    showCanvasThought('Rémora', `<div>
+      <p><strong>${escapeHtml(flow.name || 'Flujo')}</strong></p>
+      <p>Vista de operación real: cada nodo mantiene su propio speech bubble. El bubble superior muestra el último pensamiento del framework activo.</p>
+      <button class="modal-btn confirm" onclick="runCanvasFlowReal()">Ejecutar operación real</button>
+    </div>`);
+  }
+}
+
+function transitionToOperativePhase() {
+  if (!canvasFlowState || canvasFlowState.phase === 'operative') return;
+  canvasFlowState.phase = 'operative';
+  const flow = canvasFlowState.flow;
+  const nodes = (flow.manifest.nodes || []);
+  const bootstrapNodes = nodes.filter(n => n.role === 'bootstrap');
+  const operativeNodes = nodes.filter(n => n.role !== 'bootstrap');
+  // Remove bootstrap nodes
+  bootstrapNodes.forEach(n => {
+    const id = n.id || n.framework;
+    const el = document.getElementById(`node-${id}`);
+    if (el) el.remove();
+    const idx = activeNodes.findIndex(an => an.id === id);
+    if (idx >= 0) activeNodes.splice(idx, 1);
+  });
+  // Add operative nodes
+  operativeNodes.forEach((n, idx) => {
+    const fw = discoveredFrameworks.find(f => f.name === n.framework);
+    const info = getFrameworkDisplayInfo(fw || { name: n.framework });
+    const label = `${info.name}${n.role ? ' · ' + flowRoleLabelShort(n.role, n.framework) : ''}`;
+    if (!document.getElementById(`node-${n.id || n.framework}`)) {
+      addNode(n.id || n.framework || `step_${idx + 1}`, label, frameworkType(n.framework), flowNodeCanvasPosition(n, idx, operativeNodes));
+    }
+  });
+  requestAnimationFrame(drawConnections);
+  showCanvasThought('Rémora', 'Flujo instalado. Fase operativa activa.');
+}
+
+function flowNodeCanvasPosition(node, index, nodes) {
+  const role = node.role || 'pipeline';
+  const fw = node.framework || '';
+  if (role === 'bootstrap') return { x: 50, y: 16 };
+  if (role === 'entry') return { x: 30, y: 42 };
+  if (fw === 'mensajero') return { x: 70, y: 42 };
+  if (role === 'resolution') return { x: 36, y: 70 };
+  if (fw === 'hosting') return { x: 64, y: 70 };
+  const aux = nodes.filter(n => (n.role || 'pipeline') === 'pipeline' && !['foco', 'mensajero'].includes(n.framework || ''));
+  const auxIndex = Math.max(0, aux.findIndex(n => (n.id || n.framework) === (node.id || node.framework)));
+  const auxCount = Math.max(1, aux.length);
+  return { x: 24 + auxIndex * (52 / Math.max(1, auxCount - 1)), y: 62 };
+}
+
+async function runCanvasFlowReal() {
+  if (!canvasFlowState || !canvasFlowState.manifest) return;
+  if (!confirm('Ejecutar esta operacion real ahora?')) return;
+  const manifest = canvasFlowState.manifest;
+  const payload = flowRunPayload(manifest, false, true);
+  // Merge canvas-specific initial artifacts (from needs_input handlers)
+  if (canvasFlowState.initialArtifacts) {
+    payload.initial_artifacts = payload.initial_artifacts || {};
+    Object.assign(payload.initial_artifacts, canvasFlowState.initialArtifacts);
+  }
+  if (canvasFlowState.lastInput) {
+    payload.input = canvasFlowState.lastInput;
+  }
+  deactivateAllNodes();
+  setNodeActive('user', true);
+  showCanvasThought('Rémora', 'Iniciando operación real... conectando con Channel y preparando frameworks.');
+  await nextPaint();
+  try {
+    const response = await fetch(`${API_BASE}/flows/run/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok || !response.body) throw new Error(`HTTP ${response.status}`);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop();
+      for (const part of parts) {
+        const eventLine = part.split('\n').find(l => l.startsWith('event: '));
+        const dataLine = part.split('\n').find(l => l.startsWith('data: '));
+        if (!eventLine || !dataLine) continue;
+        const event = eventLine.slice(7);
+        let data;
+        try { data = JSON.parse(dataLine.slice(6)); } catch (e) { continue; }
+        if (event === 'human_acceptance') {
+          transitionToOperativePhase();
+        }
         if (event === 'step_start') {
           const step = data.step || {};
           const nodeId = ensureCanvasNodeForStep(step);
           deactivateAllNodes();
           setNodeActive(nodeId, true);
           setNodeSpeaking(nodeId, true);
-          showThoughtBubble(frameworkType(step.framework), speakerForStep(step), 'Procesando...', false, 'pos-below');
+          showCanvasThought(speakerForStep(step), `Estoy ejecutando ${capSemanticName(step)}. Rol: ${flowRoleLabel(step.role)}.`);
+          setNodeSpeech(nodeId, speakerForStep(step), 'Procesando...');
         }
         if (event === 'step_complete') {
           const step = data.step || {};
           const nodeId = ensureCanvasNodeForStep(step);
           setNodeSpeaking(nodeId, false);
           setNodeActive(nodeId, true);
-          showThoughtBubble(frameworkType(step.framework), speakerForStep(step), extractHumanSummaryFromStdout(step), false, 'pos-below');
+          showCanvasThought(speakerForStep(step), step.status === 'completed' ? 'Paso completado. Entrego contexto al siguiente framework.' : (step.error || step.status || 'Paso detenido.'));
+          setNodeSpeech(nodeId, speakerForStep(step), extractHumanSummaryFromStdout(step), step.action_options || []);
         }
         if (event === 'flow_complete') {
           deactivateAllNodes();
           nodeUser.classList.add('active');
           const status = data.status || 'completed';
-          const msg = status === 'completed'
-            ? 'Operación real completada. El flujo terminó todos sus pasos.'
-            : `Operación terminó con estado: ${status}. Revisá el último framework activo para el detalle.`;
           const semantic = renderFlowSemanticArtifacts(data, manifest);
-          showThoughtBubble('user', 'Rémora', `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}${escapeHtml(msg)}`, false, 'pos-above');
+          let thoughtContent = '';
+          if (status === 'needs_input' && (data.needs_input || []).length) {
+            // Render prerequisites semaphore if available
+            const prereqs = data.prerequisites || (data.artifacts && data.artifacts['flow.prerequisites.v1']);
+            if (prereqs) {
+              thoughtContent += renderCanvasPrerequisites(prereqs);
+            }
+            thoughtContent += renderCanvasNeedsInput(data.needs_input);
+          } else if (status === 'completed') {
+            thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}Operación real completada. El flujo terminó todos sus pasos.`;
+          } else {
+            const msg = `Operación terminó con estado: ${status}. Revisá el último framework activo para el detalle.`;
+            thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}${escapeHtml(msg)}`;
+          }
+          showCanvasThought('Rémora', thoughtContent);
+          // Also store needs_input for re-run
+          if (status === 'needs_input') {
+            canvasFlowState.needsInput = data.needs_input;
+            canvasFlowState.lastFlowData = data;
+          }
         }
       }
     }
   } catch (e) {
-    showThoughtBubble('user', 'Rémora', 'Error ejecutando operación real: ' + e.message, false, 'pos-above');
+    showCanvasThought('Rémora', 'Error ejecutando operación real: ' + e.message);
   }
 }
 

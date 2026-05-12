@@ -1794,6 +1794,62 @@ func TestRunFlowManifestExposesStructuredActionOptions(t *testing.T) {
 	}
 }
 
+func TestRunFlowManifestValidatesActionOptionsAgainstManifestBounds(t *testing.T) {
+	root := t.TempDir()
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{
+			Success:  true,
+			ExitCode: 0,
+			Stdout: `{
+				"artifact_type":"focus.next_task.v1",
+				"artifacts":["focus.next_task.v1","action.options.v1"],
+				"action_options":[
+					{"id":"send_email","bound_id":"proceed","label":"Enviar email","description":"Preparar y enviar correo"},
+					{"id":"invented","bound_id":"outside","label":"Borrar deuda","description":"Fuera de límites"}
+				]
+			}`,
+		})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: root, allManifests: map[string]*manifest.Manifest{
+		"foco": {
+			Name:   "foco",
+			Cwd:    ".",
+			Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"next-task": {Args: []string{"-c", "true"}},
+			},
+			ActionBounds: []manifest.ActionBoundSpec{
+				{Type: "proceed", Description: "Avanzar"},
+				{Type: "postpone", Description: "Postergar"},
+			},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "focus.next_collection_task",
+				Command:  "next-task",
+				Produces: []string{"focus.next_task.v1", "action.options.v1"},
+			}},
+		},
+	}, channel: adapter.New(channel.URL, "test-key")}
+
+	result := s.runFlowManifest(context.Background(), flowRunRequest{Flow: flowManifest{ID: "bounds", Nodes: []flowNode{{ID: "focus", Framework: "foco", Capability: "focus.next_collection_task"}}}}, nil)
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+	if len(result.Timeline) != 1 {
+		t.Fatalf("unexpected timeline %#v", result.Timeline)
+	}
+	options := result.Timeline[0].ActionOptions
+	if len(options) != 2 {
+		t.Fatalf("expected valid option plus fallback, got %#v", options)
+	}
+	if options[0]["bound_id"] != "proceed" || options[1]["bound_id"] != "postpone" {
+		t.Fatalf("unexpected bounded options %#v", options)
+	}
+	if _, ok := result.Artifacts["action.bounds.validation.v1"]; !ok {
+		t.Fatalf("missing action bounds validation artifact")
+	}
+}
+
 func TestRunFlowManifestEmitsCycleCompletedOnMessageSent(t *testing.T) {
 	root := t.TempDir()
 	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

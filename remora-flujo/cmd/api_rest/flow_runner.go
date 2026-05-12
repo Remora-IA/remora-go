@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"channel/manifest"
 )
 
 func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep flowStepCallback) flowRunResult {
@@ -168,6 +170,7 @@ cycleStart:
 		step.Outputs = uniqueStrings(contract.Outputs)
 		step.Produces = uniqueStrings(contract.Produces)
 		step.Policies = uniqueStrings(contract.Policies)
+		step.ActionBounds = actionBoundTypes(m.ActionBounds)
 		step.ResolutionMode = resolutionModeFromPolicies(contract.Policies)
 		dataValidationRequired := !dataValidationApplied && s.shouldRunLayeredDataValidation(node, contract, available)
 		preflightRequired := s.shouldRunPreflightAudit(node, contract, available)
@@ -296,6 +299,12 @@ cycleStart:
 		}
 		step.Status = "completed"
 		step.ArtifactTypes = s.recordNodeArtifacts(runID, node.ID, contract, resp.Stdout, available, result.Artifacts)
+		if containsString(step.ArtifactTypes, "action.options.v1") {
+			step.ActionOptions = s.validateActionOptionsForNode(runID, node.ID, m, available, result.Artifacts)
+			if _, ok := result.Artifacts["action.bounds.validation.v1"]; ok {
+				step.ArtifactTypes = append(step.ArtifactTypes, "action.bounds.validation.v1")
+			}
+		}
 		analysisAccepted := flowAnalysisAccepted(req)
 		if containsString(step.ArtifactTypes, "analysis.schema.v1") && !req.DryRun && (!shouldEmitHumanAcceptance(contract) || analysisAccepted || req.SimulateHuman) {
 			s.markFlowInstalled(req.Flow)
@@ -311,7 +320,7 @@ cycleStart:
 			result.Timeline = append(result.Timeline, finished)
 			break
 		}
-		if containsString(step.ArtifactTypes, "action.options.v1") {
+		if containsString(step.ArtifactTypes, "action.options.v1") && len(step.ActionOptions) == 0 {
 			step.ActionOptions = flowActionOptionsFromArtifacts(result.Artifacts)
 		}
 		if node.Role == flowRoleEntry {
@@ -429,6 +438,16 @@ cycleStart:
 	result.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	_ = s.persistFlowRun(result)
 	return result
+}
+
+func actionBoundTypes(bounds []manifest.ActionBoundSpec) []string {
+	out := make([]string, 0, len(bounds))
+	for _, bound := range bounds {
+		if strings.TrimSpace(bound.Type) != "" {
+			out = append(out, bound.Type)
+		}
+	}
+	return out
 }
 
 // resetCycleArtifacts removes cycle-specific artifacts so the next cycle

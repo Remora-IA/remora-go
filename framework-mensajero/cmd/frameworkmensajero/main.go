@@ -348,9 +348,28 @@ func vaultBin() string {
 	return "../channel/bin/vault"
 }
 
+func vaultEnv() []string {
+	env := os.Environ()
+	if strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")) != "" {
+		return env
+	}
+	if dir := defaultVaultDir(); dir != "" {
+		env = append(env, "REMORA_VAULT_DIR="+dir)
+	}
+	return env
+}
+
+func defaultVaultDir() string {
+	abs, err := filepath.Abs(vaultBin())
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(filepath.Dir(abs)), "vault_data")
+}
+
 func vaultHas(convID, key string) bool {
 	cmd := exec.Command(vaultBin(), "has", "--conv", convOrDefault(convID), "--key", key)
-	cmd.Env = os.Environ()
+	cmd.Env = vaultEnv()
 	if err := cmd.Run(); err != nil {
 		return false
 	}
@@ -359,7 +378,7 @@ func vaultHas(convID, key string) bool {
 
 func vaultGet(convID, key string) ([]byte, error) {
 	cmd := exec.Command(vaultBin(), "get", "--conv", convOrDefault(convID), "--key", key)
-	cmd.Env = os.Environ()
+	cmd.Env = vaultEnv()
 	out, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 2 {
