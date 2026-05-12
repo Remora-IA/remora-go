@@ -42,6 +42,27 @@ func (s *server) ensureContactDestinationPipeline(ctx context.Context, runID str
 		s.emitSabioPersistContactStep(runID, req.Flow.BusinessID, result.Artifacts, emitStep, cycleIdx)
 		return true
 	}
+	if answer, ok := flowInteractionAnswerFromArtifacts(result.Artifacts); ok &&
+		answer.matchesArtifact("contact.destination.v1") &&
+		answer.matchesField("email", "contact_email", "destination") {
+		if email := strings.TrimSpace(answer.Value); isLikelyEmail(email) {
+			payload := map[string]interface{}{
+				"artifact_type": "contact.destination.v1",
+				"channel":       "email",
+				"destination":   email,
+				"value":         email,
+				"to":            email,
+				"source":        "flow.interaction.answer",
+			}
+			if typ, ref, ok := contactIdentityFromArtifacts(result.Artifacts); ok {
+				payload["entity_type"] = typ
+				payload["entity_ref"] = ref
+			}
+			s.recordContactDestination(runID, "jit_contact_user_answer", payload, "user_input", available, result)
+			s.emitSabioPersistContactStep(runID, req.Flow.BusinessID, result.Artifacts, emitStep, cycleIdx)
+			return true
+		}
+	}
 	if answer := strings.TrimSpace(req.Input); isLikelyEmail(answer) {
 		payload := map[string]interface{}{
 			"artifact_type": "contact.destination.v1",
@@ -96,8 +117,12 @@ func (s *server) ensureContactDestinationPipeline(ctx context.Context, runID str
 	if !hasQuestions {
 		need := s.inputRequestForContactDestination(flowNode{ID: "jit_contact", Framework: providerName, Capability: "contact.lookup"}, result.Artifacts)
 		need.Kind = "conversational_question"
-		need.Framework = s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps")
-		need.Capability = "action.fix.resolve_gaps_conversational"
+		need = flowInputFromNode(need, flowNode{
+			ID:         "jit_contact_resolution",
+			Framework:  s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps"),
+			Capability: "action.fix.resolve_gaps_conversational",
+			Role:       flowRoleResolution,
+		})
 		need.Message = fmt.Sprintf("Para enviar el cobro a %s necesito su email. ¿Cuál es?", entityDisplayName(result.Artifacts))
 		need.EntityRef = entityRef
 		need.GapType = gap.Kind
@@ -105,11 +130,9 @@ func (s *server) ensureContactDestinationPipeline(ctx context.Context, runID str
 		result.NeedsInput = append(result.NeedsInput, need)
 	} else {
 		q := questions[0]
-		result.NeedsInput = append(result.NeedsInput, flowRequiredInput{
+		result.NeedsInput = append(result.NeedsInput, flowInputFromNode(flowRequiredInput{
 			Artifact:   "contact.destination.v1",
 			Kind:       "conversational_question",
-			Framework:  s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps"),
-			Capability: "action.fix.resolve_gaps_conversational",
 			Title:      "Falta email de contacto",
 			Message:    jsonFirstString(q, "text", "message", "question"),
 			QuestionID: jsonFirstString(q, "id", "question_id"),
@@ -117,7 +140,12 @@ func (s *server) ensureContactDestinationPipeline(ctx context.Context, runID str
 			GapType:    firstNonEmptyPipelineString(jsonFirstString(q, "gap_type"), gap.Kind),
 			Field:      firstNonEmptyPipelineString(jsonFirstString(q, "field"), "email"),
 			Context:    contactNeedContext(result.Artifacts),
-		})
+		}, flowNode{
+			ID:         "jit_contact_resolution",
+			Framework:  s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps"),
+			Capability: "action.fix.resolve_gaps_conversational",
+			Role:       flowRoleResolution,
+		}))
 	}
 	result.Status = "needs_input"
 	s.recordFlowReadiness(runID, "jit_contact_pipeline", false, result.NeedsInput, available, result.Artifacts)
@@ -129,18 +157,22 @@ func (s *server) ensureSMTPCredentialsPipeline(ctx context.Context, runID string
 		available["credentials.smtp"] = true
 		return true
 	}
-	if answer := strings.TrimSpace(req.Input); answer != "" {
-		if responseText, ok := s.ingestProviderAnswer(ctx, req.Flow.BusinessID, "credentials.smtp.check", "", answer); ok {
+	if answer, ok := flowInteractionAnswerFromArtifacts(result.Artifacts); ok &&
+		answer.matchesFramework("hosting") &&
+		answer.matchesArtifact("credentials.smtp") &&
+		answer.matchesCapability("credentials.cpanel.connect", "credentials.smtp.import", "credentials.smtp.check") {
+		capability := firstNonEmptyPipelineString(answer.Capability, "credentials.cpanel.connect")
+		if responseText, answered := s.ingestProviderAnswer(ctx, req.Flow.BusinessID, capability, answer.QuestionID, answer.Value); answered {
 			step := flowRunStep{
 				Node:          "hosting_persist_smtp",
 				Framework:     "hosting",
-				Capability:    "credentials.smtp.check",
+				Capability:    capability,
 				Role:          flowRoleResolution,
 				Visibility:    flowStepVisibilityInfrastructure,
 				CycleIndex:    cycleIdx,
 				Status:        "completed",
 				HumanSummary:  hostingCredentialVerificationSummary(responseText),
-				ArtifactTypes: []string{"credentials.smtp.input.v1"},
+				ArtifactTypes: []string{flowInteractionAnswerArtifact},
 				StartedAt:     time.Now().UTC().Format(time.RFC3339Nano),
 				FinishedAt:    time.Now().UTC().Format(time.RFC3339Nano),
 			}
@@ -149,6 +181,14 @@ func (s *server) ensureSMTPCredentialsPipeline(ctx context.Context, runID string
 		}
 	}
 	if s.checkSMTPCredentialsAvailable(ctx, runID, req.Flow.BusinessID, available, result, emitStep, cycleIdx) {
+		if status, _ := result.Artifacts["credentials.status.v1"].Payload.(map[string]interface{}); status != nil {
+			if ready, _ := status["ready"].(bool); ready {
+				return true
+			}
+			if verified, _ := status["verified"].(bool); verified {
+				return true
+			}
+		}
 		if verifyErr := s.verifySMTPCredentialsReal(ctx, runID, req.Flow.BusinessID, available, result, emitStep, cycleIdx); verifyErr != "" {
 			result.Artifacts["credentials.smtp.verification.v1"] = flowRunArtifact{
 				Type: "credentials.smtp.verification.v1", Source: "hosting", Node: "hosting_verify_smtp",
@@ -160,35 +200,24 @@ func (s *server) ensureSMTPCredentialsPipeline(ctx context.Context, runID string
 			return true
 		}
 	}
-	gap := dataGap{Kind: "credentials_smtp", Description: "Faltan credenciales de correo para enviar emails.", Field: "credentials.smtp"}
-	questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, []dataGap{gap}, result.Artifacts, available, result, emitStep, cycleIdx)
-	message := "Para poder enviar correos necesito acceso a tu cuenta de email. ¿Cuál es tu proveedor y los datos SMTP?"
-	if last := lastHostingCredentialFailure(result.Artifacts); last != "" {
-		message = "No pude verificar esas credenciales de correo: " + last + "\nProbemos de nuevo. Enviame host SMTP, usuario, contraseña y remitente."
+	node := flowNode{
+		ID:         "hosting.credentials.cpanel.connect",
+		Framework:  s.providerNameForCapability("credentials.cpanel.connect"),
+		Capability: "credentials.cpanel.connect",
+		Role:       flowRoleResolution,
 	}
-	questionID := ""
-	field := "credentials.smtp"
-	if hasQuestions {
-		rawQField := jsonFirstString(questions[0], "field")
-		qField := firstNonEmptyPipelineString(rawQField, field)
-		qGap := jsonFirstString(questions[0], "gap_type")
-		if strings.Contains(strings.ToLower(rawQField+" "+qGap), "smtp") || strings.Contains(strings.ToLower(rawQField+" "+qGap), "credential") {
-			message = jsonFirstString(questions[0], "text", "message", "question")
-			questionID = jsonFirstString(questions[0], "id", "question_id")
-			field = qField
+	if q, ok := s.invokeProviderNextQuestion(ctx, req.Flow.BusinessID, node.Capability); ok {
+		need := providerQuestionToFlowInput(node, "credentials.smtp", q)
+		need.GapType = "missing_outbound_email_capability"
+		result.NeedsInput = append(result.NeedsInput, need)
+	} else {
+		need := s.inputRequestForHostingConnect()
+		need.GapType = "missing_outbound_email_capability"
+		if last := lastHostingCredentialFailure(result.Artifacts); last != "" {
+			need.Message = "Hosting todavía no logró dejar listo el correo saliente: " + last + "\nNecesito retomar la configuración del hosting para terminarlo."
 		}
+		result.NeedsInput = append(result.NeedsInput, need)
 	}
-	result.NeedsInput = append(result.NeedsInput, flowRequiredInput{
-		Artifact:   "credentials.smtp",
-		Kind:       "conversational_question",
-		Framework:  s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps"),
-		Capability: "action.fix.resolve_gaps_conversational",
-		Title:      "Faltan credenciales SMTP",
-		Message:    message,
-		QuestionID: questionID,
-		GapType:    gap.Kind,
-		Field:      field,
-	})
 	result.Status = "needs_input"
 	s.recordFlowReadiness(runID, "jit_smtp_pipeline", false, result.NeedsInput, available, result.Artifacts)
 	return false
@@ -202,6 +231,8 @@ func (s *server) checkSMTPCredentialsAvailable(ctx context.Context, runID, busin
 		if err == nil {
 			req := flowRunRequest{Flow: flowManifest{BusinessID: businessID}}
 			step := flowRunStep{Node: node.ID, Framework: providerName, Capability: node.Capability, Command: contract.Command, Role: flowRoleResolution, Visibility: flowStepVisibilityInfrastructure, CycleIndex: cycleIdx, Status: "running", StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+			runtime := resolveManifestRuntime(s.rootDir, m)
+			step.Runtime = &runtime
 			emitStep("step_start", step)
 			resp, execErr := s.executeFlowNode(ctx, runID, req, node, contract, result.Artifacts)
 			if execErr == nil && resp.Success && resp.ExitCode == 0 {
@@ -234,6 +265,8 @@ func (s *server) verifySMTPCredentialsReal(ctx context.Context, runID, businessI
 	}
 	req := flowRunRequest{Flow: flowManifest{BusinessID: businessID}}
 	step := flowRunStep{Node: node.ID, Framework: providerName, Capability: node.Capability, Command: contract.Command, Role: flowRoleResolution, Visibility: flowStepVisibilityInfrastructure, CycleIndex: cycleIdx, Status: "running", StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	step.Runtime = &runtime
 	emitStep("step_start", step)
 	resp, execErr := s.executeFlowNode(ctx, runID, req, node, contract, result.Artifacts)
 	if execErr != nil {

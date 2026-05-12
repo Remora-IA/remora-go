@@ -49,7 +49,7 @@ func (s *server) executeFlowNode(ctx context.Context, runID string, req flowRunR
 		setParamIfDeclared(cmd, params, "profile", req.Flow.BusinessID)
 	}
 	setParamIfDeclared(cmd, params, "dry_run", fmt.Sprintf("%t", req.DryRun))
-	if commandHasParam(cmd, "db") && containsString(contract.Policies, "business_sqlite_param") {
+	if contractNeedsBusinessSQLitePath(cmd, contract) {
 		dbPath := s.businessSQLitePath(req.Flow.BusinessID)
 		if dbPath == "" {
 			dbPath = businessDataDBPath(s.rootDir, req.Flow.BusinessID)
@@ -73,20 +73,15 @@ func (s *server) executeFlowNode(ctx context.Context, runID string, req flowRunR
 	if err != nil {
 		return nil, err
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + m.Name
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	nodeTimeout := 300 * time.Second
 	if containsString(contract.Policies, "long_running") {
 		nodeTimeout = 600 * time.Second
 	}
 	execCtx, cancel := context.WithTimeout(ctx, nodeTimeout)
 	defer cancel()
-	resp, err := s.scoped(runID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(runID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil && isChannelUnavailableError(err) {
 		return nil, fmt.Errorf("%s", channelUnavailableMessage(s.channel.BaseURL))
 	}
@@ -129,6 +124,16 @@ func firstDeclaredParam(cmd manifest.Command, names ...string) string {
 
 func flowNodeUsesBusinessVault(contract nodeContract) bool {
 	return containsString(contract.Policies, "vault_scoped")
+}
+
+func contractNeedsBusinessSQLitePath(cmd manifest.Command, contract nodeContract) bool {
+	if !commandHasParam(cmd, "db") {
+		return false
+	}
+	if containsString(contract.Policies, "business_sqlite_param") {
+		return true
+	}
+	return containsString(append(contract.Inputs, contract.Requires...), "data.sqlite_db.v1")
 }
 
 func focoFlowStateConvID(businessID, flowID string) string {

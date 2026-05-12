@@ -1478,17 +1478,12 @@ func (s *server) runFrameworkCommand(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + m.Name
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 
 	ctx, cancel := context.WithTimeout(r.Context(), 180*time.Second)
 	defer cancel()
-	resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(convID).ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -1498,7 +1493,8 @@ func (s *server) runFrameworkCommand(w http.ResponseWriter, r *http.Request) {
 		"framework":       name,
 		"command":         commandName,
 		"args":            fullArgs,
-		"cwd":             cwd,
+		"cwd":             runtime.Cwd,
+		"runtime":         runtime,
 		"response":        resp,
 	})
 }

@@ -39,7 +39,7 @@ echo "Channel levantandose en :8765..."
 sleep 2
 
 # Terminal 2: api_rest (desde el directorio del módulo)
-osascript -e "tell application \"Terminal\" to do script \"cd $ROOT/remora-flujo && REMORA_ROOT=$ROOT CHANNEL_URL=$CHANNEL_URL CHANNEL_API_KEY=$API_KEY go run ./cmd/api_rest\""
+osascript -e "tell application \"Terminal\" to do script \"cd $ROOT/remora-flujo && REMORA_ROOT=$ROOT CHANNEL_URL=$CHANNEL_URL CHANNEL_API_KEY=$API_KEY REMORA_DEV_STATIC=1 go run ./cmd/api_rest\""
 
 echo "api_rest levantandose en :8084..."
 echo ""

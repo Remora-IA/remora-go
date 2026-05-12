@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 )
@@ -40,16 +39,11 @@ func (s *server) handleSMTPCheck(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "error resolviendo args: "+err.Error())
 		return
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-hosting"
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(convID).ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		writeOK(w, map[string]interface{}{
 			"available":  false,
@@ -122,17 +116,12 @@ func (s *server) handleHostingConnect(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "error resolviendo args: "+err.Error())
 		return
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-hosting"
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 	fmt.Printf("[hosting-connect] business=%s user=%s host=%s\n", bid, req.User, req.Host)
-	resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(convID).ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "error ejecutando hosting connect: "+err.Error())
 		return
@@ -206,18 +195,13 @@ func (s *server) handleSMTPImport(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "error resolviendo args: "+err.Error())
 		return
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-hosting"
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 	defer cancel()
 	// Log import attempt without credentials
 	fmt.Printf("[smtp-import] business=%s user=%s host=%s port=%s\n", bid, req.User, req.Host, port)
-	resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(convID).ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "error ejecutando import-smtp: "+err.Error())
 		return
@@ -263,16 +247,11 @@ func (s *server) handleSMTPDelete(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "error resolviendo args: "+err.Error())
 		return
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-hosting"
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
-	resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(convID).ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, "error ejecutando delete-smtp: "+err.Error())
 		return

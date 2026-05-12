@@ -2,13 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"channel/manifest"
-	"encoding/json"
-	"path/filepath"
 )
 
 func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, req flowRunRequest, auditorNode flowNode, available map[string]bool, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int) {
@@ -28,17 +27,7 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 		bulkGaps := parseDataQualityBulk(result.Artifacts)
 		// Generate observability artifacts on first pass.
 		if pass == 0 {
-			prereqPayload := s.generateFlowPrerequisites(runID, req.Flow, entityRef, result.Artifacts, available, allGaps)
-			path := s.persistFlowArtifact(runID, auditorNode.ID+"_prerequisites", "flow.prerequisites.v1", prereqPayload)
-			result.Artifacts["flow.prerequisites.v1"] = flowRunArtifact{
-				Type:      "flow.prerequisites.v1",
-				Source:    "flow_engine.prerequisites",
-				Node:      auditorNode.ID,
-				Path:      path,
-				Payload:   prereqPayload,
-				CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
-			}
-			available["flow.prerequisites.v1"] = true
+			s.refreshFlowPrerequisites(runID, req.Flow, available, result)
 			if len(bulkGaps) > 0 {
 				bulkPayload := s.generateBulkMigrationArtifact(bulkGaps)
 				bulkPath := s.persistFlowArtifact(runID, auditorNode.ID+"_bulk", "flow.bulk_migration_needed.v1", bulkPayload)
@@ -117,18 +106,21 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 						if gt, ok := q["gap_type"].(string); ok {
 							gapType = gt
 						}
-						result.NeedsInput = append(result.NeedsInput, flowRequiredInput{
+						result.NeedsInput = append(result.NeedsInput, flowInputFromNode(flowRequiredInput{
 							Artifact:   "contact.destination.v1",
 							Kind:       "conversational_question",
-							Framework:  questionProviderName,
-							Capability: "action.fix.resolve_gaps_conversational",
 							Title:      "Resolución de gap: " + gapType,
 							Message:    qText,
 							QuestionID: qID,
 							EntityRef:  jsonFirstString(q, "entity_ref"),
 							GapType:    gapType,
 							Field:      jsonFirstString(q, "field"),
-						})
+						}, flowNode{
+							ID:         fmt.Sprintf("%s_resolve_gaps_%d", safeFilePart(questionProviderName), cycleIdx),
+							Framework:  questionProviderName,
+							Capability: "action.fix.resolve_gaps_conversational",
+							Role:       flowRoleResolution,
+						}))
 					}
 					result.Status = "needs_input"
 					s.recordFlowReadiness(runID, auditorNode.ID, false, result.NeedsInput, available, result.Artifacts)
@@ -341,15 +333,10 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 	if err != nil {
 		return nil, false
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + providerName
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	execCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
-	resp, err := s.scoped(runID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(runID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 	cancel()
 	if err != nil {
 		return nil, false
@@ -413,11 +400,11 @@ func (s *server) generateBulkMigrationArtifact(bulkGaps []dataGap) map[string]in
 		})
 	}
 	return map[string]interface{}{
-		"artifact_type":    "flow.bulk_migration_needed.v1",
-		"bulk_items":       items,
-		"bulk_count":       len(items),
-		"human_summary":    fmt.Sprintf("Data quality bulk: %d campos requieren migracion masiva de datos.", len(items)),
-		"generated_at":     time.Now().UTC().Format(time.RFC3339Nano),
+		"artifact_type": "flow.bulk_migration_needed.v1",
+		"bulk_items":    items,
+		"bulk_count":    len(items),
+		"human_summary": fmt.Sprintf("Data quality bulk: %d campos requieren migracion masiva de datos.", len(items)),
+		"generated_at":  time.Now().UTC().Format(time.RFC3339Nano),
 	}
 }
 

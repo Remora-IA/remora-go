@@ -5,8 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -76,15 +74,9 @@ func (s *server) runUniversalSingle(ctx context.Context, ch *adapter.Client, con
 	if err != nil {
 		return universalSingleResult{}, err
 	}
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + m.Name
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
-	bin, argsPrefix := resolveManifestRuntime(cwd, m)
-	fullArgs := append([]string{}, argsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	resp, err := ch.ExecuteCommand(ctx, bin, fullArgs, cwd)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
+	resp, err := ch.ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		return universalSingleResult{}, err
 	}
@@ -287,35 +279,4 @@ func universalCommandNames(m *manifest.Manifest) []string {
 	}
 	sort.Strings(out)
 	return out
-}
-
-func resolveManifestRuntime(cwd string, m *manifest.Manifest) (string, []string) {
-	if m == nil {
-		return "", nil
-	}
-	command := m.Binary.Command
-	args := append([]string{}, m.Binary.ArgsPrefix...)
-	if command != "go" || len(args) < 2 || args[0] != "run" {
-		return command, args
-	}
-	out := manifestBuildOutput(m)
-	if out == "" {
-		return command, args
-	}
-	if _, err := os.Stat(filepath.Join(cwd, out)); err == nil {
-		return "./" + out, args[2:]
-	}
-	return command, args
-}
-
-func manifestBuildOutput(m *manifest.Manifest) string {
-	if m == nil {
-		return ""
-	}
-	for i, arg := range m.Build.Args {
-		if arg == "-o" && i+1 < len(m.Build.Args) {
-			return m.Build.Args[i+1]
-		}
-	}
-	return ""
 }

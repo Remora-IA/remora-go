@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.27] - 2026-05-12
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **static/index.html**: +649 / -217
+- **api_rest/business_artifacts.go**: +3 / -8
+- **api_rest/flow_field_evidence.go**: archivo nuevo
+- **api_rest/flow_gap_inputs.go**: +15 / -30
+- **api_rest/flow_prerequisites.go**: funciones: (s *server) generateFlowPrerequisites, (s *server) refreshFlowPrerequisites, prerequisitesSummary, flowPrerequisiteExecutionBlockers
+- **api_rest/flow_proposals.go**: +7
+- **api_rest/flow_run_types.go**: tipos: flowInputAction
+- **api_rest/flow_smtp.go**: +12 / -33
+- **api_rest/flow_store.go**: +3 / -7
+- **api_rest/flow_user_interaction.go**: archivo nuevo
+- **api_rest/generic_driver.go**: +9 / -25
+- **api_rest/main.go**: +5 / -9
+- **api_rest/manifest_runtime.go**: archivo nuevo
+- **api_rest/single_wrapper.go**: +3 / -42
+- **api_rest/flow_cycles.go**: +3 / -9
+- **api_rest/flow_data_pipeline.go**: +69 / -36
+- **api_rest/flow_execution.go**: funciones: contractNeedsBusinessSQLitePath
+- **api_rest/flow_gap_resolution.go**: +17 / -30
+- **api_rest/flow_installation.go**: +10 / -8
+- **api_rest/flow_interactions.go**: archivo nuevo
+- **api_rest/flow_provider_interaction.go**: funciones: (s *server) invokeProviderNextQuestion
+- **api_rest/flow_readiness.go**: +23 / -21
+- **api_rest/flow_runner.go**: +14
+- **api_rest/flow_prerequisites_test.go**: archivo nuevo
+- **api_rest/flow_run_test.go**: funciones: TestCollectionFlowRoutesNodeViewAnswerToHosting
+- **api_rest/manifest_runtime_test.go**: archivo nuevo
+
+### Repo
+
+- **Makefile**: +8 / -4
+- **PROMPT_PROBLEMAS_RONDA2**: archivo nuevo
+- **cloudbuild.yaml**: +11
+- **data/findings.json**: +1 / -1
+- **framework-hosting/framework.manifest.json**: +4 / -3
+- **framework-hosting/go.mod**: +4
+- **framework-mensajero/framework.manifest.json**: +3 / -2
+- **framework-mensajero/go.mod**: +4
+- **scripts/bootstrap.sh**: +3 / -2
+- **scripts/dev-local.sh**: +1 / -1
+- **scripts/restart_api.sh**: archivo nuevo
+- **AGENTS.md**: archivo nuevo
+- **credentials/smtp.go**: archivo nuevo
+- **frameworkhosting/main.go**: funciones: dispatchIntent, handleConnectWizard, questionForState, questionIDForStep | tipos: frameworkQuestion, connectOutcome, smtpImportOutcome
+- **frameworkmensajero/main.go**: funciones: smtpCredsFromBundle
+- **vault/vault.go**: funciones: discoverRepoVaultDir
+- **frameworkhosting/main_test.go**: archivo nuevo
+
 ## [0.1.26] - 2026-05-12
 
 > **Release**: expandir flujo

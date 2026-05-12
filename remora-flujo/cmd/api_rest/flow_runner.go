@@ -172,6 +172,8 @@ cycleStart:
 		step.Policies = uniqueStrings(contract.Policies)
 		step.ActionBounds = actionBoundTypes(m.ActionBounds)
 		step.ResolutionMode = resolutionModeFromPolicies(contract.Policies)
+		runtime := resolveManifestRuntime(s.rootDir, m)
+		step.Runtime = &runtime
 		dataValidationRequired := !dataValidationApplied && s.shouldRunLayeredDataValidation(node, contract, available)
 		preflightRequired := s.shouldRunPreflightAudit(node, contract, available)
 		if dataValidationRequired || preflightRequired {
@@ -323,6 +325,16 @@ cycleStart:
 		if containsString(step.ArtifactTypes, "action.options.v1") && len(step.ActionOptions) == 0 {
 			step.ActionOptions = flowActionOptionsFromArtifacts(result.Artifacts)
 		}
+		if containsString(step.ArtifactTypes, "action.options.v1") && len(step.ActionOptions) > 0 && !req.DryRun && !req.SimulateHuman && !flowActionSelectionProvided(req) {
+			step.Status = "needs_input"
+			result.Status = "needs_input"
+			result.NeedsInput = append(result.NeedsInput, inputRequestForActionSelection(node, step, result.Artifacts))
+			step.ArtifactTypes = append(step.ArtifactTypes, s.recordFlowReadiness(runID, node.ID, false, result.NeedsInput, available, result.Artifacts))
+			finished := finishFlowRunStep(step)
+			emitStep("step_complete", finished)
+			result.Timeline = append(result.Timeline, finished)
+			break
+		}
 		if node.Role == flowRoleEntry {
 			if artifactType := s.recordWorkContext(runID, req, node.ID, cyclesDone, available, result.Artifacts); artifactType != "" {
 				step.ArtifactTypes = append(step.ArtifactTypes, artifactType)
@@ -432,9 +444,11 @@ cycleStart:
 		goto cycleStart
 	}
 	result.CyclesDone = cyclesDone
+	result.NeedsInput = normalizeFlowRequiredInputs(result.NeedsInput)
 	if result.Status == "completed" {
 		s.recordFlowReadiness(runID, "flow", true, nil, available, result.Artifacts)
 	}
+	s.refreshFlowPrerequisites(runID, req.Flow, available, &result)
 	result.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	_ = s.persistFlowRun(result)
 	return result

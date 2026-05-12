@@ -42,12 +42,45 @@ var ErrNotFound = errors.New("vault: capability not found")
 var ErrNoMasterKey = errors.New("vault: REMORA_VAULT_KEY not set (refuse to operate)")
 
 // DefaultBaseDir devuelve el directorio raíz donde se guardan los secretos.
-// Resolución: REMORA_VAULT_DIR env > "channel/vault_data".
+// Resolución:
+//   - REMORA_VAULT_DIR explícito
+//   - REMORA_ROOT_DIR/channel/vault_data
+//   - descubrimiento ascendente del repo (para frameworks ejecutados desde
+//     cwd distintos, ej framework-hosting/, framework-mensajero/)
+//   - fallback histórico "channel/vault_data"
 func DefaultBaseDir() string {
 	if v := strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")); v != "" {
-		return v
+		return filepath.Clean(v)
+	}
+	if root := strings.TrimSpace(os.Getenv("REMORA_ROOT_DIR")); root != "" {
+		return filepath.Join(filepath.Clean(root), "channel", "vault_data")
+	}
+	if discovered := discoverRepoVaultDir(); discovered != "" {
+		return discovered
 	}
 	return filepath.Join("channel", "vault_data")
+}
+
+func discoverRepoVaultDir() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+	for dir := filepath.Clean(cwd); ; dir = filepath.Dir(dir) {
+		channelRoot := filepath.Join(dir, "channel")
+		if info, statErr := os.Stat(filepath.Join(channelRoot, "go.mod")); statErr == nil && !info.IsDir() {
+			return filepath.Join(channelRoot, "vault_data")
+		}
+		if filepath.Base(dir) == "channel" {
+			if info, statErr := os.Stat(filepath.Join(dir, "go.mod")); statErr == nil && !info.IsDir() {
+				return filepath.Join(dir, "vault_data")
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+	}
 }
 
 // Path arma el path absoluto donde se guarda <conv_id>/<capability>.enc.

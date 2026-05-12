@@ -119,19 +119,21 @@ func inputRequestForAnalysisAcceptance(node flowNode, artifacts map[string]flowR
 	if summary := extractAnalysisProposalSummary(artifacts); summary != "" {
 		message = summary
 	}
-	return flowRequiredInput{
-		Artifact:   "analysis.accepted.v1",
-		Kind:       "analysis_acceptance",
-		Framework:  node.Framework,
-		Capability: node.Capability,
-		Title:      "Aceptar configuración de análisis",
-		Message:    message,
+	return flowInputFromNode(flowRequiredInput{
+		Artifact: "analysis.accepted.v1",
+		Kind:     "analysis_acceptance",
+		Title:    "Aceptar configuración de análisis",
+		Message:  message,
+		Actions: []flowInputAction{
+			{ID: "accept_configuration", Label: "Aceptar configuración"},
+			{ID: "reconfigure_analysis", Label: "Reconfigurar análisis"},
+		},
 		Suggestions: []string{
 			"aceptar configuración",
 			"ajustar pesos",
 			"reconfigurar análisis",
 		},
-	}
+	}, node)
 }
 
 func extractAnalysisProposalSummary(artifacts map[string]flowRunArtifact) string {

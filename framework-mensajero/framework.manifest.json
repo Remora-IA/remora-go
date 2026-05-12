@@ -64,7 +64,7 @@
       }
     },
     "can-send": {
-      "description": "Verifica si hay credenciales para el canal pedido. Imprime JSON {available, missing_capability?, provider_hint?}",
+      "description": "Verifica si el consumer puede leer y usar la capability del canal en el mismo scope/runtime que usará send. Imprime JSON {available, present, readable, complete, missing_capability?, provider_hint?}",
       "args": [
         "can-send",
         "--channel",
@@ -161,7 +161,8 @@
       "execution": "vault_capability_check",
       "policies": [
         "safe_for_runtime",
-        "no_external_side_effect"
+        "no_external_side_effect",
+        "vault_scoped"
       ]
     },
     {

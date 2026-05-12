@@ -41,7 +41,7 @@ func (s *server) recordFlowReadiness(runID, nodeID string, ready bool, needs []f
 
 func resolutionModeForNeed(need flowRequiredInput) string {
 	switch need.Kind {
-	case "contact_email", "hosting_connect":
+	case "contact_email", "hosting_connect", "conversational_question":
 		return "ask_user"
 	default:
 		return "provide_artifact"
@@ -214,19 +214,18 @@ func credentialAvailableFromArtifacts(cap string, artifacts map[string]flowRunAr
 
 func (s *server) inputRequestForHostingConnect() flowRequiredInput {
 	providerName := s.providerNameForCapability("credentials.cpanel.connect")
-	return flowRequiredInput{
-		Artifact:   "credentials.smtp",
-		Kind:       "hosting_connect",
-		Framework:  providerName,
-		Capability: "credentials.cpanel.connect",
-		Title:      "Conectar hosting cPanel",
-		Message:    "Para enviar correos necesito una configuración asistida con Hosting. Remora pedirá el dominio, descubrirá cPanel y preparará automáticamente una casilla de envío.",
+	return flowInputFromNode(flowRequiredInput{
+		Artifact:       "credentials.smtp",
+		Kind:           "conversational_question",
+		Title:          "Conectar hosting",
+		Message:        "Veo que todavía no está listo el correo saliente. Primero necesito el dominio principal del negocio para descubrir cPanel y continuar con Hosting.",
+		Field:          "domain",
+		Step:           "cpanel_domain",
+		NextTransition: "discover_cpanel",
 		Fields: []flowInputField{
 			{Name: "domain", Label: "Dominio del negocio", Type: "text", Required: true, Placeholder: "tudominio.com"},
-			{Name: "user", Label: "Usuario cPanel", Type: "text", Required: true},
-			{Name: "pass", Label: "Contraseña cPanel", Type: "password", Required: true},
 		},
-	}
+	}, flowNode{ID: "hosting.credentials.cpanel.connect", Framework: providerName, Capability: "credentials.cpanel.connect", Role: flowRoleResolution})
 }
 
 func (s *server) inputRequestForContactDestination(node flowNode, artifacts map[string]flowRunArtifact) flowRequiredInput {
@@ -245,18 +244,21 @@ func (s *server) inputRequestForContactDestination(node flowNode, artifacts map[
 		ctx["reported_by"] = "auditor"
 		message = "Auditor marcó una brecha de datos de contacto: " + gap + " Necesito un destinatario antes de enviar."
 	}
-	return flowRequiredInput{
-		Artifact:   "contact.destination.v1",
-		Kind:       "contact_email",
-		Framework:  providerName,
-		Capability: "contact.lookup",
-		Title:      "Falta email del destinatario",
-		Message:    message,
+	return flowInputFromNode(flowRequiredInput{
+		Artifact: "contact.destination.v1",
+		Kind:     "contact_email",
+		Title:    "Falta email del destinatario",
+		Message:  message,
 		Fields: []flowInputField{
 			{Name: "email", Label: "Email destinatario", Type: "email", Required: true, Placeholder: "cliente@empresa.com"},
 		},
 		Context: ctx,
-	}
+	}, flowNode{
+		ID:         firstNonEmptyPipelineString(strings.TrimSpace(node.ID), "contact_lookup"),
+		Framework:  firstNonEmptyPipelineString(strings.TrimSpace(node.Framework), providerName),
+		Capability: firstNonEmptyPipelineString(strings.TrimSpace(node.Capability), "contact.lookup"),
+		Role:       firstNonEmptyPipelineString(strings.TrimSpace(node.Role), flowRoleResolution),
+	})
 }
 
 func contactGapFromArtifacts(artifacts map[string]flowRunArtifact) string {
@@ -288,12 +290,12 @@ func contactGapFromArtifacts(artifacts map[string]flowRunArtifact) string {
 func inputRequestsForMissingArtifacts(node flowNode, missing []string) []flowRequiredInput {
 	out := []flowRequiredInput{}
 	for _, artifact := range missing {
-		out = append(out, flowRequiredInput{
+		out = append(out, flowInputFromNode(flowRequiredInput{
 			Artifact: artifact,
 			Kind:     "artifact",
 			Title:    "Falta información para continuar",
 			Message:  "El paso " + node.ID + " necesita " + artifactLabelForAPI(artifact) + ".",
-		})
+		}, node))
 	}
 	return out
 }

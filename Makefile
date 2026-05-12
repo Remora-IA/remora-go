@@ -5,7 +5,7 @@
 # en lugar de comandos sueltos. Si algo falta, agregalo aca.
 # =============================================================================
 
-.PHONY: help bootstrap setup-prod build build-frameworks build-flujo dev clean clean-logs clean-binaries test deploy-dev fmt vet check
+.PHONY: help bootstrap setup-prod build build-frameworks build-flujo dev restart-api clean clean-logs clean-binaries test deploy-dev fmt vet check
 
 # --- Variables --------------------------------------------------------------
 SHELL          := /bin/bash
@@ -27,7 +27,8 @@ help:
 	@echo "  make bootstrap     Setup inicial local (valida .env, genera vault key, compila)"
 	@echo "  make setup-prod    Setup prod completo (secrets + healthz + CI). Idempotente."
 	@echo "  make build         Compila todos los binarios (frameworks + api_rest)"
-	@echo "  make dev           Arranca api_rest en :8080 (modo desarrollo)"
+	@echo "  make dev           Arranca api_rest en :8084 desde fuente (modo desarrollo)"
+	@echo "  make restart-api   Reinicia api_rest recompilando binario y forzando static desde disco"
 	@echo "  make test          Corre tests de todo el repo"
 	@echo "  make fmt           Formatea codigo Go"
 	@echo "  make vet           Static analysis (go vet)"
@@ -65,12 +66,15 @@ build-flujo:
 
 # --- Desarrollo -------------------------------------------------------------
 dev:
-	@echo "→ Arrancando api_rest en http://localhost:8080"
+	@echo "→ Arrancando api_rest en http://localhost:8084"
 	@if [ ! -f .env ]; then \
 	  echo "❌ Falta .env. Corre 'make bootstrap' primero."; \
 	  exit 1; \
 	fi
-	@set -a && source .env && set +a && cd remora-flujo && $(GO) run ./cmd/api_rest
+	@set -a && source .env && set +a && cd remora-flujo && REMORA_DEV_STATIC=1 $(GO) run ./cmd/api_rest
+
+restart-api:
+	@bash scripts/restart_api.sh
 
 # --- Tests ------------------------------------------------------------------
 test:

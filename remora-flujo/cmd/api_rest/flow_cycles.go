@@ -4,8 +4,6 @@ import (
 	"context"
 	"strings"
 	"time"
-
-	"path/filepath"
 )
 
 func resetCycleArtifacts(available map[string]bool, artifacts map[string]flowRunArtifact) {
@@ -197,15 +195,11 @@ func (s *server) notifyFocoCycleCompleted(ctx context.Context, runID, businessID
 	if err != nil {
 		return false
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + providerName
-	}
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	execCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	resp, err := s.scoped(runID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, filepath.Join(s.rootDir, cwdRel))
+	resp, err := s.scoped(runID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil || resp.ExitCode != 0 {
 		return false
 	}

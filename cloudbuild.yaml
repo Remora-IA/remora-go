@@ -110,6 +110,16 @@ steps:
     id: 'build-hosting'
     waitFor: ['-']
 
+  # Build framework-radar
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        cd framework-radar && go build -o frameworkradar ./cmd/frameworkradar
+    id: 'build-radar'
+    waitFor: ['-']
+
   # Build vault CLI
   - name: 'golang:1.26-bookworm'
     entrypoint: 'bash'
@@ -199,6 +209,7 @@ steps:
       - 'build-sabio'
       - 'build-foco'
       - 'build-hosting'
+      - 'build-radar'
       - 'build-vault'
       - 'build-mensajero'
       - 'build-critico'

@@ -429,6 +429,9 @@ func TestRunFlowManifestPausesForRadarAnalysisAcceptance(t *testing.T) {
 	if len(result.NeedsInput) == 0 || result.NeedsInput[0].Artifact != "analysis.accepted.v1" {
 		t.Fatalf("expected analysis acceptance need, got %#v", result.NeedsInput)
 	}
+	if result.NeedsInput[0].Node != "configure" || result.NeedsInput[0].Visibility != flowStepVisibilityUserFacing {
+		t.Fatalf("expected analysis acceptance anchored to configure, got %#v", result.NeedsInput[0])
+	}
 	if _, ok := result.Artifacts["collection.priority_list.v1"]; ok {
 		t.Fatalf("prioritize should not run before acceptance: %#v", result.Artifacts)
 	}
@@ -1595,6 +1598,9 @@ func TestRunFlowManifestInjectsAuditorPreflightBeforeExternalSideEffect(t *testi
 	if len(result.NeedsInput) != 1 || result.NeedsInput[0].Artifact != "contact.destination.v1" || result.NeedsInput[0].Context["reported_by"] != "auditor" {
 		t.Fatalf("expected auditor-driven contact input, got %#v", result.NeedsInput)
 	}
+	if result.NeedsInput[0].Node == "" || result.NeedsInput[0].Visibility != flowStepVisibilityUserFacing {
+		t.Fatalf("expected visible node anchor for contact input, got %#v", result.NeedsInput[0])
+	}
 	if _, ok := result.Artifacts["message.sent.v1"]; ok {
 		t.Fatalf("sender should not run before preflight gaps are resolved")
 	}
@@ -1664,6 +1670,9 @@ func TestRunFlowManifestRequestsApprovalForMecanicoProposals(t *testing.T) {
 	}
 	if len(result.NeedsInput) != 1 || result.NeedsInput[0].Framework != "mecanico" || result.NeedsInput[0].Kind != "approval" {
 		t.Fatalf("expected mecanico approval input, got %#v", result.NeedsInput)
+	}
+	if result.NeedsInput[0].Node != "gap_resolve_mecanico_0" {
+		t.Fatalf("expected mecanico approval anchored to resolution node, got %#v", result.NeedsInput[0])
 	}
 	if _, ok := result.Artifacts["mecanico.proposals.v1"]; !ok {
 		t.Fatalf("missing mecanico proposals artifact in %#v", result.Artifacts)
@@ -1783,7 +1792,7 @@ func TestRunFlowManifestExposesStructuredActionOptions(t *testing.T) {
 	}, channel: adapter.New(channel.URL, "test-key")}
 
 	result := s.runFlowManifest(context.Background(), flowRunRequest{Flow: flowManifest{ID: "options", Nodes: []flowNode{{ID: "focus", Framework: "foco", Capability: "focus.next_collection_task"}}}}, nil)
-	if result.Status != "completed" {
+	if result.Status != "needs_input" {
 		t.Fatalf("status=%s result=%#v", result.Status, result)
 	}
 	if len(result.Timeline) != 1 || len(result.Timeline[0].ActionOptions) != 2 {
@@ -1791,6 +1800,12 @@ func TestRunFlowManifestExposesStructuredActionOptions(t *testing.T) {
 	}
 	if result.Timeline[0].ActionOptions[0]["id"] != "send_email" {
 		t.Fatalf("unexpected action options %#v", result.Timeline[0].ActionOptions)
+	}
+	if len(result.NeedsInput) != 1 || result.NeedsInput[0].Kind != "action_selection" {
+		t.Fatalf("expected action selection pause, got %#v", result.NeedsInput)
+	}
+	if len(result.NeedsInput[0].Actions) != 2 || result.NeedsInput[0].Actions[0].ID != "send_email" {
+		t.Fatalf("unexpected action selection actions %#v", result.NeedsInput[0].Actions)
 	}
 }
 
@@ -1832,7 +1847,7 @@ func TestRunFlowManifestValidatesActionOptionsAgainstManifestBounds(t *testing.T
 	}, channel: adapter.New(channel.URL, "test-key")}
 
 	result := s.runFlowManifest(context.Background(), flowRunRequest{Flow: flowManifest{ID: "bounds", Nodes: []flowNode{{ID: "focus", Framework: "foco", Capability: "focus.next_collection_task"}}}}, nil)
-	if result.Status != "completed" {
+	if result.Status != "needs_input" {
 		t.Fatalf("status=%s result=%#v", result.Status, result)
 	}
 	if len(result.Timeline) != 1 {
@@ -1847,6 +1862,9 @@ func TestRunFlowManifestValidatesActionOptionsAgainstManifestBounds(t *testing.T
 	}
 	if _, ok := result.Artifacts["action.bounds.validation.v1"]; !ok {
 		t.Fatalf("missing action bounds validation artifact")
+	}
+	if len(result.NeedsInput) != 1 || len(result.NeedsInput[0].Actions) != 2 {
+		t.Fatalf("expected paused bounded action selection, got %#v", result.NeedsInput)
 	}
 }
 
@@ -2348,7 +2366,6 @@ func TestCollectionFlowActivatesHostingWhenSMTPMissing(t *testing.T) {
 	if result.Status != "needs_input" {
 		t.Fatalf("status=%s result=%#v", result.Status, result)
 	}
-	// Hosting is now invisible. Mecanico asks for SMTP credentials conversationally.
 	if len(result.NeedsInput) == 0 {
 		t.Fatalf("expected needs_input for missing SMTP, got none")
 	}
@@ -2356,11 +2373,57 @@ func TestCollectionFlowActivatesHostingWhenSMTPMissing(t *testing.T) {
 	if ni.Kind != "conversational_question" {
 		t.Fatalf("expected conversational_question for missing SMTP, got kind=%q: %#v", ni.Kind, result.NeedsInput)
 	}
+	if ni.Framework != "hosting" {
+		t.Fatalf("expected Hosting to own missing outbound email, got framework=%q: %#v", ni.Framework, ni)
+	}
+	if ni.Capability != "credentials.cpanel.connect" {
+		t.Fatalf("expected Hosting connect capability, got %q", ni.Capability)
+	}
+	if ni.Field != "domain" && ni.Step != "cpanel_domain" {
+		t.Fatalf("expected sequential Hosting setup to start with domain/cpanel discovery, got %#v", ni)
+	}
+	if strings.Contains(strings.ToLower(ni.Message), "smtp") && strings.Contains(strings.ToLower(ni.Message), "host smtp") {
+		t.Fatalf("unexpected generic SMTP prompt in Hosting question: %#v", ni)
+	}
 	if ni.Artifact != "credentials.smtp" {
 		t.Fatalf("expected artifact credentials.smtp, got %q: %#v", ni.Artifact, ni)
 	}
 	if _, ok := result.Artifacts["message.draft.v1"]; !ok {
 		t.Fatalf("expected draft before SMTP block: %#v", result.Artifacts)
+	}
+}
+
+func TestCollectionFlowRoutesNodeViewAnswerToHosting(t *testing.T) {
+	s, closeFn := newCollectionSmokeServer(t)
+	defer closeFn()
+
+	req := collectionSmokeRequest(true, false)
+	first := s.runFlowManifest(context.Background(), req, nil)
+	if first.Status != "needs_input" || len(first.NeedsInput) == 0 {
+		t.Fatalf("expected hosting needs_input, got %#v", first)
+	}
+	need := first.NeedsInput[0]
+	if need.Framework != "hosting" {
+		t.Fatalf("expected Hosting owner, got %#v", need)
+	}
+
+	req.InitialArtifacts["flow.interaction.answer.v1"] = map[string]interface{}{
+		"artifact_type": "flow.interaction.answer.v1",
+		"framework":     need.Framework,
+		"capability":    need.Capability,
+		"artifact":      need.Artifact,
+		"question_id":   need.QuestionID,
+		"field":         need.Field,
+		"step":          need.Step,
+		"value":         "tudominio.com",
+	}
+	req.Approved = true
+	second := s.runFlowManifest(context.Background(), req, nil)
+	if second.Status != "max_cycles_reached" {
+		t.Fatalf("expected flow to continue after routing answer to Hosting, got status=%s result=%#v", second.Status, second)
+	}
+	if _, ok := second.Artifacts["message.sent.v1"]; !ok {
+		t.Fatalf("expected send after Hosting answer, got %#v", second.Artifacts)
 	}
 }
 
@@ -2400,7 +2463,9 @@ func collectionSmokeRequest(withContact, withSMTP bool) flowRunRequest {
 				{ID: "send", Framework: "mensajero", Capability: "message.send", Role: flowRolePipeline},
 			},
 		},
-		InitialArtifacts: map[string]interface{}{},
+		InitialArtifacts: map[string]interface{}{
+			"action.selection.v1": map[string]interface{}{"artifact_type": "action.selection.v1", "id": "send_email", "label": "Enviar email"},
+		},
 	}
 	if withContact {
 		req.InitialArtifacts["contact.destination.v1"] = map[string]interface{}{"artifact_type": "contact.destination.v1", "channel": "email", "destination": "cliente@example.com", "value": "cliente@example.com", "to": "cliente@example.com", "entity_type": "client", "entity_ref": "cust_1"}
@@ -2414,6 +2479,7 @@ func collectionSmokeRequest(withContact, withSMTP bool) flowRunRequest {
 func newCollectionSmokeServer(t *testing.T) (*server, func()) {
 	t.Helper()
 	root := t.TempDir()
+	smtpConfigured := false
 	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]interface{}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -2445,9 +2511,16 @@ func newCollectionSmokeServer(t *testing.T) (*server, func()) {
 		case "smoke-mecanico-draft":
 			stdout = `{"artifact_type":"message.draft.v1","subject":"Recordatorio de pago","body":"Hola Cliente Uno, registramos una deuda pendiente.","to":"cliente@example.com","channel":"email"}`
 		case "smoke-hosting-next":
-			stdout = `{"id":"smtp_q1","text":"Necesito credenciales SMTP para enviar correos."}`
+			stdout = `{"id":"hosting_domain","text":"Veo que todavía no tengo conectado el hosting del negocio. Primero necesito el dominio principal o el host de cPanel.","framework":"hosting","capability":"credentials.cpanel.connect","field":"domain","field_label":"Dominio principal o host de cPanel","input_type":"text","placeholder":"tudominio.com","step":"cpanel_domain","required_artifact":"credentials.smtp","next_transition":"discover_cpanel"}`
+		case "smoke-hosting-ingest":
+			smtpConfigured = true
+			stdout = `{"ok":true}`
 		case "smoke-hosting-has":
-			stdout = `{"available":false,"capability":"credentials.smtp"}`
+			if smtpConfigured {
+				stdout = `{"artifact_type":"credentials.status.v1","available":true,"ready":true,"verified":true,"capability":"credentials.smtp"}`
+			} else {
+				stdout = `{"artifact_type":"credentials.status.v1","available":false,"capability":"credentials.smtp"}`
+			}
 		case "smoke-mensajero":
 			stdout = `{"artifact_type":"message.sent.v1","message_id":"msg_1","to":"cliente@example.com","channel":"email"}`
 		default:
@@ -2477,7 +2550,18 @@ func collectionSmokeManifests() map[string]*manifest.Manifest {
 		"foco":      {Name: "foco", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"next-task": {Args: []string{"-c", "smoke-foco"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "focus.next_collection_task", Command: "next-task", Requires: []string{"collection.priority_list.v1"}, Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"}}}},
 		"auditor":   {Name: "auditor", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"scan": {Args: []string{"-c", "smoke-auditor"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "data.quality.audit", Command: "scan", Requires: []string{"dataset.raw.v1"}, Produces: []string{"auditor.findings.v1", "data.gaps.v1"}}}},
 		"mecanico":  {Name: "mecanico", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"resolve-gaps": {Args: []string{"-c", "smoke-mecanico-resolve"}, Params: []string{"data_gaps_json", "findings_json", "entity_ref_json"}}, "draft-email": {Args: []string{"-c", "smoke-mecanico-draft"}, Params: []string{"deudor", "to", "saldo", "dias_mora"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "message.draft.collection_email", Command: "draft-email", Requires: []string{"entity.ref.v1", "contact.destination.v1"}, Produces: []string{"message.draft.v1"}}}},
-		"hosting":   {Name: "hosting", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"next-question": {Args: []string{"-c", "smoke-hosting-next"}}, "has-smtp": {Args: []string{"-c", "smoke-hosting-has"}, Params: []string{"conv_id"}}}},
+		"hosting": {
+			Name: "hosting", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"next-question": {Args: []string{"-c", "smoke-hosting-next"}},
+				"ingest-answer": {Args: []string{"-c", "smoke-hosting-ingest"}, Params: []string{"question_id", "answer", "conv_id"}},
+				"has-smtp":      {Args: []string{"-c", "smoke-hosting-has"}, Params: []string{"conv_id"}},
+			},
+			Capabilities: []manifest.CapabilitySpec{
+				{ID: "credentials.cpanel.connect", Command: "next-question", Produces: []string{"credentials.cpanel"}},
+				{ID: "credentials.smtp.check", Command: "has-smtp", Requires: []string{"session.context.v1"}, Produces: []string{"credentials.status.v1"}},
+			},
+		},
 		"mensajero": {Name: "mensajero", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"send": {Args: []string{"-c", "smoke-mensajero"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "message.send", Command: "send", Requires: []string{"message.draft.v1", "credentials.smtp"}, Produces: []string{"message.sent.v1"}, Policies: []string{"external_side_effect"}}}},
 	}
 }

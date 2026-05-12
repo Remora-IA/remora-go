@@ -64,15 +64,10 @@ func (s *server) businessArtifacts(businessID string) businessArtifactsResponse 
 			params := map[string]string{"conv_id": convID}
 			args, err := cmd.ResolveArgs(params, nil, nil)
 			if err == nil {
-				fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-				fullArgs = append(fullArgs, args...)
-				cwdRel := m.Cwd
-				if cwdRel == "" {
-					cwdRel = "framework-hosting"
-				}
-				cwd := filepath.Join(s.rootDir, cwdRel)
+				runtime := resolveManifestRuntime(s.rootDir, m)
+				fullArgs := runtime.FullArgs(args, m)
 				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-				resp, err := s.scoped(convID).ExecuteCommand(ctx, m.Binary.Command, fullArgs, cwd)
+				resp, err := s.scoped(convID).ExecuteCommand(ctx, runtime.Command, fullArgs, runtime.Cwd)
 				cancel()
 				if err == nil && resp.ExitCode == 0 {
 					var result map[string]interface{}

@@ -36,30 +36,48 @@ import (
 	"net/http"
 	"net/smtp"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"channel/credentials"
 	"framework-hosting/internal/cpanel"
 	"framework-hosting/internal/creds"
 )
 
 const (
 	defaultStateDir = "temp"
-	greetingText    = "Soy tu asistente de hosting. Voy a conectar tu cPanel y preparar automáticamente el correo de envío para Remora. Primero decime el host de cPanel o el dominio principal (por ejemplo: cpanel.tudominio.com o tudominio.com)."
 )
 
-// state mantiene el progreso conversacional del framework (un saludo + una
-// respuesta pendiente). Vive en disco, separado por conversación.
+type frameworkQuestion struct {
+	ID               string `json:"id"`
+	Text             string `json:"text"`
+	Title            string `json:"title,omitempty"`
+	Framework        string `json:"framework,omitempty"`
+	Capability       string `json:"capability,omitempty"`
+	Kind             string `json:"kind,omitempty"`
+	Field            string `json:"field,omitempty"`
+	FieldLabel       string `json:"field_label,omitempty"`
+	InputType        string `json:"input_type,omitempty"`
+	Placeholder      string `json:"placeholder,omitempty"`
+	Secret           bool   `json:"secret,omitempty"`
+	Step             string `json:"step,omitempty"`
+	RequiredArtifact string `json:"required_artifact,omitempty"`
+	NextTransition   string `json:"next_transition,omitempty"`
+}
+
+// state mantiene el progreso conversacional del framework. Vive en disco,
+// separado por conversación.
 type state struct {
-	GreetingAsked bool      `json:"greeting_asked"`
-	PendingAnswer string    `json:"pending_answer,omitempty"`
-	PendingID     string    `json:"pending_id,omitempty"`
-	SetupStep     string    `json:"setup_step,omitempty"`
-	Host          string    `json:"host,omitempty"`
-	User          string    `json:"user,omitempty"`
-	LastAt        time.Time `json:"last_at,omitempty"`
+	PendingQuestion *frameworkQuestion `json:"pending_question,omitempty"`
+	SetupStep       string             `json:"setup_step,omitempty"`
+	Domain          string             `json:"domain,omitempty"`
+	Host            string             `json:"host,omitempty"`
+	User            string             `json:"user,omitempty"`
+	SMTPEmail       string             `json:"smtp_email,omitempty"`
+	SMTPHost        string             `json:"smtp_host,omitempty"`
+	SMTPPort        string             `json:"smtp_port,omitempty"`
+	LastAt          time.Time          `json:"last_at,omitempty"`
 }
 
 func main() {
@@ -94,8 +112,7 @@ func main() {
 	}
 }
 
-// cmdNextQuestion devuelve el saludo inicial UNA vez, luego la respuesta
-// pendiente si hay (resultado de un ingest-answer reciente), o {}.
+// cmdNextQuestion devuelve el siguiente paso explícito del wizard de Hosting.
 func cmdNextQuestion(args []string) {
 	fs := flag.NewFlagSet("next-question", flag.ExitOnError)
 	convID := fs.String("conv-id", "", "id de la conversación")
@@ -105,29 +122,21 @@ func cmdNextQuestion(args []string) {
 	sp := resolveStatePath(*statePath, *convID)
 	s := loadState(sp)
 
-	if s.PendingAnswer != "" {
-		out := map[string]string{
-			"id":   s.PendingID,
-			"text": s.PendingAnswer,
-		}
-		s.PendingAnswer = ""
-		s.PendingID = ""
+	if s.PendingQuestion != nil {
+		out := *s.PendingQuestion
+		s.PendingQuestion = nil
 		_ = saveState(sp, s)
 		printJSON(out)
 		return
 	}
-
-	if !s.GreetingAsked {
-		s.GreetingAsked = true
-		s.LastAt = time.Now()
-		_ = saveState(sp, s)
-		printJSON(map[string]string{
-			"id":   fmt.Sprintf("hosting_greet_%d", time.Now().Unix()),
-			"text": greetingText,
-		})
+	if smtpAlreadyConfigured(*convID) {
+		printJSON(map[string]string{})
 		return
 	}
-
+	if q := questionForState(s); q != nil {
+		printJSON(q)
+		return
+	}
 	printJSON(map[string]string{}) // nada pendiente
 }
 
@@ -135,7 +144,7 @@ func cmdNextQuestion(args []string) {
 //   - "conectar <host> <user> <pass>"
 //   - "listar correos" / "lista emails" / "list emails"
 //
-// Cualquier otra cosa devuelve un mensaje de ayuda.
+// Cualquier otra cosa sigue el wizard secuencial de Hosting.
 func cmdIngestAnswer(args []string) {
 	fs := flag.NewFlagSet("ingest-answer", flag.ExitOnError)
 	questionID := fs.String("question-id", "", "id de la pregunta")
@@ -153,55 +162,134 @@ func cmdIngestAnswer(args []string) {
 	cp := creds.Path(filepath.Dir(sp), *convID)
 
 	s := loadState(sp)
-	respText := dispatchIntent(strings.TrimSpace(*answer), cp, *convID, s)
-	s.PendingAnswer = respText
-	s.PendingID = fmt.Sprintf("hosting_resp_%d", time.Now().Unix())
+	s.PendingQuestion = dispatchIntent(strings.TrimSpace(*answer), strings.TrimSpace(*questionID), cp, *convID, s)
 	s.LastAt = time.Now()
 	_ = saveState(sp, s)
 }
 
 // dispatchIntent es un router super simple basado en prefijos. Para una v2
 // usaríamos LLM o reglas más ricas, pero para POC alcanza.
-func dispatchIntent(answer, credsPath, convID string, s *state) string {
+func dispatchIntent(answer, questionID, credsPath, convID string, s *state) *frameworkQuestion {
 	low := strings.ToLower(answer)
 
 	switch {
 	case strings.HasPrefix(low, "conectar "), strings.HasPrefix(low, "connect "):
-		return doConnectFromText(answer, credsPath, convID)
+		return questionFromConnectResult(doConnectFromText(answer, credsPath, convID), s)
 	case strings.Contains(low, "listar correo"),
 		strings.Contains(low, "lista emails"),
 		strings.Contains(low, "list emails"),
 		strings.Contains(low, "list-emails"):
-		return doListEmails(credsPath)
+		return infoQuestion("hosting_list_emails", doListEmails(credsPath), "credentials.cpanel.connect", "email_listing", "hosting_ready")
 	default:
-		return handleConnectWizard(answer, credsPath, convID, s)
+		return handleConnectWizard(answer, questionID, credsPath, convID, s)
 	}
 }
 
-func handleConnectWizard(answer, credsPath, convID string, s *state) string {
+func handleConnectWizard(answer, questionID, credsPath, convID string, s *state) *frameworkQuestion {
+	_ = questionID
 	answer = strings.TrimSpace(answer)
 	if answer == "" {
-		return "No recibí texto. Decime el host de cPanel o el dominio principal."
+		return questionForState(s)
 	}
 	switch s.SetupStep {
-	case "":
-		s.Host = sanitizeHostAnswer(answer)
-		s.SetupStep = "user"
-		return "Perfecto. ¿Cuál es el usuario de cPanel?"
-	case "user":
-		s.User = strings.TrimSpace(answer)
-		s.SetupStep = "pass"
-		return "Listo. Ahora decime la contraseña de cPanel. No la voy a mostrar ni registrar; la usaré solo para conectar por API y guardar secretos cifrados."
-	case "pass":
-		pass := answer
-		host, user := s.Host, s.User
-		s.SetupStep = ""
+	case "", "cpanel_domain":
+		s.Domain = normalizeDomain(answer)
+		if looksLikeDirectCPanelHost(answer) {
+			s.Host = sanitizeHostAnswer(answer)
+			s.SetupStep = "cpanel_user"
+			return questionForState(s)
+		}
+		best, found := discoverBestCPanel(s.Domain)
+		if found {
+			s.Host = best
+			s.SetupStep = "cpanel_user"
+			return &frameworkQuestion{
+				ID:               questionIDForStep("cpanel_user"),
+				Text:             fmt.Sprintf("Encontré un cPanel probable en %s. Ahora necesito el usuario de cPanel para continuar con la conexión.", best),
+				Title:            "Conectar hosting",
+				Framework:        "hosting",
+				Capability:       "credentials.cpanel.connect",
+				Kind:             "conversational_question",
+				Field:            "cpanel_user",
+				FieldLabel:       "Usuario de cPanel",
+				InputType:        "text",
+				Placeholder:      "usuario o usuario@dominio.com",
+				Step:             "cpanel_user",
+				RequiredArtifact: "credentials.smtp",
+				NextTransition:   "request_cpanel_user",
+			}
+		}
 		s.Host = ""
-		s.User = ""
-		return doConnect(host, user, pass, credsPath, convID)
+		s.SetupStep = "cpanel_host"
+		return &frameworkQuestion{
+			ID:               questionIDForStep("cpanel_host"),
+			Text:             fmt.Sprintf("Probé descubrir cPanel para %s y no encontré un endpoint confiable. Compartime el host o URL de cPanel para seguir con Hosting.", firstNonEmpty(answer, "tu dominio")),
+			Title:            "Conectar hosting",
+			Framework:        "hosting",
+			Capability:       "credentials.cpanel.connect",
+			Kind:             "conversational_question",
+			Field:            "cpanel_host",
+			FieldLabel:       "Host de cPanel",
+			InputType:        "text",
+			Placeholder:      "cpanel.tudominio.com",
+			Step:             "cpanel_host",
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_cpanel_host",
+		}
+	case "cpanel_host":
+		s.Host = sanitizeHostAnswer(answer)
+		s.SetupStep = "cpanel_user"
+		return questionForState(s)
+	case "cpanel_user":
+		s.User = strings.TrimSpace(answer)
+		s.SetupStep = "cpanel_pass"
+		return questionForState(s)
+	case "cpanel_pass":
+		return questionFromConnectResult(doConnectWizard(s.Host, s.User, answer, credsPath, convID), s)
+	case "smtp_email":
+		s.SMTPEmail = strings.TrimSpace(answer)
+		if s.SMTPHost == "" {
+			s.SMTPHost = defaultSMTPHostForEmail(s.SMTPEmail, s.Domain)
+		}
+		if s.SMTPPort == "" {
+			s.SMTPPort = "587"
+		}
+		s.SetupStep = "smtp_pass"
+		return questionForState(s)
+	case "smtp_pass":
+		return questionFromSMTPImportResult(importSMTPWizard(s, answer, convID), s)
+	case "smtp_host":
+		s.SMTPHost = sanitizeHostAnswer(answer)
+		if s.SMTPPort == "" {
+			s.SMTPPort = "587"
+		}
+		s.SetupStep = "smtp_port"
+		return questionForState(s)
+	case "smtp_port":
+		port := strings.TrimSpace(answer)
+		if port == "" {
+			port = "587"
+		}
+		s.SMTPPort = port
+		s.SetupStep = "smtp_pass"
+		return &frameworkQuestion{
+			ID:               questionIDForStep("smtp_pass"),
+			Text:             "Perfecto. Ahora necesito la contraseña de esa casilla para verificar el acceso SMTP real.",
+			Title:            "Importar casilla existente",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_pass",
+			FieldLabel:       "Contraseña de la casilla",
+			InputType:        "password",
+			Secret:           true,
+			Step:             "smtp_pass",
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "verify_imported_smtp",
+		}
 	default:
-		s.SetupStep = ""
-		return "Reinicié el asistente de hosting. Decime el host de cPanel o dominio principal."
+		resetSetupState(s)
+		return questionForState(s)
 	}
 }
 
@@ -217,27 +305,354 @@ func sanitizeHostAnswer(answer string) string {
 	return answer
 }
 
+func questionForState(s *state) *frameworkQuestion {
+	step := strings.TrimSpace(s.SetupStep)
+	if step == "" {
+		step = "cpanel_domain"
+		s.SetupStep = step
+	}
+	switch step {
+	case "cpanel_domain":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "Veo que todavía no tengo conectado el hosting del negocio. Primero necesito el dominio principal o el host de cPanel para descubrir el panel y preparar el correo saliente.",
+			Title:            "Conectar hosting",
+			Framework:        "hosting",
+			Capability:       "credentials.cpanel.connect",
+			Kind:             "conversational_question",
+			Field:            "domain",
+			FieldLabel:       "Dominio principal o host de cPanel",
+			InputType:        "text",
+			Placeholder:      "tudominio.com",
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "discover_cpanel",
+		}
+	case "cpanel_user":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "Perfecto. Ahora necesito el usuario de cPanel para seguir con la conexión del hosting.",
+			Title:            "Conectar hosting",
+			Framework:        "hosting",
+			Capability:       "credentials.cpanel.connect",
+			Kind:             "conversational_question",
+			Field:            "cpanel_user",
+			FieldLabel:       "Usuario de cPanel",
+			InputType:        "text",
+			Placeholder:      "usuario o usuario@dominio.com",
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_cpanel_password",
+		}
+	case "cpanel_pass":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "Listo. Ahora decime la contraseña o API token de cPanel. La usaré solo para conectarme al panel y guardar los secretos cifrados.",
+			Title:            "Conectar hosting",
+			Framework:        "hosting",
+			Capability:       "credentials.cpanel.connect",
+			Kind:             "conversational_question",
+			Field:            "cpanel_pass",
+			FieldLabel:       "Contraseña o token de cPanel",
+			InputType:        "password",
+			Secret:           true,
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "connect_cpanel",
+		}
+	case "smtp_email":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "Ya conecté el hosting, pero no pude dejar lista la casilla de envío automáticamente. Si ya tienes una casilla existente, compartime primero el email completo que quieres usar para enviar.",
+			Title:            "Importar casilla existente",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_email",
+			FieldLabel:       "Email de la casilla",
+			InputType:        "email",
+			Placeholder:      "cobranza@tudominio.com",
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_smtp_password",
+		}
+	case "smtp_pass":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "Gracias. Ahora necesito la contraseña de esa casilla para verificar el acceso SMTP real.",
+			Title:            "Importar casilla existente",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_pass",
+			FieldLabel:       "Contraseña de la casilla",
+			InputType:        "password",
+			Secret:           true,
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "verify_imported_smtp",
+		}
+	case "smtp_host":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "No pude verificar la casilla con el host por defecto. Compartime el host SMTP real para probar de nuevo.",
+			Title:            "Ajustar SMTP",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_host",
+			FieldLabel:       "Host SMTP",
+			InputType:        "text",
+			Placeholder:      "mail.tudominio.com",
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_smtp_port",
+		}
+	case "smtp_port":
+		return &frameworkQuestion{
+			ID:               questionIDForStep(step),
+			Text:             "Último paso: ¿qué puerto SMTP quieres usar? Si no estás seguro, normalmente es 587.",
+			Title:            "Ajustar SMTP",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_port",
+			FieldLabel:       "Puerto SMTP",
+			InputType:        "text",
+			Placeholder:      "587",
+			Step:             step,
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_smtp_password",
+		}
+	default:
+		resetSetupState(s)
+		return questionForState(s)
+	}
+}
+
+func questionIDForStep(step string) string {
+	return "hosting_" + strings.TrimSpace(step)
+}
+
+func infoQuestion(id, text, capability, step, transition string) *frameworkQuestion {
+	return &frameworkQuestion{
+		ID:               id,
+		Text:             text,
+		Title:            "Hosting",
+		Framework:        "hosting",
+		Capability:       capability,
+		Kind:             "conversational_question",
+		Field:            "ack",
+		FieldLabel:       "Continuar",
+		InputType:        "text",
+		Step:             step,
+		RequiredArtifact: "credentials.smtp",
+		NextTransition:   transition,
+	}
+}
+
+func smtpAlreadyConfigured(convID string) bool {
+	_, status := loadSMTPBundle(convID)
+	return status.Present && status.Readable && status.Complete
+}
+
+func looksLikeDirectCPanelHost(answer string) bool {
+	host := strings.ToLower(sanitizeHostAnswer(answer))
+	return strings.Contains(host, "cpanel.") || strings.Contains(host, ":2083") || strings.Contains(host, ":2082")
+}
+
+func resetSetupState(s *state) {
+	s.SetupStep = "cpanel_domain"
+	s.Domain = ""
+	s.Host = ""
+	s.User = ""
+	s.SMTPEmail = ""
+	s.SMTPHost = ""
+	s.SMTPPort = ""
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func defaultSMTPHostForEmail(emailAddr, fallbackDomain string) string {
+	domain := fallbackDomain
+	if parts := strings.Split(strings.TrimSpace(emailAddr), "@"); len(parts) == 2 && strings.TrimSpace(parts[1]) != "" {
+		domain = strings.TrimSpace(parts[1])
+	}
+	if domain == "" {
+		return ""
+	}
+	return "mail." + normalizeDomain(domain)
+}
+
+func discoverBestCPanel(domain string) (string, bool) {
+	d := normalizeDomain(domain)
+	if d == "" {
+		return "", false
+	}
+	candidates := []string{
+		"https://cpanel." + d + ":2083",
+		"https://" + d + ":2083",
+		"http://cpanel." + d + ":2082",
+		"http://" + d + ":2082",
+	}
+	best := ""
+	for _, u := range candidates {
+		r := probeCPanelURL(u)
+		if best == "" && r.Reachable && r.LooksCPanel {
+			best = r.URL
+		}
+	}
+	if best == "" {
+		for _, u := range candidates {
+			r := probeCPanelURL(u)
+			if r.Reachable {
+				best = r.URL
+				break
+			}
+		}
+	}
+	return best, best != ""
+}
+
 // doConnectFromText parsea "conectar host user pass" y delega a doConnect.
 // Tolerante con espacios extras y variantes en el verbo.
-func doConnectFromText(text, credsPath, convID string) string {
+func doConnectFromText(text, credsPath, convID string) connectOutcome {
 	parts := strings.Fields(text)
 	if len(parts) < 4 {
-		return "Faltan datos. Formato: `conectar <host> <usuario> <password>`"
+		return connectOutcome{Message: "Faltan datos. Formato: `conectar <host> <usuario> <password>`"}
 	}
 	host, user, pass := parts[1], parts[2], strings.Join(parts[3:], " ")
 	return doConnect(host, user, pass, credsPath, convID)
 }
 
+type connectOutcome struct {
+	Success            bool
+	SMTPReady          bool
+	Message            string
+	RequiresSMTPImport bool
+}
+
+type smtpImportOutcome struct {
+	Success      bool
+	Message      string
+	NeedSMTPHost bool
+}
+
+func doConnectWizard(host, user, pass, credsPath, convID string) connectOutcome {
+	return doConnect(host, user, pass, credsPath, convID)
+}
+
+func questionFromConnectResult(result connectOutcome, s *state) *frameworkQuestion {
+	if result.Success && result.SMTPReady {
+		resetSetupState(s)
+		return infoQuestion("hosting_ready", result.Message, "credentials.cpanel.connect", "hosting_ready", "smtp_ready")
+	}
+	if result.Success && result.RequiresSMTPImport {
+		s.SetupStep = "smtp_email"
+		return &frameworkQuestion{
+			ID:               questionIDForStep("smtp_email"),
+			Text:             result.Message + "\n\nPara terminar, voy a importar una casilla existente. Empecemos por el email completo de esa casilla.",
+			Title:            "Importar casilla existente",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_email",
+			FieldLabel:       "Email de la casilla",
+			InputType:        "email",
+			Placeholder:      "cobranza@tudominio.com",
+			Step:             "smtp_email",
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_smtp_password",
+		}
+	}
+	s.SetupStep = "cpanel_pass"
+	return &frameworkQuestion{
+		ID:               questionIDForStep("cpanel_pass"),
+		Text:             result.Message + "\n\nProbemos de nuevo con la contraseña o API token de cPanel.",
+		Title:            "Conectar hosting",
+		Framework:        "hosting",
+		Capability:       "credentials.cpanel.connect",
+		Kind:             "conversational_question",
+		Field:            "cpanel_pass",
+		FieldLabel:       "Contraseña o token de cPanel",
+		InputType:        "password",
+		Secret:           true,
+		Step:             "cpanel_pass",
+		RequiredArtifact: "credentials.smtp",
+		NextTransition:   "connect_cpanel",
+	}
+}
+
+func importSMTPWizard(s *state, pass, convID string) smtpImportOutcome {
+	if s.SMTPEmail == "" {
+		s.SetupStep = "smtp_email"
+		return smtpImportOutcome{Message: "Primero necesito el email de la casilla que quieres usar."}
+	}
+	host := firstNonEmpty(s.SMTPHost, defaultSMTPHostForEmail(s.SMTPEmail, s.Domain))
+	port := firstNonEmpty(s.SMTPPort, "587")
+	if err := saveSMTPBundle(convID, credentials.SMTPBundle{
+		Host: host, Port: port, User: s.SMTPEmail, Pass: pass, From: s.SMTPEmail,
+	}); err != nil {
+		return smtpImportOutcome{Message: "No pude guardar esas credenciales SMTP: " + err.Error()}
+	}
+	if err := verifySMTPLogin(host, port, s.SMTPEmail, pass); err != nil {
+		s.SMTPHost = host
+		s.SMTPPort = port
+		s.SetupStep = "smtp_host"
+		return smtpImportOutcome{
+			Message:      "No pude verificar la casilla con el host actual: " + err.Error(),
+			NeedSMTPHost: true,
+		}
+	}
+	emailAddr := s.SMTPEmail
+	resetSetupState(s)
+	return smtpImportOutcome{
+		Success: true,
+		Message: fmt.Sprintf("Perfecto. Hosting dejó configurada la casilla %s vía %s:%s y el flujo ya puede continuar.", emailAddr, host, port),
+	}
+}
+
+func questionFromSMTPImportResult(result smtpImportOutcome, s *state) *frameworkQuestion {
+	if result.Success {
+		return infoQuestion("hosting_smtp_ready", result.Message, "credentials.smtp.import", "smtp_ready", "resume_flow")
+	}
+	if result.NeedSMTPHost {
+		return &frameworkQuestion{
+			ID:               questionIDForStep("smtp_host"),
+			Text:             result.Message + "\n\nCompartime ahora el host SMTP real para reintentar.",
+			Title:            "Ajustar SMTP",
+			Framework:        "hosting",
+			Capability:       "credentials.smtp.import",
+			Kind:             "conversational_question",
+			Field:            "smtp_host",
+			FieldLabel:       "Host SMTP",
+			InputType:        "text",
+			Placeholder:      "mail.tudominio.com",
+			Step:             "smtp_host",
+			RequiredArtifact: "credentials.smtp",
+			NextTransition:   "request_smtp_port",
+		}
+	}
+	return questionForState(s)
+}
+
 // doConnect prueba auth contra cPanel y, si OK, persiste credenciales.
 // Luego descubre automáticamente cuentas de email y auto-configura SMTP.
-func doConnect(host, user, pass, credsPath, convID string) string {
+func doConnect(host, user, pass, credsPath, convID string) connectOutcome {
 	host = sanitizeHostAnswer(host)
 	if isPlaceholderHost(host) {
-		return "No voy a conectar contra un dominio de ejemplo. Decime el dominio real del negocio o usa el endpoint cPanel descubierto."
+		return connectOutcome{Message: "No voy a conectar contra un dominio de ejemplo. Decime el dominio real del negocio o usa el endpoint cPanel descubierto."}
 	}
 	cli, err := cpanel.New(host, user, pass, true)
 	if err != nil {
-		return fmt.Sprintf("Error de configuración: %v", err)
+		return connectOutcome{Message: fmt.Sprintf("Error de configuración: %v", err)}
 	}
 	if err := cli.Login(); err != nil {
 		// Fallback 1: user con @ → probar sin @
@@ -247,7 +662,7 @@ func doConnect(host, user, pass, credsPath, convID string) string {
 				cli = retry
 				user = local
 			} else {
-				return cpanelLoginErrorHelp(host, user, err)
+				return connectOutcome{Message: cpanelLoginErrorHelp(host, user, err)}
 			}
 			// Fallback 2: user sin @ → probar con @dominio
 		} else if full := cpanelFullUserCandidate(user, host); full != "" && full != user {
@@ -256,28 +671,36 @@ func doConnect(host, user, pass, credsPath, convID string) string {
 				cli = retry
 				user = full
 			} else {
-				return cpanelLoginErrorHelp(host, user, err)
+				return connectOutcome{Message: cpanelLoginErrorHelp(host, user, err)}
 			}
 		} else {
-			return cpanelLoginErrorHelp(host, user, err)
+			return connectOutcome{Message: cpanelLoginErrorHelp(host, user, err)}
 		}
 	}
 	if err := cli.Ping(); err != nil {
-		return fmt.Sprintf("No pude conectar al hosting: %v", err)
+		return connectOutcome{Message: fmt.Sprintf("No pude conectar al hosting: %v", err)}
 	}
 	c := &creds.Credentials{
 		Panel: "cpanel", Host: host, Port: 2083,
 		User: user, Pass: pass, Insecure: true,
 	}
 	if err := creds.Save(credsPath, c); err != nil {
-		return fmt.Sprintf("Conexión OK pero no pude guardar credenciales: %v.\n"+
-			"Verificá que HOSTING_VAULT_KEY esté seteada (corré `frameworkhosting genkey` para generar una).", err)
+		return connectOutcome{Message: fmt.Sprintf("Conexión OK pero no pude guardar credenciales: %v.\n"+
+			"Verificá que HOSTING_VAULT_KEY esté seteada (corré `frameworkhosting genkey` para generar una).", err)}
 	}
 	emailAddr, smtpHost, err := autoProvisionSMTP(cli, host, convID)
 	if err != nil {
-		return fmt.Sprintf("Conectado a %s, pero no pude preparar el correo saliente automáticamente: %v", host, err)
+		return connectOutcome{
+			Success:            true,
+			Message:            fmt.Sprintf("Conecté el hosting en %s, pero no pude preparar el correo saliente automáticamente: %v", host, err),
+			RequiresSMTPImport: true,
+		}
 	}
-	return fmt.Sprintf("Conectado a %s. Preparé automáticamente el correo saliente con cPanel: %s vía %s:587. Ya puedo enviar correos con aprobación.", host, emailAddr, smtpHost)
+	return connectOutcome{
+		Success:   true,
+		SMTPReady: true,
+		Message:   fmt.Sprintf("Conectado a %s. Preparé automáticamente el correo saliente con cPanel: %s vía %s:587. Ya puedo enviar correos con aprobación.", host, emailAddr, smtpHost),
+	}
 }
 
 func cpanelLocalUserCandidate(user string) string {
@@ -379,16 +802,15 @@ func autoProvisionSMTP(cli *cpanel.Client, fallbackHost, convID string) (string,
 		}
 	}
 	smtpHost := "mail." + domain
-	bundle := map[string]string{
-		"host":       smtpHost,
-		"port":       "587",
-		"user":       emailAddr,
-		"pass":       password,
-		"from":       emailAddr,
-		"default_to": "",
-		"source":     "cpanel_auto_provision",
+	bundle := credentials.SMTPBundle{
+		Host:      smtpHost,
+		Port:      "587",
+		User:      emailAddr,
+		Pass:      password,
+		From:      emailAddr,
+		DefaultTo: "",
 	}
-	if err := vaultSet(convID, "credentials.smtp", bundle); err != nil {
+	if err := saveSMTPBundle(convID, bundle); err != nil {
 		return "", "", err
 	}
 	return emailAddr, smtpHost, nil
@@ -409,7 +831,7 @@ func cmdConnect(args []string) {
 	}
 	sp := resolveStatePath(*statePath, *convID)
 	cp := creds.Path(filepath.Dir(sp), *convID)
-	fmt.Println(doConnect(*host, *user, *pass, cp, *convID))
+	fmt.Println(doConnect(*host, *user, *pass, cp, *convID).Message)
 }
 
 // cmdListEmails: modo CLI directo.
@@ -582,15 +1004,15 @@ func cmdProvisionSMTP(args []string) {
 
 	smtpHost := "mail." + *domain
 	smtpPort := "587"
-	bundle := map[string]string{
-		"host":       smtpHost,
-		"port":       smtpPort,
-		"user":       emailAddr,
-		"pass":       *password,
-		"from":       emailAddr,
-		"default_to": *defaultTo,
+	bundle := credentials.SMTPBundle{
+		Host:      smtpHost,
+		Port:      smtpPort,
+		User:      emailAddr,
+		Pass:      *password,
+		From:      emailAddr,
+		DefaultTo: *defaultTo,
 	}
-	if err := vaultSet(*convID, "credentials.smtp", bundle); err != nil {
+	if err := saveSMTPBundle(*convID, bundle); err != nil {
 		emitJSONErr("provision-smtp: vault set: " + err.Error())
 		os.Exit(1)
 	}
@@ -627,15 +1049,15 @@ func cmdImportSMTP(args []string) {
 	if *from == "" {
 		*from = *user
 	}
-	bundle := map[string]string{
-		"host":       *host,
-		"port":       *port,
-		"user":       *user,
-		"pass":       *pass,
-		"from":       *from,
-		"default_to": *defaultTo,
+	bundle := credentials.SMTPBundle{
+		Host:      *host,
+		Port:      *port,
+		User:      *user,
+		Pass:      *pass,
+		From:      *from,
+		DefaultTo: *defaultTo,
 	}
-	if err := vaultSet(*convID, "credentials.smtp", bundle); err != nil {
+	if err := saveSMTPBundle(*convID, bundle); err != nil {
 		emitJSONErr("import-smtp: vault set: " + err.Error())
 		os.Exit(1)
 	}
@@ -654,48 +1076,52 @@ func cmdVerifySMTP(args []string) {
 	fs := flag.NewFlagSet("verify-smtp", flag.ExitOnError)
 	convID := fs.String("conv-id", "", "id de la conversación")
 	_ = fs.Parse(args)
-	bundle, err := vaultGet(*convID, "credentials.smtp")
-	if err != nil || bundle == nil {
+	bundle, status := loadSMTPBundle(*convID)
+	if !status.Present || !status.Readable || !status.Complete {
 		emitJSON(map[string]interface{}{
-			"artifact_type": "credentials.smtp.verification.v1",
-			"verified":      false,
-			"error":         "No hay credenciales SMTP guardadas en el vault.",
+			"artifact_type":  "credentials.smtp.verification.v1",
+			"verified":       false,
+			"capability":     status.Capability,
+			"present":        status.Present,
+			"readable":       status.Readable,
+			"complete":       status.Complete,
+			"ready":          false,
+			"missing_fields": status.MissingFields,
+			"scope":          status.Scope,
+			"error":          status.Error,
 		})
 		return
 	}
-	host := bundle["host"]
-	port := bundle["port"]
-	user := bundle["user"]
-	pass := bundle["pass"]
-	if host == "" || user == "" || pass == "" {
-		emitJSON(map[string]interface{}{
-			"artifact_type": "credentials.smtp.verification.v1",
-			"verified":      false,
-			"error":         "Credenciales SMTP incompletas (falta host, user o pass).",
-		})
-		return
-	}
-	if port == "" {
-		port = "587"
-	}
-	verifyErr := verifySMTPLogin(host, port, user, pass)
+	verifyErr := verifySMTPLogin(bundle.Host, bundle.Port, bundle.User, bundle.Pass)
 	if verifyErr != nil {
 		emitJSON(map[string]interface{}{
 			"artifact_type": "credentials.smtp.verification.v1",
 			"verified":      false,
+			"capability":    status.Capability,
+			"present":       true,
+			"readable":      true,
+			"complete":      true,
+			"ready":         false,
+			"scope":         status.Scope,
 			"error":         verifyErr.Error(),
-			"host":          host,
-			"port":          port,
-			"user":          user,
+			"host":          bundle.Host,
+			"port":          bundle.Port,
+			"user":          bundle.User,
 		})
 		return
 	}
 	emitJSON(map[string]interface{}{
 		"artifact_type": "credentials.smtp.verification.v1",
 		"verified":      true,
-		"host":          host,
-		"port":          port,
-		"user":          user,
+		"capability":    status.Capability,
+		"present":       true,
+		"readable":      true,
+		"complete":      true,
+		"ready":         true,
+		"scope":         status.Scope,
+		"host":          bundle.Host,
+		"port":          bundle.Port,
+		"user":          bundle.User,
 	})
 }
 
@@ -744,17 +1170,61 @@ func verifySMTPLogin(host, port, user, pass string) error {
 	return nil
 }
 
-// cmdHasSMTP imprime {"available": bool} consultando el vault.
-// Permite al orquestador chequear sin desencriptar.
+// cmdHasSMTP valida si credentials.smtp está realmente lista para usar:
+// existe en vault, puede desencriptarse, está completa y permite login SMTP
+// real con el mismo scope que luego usará Mensajero.
 func cmdHasSMTP(args []string) {
 	fs := flag.NewFlagSet("has-smtp", flag.ExitOnError)
 	convID := fs.String("conv-id", "", "id de la conversación")
 	_ = fs.Parse(args)
-	available := vaultHas(*convID, "credentials.smtp")
+	bundle, status := loadSMTPBundle(*convID)
+	if !status.Present || !status.Readable || !status.Complete {
+		emitJSON(map[string]interface{}{
+			"artifact_type":  "credentials.status.v1",
+			"available":      false,
+			"present":        status.Present,
+			"readable":       status.Readable,
+			"complete":       status.Complete,
+			"ready":          false,
+			"verified":       false,
+			"capability":     status.Capability,
+			"missing_fields": status.MissingFields,
+			"scope":          status.Scope,
+			"error":          status.Error,
+		})
+		return
+	}
+	if verifyErr := verifySMTPLogin(bundle.Host, bundle.Port, bundle.User, bundle.Pass); verifyErr != nil {
+		emitJSON(map[string]interface{}{
+			"artifact_type": "credentials.status.v1",
+			"available":     false,
+			"present":       true,
+			"readable":      true,
+			"complete":      true,
+			"ready":         false,
+			"verified":      false,
+			"capability":    status.Capability,
+			"scope":         status.Scope,
+			"error":         verifyErr.Error(),
+			"host":          bundle.Host,
+			"port":          bundle.Port,
+			"user":          bundle.User,
+		})
+		return
+	}
 	emitJSON(map[string]interface{}{
 		"artifact_type": "credentials.status.v1",
-		"available":     available,
-		"capability":    "credentials.smtp",
+		"available":     true,
+		"present":       true,
+		"readable":      true,
+		"complete":      true,
+		"ready":         true,
+		"verified":      true,
+		"capability":    status.Capability,
+		"scope":         status.Scope,
+		"host":          bundle.Host,
+		"port":          bundle.Port,
+		"user":          bundle.User,
 	})
 }
 
@@ -763,12 +1233,12 @@ func cmdDeleteSMTP(args []string) {
 	fs := flag.NewFlagSet("delete-smtp", flag.ExitOnError)
 	convID := fs.String("conv-id", "", "id de la conversación")
 	_ = fs.Parse(args)
-	err := vaultDelete(*convID, "credentials.smtp")
+	err := credentials.DeleteSMTP("", *convID)
 	deleted := err == nil
 	emitJSON(map[string]interface{}{
 		"artifact_type": "credentials.deleted.v1",
 		"deleted":       deleted,
-		"capability":      "credentials.smtp",
+		"capability":    "credentials.smtp",
 	})
 }
 
@@ -864,149 +1334,12 @@ func probeCPanelURL(u string) cpanelCandidateResult {
 	return cpanelCandidateResult{URL: u, Reachable: true, StatusCode: resp.StatusCode, LooksCPanel: looks}
 }
 
-// ============================================================
-// vault client (shells out to channel/bin/vault)
-// ============================================================
-
-func vaultBin() string {
-	if v := os.Getenv("REMORA_VAULT_BIN"); v != "" {
-		if _, err := os.Stat(v); err == nil {
-			return v
-		}
-	}
-	return "../channel/bin/vault"
+func saveSMTPBundle(convID string, bundle credentials.SMTPBundle) error {
+	return credentials.SaveSMTP("", convID, bundle)
 }
 
-func vaultEnv() []string {
-	env := os.Environ()
-	if strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")) != "" {
-		return env
-	}
-	if dir := defaultVaultDir(); dir != "" {
-		env = append(env, "REMORA_VAULT_DIR="+dir)
-	}
-	return env
-}
-
-func defaultVaultDir() string {
-	abs, err := filepath.Abs(vaultBin())
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(filepath.Dir(filepath.Dir(abs)), "vault_data")
-}
-
-func vaultSet(convID, key string, value interface{}) error {
-	conv := strings.TrimSpace(convID)
-	if conv == "" {
-		conv = "default"
-	}
-	data, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command(vaultBin(), "set", "--conv", conv, "--key", key, "--stdin")
-	cmd.Env = vaultEnv()
-	cmd.Stdin = strings.NewReader(string(data))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%w (output=%s)", err, string(out))
-	}
-	return nil
-}
-
-func vaultGet(convID, key string) (map[string]string, error) {
-	conv := strings.TrimSpace(convID)
-	if conv == "" {
-		conv = "default"
-	}
-	cmd := exec.Command(vaultBin(), "get", "--conv", conv, "--key", key)
-	cmd.Env = vaultEnv()
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("vault get %s: %w", key, err)
-	}
-	var result map[string]string
-	if err := json.Unmarshal(out, &result); err != nil {
-		return nil, fmt.Errorf("vault get %s: parse: %w", key, err)
-	}
-	return result, nil
-}
-
-func vaultHas(convID, key string) bool {
-	conv := strings.TrimSpace(convID)
-	if conv == "" {
-		conv = "default"
-	}
-	cmd := exec.Command(vaultBin(), "has", "--conv", conv, "--key", key)
-	cmd.Env = vaultEnv()
-	if cmd.Run() == nil {
-		return true
-	}
-	if migrateLegacyVaultFile(conv, key) {
-		cmd = exec.Command(vaultBin(), "has", "--conv", conv, "--key", key)
-		cmd.Env = vaultEnv()
-		return cmd.Run() == nil
-	}
-	return false
-}
-
-func vaultDelete(convID, key string) error {
-	conv := strings.TrimSpace(convID)
-	if conv == "" {
-		conv = "default"
-	}
-	cmd := exec.Command(vaultBin(), "delete", "--conv", conv, "--key", key)
-	cmd.Env = vaultEnv()
-	return cmd.Run()
-}
-
-func migrateLegacyVaultFile(conv, key string) bool {
-	if strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")) != "" {
-		return false
-	}
-	dstDir := defaultVaultDir()
-	if dstDir == "" {
-		return false
-	}
-	src := filepath.Join("channel", "vault_data", vaultSafe(conv), vaultSafe(key)+".enc")
-	dst := filepath.Join(dstDir, vaultSafe(conv), vaultSafe(key)+".enc")
-	srcAbs, srcErr := filepath.Abs(src)
-	dstAbs, dstErr := filepath.Abs(dst)
-	if srcErr != nil || dstErr != nil || srcAbs == dstAbs {
-		return false
-	}
-	if _, err := os.Stat(dstAbs); err == nil {
-		return false
-	}
-	data, err := os.ReadFile(srcAbs)
-	if err != nil {
-		return false
-	}
-	if err := os.MkdirAll(filepath.Dir(dstAbs), 0700); err != nil {
-		return false
-	}
-	return os.WriteFile(dstAbs, data, 0600) == nil
-}
-
-func vaultSafe(s string) string {
-	out := make([]byte, 0, len(s))
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		switch {
-		case ch >= 'a' && ch <= 'z',
-			ch >= 'A' && ch <= 'Z',
-			ch >= '0' && ch <= '9',
-			ch == '_', ch == '-', ch == '.':
-			out = append(out, ch)
-		default:
-			out = append(out, '_')
-		}
-	}
-	if len(out) == 0 {
-		return "_"
-	}
-	return string(out)
+func loadSMTPBundle(convID string) (credentials.SMTPBundle, credentials.SMTPStatus) {
+	return credentials.LoadSMTP("", convID)
 }
 
 // emitJSON / emitJSONErr son wrappers para mantener formato consistente

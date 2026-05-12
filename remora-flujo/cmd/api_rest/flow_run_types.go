@@ -70,6 +70,7 @@ type flowRunStep struct {
 	ActionBounds     []string            `json:"action_bounds,omitempty"`
 	StartedAt        string              `json:"started_at,omitempty"`
 	FinishedAt       string              `json:"finished_at,omitempty"`
+	Runtime          *manifestRuntime    `json:"runtime,omitempty"`
 	ExitCode         int                 `json:"exit_code,omitempty"`
 	DurationMs       int64               `json:"duration_ms,omitempty"`
 	Error            string              `json:"error,omitempty"`
@@ -101,19 +102,32 @@ type flowRunArtifact struct {
 }
 
 type flowRequiredInput struct {
-	Artifact    string            `json:"artifact"`
-	Kind        string            `json:"kind"`
-	Framework   string            `json:"framework,omitempty"`
-	Capability  string            `json:"capability,omitempty"`
-	Title       string            `json:"title"`
-	Message     string            `json:"message"`
-	Fields      []flowInputField  `json:"fields,omitempty"`
-	Suggestions []string          `json:"suggestions,omitempty"`
-	Context     map[string]string `json:"context,omitempty"`
-	QuestionID  string            `json:"question_id,omitempty"`
-	EntityRef   string            `json:"entity_ref,omitempty"`
-	GapType     string            `json:"gap_type,omitempty"`
-	Field       string            `json:"field,omitempty"`
+	Artifact       string            `json:"artifact"`
+	Kind           string            `json:"kind"`
+	Node           string            `json:"node,omitempty"`
+	Framework      string            `json:"framework,omitempty"`
+	Capability     string            `json:"capability,omitempty"`
+	Role           string            `json:"role,omitempty"`
+	Visibility     string            `json:"visibility,omitempty"`
+	Title          string            `json:"title"`
+	Message        string            `json:"message"`
+	Fields         []flowInputField  `json:"fields,omitempty"`
+	Actions        []flowInputAction `json:"actions,omitempty"`
+	Suggestions    []string          `json:"suggestions,omitempty"`
+	Context        map[string]string `json:"context,omitempty"`
+	TriggeredBy    *flowStepTrigger  `json:"triggered_by,omitempty"`
+	QuestionID     string            `json:"question_id,omitempty"`
+	EntityRef      string            `json:"entity_ref,omitempty"`
+	GapType        string            `json:"gap_type,omitempty"`
+	Field          string            `json:"field,omitempty"`
+	Step           string            `json:"step,omitempty"`
+	NextTransition string            `json:"next_transition,omitempty"`
+}
+
+type flowInputAction struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Description string `json:"description,omitempty"`
 }
 
 type flowInputField struct {

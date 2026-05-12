@@ -22,10 +22,11 @@ import (
 	"net"
 	"net/smtp"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"channel/credentials"
 )
 
 func main() {
@@ -93,9 +94,14 @@ type canSendResp struct {
 	ArtifactType      string `json:"artifact_type,omitempty"`
 	Available         bool   `json:"available"`
 	Channel           string `json:"channel"`
+	Capability        string `json:"capability,omitempty"`
+	Present           bool   `json:"present,omitempty"`
+	Readable          bool   `json:"readable,omitempty"`
+	Complete          bool   `json:"complete,omitempty"`
 	MissingCapability string `json:"missing_capability,omitempty"`
 	ProviderHint      string `json:"provider_hint,omitempty"`
 	Reason            string `json:"reason,omitempty"`
+	Scope             any    `json:"scope,omitempty"`
 }
 
 func cmdCanSend(args []string) {
@@ -108,13 +114,30 @@ func cmdCanSend(args []string) {
 	if cap == "" {
 		emitJSON(canSendResp{
 			ArtifactType: "message.send_readiness.v1",
-			Available:    false, Channel: *channel,
-			Reason: fmt.Sprintf("canal desconocido: %s", *channel),
+			Available:    false,
+			Channel:      *channel,
+			Reason:       fmt.Sprintf("canal desconocido: %s", *channel),
 		})
 		return
 	}
-	if vaultHas(*convID, cap) {
-		emitJSON(canSendResp{ArtifactType: "message.send_readiness.v1", Available: true, Channel: *channel})
+	if cap == "credentials.smtp" {
+		_, status := credentials.LoadSMTP("", *convID)
+		resp := canSendResp{
+			ArtifactType: "message.send_readiness.v1",
+			Available:    status.Ready,
+			Channel:      *channel,
+			Capability:   status.Capability,
+			Present:      status.Present,
+			Readable:     status.Readable,
+			Complete:     status.Complete,
+			ProviderHint: providerHintForCapability(cap),
+			Reason:       status.Error,
+			Scope:        status.Scope,
+		}
+		if !status.Present {
+			resp.MissingCapability = cap
+		}
+		emitJSON(resp)
 		return
 	}
 	emitJSON(canSendResp{
@@ -203,29 +226,23 @@ func cmdSend(args []string) {
 		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "canal no soportado: " + *channel})
 		os.Exit(2)
 	}
-	credBytes, err := vaultGet(*convID, cap)
-	if err != nil {
-		if err == errVaultNotFound {
+	if cap == "credentials.smtp" {
+		bundle, status := credentials.LoadSMTP("", *convID)
+		if !status.Present {
 			emitJSON(sendResp{
-				ArtifactType: "message.sent.v1",
-				Channel:      *channel, Error: "credenciales faltantes",
+				ArtifactType:      "message.sent.v1",
+				Channel:           *channel,
+				Error:             "credenciales faltantes",
 				MissingCapability: cap,
 				ProviderHint:      providerHintForCapability(cap),
 			})
 			os.Exit(3) // exit code reservado: capability missing
 		}
-		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "vault: " + err.Error()})
-		os.Exit(1)
-	}
-
-	switch *channel {
-	case "email", "smtp":
-		var c smtpCreds
-		if err := json.Unmarshal(credBytes, &c); err != nil {
-			emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "credentials.smtp inválidas: " + err.Error()})
+		if !status.Readable || !status.Complete {
+			emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: status.Error})
 			os.Exit(1)
 		}
-		c.applyDefaults()
+		c := smtpCredsFromBundle(bundle)
 		dest := *to
 		if dest == "" {
 			dest = c.DefaultTo
@@ -251,10 +268,10 @@ func cmdSend(args []string) {
 		}
 		_ = appendSentLog(*convID, *channel, dest, sendSubject, msgID)
 		emitJSON(sendResp{ArtifactType: "message.sent.v1", Artifacts: []string{"message.sent.v1", "message.sent"}, Success: true, Channel: *channel, To: dest, MessageID: msgID})
-	default:
-		emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "canal aún no implementado: " + *channel})
-		os.Exit(2)
+		return
 	}
+	emitJSON(sendResp{ArtifactType: "message.sent.v1", Channel: *channel, Error: "canal aún no implementado: " + *channel})
+	os.Exit(2)
 }
 
 func subjectWithDevPrefix(subject, realDest string) string {
@@ -278,6 +295,17 @@ type smtpCreds struct {
 	Pass      string `json:"pass"`
 	From      string `json:"from,omitempty"`
 	DefaultTo string `json:"default_to,omitempty"`
+}
+
+func smtpCredsFromBundle(bundle credentials.SMTPBundle) smtpCreds {
+	return smtpCreds{
+		Host:      bundle.Host,
+		Port:      bundle.Port,
+		User:      bundle.User,
+		Pass:      bundle.Pass,
+		From:      bundle.From,
+		DefaultTo: bundle.DefaultTo,
+	}
 }
 
 func (c *smtpCreds) applyDefaults() {
@@ -331,70 +359,6 @@ func appendSentLog(convID, channel, to, subject, msgID string) error {
 	b, _ := json.Marshal(rec)
 	_, err = f.Write(append(b, '\n'))
 	return err
-}
-
-// ============================================================
-// Vault client (shells out to channel/bin/vault)
-// ============================================================
-
-var errVaultNotFound = fmt.Errorf("not found in vault")
-
-func vaultBin() string {
-	if v := os.Getenv("REMORA_VAULT_BIN"); v != "" {
-		if _, err := os.Stat(v); err == nil {
-			return v
-		}
-	}
-	return "../channel/bin/vault"
-}
-
-func vaultEnv() []string {
-	env := os.Environ()
-	if strings.TrimSpace(os.Getenv("REMORA_VAULT_DIR")) != "" {
-		return env
-	}
-	if dir := defaultVaultDir(); dir != "" {
-		env = append(env, "REMORA_VAULT_DIR="+dir)
-	}
-	return env
-}
-
-func defaultVaultDir() string {
-	abs, err := filepath.Abs(vaultBin())
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(filepath.Dir(filepath.Dir(abs)), "vault_data")
-}
-
-func vaultHas(convID, key string) bool {
-	cmd := exec.Command(vaultBin(), "has", "--conv", convOrDefault(convID), "--key", key)
-	cmd.Env = vaultEnv()
-	if err := cmd.Run(); err != nil {
-		return false
-	}
-	return true
-}
-
-func vaultGet(convID, key string) ([]byte, error) {
-	cmd := exec.Command(vaultBin(), "get", "--conv", convOrDefault(convID), "--key", key)
-	cmd.Env = vaultEnv()
-	out, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 2 {
-			return nil, errVaultNotFound
-		}
-		return nil, err
-	}
-	return out, nil
-}
-
-func convOrDefault(c string) string {
-	c = strings.TrimSpace(c)
-	if c == "" {
-		return "default"
-	}
-	return c
 }
 
 func sanitize(s string) string {

@@ -530,15 +530,11 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 	if err != nil {
 		return result, err
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + providerName
-	}
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	execCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	defer cancel()
-	resp, err := s.scoped("install_"+flow.ID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, filepath.Join(s.rootDir, cwdRel))
+	resp, err := s.scoped("install_"+flow.ID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 	if err != nil {
 		if isChannelUnavailableError(err) {
 			return result, fmt.Errorf("%s", channelUnavailableMessage(s.channel.BaseURL))

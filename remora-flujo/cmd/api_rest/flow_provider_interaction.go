@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
-
-	"encoding/json"
-	"path/filepath"
 )
 
-func (s *server) invokeProviderNextQuestion(ctx context.Context, businessID, capability string) (questionID, questionText, providerName string, ok bool) {
+func (s *server) invokeProviderNextQuestion(ctx context.Context, businessID, capability string) (providerQuestion, bool) {
 	m, providerName, providerOK := s.findProviderForCapability(capability)
 	if !providerOK {
-		return "", "", "", false
+		return providerQuestion{}, false
 	}
 	nextQuestionCmd := m.UserInput.NextQuestionCmd
 	if nextQuestionCmd == "" {
@@ -20,40 +18,51 @@ func (s *server) invokeProviderNextQuestion(ctx context.Context, businessID, cap
 	}
 	cmd, ok := m.Commands[nextQuestionCmd]
 	if !ok {
-		return "", "", "", false
+		return providerQuestion{}, false
 	}
 	convID := businessVaultConvID(businessID)
 	params := map[string]string{"conv_id": convID}
 	args, err := cmd.ResolveArgs(params, nil, nil)
 	if err != nil {
-		return "", "", "", false
+		return providerQuestion{}, false
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + providerName
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	execCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	resp, err := s.scoped(providerName+"_"+businessID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(providerName+"_"+businessID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 	cancel()
 	if err != nil || resp.ExitCode != 0 {
-		return "", "", "", false
+		return providerQuestion{}, false
 	}
 	var parsed map[string]interface{}
 	if uerr := json.Unmarshal([]byte(strings.TrimSpace(resp.Stdout)), &parsed); uerr != nil {
-		return "", "", "", false
+		return providerQuestion{}, false
 	}
 	if len(parsed) == 0 {
-		return "", "", "", false
+		return providerQuestion{}, false
 	}
-	qID, _ := parsed["id"].(string)
-	qText, _ := parsed["text"].(string)
-	if qText == "" {
-		return "", "", "", false
+	question := providerQuestion{
+		ID:               jsonFirstString(parsed, "id", "question_id"),
+		Text:             jsonFirstString(parsed, "text", "message", "question"),
+		Framework:        firstNonEmptyPipelineString(jsonFirstString(parsed, "framework"), providerName),
+		Capability:       firstNonEmptyPipelineString(jsonFirstString(parsed, "capability"), capability),
+		Title:            jsonFirstString(parsed, "title"),
+		Kind:             jsonFirstString(parsed, "kind"),
+		Field:            jsonFirstString(parsed, "field"),
+		FieldLabel:       jsonFirstString(parsed, "field_label", "label"),
+		InputType:        jsonFirstString(parsed, "input_type", "type"),
+		Placeholder:      jsonFirstString(parsed, "placeholder"),
+		Step:             jsonFirstString(parsed, "step"),
+		NextTransition:   jsonFirstString(parsed, "next_transition"),
+		RequiredArtifact: jsonFirstString(parsed, "required_artifact", "artifact"),
 	}
-	return qID, qText, providerName, true
+	if secret, _ := parsed["secret"].(bool); secret {
+		question.Secret = true
+	}
+	if question.Text == "" {
+		return providerQuestion{}, false
+	}
+	return question, true
 }
 
 func (s *server) ingestProviderAnswer(ctx context.Context, businessID, capability, questionID, answer string) (responseText string, ok bool) {
@@ -75,21 +84,16 @@ func (s *server) ingestProviderAnswer(ctx context.Context, businessID, capabilit
 	if err != nil {
 		return "", false
 	}
-	fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-	fullArgs = append(fullArgs, args...)
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + providerName
-	}
-	cwd := filepath.Join(s.rootDir, cwdRel)
+	runtime := resolveManifestRuntime(s.rootDir, m)
+	fullArgs := runtime.FullArgs(args, m)
 	execCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	resp, err := s.scoped(providerName+"_"+businessID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+	resp, err := s.scoped(providerName+"_"+businessID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 	cancel()
 	if err != nil || resp.ExitCode != 0 {
 		return "", false
 	}
-	if _, text, _, nextOK := s.invokeProviderNextQuestion(ctx, businessID, capability); nextOK {
-		return text, true
+	if next, nextOK := s.invokeProviderNextQuestion(ctx, businessID, capability); nextOK {
+		return next.Text, true
 	}
 	// ingest-answer normalmente no devuelve stdout directo; la respuesta puede quedar en el state para next-question
 	return "ok", true

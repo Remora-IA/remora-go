@@ -25,6 +25,7 @@ const (
 	prereqAvailable = "available"
 	prereqMissing   = "missing"
 	prereqNotNeeded = "not_needed"
+	prereqDerivable = "derivable_unresolved"
 )
 
 // flowTerminalRequirements infers what artifacts the flow's terminal action
@@ -340,10 +341,11 @@ func entityTableFromPack(packPath string) string {
 // which acts as a "semaphore" showing what the flow needs, what's available,
 // and what's missing. This is the key UX element that makes gaps observable
 // without requiring staff to understand the database.
-func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, entityRef map[string]interface{}, artifacts map[string]flowRunArtifact, available map[string]bool, gaps []dataGap) map[string]interface{} {
+func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, entityRef map[string]interface{}, artifacts map[string]flowRunArtifact, available map[string]bool, gaps []dataGap, timeline []flowRunStep) map[string]interface{} {
 	packPath := s.businessSemanticPackPath(flow.BusinessID)
 	terminalReqs := flowTerminalRequirements(flow)
 	requiredFields := flowRequiredDataFields(terminalReqs, packPath)
+	fieldEvidence := buildFlowFieldEvidence(requiredFields, entityRef, artifacts, available)
 
 	entityName := "la entidad"
 	if entityRef != nil {
@@ -353,7 +355,8 @@ func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, enti
 	}
 
 	var prerequisites []flowPrerequisite
-	for _, f := range requiredFields {
+	for idx, f := range requiredFields {
+		evidence := fieldEvidence[idx]
 		prereq := flowPrerequisite{
 			Field:       f.Field,
 			Label:       f.Label,
@@ -361,37 +364,15 @@ func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, enti
 			GapField:    f.Field,
 			Reason:      f.Reason,
 		}
-		// Derived fields (computed from related tables) are available
-		// as long as the related table has data. Mark them green.
-		if f.Derived {
+		switch evidence.Status {
+		case prereqAvailable:
 			prereq.Status = prereqAvailable
-			prereq.Source = "calculado desde datos existentes"
-			prerequisites = append(prerequisites, prereq)
-			continue
-		}
-		// Check if the entity ref already has this value (e.g. name)
-		if entityRef != nil {
-			val := entityRefFieldValue(entityRef, f.Field)
-			if val != "" {
-				prereq.Status = prereqAvailable
-				prereq.Value = val
-				prereq.Source = "disponible en datos del negocio"
-				prerequisites = append(prerequisites, prereq)
-				continue
-			}
-		}
-		// Check if the required artifact is already available
-		if available[f.Artifact] {
-			prereq.Status = prereqAvailable
-			prereq.Source = "resuelto"
-			// Try to extract actual value
-			if art, ok := artifacts[f.Artifact]; ok {
-				if payload, ok := art.Payload.(map[string]interface{}); ok {
-					prereq.Value = jsonFirstString(payload, "value", "to", "destination", "name")
-				}
-			}
-		} else {
-			// Check if there's a gap matching this field
+			prereq.Value = evidence.Value
+			prereq.Source = evidence.Source
+		case prereqDerivable:
+			prereq.Status = prereqDerivable
+			prereq.Source = evidence.Reason
+		default:
 			hasGap := false
 			for _, g := range gaps {
 				if g.Endpoint == f.Table && (g.Field == f.Field || isContactRelatedGap(g)) {
@@ -399,11 +380,12 @@ func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, enti
 					break
 				}
 			}
+			prereq.Status = prereqMissing
 			if hasGap {
-				prereq.Status = prereqMissing
 				prereq.Source = "se preguntara al usuario"
+			} else if available[f.Artifact] {
+				prereq.Source = "artifact presente, pero sin evidencia estructurada del campo"
 			} else {
-				prereq.Status = prereqMissing
 				prereq.Source = "no encontrado en datos del negocio"
 			}
 		}
@@ -418,7 +400,15 @@ func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, enti
 				Label:  prerequisiteLabel(art),
 				Reason: "Necesario para ejecutar la acción",
 			}
-			if available[art] {
+			if status, ok := artifacts["credentials.status.v1"].Payload.(map[string]interface{}); ok && jsonFirstString(status, "capability") == art {
+				if ready, _ := status["ready"].(bool); ready {
+					prereq.Status = prereqAvailable
+					prereq.Source = "vault legible y consumer-ready"
+				} else {
+					prereq.Status = prereqMissing
+					prereq.Source = firstNonEmptyPipelineString(jsonFirstString(status, "error"), "requiere configuración")
+				}
+			} else if available[art] {
 				prereq.Status = prereqAvailable
 				prereq.Source = "configurado"
 			} else {
@@ -451,28 +441,58 @@ func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, enti
 
 	availableCount := 0
 	missingCount := 0
+	unresolvedCount := 0
 	for _, p := range prerequisites {
 		if p.Status == prereqAvailable {
 			availableCount++
+		} else if p.Status == prereqDerivable {
+			unresolvedCount++
 		} else if p.Status == prereqMissing {
 			missingCount++
 		}
 	}
+	executionBlockers := flowPrerequisiteExecutionBlockers(timeline)
+	readyForTerminal := missingCount == 0 && unresolvedCount == 0 && len(executionBlockers) == 0
 
 	payload := map[string]interface{}{
-		"artifact_type":       "flow.prerequisites.v1",
-		"entity_name":         entityName,
-		"terminal_artifacts":  terminalReqs,
-		"prerequisites":       prerequisites,
-		"not_needed_gaps":     notNeededGaps,
-		"available_count":     availableCount,
-		"missing_count":       missingCount,
-		"not_needed_count":    len(notNeededGaps),
-		"all_satisfied":       missingCount == 0,
-		"generated_at":        time.Now().UTC().Format(time.RFC3339Nano),
-		"human_summary":       prerequisitesSummary(entityName, prerequisites, notNeededGaps),
+		"artifact_type":           "flow.prerequisites.v1",
+		"entity_name":             entityName,
+		"terminal_artifacts":      terminalReqs,
+		"field_evidence":          fieldEvidence,
+		"prerequisites":           prerequisites,
+		"not_needed_gaps":         notNeededGaps,
+		"execution_blockers":      executionBlockers,
+		"available_count":         availableCount,
+		"missing_count":           missingCount,
+		"unresolved_count":        unresolvedCount,
+		"execution_blocker_count": len(executionBlockers),
+		"not_needed_count":        len(notNeededGaps),
+		"all_satisfied":           readyForTerminal,
+		"ready_for_terminal":      readyForTerminal,
+		"generated_at":            time.Now().UTC().Format(time.RFC3339Nano),
+		"human_summary":           prerequisitesSummary(entityName, prerequisites, notNeededGaps, executionBlockers),
 	}
 	return payload
+}
+
+func (s *server) refreshFlowPrerequisites(runID string, flow flowManifest, available map[string]bool, result *flowRunResult) string {
+	if result == nil {
+		return ""
+	}
+	entityRef := entityRefFromArtifacts(result.Artifacts)
+	allGaps := filterGapsByScope(parseDataGaps(result.Artifacts), s.loadBusinessScopeTables(flow.BusinessID))
+	payload := s.generateFlowPrerequisites(runID, flow, entityRef, result.Artifacts, available, allGaps, result.Timeline)
+	path := s.persistFlowArtifact(runID, "flow_prerequisites", "flow.prerequisites.v1", payload)
+	available["flow.prerequisites.v1"] = true
+	result.Artifacts["flow.prerequisites.v1"] = flowRunArtifact{
+		Type:      "flow.prerequisites.v1",
+		Source:    "flow_engine.prerequisites",
+		Node:      "flow_prerequisites",
+		Path:      path,
+		Payload:   payload,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	return "flow.prerequisites.v1"
 }
 
 func parseDataGapsForPrereqs(artifacts map[string]flowRunArtifact) []dataGap {
@@ -494,29 +514,88 @@ func prerequisiteLabel(artifact string) string {
 	}
 }
 
-func prerequisitesSummary(entityName string, prereqs []flowPrerequisite, notNeeded []map[string]interface{}) string {
+func prerequisitesSummary(entityName string, prereqs []flowPrerequisite, notNeeded []map[string]interface{}, blockers []map[string]interface{}) string {
 	available := 0
 	missing := 0
+	unresolved := 0
 	var missingLabels []string
+	var unresolvedLabels []string
 	for _, p := range prereqs {
 		if p.Status == prereqAvailable {
 			available++
+		} else if p.Status == prereqDerivable {
+			unresolved++
+			unresolvedLabels = append(unresolvedLabels, p.Label)
 		} else if p.Status == prereqMissing {
 			missing++
 			missingLabels = append(missingLabels, p.Label)
 		}
 	}
-	if missing == 0 {
+	if missing == 0 && unresolved == 0 && len(blockers) == 0 {
 		return fmt.Sprintf("Todos los datos necesarios para %s están disponibles.", entityName)
 	}
-	summary := fmt.Sprintf("Para %s: %d/%d requisitos listos.", entityName, available, available+missing)
+	total := available + missing + unresolved
+	summary := fmt.Sprintf("Para %s: %d/%d requisitos validados.", entityName, available, total)
+	if len(unresolvedLabels) > 0 {
+		summary += " Derivable pero aún no validado: " + strings.Join(unresolvedLabels, ", ") + "."
+	}
 	if len(missingLabels) > 0 {
 		summary += " Falta: " + strings.Join(missingLabels, ", ") + "."
+	}
+	if len(blockers) > 0 {
+		summary += fmt.Sprintf(" Además hay %d paso(s) previos del flujo que siguen bloqueando el envío.", len(blockers))
 	}
 	if len(notNeeded) > 0 {
 		summary += fmt.Sprintf(" Se omitieron %d brechas de datos que no afectan esta operación.", len(notNeeded))
 	}
 	return summary
+}
+
+func flowPrerequisiteExecutionBlockers(timeline []flowRunStep) []map[string]interface{} {
+	blockers := []map[string]interface{}{}
+	seen := map[string]bool{}
+	for _, step := range timeline {
+		if !stepBlocksTerminalReadiness(step) {
+			continue
+		}
+		key := strings.TrimSpace(step.Node)
+		if key == "" {
+			key = step.Framework + ":" + step.Capability
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		blocker := map[string]interface{}{
+			"node":       step.Node,
+			"framework":  step.Framework,
+			"capability": step.Capability,
+			"status":     step.Status,
+		}
+		if step.HumanSummary != "" {
+			blocker["summary"] = step.HumanSummary
+		} else if step.Error != "" {
+			blocker["summary"] = step.Error
+		}
+		blockers = append(blockers, blocker)
+	}
+	return blockers
+}
+
+func stepBlocksTerminalReadiness(step flowRunStep) bool {
+	switch step.Status {
+	case "failed", "blocked", "needs_input", "awaiting_approval":
+	default:
+		return false
+	}
+	switch step.Role {
+	case "branch", "cycle", "human":
+		return false
+	}
+	if step.Framework == "simulacion" {
+		return false
+	}
+	return true
 }
 
 // loadBusinessScopeColumn returns the scope_column for a given table from

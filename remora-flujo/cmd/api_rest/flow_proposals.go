@@ -200,10 +200,17 @@ func requestMecanicoProposalApproval(result *flowRunResult, step flowRunStep) {
 	result.NeedsInput = append(result.NeedsInput, flowRequiredInput{
 		Artifact:   "mecanico.proposals.v1",
 		Kind:       "approval",
+		Node:       step.Node,
 		Framework:  step.Framework,
 		Capability: "action.fix.apply",
+		Role:       step.Role,
+		Visibility: flowStepVisibilityUserFacing,
 		Title:      "Mecánico propuso remediaciones",
 		Message:    "Revisá las propuestas de Mecánico y aprobá cuáles aplicar antes de modificar datos.",
+		Actions: []flowInputAction{
+			{ID: "apply_approved_proposals", Label: "Aplicar propuestas aprobadas"},
+			{ID: "reject_proposals", Label: "Rechazar propuestas"},
+		},
 		Suggestions: []string{
 			"aplicar propuestas aprobadas",
 			"rechazar propuestas",

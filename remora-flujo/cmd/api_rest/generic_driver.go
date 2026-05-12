@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"channel/adapter"
@@ -30,8 +29,6 @@ import (
 type genericDriver struct {
 	manifest *manifest.Manifest
 	rootDir  string // raíz absoluta donde viven los framework-* directorios
-	binPath  string // binario absoluto a ejecutar (resuelto desde manifest.Binary)
-	cwd      string // cwd absoluto para ejecutar el binario
 }
 
 // newGenericDriver construye un driver genérico a partir de un manifest.
@@ -40,27 +37,13 @@ func newGenericDriver(m *manifest.Manifest, rootDir string) (*genericDriver, err
 	if m == nil {
 		return nil, fmt.Errorf("manifest nil")
 	}
-	cwdRel := m.Cwd
-	if cwdRel == "" {
-		cwdRel = "framework-" + m.Name
-	}
-	cwd := filepath.Join(rootDir, cwdRel)
-
-	binPath := m.Binary.Command
-	if binPath == "" {
+	if strings.TrimSpace(m.Binary.Command) == "" {
 		return nil, fmt.Errorf("manifest %s: binary.command vacío", m.Name)
-	}
-	// Si el comando es relativo (ej "go" o "./bin/x") lo dejamos tal cual,
-	// el shell del Channel lo resuelve desde cwd.
-	if filepath.IsAbs(binPath) {
-		// nada que resolver
 	}
 
 	return &genericDriver{
 		manifest: m,
 		rootDir:  rootDir,
-		binPath:  binPath,
-		cwd:      cwd,
 	}, nil
 }
 
@@ -68,10 +51,8 @@ func (g *genericDriver) Name() string { return g.manifest.Name }
 
 // fullArgs concatena args_prefix del manifest con los args del comando.
 func (g *genericDriver) fullArgs(cmdArgs []string) []string {
-	out := make([]string, 0, len(g.manifest.Binary.ArgsPrefix)+len(cmdArgs))
-	out = append(out, g.manifest.Binary.ArgsPrefix...)
-	out = append(out, cmdArgs...)
-	return out
+	runtime := resolveManifestRuntime(g.rootDir, g.manifest)
+	return runtime.FullArgs(cmdArgs, g.manifest)
 }
 
 func (g *genericDriver) resolveCommandArgs(cmd manifest.Command, params map[string]string) ([]string, error) {
@@ -134,7 +115,8 @@ func (g *genericDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, co
 	if err != nil {
 		return fmt.Errorf("%s ingest-answer args: %w", g.manifest.Name, err)
 	}
-	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
+	runtime := resolveManifestRuntime(g.rootDir, g.manifest)
+	resp, err := ch.ExecuteCommand(ctx, runtime.Command, args, runtime.Cwd)
 	if err != nil {
 		return fmt.Errorf("%s ingest-answer: %w", g.manifest.Name, err)
 	}
@@ -262,7 +244,8 @@ func (g *genericDriver) PollQuestionFull(ctx context.Context, ch *adapter.Client
 	if err != nil {
 		return nextQuestionResponse{}, false
 	}
-	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
+	runtime := resolveManifestRuntime(g.rootDir, g.manifest)
+	resp, err := ch.ExecuteCommand(ctx, runtime.Command, args, runtime.Cwd)
 	if err != nil || !resp.Success {
 		return nextQuestionResponse{}, false
 	}
@@ -292,7 +275,8 @@ func (g *genericDriver) PollQuestion(ctx context.Context, ch *adapter.Client, co
 	if err != nil {
 		return "", "", "", "", false
 	}
-	resp, err := ch.ExecuteCommand(ctx, g.binPath, args, g.cwd)
+	runtime := resolveManifestRuntime(g.rootDir, g.manifest)
+	resp, err := ch.ExecuteCommand(ctx, runtime.Command, args, runtime.Cwd)
 	if err != nil || !resp.Success {
 		return "", "", "", "", false
 	}

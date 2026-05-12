@@ -164,7 +164,7 @@
       }
     },
     "has-smtp": {
-      "description": "Devuelve {available: bool, capability: 'credentials.smtp'}",
+      "description": "Verifica que credentials.smtp exista, sea legible y permita login SMTP real con el mismo scope que usará Mensajero",
       "args": [
         "has-smtp",
         "--conv-id",
@@ -343,7 +343,7 @@
     },
     {
       "id": "credentials.smtp.check",
-      "description": "Verifica si credentials.smtp existe en el vault para la conversación/perfil.",
+      "description": "Verifica si credentials.smtp está realmente lista para enviar: existe en el vault, se puede leer y permite login SMTP real.",
       "command": "has-smtp",
       "inputs": [
         "session.context.v1"
@@ -362,7 +362,8 @@
         "safe_for_runtime",
         "resolution_interactive",
         "vault_scoped",
-        "no_external_side_effect"
+        "no_external_side_effect",
+        "external_network_access"
       ]
     },
     {

@@ -2,12 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
-
-	"encoding/json"
-	"path/filepath"
 )
 
 func (s *server) resolveMissingFlowArtifacts(ctx context.Context, runID string, req flowRunRequest, node flowNode, missing []string, available map[string]bool, artifacts map[string]flowRunArtifact, result *flowRunResult, emitStep func(string, flowRunStep), cycleIdx int) ([]string, []flowRequiredInput) {
@@ -34,19 +32,18 @@ func (s *server) resolveMissingFlowArtifacts(ctx context.Context, runID string, 
 			gaps := []dataGap{{Kind: "contact.destination", Description: "Falta un destino de contacto para continuar el flujo.", Field: "contact.destination.v1"}}
 			if questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, gaps, artifacts, available, result, emitStep, cycleIdx); hasQuestions {
 				providerName := s.providerNameForCapability("action.fix.resolve_gaps_conversational")
+				sourceNode := flowNode{ID: fmt.Sprintf("%s_resolve_gaps_%d", safeFilePart(providerName), cycleIdx), Framework: providerName, Capability: "action.fix.resolve_gaps_conversational", Role: flowRoleResolution}
 				for _, q := range questions {
-					needs = append(needs, flowRequiredInput{
+					needs = append(needs, flowInputFromNode(flowRequiredInput{
 						Artifact:   "contact.destination.v1",
 						Kind:       "conversational_question",
-						Framework:  providerName,
-						Capability: "action.fix.resolve_gaps_conversational",
 						Title:      "Resolución de contacto faltante",
 						Message:    jsonFirstString(q, "text", "message", "question"),
 						QuestionID: jsonFirstString(q, "id", "question_id"),
 						EntityRef:  jsonFirstString(q, "entity_ref"),
 						GapType:    jsonFirstString(q, "gap_type"),
 						Field:      jsonFirstString(q, "field"),
-					})
+					}, sourceNode))
 				}
 				continue
 			}
@@ -59,21 +56,16 @@ func (s *server) resolveMissingFlowArtifacts(ctx context.Context, runID string, 
 				continue
 			}
 			// Fallback: consultar vault directamente vía provider de credentials.smtp.check
-			if m, providerName, ok := s.findProviderForCapability("credentials.smtp.check"); ok {
+			if m, _, ok := s.findProviderForCapability("credentials.smtp.check"); ok {
 				if cmd, ok := m.Commands["has-smtp"]; ok {
 					convID := businessVaultConvID(req.Flow.BusinessID)
 					params := map[string]string{"conv_id": convID}
 					args, err := cmd.ResolveArgs(params, nil, nil)
 					if err == nil {
-						fullArgs := append([]string{}, m.Binary.ArgsPrefix...)
-						fullArgs = append(fullArgs, args...)
-						cwdRel := m.Cwd
-						if cwdRel == "" {
-							cwdRel = "framework-" + providerName
-						}
-						cwd := filepath.Join(s.rootDir, cwdRel)
+						runtime := resolveManifestRuntime(s.rootDir, m)
+						fullArgs := runtime.FullArgs(args, m)
 						execCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
-						resp, err := s.scoped(convID).ExecuteCommand(execCtx, m.Binary.Command, fullArgs, cwd)
+						resp, err := s.scoped(convID).ExecuteCommand(execCtx, runtime.Command, fullArgs, runtime.Cwd)
 						cancel()
 						if err == nil && resp.ExitCode == 0 {
 							var result map[string]interface{}
@@ -89,20 +81,13 @@ func (s *server) resolveMissingFlowArtifacts(ctx context.Context, runID string, 
 					}
 				}
 			}
-			// Activar el provider conversacionalmente: invocar next-question para obtener
-			// la primera pregunta del asistente.
-			if qID, qText, _, ok := s.invokeProviderNextQuestion(ctx, req.Flow.BusinessID, "credentials.smtp.check"); ok {
-				needs = append(needs, flowRequiredInput{
-					Artifact:   "credentials.smtp",
-					Kind:       "conversational_question",
-					Framework:  "mecanico",
-					Capability: "action.fix.resolve_gaps_conversational",
-					Title:      "Faltan credenciales SMTP",
-					Message:    qText,
-					QuestionID: qID,
-					GapType:    "credentials_smtp",
-					Field:      "credentials.smtp",
-				})
+			hostingNode := flowNode{ID: "hosting.credentials.cpanel.connect", Framework: s.providerNameForCapability("credentials.cpanel.connect"), Capability: "credentials.cpanel.connect", Role: flowRoleResolution}
+			// La conversación pertenece a Hosting: primero conectar cPanel o continuar
+			// el wizard asistido; no pedir un blob SMTP genérico.
+			if q, ok := s.invokeProviderNextQuestion(ctx, req.Flow.BusinessID, hostingNode.Capability); ok {
+				need := providerQuestionToFlowInput(hostingNode, "credentials.smtp", q)
+				need.GapType = "missing_outbound_email_capability"
+				needs = append(needs, need)
 			} else {
 				needs = append(needs, s.inputRequestForHostingConnect())
 			}

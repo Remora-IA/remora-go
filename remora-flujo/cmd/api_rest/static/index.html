@@ -355,6 +355,7 @@
       z-index: 10;
       transform: translate(-50%, -50%);
       opacity: 1;
+      overflow: visible;
     }
 
     .node-dot {
@@ -432,12 +433,12 @@
 
     .node-speech-bubble {
       position: absolute;
-      top: 78px;
+      bottom: 92px;
       left: 50%;
       transform: translateX(-50%);
       width: 260px;
       min-height: 54px;
-      max-height: 210px;
+      max-height: min(320px, 45vh);
       overflow: auto;
       padding: 10px 12px;
       border: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
@@ -457,20 +458,20 @@
 
     .node-speech-bubble.visible {
       opacity: 1;
-      transform: translateX(-50%) translateY(4px);
+      transform: translateX(-50%) translateY(-4px);
     }
 
     .node-speech-bubble::before {
       content: '';
       position: absolute;
-      top: -7px;
+      bottom: -7px;
       left: 50%;
       width: 12px;
       height: 12px;
       transform: translateX(-50%) rotate(45deg);
       background: inherit;
-      border-left: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
-      border-top: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
+      border-right: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
+      border-bottom: 1px solid color-mix(in srgb, var(--framework-color, var(--border)) 38%, var(--border));
     }
 
     .node-speech-meta {
@@ -3877,6 +3878,13 @@ function selectedCapInfo(node) {
     || { framework: node.framework, id: node.capability, requires: [], produces: [], policies: [], description: '' };
 }
 
+function canvasCapabilityInfos(node) {
+  const ids = [...new Set([...(node.capabilities || []), node.capability].filter(Boolean))];
+  if (!ids.length) return [selectedCapInfo(node)];
+  return ids.map(id => flowsState.caps.find(c => c.framework === node.framework && c.id === id)
+    || { framework: node.framework, id, requires: [], produces: [], policies: [], description: '' });
+}
+
 function capInputs(cap) {
   return [...(cap.requires || []), ...(cap.inputs || [])].filter(Boolean);
 }
@@ -5272,18 +5280,66 @@ function renderFlowNeedsInput(items) {
   </div>`;
 }
 
+function flowInteractionPrimaryField(item) {
+  const field = ((item && item.fields) || [])[0] || {};
+  const fallbackType = (item && item.artifact === 'contact.destination.v1') ? 'email' : 'text';
+  return {
+    name: field.name || item.field || 'value',
+    label: field.label || item.field || 'Respuesta',
+    type: field.type || fallbackType,
+    placeholder: field.placeholder || ''
+  };
+}
+
+function persistFlowInteractionAnswer(targetState, item, answer) {
+  if (!targetState) return;
+  const field = flowInteractionPrimaryField(item);
+  targetState.initialArtifacts = targetState.initialArtifacts || {};
+  if (item.artifact === 'contact.destination.v1' && field.type === 'email') {
+    const ctx = item.context || {};
+    targetState.initialArtifacts['contact.destination.v1'] = {
+      artifact_type: 'contact.destination.v1',
+      channel: 'email',
+      destination: answer,
+      value: answer,
+      to: answer,
+      source: 'user_input',
+      entity_type: ctx.entity_type || '',
+      entity_ref: item.entity_ref || ctx.entity_ref || ''
+    };
+  }
+  targetState.initialArtifacts['flow.interaction.answer.v1'] = {
+    artifact_type: 'flow.interaction.answer.v1',
+    node: item.node || '',
+    framework: item.framework || '',
+    capability: item.capability || '',
+    artifact: item.artifact || '',
+    question_id: item.question_id || '',
+    field: field.name,
+    step: item.step || '',
+    value: answer,
+    source: 'node_view'
+  };
+}
+
 function renderConversationalFlowQuestion(item, idx) {
-  const isSMTP = item.artifact === 'credentials.smtp' || (item.field || '').includes('smtp');
-  const placeholder = isSMTP ? 'Ej: smtp.midominio.com, puerto 587, usuario...' : 'Escribe la respuesta...';
-  const inputType = (item.field || '').includes('email') || item.artifact === 'contact.destination.v1' ? 'email' : 'text';
+  const field = flowInteractionPrimaryField(item);
+  const placeholder = field.placeholder || 'Escribe la respuesta...';
+  const inputType = field.type || 'text';
   const showObservability = !!(((flowsState.detail || {}).runResult || {}).test_mode);
+  const traceOwner = item.framework || 'framework';
+  const traceText = traceOwner === 'mecanico'
+    ? 'Sabio buscó el dato, Auditor lo validó y Mecánico formuló esta pregunta.'
+    : `${traceOwner.charAt(0).toUpperCase() + traceOwner.slice(1)} es dueño de esta conversación y espera este paso para continuar.`;
   const obs = showObservability ? `<details class="flow-branch-details" style="margin-top:8px;">
     <summary>Observabilidad staff</summary>
     <div class="flow-chat-metadata">
-      <div class="flow-chat-meta-line"><strong>Pregunta:</strong> ${escapeHtml(item.framework || 'mecanico')} · ${escapeHtml(item.capability || '')}</div>
-      <div class="flow-chat-meta-line"><strong>Gap:</strong> ${escapeHtml(item.gap_type || 'missing_data')}${item.field ? ' · ' + escapeHtml(item.field) : ''}</div>
+      <div class="flow-chat-meta-line"><strong>Owner:</strong> ${escapeHtml(item.framework || 'framework')} · ${escapeHtml(item.capability || '')}</div>
+      <div class="flow-chat-meta-line"><strong>Paso:</strong> ${escapeHtml(item.step || 'conversacion')}${item.field ? ' · ' + escapeHtml(item.field) : ''}</div>
+      <div class="flow-chat-meta-line"><strong>Gap:</strong> ${escapeHtml(item.gap_type || 'missing_data')}</div>
       <div class="flow-chat-meta-line"><strong>Entidad:</strong> ${escapeHtml(item.entity_ref || (item.context && item.context.entity_ref) || 'actual')}</div>
-      <div class="flow-chat-meta-line"><strong>Trace:</strong> Sabio buscó el dato, Auditor lo validó y Mecánico formuló esta pregunta.</div>
+      <div class="flow-chat-meta-line"><strong>Siguiente transición:</strong> ${escapeHtml(item.next_transition || 'continuar wizard')}</div>
+      <div class="flow-chat-meta-line"><strong>Trace:</strong> ${escapeHtml(traceText)}</div>
     </div>
   </details>` : '';
   return `<div style="margin-bottom:10px;">
@@ -5305,16 +5361,24 @@ function renderCanvasPrerequisites(prereqs) {
   const items = payload.prerequisites || [];
   const entityName = payload.entity_name || 'la entidad';
   const notNeeded = payload.not_needed_gaps || [];
+  const blockers = payload.execution_blockers || [];
   const summary = payload.human_summary || '';
   if (!items.length && !summary) return '';
   const rows = items.map(p => {
     const icon = p.status === 'available' ? '<span style="color:#22c55e;">&#9679;</span>'
+               : p.status === 'derivable_unresolved' ? '<span style="color:#f59e0b;">&#9679;</span>'
                : p.status === 'not_needed' ? '<span style="color:#94a3b8;">&#9679;</span>'
                : '<span style="color:#ef4444;">&#9679;</span>';
     const val = p.value ? ` = ${escapeHtml(String(p.value))}` : '';
     const src = p.source ? ` <span class="composer-muted">(${escapeHtml(p.source)})</span>` : '';
     return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">${icon} <strong>${escapeHtml(p.label || p.field || '')}</strong>${val}${src}</div>`;
   }).join('');
+  const blockerList = blockers.length
+    ? `<details style="margin-top:6px;"><summary class="composer-muted">${blockers.length} paso(s) del flujo siguen bloqueando el envío</summary>
+       <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${blockers.map(b =>
+         `<div style="padding:2px 0;"><strong>${escapeHtml(b.framework || b.node || 'flujo')}</strong>: ${escapeHtml(b.summary || b.status || 'pendiente')}</div>`
+       ).join('')}</div></details>`
+    : '';
   const omitted = notNeeded.length
     ? `<details style="margin-top:6px;"><summary class="composer-muted">${notNeeded.length} brechas omitidas (no afectan esta operacion)</summary>
        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">${notNeeded.map(g =>
@@ -5325,6 +5389,7 @@ function renderCanvasPrerequisites(prereqs) {
     <div style="font-weight:600;margin-bottom:6px;">Prerequisitos para ${escapeHtml(entityName)}</div>
     ${rows}
     ${summary ? `<div class="composer-muted" style="margin-top:6px;font-size:12px;">${escapeHtml(summary)}</div>` : ''}
+    ${blockerList}
     ${omitted}
   </div>`;
 }
@@ -5342,17 +5407,21 @@ function renderStaffPrerequisitesPanel(prereqArt) {
   const notNeeded = payload.not_needed_gaps || [];
   const availableCount = payload.available_count || 0;
   const missingCount = payload.missing_count || 0;
-  const totalCount = availableCount + missingCount;
-  const allSatisfied = payload.all_satisfied || false;
+  const unresolvedCount = payload.unresolved_count || 0;
+  const blockers = payload.execution_blockers || [];
+  const totalCount = availableCount + missingCount + unresolvedCount;
+  const allSatisfied = (payload.ready_for_terminal ?? payload.all_satisfied ?? false);
 
-  const borderColor = allSatisfied ? '#22c55e' : (missingCount > 0 ? '#f59e0b' : 'var(--border)');
+  const borderColor = allSatisfied ? '#22c55e' : ((missingCount > 0 || unresolvedCount > 0 || blockers.length > 0) ? '#f59e0b' : 'var(--border)');
   const headerIcon = allSatisfied ? '<span style="color:#22c55e;font-size:16px;">&#10003;</span>' : '<span style="color:#f59e0b;font-size:16px;">&#9888;</span>';
 
   const tableRows = items.map(p => {
     const statusIcon = p.status === 'available' ? '<span style="color:#22c55e;">&#9679;</span>'
+                     : p.status === 'derivable_unresolved' ? '<span style="color:#f59e0b;">&#9679;</span>'
                      : p.status === 'not_needed' ? '<span style="color:#94a3b8;">&#9679;</span>'
                      : '<span style="color:#ef4444;">&#9679;</span>';
     const statusLabel = p.status === 'available' ? 'Disponible'
+                      : p.status === 'derivable_unresolved' ? 'Derivable no validado'
                       : p.status === 'not_needed' ? 'No necesario'
                       : 'Faltante';
     const val = p.value ? escapeHtml(String(p.value)) : '<span class="composer-muted">-</span>';
@@ -5387,12 +5456,34 @@ function renderStaffPrerequisitesPanel(prereqArt) {
       </details>`
     : '';
 
+  const blockerSection = blockers.length > 0
+    ? `<div style="margin-top:10px;">
+        <div style="font-weight:600;margin-bottom:6px;">Bloqueos reales del run</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead><tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:4px 8px;text-align:left;font-weight:600;">Paso</th>
+            <th style="padding:4px 8px;text-align:left;font-weight:600;">Estado</th>
+            <th style="padding:4px 8px;text-align:left;font-weight:600;">Detalle</th>
+          </tr></thead>
+          <tbody>${blockers.map(b => `<tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:4px 8px;">${escapeHtml((b.framework || 'flujo') + (b.capability ? ' · ' + b.capability : ''))}</td>
+            <td style="padding:4px 8px;">${escapeHtml(b.status || 'bloqueado')}</td>
+            <td style="padding:4px 8px;" class="composer-muted">${escapeHtml(b.summary || '')}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>`
+    : '';
+
+  const headerSummary = allSatisfied
+    ? `${availableCount} de ${totalCount} disponibles. Todo listo para enviar.`
+    : `${availableCount} de ${totalCount} validados${unresolvedCount > 0 ? `. ${unresolvedCount} derivable(s) siguen sin evidencia.` : ''}${missingCount > 0 ? `. ${missingCount} faltante(s) requieren resolución.` : ''}${blockers.length > 0 ? `. ${blockers.length} bloqueo(s) reales del run impiden enviar.` : ''}`;
+
   return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid ${borderColor};border-radius:8px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
       ${headerIcon}
       <div>
         <div style="font-weight:600;">Datos requeridos para ${escapeHtml(entityName)}</div>
-        <div class="composer-muted" style="font-size:12px;">${availableCount} de ${totalCount} disponibles${missingCount > 0 ? `. ${missingCount} faltante(s) se preguntaran al usuario.` : '. Todo listo para enviar.'}</div>
+        <div class="composer-muted" style="font-size:12px;">${escapeHtml(headerSummary)}</div>
       </div>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -5405,67 +5496,170 @@ function renderStaffPrerequisitesPanel(prereqArt) {
       </tr></thead>
       <tbody>${tableRows}</tbody>
     </table>
+    ${blockerSection}
     ${omittedSection}
   </div>`;
 }
 
 function renderCanvasNeedsInput(items) {
   if (!items || !items.length) return '';
-  const hasConversational = items.some(item => item.kind === 'conversational_question');
-  return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid ${hasConversational ? 'var(--border)' : '#f59e0b'};border-radius:8px;">
-    <div style="font-weight:600;margin-bottom:6px;">${hasConversational ? 'Responder para continuar' : 'Falta informacion para continuar'}</div>
-    ${items.map((item, idx) => {
-      if (item.kind === 'conversational_question') {
-        return renderCanvasConversationalQuestion(item, idx);
-      }
-      if (item.kind === 'hosting_connect') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
-          <button class="modal-btn confirm" onclick="startHostingConversationFromCanvas()">Conectar hosting</button>`;
-      }
-      if (item.kind === 'framework_question' && item.framework === 'hosting') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
-          <button class="modal-btn confirm" onclick="startHostingConversationFromCanvas()">Continuar con Hosting</button>`;
-      }
-      if (item.kind === 'contact_email') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input id="canvas-contact-email-${idx}" type="email" placeholder="cliente@empresa.com" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
-            <button class="modal-btn confirm" onclick="saveCanvasContactDestination(${idx})">Guardar destinatario</button>
-          </div>`;
-      }
-      if (item.kind === 'approval' && item.framework === 'mecanico') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="modal-btn confirm" onclick="approveCanvasMecanicoProposals()">Aplicar propuestas aprobadas</button>
-            <button class="modal-btn cancel" onclick="rejectCanvasMecanicoProposals()">Rechazar por ahora</button>
-          </div>`;
-      }
-      if (item.kind === 'analysis_acceptance') {
-        return `<div style="margin-bottom:10px;">
-            <div style="font-weight:600;margin-bottom:6px;">Radar propone esta configuracion de analisis</div>
-            <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-              <button class="modal-btn confirm" onclick="acceptCanvasAnalysisConfiguration()">Aceptar configuracion</button>
-              <button class="modal-btn cancel" onclick="rejectCanvasAnalysisConfiguration()">Reconfigurar</button>
-            </div>
-          </div>`;
-      }
-      return `<div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta informacion')}</div>`;
-    }).join('')}
+  return `<div style="display:grid;gap:10px;">
+    ${items.map((item, idx) => renderCanvasInteractionItem(item, idx)).join('')}
   </div>`;
 }
 
+function renderCanvasInteractionItem(item, idx) {
+  if (!item) return '';
+  const title = item.title ? `<div style="font-weight:700;margin-bottom:6px;">${escapeHtml(item.title)}</div>` : '';
+  const actions = renderCanvasInteractionActions(item, idx);
+  if (item.kind === 'conversational_question') {
+    return `<div style="margin-bottom:10px;">${title}${renderCanvasConversationalQuestion(item, idx)}</div>`;
+  }
+  if (item.kind === 'contact_email') {
+    const field = (item.fields || [])[0] || {};
+    return `<div style="margin-bottom:10px;">
+      ${title}
+      <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="canvas-contact-email-${idx}" type="${escapeAttr(field.type || 'email')}" placeholder="${escapeAttr(field.placeholder || 'cliente@empresa.com')}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
+        <button class="modal-btn confirm" onclick="saveCanvasContactDestination(${idx})">${escapeHtml(field.label || 'Guardar destinatario')}</button>
+      </div>
+    </div>`;
+  }
+  return `<div style="margin-bottom:10px;">
+    ${title}
+    ${actions ? `<div style="margin-bottom:10px;">${actions}</div>` : ''}
+    <div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta informacion')}</div>
+  </div>`;
+}
+
+function renderCanvasInteractionActions(item, idx) {
+  const actions = (item.actions || []).length ? item.actions : defaultCanvasInteractionActions(item);
+  if (!actions.length) return '';
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;">
+    ${actions.map(action => `<button class="modal-btn ${/reject|cancel|reconfigure/.test(action.id || '') ? 'cancel' : 'confirm'}" onclick="runCanvasInteractionAction(${idx}, '${escapeAttr(action.id || '')}')">${escapeHtml(action.label || action.id || 'Continuar')}</button>`).join('')}
+  </div>`;
+}
+
+function defaultCanvasInteractionActions(item) {
+  if (!item) return [];
+  if (item.kind === 'analysis_acceptance') {
+    return [
+      { id: 'accept_configuration', label: 'Aceptar configuración' },
+      { id: 'reconfigure_analysis', label: 'Reconfigurar análisis' }
+    ];
+  }
+  if (item.kind === 'approval') {
+    return [
+      { id: 'apply_approved_proposals', label: 'Aplicar propuestas aprobadas' },
+      { id: 'reject_proposals', label: 'Rechazar propuestas' }
+    ];
+  }
+  if (item.kind === 'hosting_connect' || (item.kind === 'framework_question' && item.framework === 'hosting')) {
+    return [{ id: 'open_hosting_setup', label: 'Continuar con Hosting' }];
+  }
+  return [];
+}
+
 function renderCanvasConversationalQuestion(item, idx) {
-  const isSMTP = item.artifact === 'credentials.smtp' || (item.field || '').includes('smtp');
-  const placeholder = isSMTP ? 'Ej: smtp.midominio.com, puerto 587, usuario...' : 'Escribe la respuesta...';
-  const inputType = (item.field || '').includes('email') || item.artifact === 'contact.destination.v1' ? 'email' : 'text';
+  const field = (item.fields || [])[0] || {};
+  const placeholder = field.placeholder || 'Escribe la respuesta...';
+  const inputType = field.type || 'text';
   return `<div style="margin-bottom:10px;">
     <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
     <div style="display:flex;gap:8px;align-items:center;">
       <input id="canvas-conversation-answer-${idx}" type="${inputType}" placeholder="${escapeAttr(placeholder)}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
-      <button class="modal-btn confirm" onclick="answerCanvasConversationalQuestion(${idx})">Responder</button>
+      <button class="modal-btn confirm" onclick="answerCanvasConversationalQuestion(${idx})">${escapeHtml(field.label || 'Responder')}</button>
     </div>
   </div>`;
+}
+
+function runCanvasInteractionAction(idx, actionId) {
+  const item = (canvasFlowState && canvasFlowState.needsInput && canvasFlowState.needsInput[idx]) || {};
+  const key = String(actionId || '').trim();
+  if (!key) return;
+  if (item.kind === 'action_selection' || item.artifact === 'action.selection.v1') {
+    const action = (item.actions || []).find(opt => String(opt.id || '').trim() === key);
+    if (action) return continueCanvasWithSelectedAction(action);
+  }
+  if (key === 'accept_configuration') return acceptCanvasAnalysisConfiguration();
+  if (key === 'reconfigure_analysis' || key === 'reject_configuration') return rejectCanvasAnalysisConfiguration();
+  if (key === 'apply_approved_proposals') return approveCanvasMecanicoProposals();
+  if (key === 'reject_proposals') return rejectCanvasMecanicoProposals();
+  if (key === 'open_hosting_setup') return startHostingConversationFromCanvas();
+  if (item.kind === 'hosting_connect' || (item.kind === 'framework_question' && item.framework === 'hosting')) {
+    return startHostingConversationFromCanvas();
+  }
+}
+
+function continueCanvasWithSelectedAction(action) {
+  if (!action || !canvasFlowState || !canvasFlowState.manifest) return;
+  const selection = {
+    artifact_type: 'action.selection.v1',
+    id: action.id || '',
+    label: action.label || '',
+    description: action.description || '',
+    bound_id: action.bound_id || '',
+    source: 'canvas_user_click',
+    selected_at: new Date().toISOString()
+  };
+  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
+  canvasFlowState.initialArtifacts['action.selection.v1'] = selection;
+  showCanvasThought('Usuario', `Seleccionaste: ${escapeHtml(selection.label || selection.id || 'opción')}`);
+  runCanvasFlowWithSelection(selection);
+}
+
+function groupCanvasInteractionsByNode(items) {
+  const groups = new Map();
+  (items || []).filter(isUserFacingInteraction).forEach((item, idx) => {
+    const nodeId = canvasInteractionNodeId(item) || (item.framework || 'user');
+    if (!groups.has(nodeId)) groups.set(nodeId, []);
+    groups.get(nodeId).push({ item, idx });
+  });
+  return groups;
+}
+
+function renderCanvasNodeInteractionBubble(entries) {
+  if (!entries || !entries.length) return '';
+  return `<div style="display:grid;gap:10px;">
+    ${entries.map(({ item, idx }) => renderCanvasInteractionItem(item, idx)).join('')}
+  </div>`;
+}
+
+function applyCanvasNeedsInput(items, flowData = null) {
+  if (!canvasFlowState) return;
+  canvasFlowState.needsInput = items || [];
+  canvasFlowState.lastFlowData = flowData || canvasFlowState.lastFlowData || null;
+  syncCanvasGraph(flowData);
+  const grouped = groupCanvasInteractionsByNode(canvasFlowState.needsInput);
+  const orderedEntries = [...grouped.entries()];
+  const focusedNodeId = orderedEntries.length ? orderedEntries[orderedEntries.length - 1][0] : '';
+  deactivateAllNodes();
+  hideAllNodeSpeech();
+  grouped.forEach((entries, nodeId) => {
+    const item = entries[0] && entries[0].item;
+    if (!document.getElementById(`node-${nodeId}`)) {
+      addNode(nodeId, canvasNodeLabel({
+        id: nodeId,
+        framework: item.framework || nodeId,
+        capability: item.capability || '',
+        role: item.role || 'resolution'
+      }), frameworkType(item.framework), { x: 50, y: 58 }, {
+        framework: item.framework || nodeId,
+        capability: item.capability || '',
+        role: item.role || 'resolution',
+        suppressRedraw: true
+      });
+      syncCanvasGraph(flowData);
+    }
+    if (nodeId !== focusedNodeId) return;
+    setNodeActive(nodeId, true);
+    setNodeSpeech(nodeId, speakerForStep(item), renderCanvasNodeInteractionBubble(entries), { html: true });
+  });
+  const summary = grouped.size === 1
+    ? `Necesito tu siguiente acción en ${canvasNodeLabel({ framework: [...grouped.values()][0][0].item.framework || [...grouped.keys()][0], role: [...grouped.values()][0][0].item.role || '' })}.`
+    : `Necesito tu siguiente acción en ${grouped.size} nodos del flujo.`;
+  showCanvasThought('Rémora', summary);
 }
 
 function answerCanvasConversationalQuestion(idx) {
@@ -5475,24 +5669,7 @@ function answerCanvasConversationalQuestion(idx) {
   if (!canvasFlowState) return;
   const needs = canvasFlowState.needsInput || [];
   const item = needs[idx] || {};
-  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
-  if (item.artifact === 'contact.destination.v1') {
-    canvasFlowState.initialArtifacts['contact.destination.v1'] = {
-      artifact_type: 'contact.destination.v1',
-      channel: 'email',
-      destination: answer,
-      value: answer,
-      to: answer,
-      source: 'user_input',
-      entity_ref: item.entity_ref || ''
-    };
-  } else if (item.artifact === 'credentials.smtp') {
-    canvasFlowState.initialArtifacts['credentials.smtp.input.v1'] = {
-      artifact_type: 'credentials.smtp.input.v1',
-      value: answer,
-      source: 'user_input'
-    };
-  }
+  persistFlowInteractionAnswer(canvasFlowState, item, answer);
   canvasFlowState.lastInput = answer;
   runCanvasFlowReal();
 }
@@ -5604,26 +5781,7 @@ function answerFlowConversationalQuestion(idx) {
   if (!answer) { alert('Escribe una respuesta.'); return; }
   const needs = ((flowsState.detail || {}).runResult || {}).needs_input || [];
   const item = needs[idx] || {};
-  flowsState.detail.initialArtifacts = flowsState.detail.initialArtifacts || {};
-  if (item.artifact === 'contact.destination.v1') {
-    const ctx = item.context || {};
-    flowsState.detail.initialArtifacts['contact.destination.v1'] = {
-      artifact_type: 'contact.destination.v1',
-      channel: 'email',
-      destination: answer,
-      value: answer,
-      to: answer,
-      source: 'user_input',
-      entity_type: ctx.entity_type || '',
-      entity_ref: item.entity_ref || ctx.entity_ref || ''
-    };
-  } else if (item.artifact === 'credentials.smtp') {
-    flowsState.detail.initialArtifacts['credentials.smtp.input.v1'] = {
-      artifact_type: 'credentials.smtp.input.v1',
-      value: answer,
-      source: 'user_input'
-    };
-  }
+  persistFlowInteractionAnswer(flowsState.detail, item, answer);
   flowsState.detail.lastInput = answer;
   dryRunCurrentFlow();
 }
@@ -7072,75 +7230,361 @@ function flowNodeGridPosition(index, total) {
 }
 
 function addNode(id, name, type, posOverride = null, meta = {}) {
-  console.log('addNode called with:', id, name, type);
-  console.log('  canvas element:', canvas);
-  console.log('  canvas children before:', canvas.children.length);
-  
-  // Calculate position based on how many nodes exist
-  const nodeCount = activeNodes.length;
-  const positions = [
-    { x: 50, y: 35 },   // First framework - top center
-    { x: 30, y: 35 },   // Second - top left
-    { x: 70, y: 35 },   // Third - top right
-  ];
-  const pos = posOverride || positions[Math.min(nodeCount, positions.length - 1)] || positions[0];
-  
+  const existing = activeNodes.find(node => node.id === id);
+  const pos = posOverride || flowNodeGridPosition(activeNodes.length, activeNodes.length + 1);
+  if (existing) {
+    Object.assign(existing, meta);
+    const labelEl = document.querySelector(`#node-${id} .node-label`);
+    if (labelEl) labelEl.textContent = name;
+    return document.getElementById(`node-${id}`);
+  }
   const nodeEl = createNodeElement(id, name, type, pos.x, pos.y);
-  nodeEl.classList.add('new'); // Play appear animation
+  nodeEl.classList.add('new');
   canvas.appendChild(nodeEl);
-  
-  activeNodes.push({ id, name, type, visibility: meta.visibility || 'user_facing', triggeredBy: meta.triggeredBy || null });
-  drawConnections();
-  
+  activeNodes.push({
+    id,
+    name,
+    type,
+    framework: meta.framework || type || id,
+    capability: meta.capability || '',
+    capabilities: meta.capabilities || (meta.capability ? [meta.capability] : []),
+    role: meta.role || '',
+    roles: meta.roles || (meta.role ? [meta.role] : []),
+    visibility: meta.visibility || 'user_facing',
+    triggeredBy: meta.triggeredBy || null
+  });
+  if (!meta.suppressRedraw) drawConnections();
   return nodeEl;
 }
 
-function drawConnections() {
-  const userNode = nodeUser;
-  const userDot = userNode.querySelector('.node-dot');
-  
+function canvasNodeById(id) {
+  return activeNodes.find(node => node.id === id) || null;
+}
+
+function canvasNeedsInput() {
+  return (canvasFlowState && canvasFlowState.needsInput) || [];
+}
+
+function isUserFacingInteraction(item) {
+  return (item && item.visibility) !== 'infrastructure';
+}
+
+function canvasInteractionNodeId(item) {
+  if (!item) return '';
+  return frameworkType(item.framework || item.node || item.capability || '');
+}
+
+function canvasNodeSemanticLevel(node) {
+  const fw = discoveredFrameworks.find(item => item.name === node.framework);
+  const execMode = fw?.execution_mode || 'sync_chain';
+  const frameworkLevel = {
+    sabio: 'support',
+    auditor: 'processing',
+    mecanico: 'processing',
+    hosting: 'processing',
+    radar: 'interactive',
+    foco: 'interactive',
+    mensajero: 'interactive'
+  }[frameworkType(node.framework)];
+  if (frameworkLevel) return frameworkLevel;
+  const caps = canvasCapabilityInfos(node);
+  const io = [
+    ...(node.inputs || []),
+    ...(node.requires || []),
+    ...(node.outputs || []),
+    ...(node.produces || []),
+    ...caps.flatMap(cap => [...(cap.inputs || []), ...(cap.requires || []), ...(cap.outputs || []), ...(cap.produces || [])])
+  ].filter(Boolean);
+  const policies = [
+    ...(node.policies || []),
+    ...caps.flatMap(cap => cap.policies || [])
+  ];
+  if (node.role === 'entry' || node.role === 'bootstrap') return 'interactive';
+  if (policies.some(policy => /approval|external|send/.test(policy))) return 'interactive';
+  if (execMode === 'async_trigger' || flowNodeConsumesBusinessData(node) || node.role === 'resolution') return 'support';
+  if (io.some(artifact => /^business\.|^entity\.|^collection\.|^dataset\.|^data\.sqlite_db|^external\.api\.dump/.test(String(artifact)))) return 'support';
+  return 'processing';
+}
+
+function canvasNodeLabel(node) {
+  const fw = discoveredFrameworks.find(item => item.name === node.framework);
+  const info = getFrameworkDisplayInfo(fw || { name: node.framework });
+  return info.name || node.framework || 'Framework';
+}
+
+function uniqueCanvasNodes(nodes) {
+  const seen = new Set();
+  return (nodes || []).filter(node => {
+    const id = node && node.id;
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
+function aggregateCanvasNodes(nodes) {
+  const byFramework = new Map();
+  (nodes || []).forEach(node => {
+    if (!node || !node.framework) return;
+    const key = frameworkType(node.framework);
+    const current = byFramework.get(key);
+    if (!current) {
+      byFramework.set(key, {
+        id: key,
+        framework: node.framework,
+        capability: node.capability || '',
+        capabilities: node.capability ? [node.capability] : [],
+        role: node.role || '',
+        roles: node.role ? [node.role] : [],
+        visibility: node.visibility || 'user_facing',
+        inputs: [...(node.inputs || []), ...(node.requires || [])],
+        outputs: [...(node.outputs || []), ...(node.produces || [])],
+        requires: [...(node.requires || [])],
+        produces: [...(node.produces || [])],
+        policies: [...(node.policies || [])]
+      });
+      return;
+    }
+    current.framework = current.framework || node.framework;
+    if (!current.capability && node.capability) current.capability = node.capability;
+    current.capabilities = [...new Set([...(current.capabilities || []), node.capability].filter(Boolean))];
+    current.roles = [...new Set([...(current.roles || []), node.role].filter(Boolean))];
+    if (!current.role || current.role === 'pipeline') {
+      current.role = node.role || current.role;
+    }
+    current.visibility = current.visibility === 'infrastructure' ? current.visibility : (node.visibility || current.visibility);
+    current.inputs = [...new Set([...(current.inputs || []), ...(node.inputs || []), ...(node.requires || [])])];
+    current.outputs = [...new Set([...(current.outputs || []), ...(node.outputs || []), ...(node.produces || [])])];
+    current.requires = [...new Set([...(current.requires || []), ...(node.requires || [])])];
+    current.produces = [...new Set([...(current.produces || []), ...(node.produces || [])])];
+    current.policies = [...new Set([...(current.policies || []), ...(node.policies || [])])];
+  });
+  return [...byFramework.values()];
+}
+
+function computeCanvasNodeEdges(nodes, manifest, result = null) {
+  const visible = new Set((nodes || []).map(node => node.id));
+  const ordered = nodes || [];
+  const edges = [];
+  const seen = new Set();
+  const manifestFrameworkByNodeId = new Map(((manifest && manifest.nodes) || []).map(node => [node.id, frameworkType(node.framework || node.id)]));
+  const toVisualNodeId = raw => manifestFrameworkByNodeId.get(raw) || frameworkType(raw || '');
+  const ensure = (from, to, kind = 'flow') => {
+    const fromId = from === 'user' ? 'user' : toVisualNodeId(from);
+    const toId = toVisualNodeId(to);
+    if (!fromId || !toId) return;
+    if (fromId === toId || !visible.has(toId)) return;
+    if (fromId !== 'user' && !visible.has(fromId)) return;
+    const key = `${fromId}->${toId}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push({ from: fromId, to: toId, kind });
+  };
+
+  ((manifest && manifest.edges) || []).forEach(edge => ensure(edge.from, edge.to, 'manifest'));
+
+  const producers = new Map();
+  ordered.forEach(node => {
+    const caps = canvasCapabilityInfos(node);
+    [...(node.outputs || []), ...(node.produces || []), ...caps.flatMap(cap => [...(cap.outputs || []), ...(cap.produces || [])])].forEach(artifact => {
+      if (!artifact) return;
+      if (!producers.has(artifact)) producers.set(artifact, []);
+      producers.get(artifact).push(node.id);
+    });
+  });
+  ordered.forEach(node => {
+    const caps = canvasCapabilityInfos(node);
+    [...(node.inputs || []), ...(node.requires || []), ...caps.flatMap(cap => [...(cap.inputs || []), ...(cap.requires || [])])].forEach(artifact => {
+      (producers.get(artifact) || []).forEach(sourceId => ensure(sourceId, node.id, 'artifact'));
+    });
+  });
+
+  ((result && result.timeline) || []).forEach(step => {
+    if (stepVisibility(step) === 'infrastructure') return;
+    const target = step.framework || step.node;
+    const source = step.triggered_by && (step.triggered_by.framework || step.triggered_by.node);
+    if (target && source) ensure(source, target, 'trigger');
+  });
+
+  if (!edges.length) {
+    for (let i = 1; i < ordered.length; i++) ensure(ordered[i - 1].id, ordered[i].id, 'fallback');
+  }
+
+  const interactionNodes = new Set(canvasNeedsInput().filter(isUserFacingInteraction).map(canvasInteractionNodeId).filter(Boolean));
+  ordered.forEach(node => {
+    if (node.role === 'entry' || node.role === 'bootstrap' || interactionNodes.has(node.id)) {
+      ensure('user', node.id, 'user');
+    }
+  });
+  return edges;
+}
+
+function computeCanvasNodeLayout(nodes, edges) {
+  const order = new Map((nodes || []).map((node, index) => [node.id, index]));
+  const incoming = new Map((nodes || []).map(node => [node.id, []]));
+  const outgoing = new Map((nodes || []).map(node => [node.id, []]));
+  (edges || []).forEach(edge => {
+    if (edge.from !== 'user' && incoming.has(edge.to)) incoming.get(edge.to).push(edge.from);
+    if (outgoing.has(edge.from)) outgoing.get(edge.from).push(edge.to);
+  });
+  const depthMemo = new Map();
+  const depthFor = (id, seen = new Set()) => {
+    if (depthMemo.has(id)) return depthMemo.get(id);
+    if (seen.has(id)) return 0;
+    seen.add(id);
+    const parents = (incoming.get(id) || []).filter(parent => parent !== 'user');
+    const depth = parents.length ? Math.max(...parents.map(parent => depthFor(parent, new Set(seen))) ) + 1 : 0;
+    depthMemo.set(id, depth);
+    return depth;
+  };
+  const levels = { support: 24, processing: 44, interactive: 64 };
+  const groups = { support: [], processing: [], interactive: [] };
+  (nodes || []).forEach(node => {
+    const level = canvasNodeSemanticLevel(node);
+    groups[level] = groups[level] || [];
+    groups[level].push(node);
+  });
+  const layout = {};
+  Object.entries(groups).forEach(([level, group]) => {
+    const sorted = group.sort((a, b) => {
+      const depthDiff = depthFor(a.id) - depthFor(b.id);
+      if (depthDiff !== 0) return depthDiff;
+      return (order.get(a.id) || 0) - (order.get(b.id) || 0);
+    });
+    sorted.forEach((node, index) => {
+      const count = sorted.length;
+      const x = count === 1 ? 50 : 18 + index * (64 / Math.max(1, count - 1));
+      layout[node.id] = { x, y: levels[level] || 40 };
+    });
+  });
+  return layout;
+}
+
+function computeCanvasRuntimeGraph(result = null) {
+  const manifest = canvasFlowState && canvasFlowState.manifest;
+  if (!manifest) return { nodes: [], edges: [] };
+  const phase = canvasFlowState.phase || 'operative';
+  const baseNodes = (manifest.nodes || []).filter(node => phase === 'bootstrap' ? node.role === 'bootstrap' : node.role !== 'bootstrap');
+  const dynamicNodes = ((result && result.dynamic_nodes) || []).filter(node => {
+    if (!node) return false;
+    if (node.role === 'resolution' && !canvasNeedsInput().some(item => canvasInteractionNodeId(item) === frameworkType(item.framework || node.framework || node.id))) return false;
+    return true;
+  });
+  const interactionNodes = canvasNeedsInput()
+    .filter(isUserFacingInteraction)
+    .map(item => ({
+      id: frameworkType(item.framework || item.node || item.capability || ''),
+      framework: item.framework || canvasInteractionNodeId(item),
+      capability: item.capability || '',
+      role: item.role || 'resolution'
+    }))
+    .filter(node => node.id);
+  const liveNodes = activeNodes.map(node => ({
+    id: frameworkType(node.framework || node.type || node.id),
+    framework: node.framework || node.type || node.id,
+    capability: node.capability || '',
+    capabilities: node.capabilities || [],
+    role: node.role || '',
+    roles: node.roles || []
+  }));
+  const normalizedBaseNodes = baseNodes.map(node => ({ ...node, id: frameworkType(node.framework || node.id) }));
+  const normalizedDynamicNodes = dynamicNodes.map(node => ({ ...node, id: frameworkType(node.framework || node.id) }));
+  const nodes = aggregateCanvasNodes([...normalizedBaseNodes, ...normalizedDynamicNodes, ...interactionNodes, ...liveNodes]).filter(node => node.id !== 'user');
+  return {
+    nodes,
+    edges: computeCanvasNodeEdges(nodes, manifest, result)
+  };
+}
+
+function syncCanvasGraph(result = null) {
+  if (!canvasFlowState || !canvasFlowState.manifest) {
+    drawConnections();
+    return;
+  }
+  const graph = computeCanvasRuntimeGraph(result || canvasFlowState.lastFlowData || null);
+  const wanted = new Set(graph.nodes.map(node => node.id));
+
+  activeNodes.slice().forEach(node => {
+    if (wanted.has(node.id)) return;
+    const el = document.getElementById(`node-${node.id}`);
+    if (el) el.remove();
+    activeNodes = activeNodes.filter(item => item.id !== node.id);
+  });
+
+  graph.nodes.forEach(node => {
+    const label = canvasNodeLabel(node);
+    const existing = canvasNodeById(node.id);
+    if (!existing) {
+      addNode(node.id, label, frameworkType(node.framework), { x: 50, y: 40 }, {
+        framework: node.framework,
+        capability: node.capability,
+        capabilities: node.capabilities || (node.capability ? [node.capability] : []),
+        role: node.role,
+        roles: node.roles || (node.role ? [node.role] : []),
+        suppressRedraw: true
+      });
+      return;
+    }
+    existing.name = label;
+    existing.framework = node.framework;
+    existing.capability = node.capability;
+    existing.capabilities = node.capabilities || existing.capabilities || [];
+    existing.role = node.role;
+    existing.roles = node.roles || existing.roles || [];
+    const labelEl = document.querySelector(`#node-${node.id} .node-label`);
+    if (labelEl) labelEl.textContent = label;
+  });
+
+  const layout = computeCanvasNodeLayout(graph.nodes, graph.edges);
+  graph.nodes.forEach(node => {
+    const pos = layout[node.id] || { x: 50, y: 40 };
+    const el = document.getElementById(`node-${node.id}`);
+    if (el) el.style.cssText = `top: ${pos.y}%; left: ${pos.x}%;`;
+  });
+  canvasFlowState.connectionEdges = graph.edges;
+  drawConnections(graph.edges);
+}
+
+function drawConnections(edges = null) {
   connectionsSvg.innerHTML = '';
-  
-  activeNodes.forEach((node, index) => {
-    if (node.visibility === 'infrastructure') return;
-    const nodeEl = document.getElementById(`node-${node.id}`);
-    if (!nodeEl || !userDot) return;
-    
-    const nodeDot = nodeEl.querySelector('.node-dot');
-    
-    const userRect = userDot.getBoundingClientRect();
-    const nodeRect = nodeDot.getBoundingClientRect();
-    const svgRect = connectionsSvg.getBoundingClientRect();
-    
-    const x1 = ((userRect.left + userRect.width / 2) - svgRect.left) / svgRect.width * 100;
-    const y1 = ((userRect.top + userRect.height / 2) - svgRect.top) / svgRect.height * 100;
-    const x2 = ((nodeRect.left + nodeRect.width / 2) - svgRect.left) / svgRect.width * 100;
-    const y2 = ((nodeRect.top + nodeRect.height / 2) - svgRect.top) / svgRect.height * 100;
-    
+  const graphEdges = edges || (canvasFlowState && canvasFlowState.connectionEdges) || [];
+  const svgRect = connectionsSvg.getBoundingClientRect();
+  const nodeDotRect = nodeId => {
+    if (nodeId === 'user') return nodeUser.querySelector('.node-dot')?.getBoundingClientRect() || null;
+    return document.querySelector(`#node-${nodeId} .node-dot`)?.getBoundingClientRect() || null;
+  };
+  graphEdges.forEach(edge => {
+    const fromRect = nodeDotRect(edge.from);
+    const toRect = nodeDotRect(edge.to);
+    if (!fromRect || !toRect) return;
+    const x1 = ((fromRect.left + fromRect.width / 2) - svgRect.left) / svgRect.width * 100;
+    const y1 = ((fromRect.top + fromRect.height / 2) - svgRect.top) / svgRect.height * 100;
+    const x2 = ((toRect.left + toRect.width / 2) - svgRect.left) / svgRect.width * 100;
+    const y2 = ((toRect.top + toRect.height / 2) - svgRect.top) / svgRect.height * 100;
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
     line.setAttribute('x1', `${x1}%`);
     line.setAttribute('y1', `${y1}%`);
     line.setAttribute('x2', `${x2}%`);
     line.setAttribute('y2', `${y2}%`);
     line.setAttribute('class', 'connection');
-    line.id = `conn-user-${node.id}`;
-    
+    line.id = `conn-${edge.from}-${edge.to}`;
+    line.dataset.from = edge.from;
+    line.dataset.to = edge.to;
     connectionsSvg.appendChild(line);
   });
 }
 
 function setNodeActive(nodeId, isActive) {
-  const node = document.getElementById(`node-${nodeId}`);
+  const node = nodeId === 'user' ? nodeUser : document.getElementById(`node-${nodeId}`);
   if (node) {
     node.classList.toggle('active', isActive);
     node.classList.toggle('dimmed', !isActive && activeNodes.length > 0);
   }
-  
-  const conn = document.getElementById(`conn-user-${nodeId}`);
-  if (conn) {
+
+  connectionsSvg.querySelectorAll(`[data-from="${nodeId}"],[data-to="${nodeId}"]`).forEach(conn => {
     conn.classList.toggle('active', isActive);
     conn.classList.toggle('pulse', isActive);
-  }
+  });
 }
 
 function setNodeSpeaking(nodeId, isSpeaking) {
@@ -7153,10 +7597,13 @@ function setNodeSpeaking(nodeId, isSpeaking) {
 function setNodeSpeech(nodeId, header, content, actionOptions = []) {
   const bubble = document.getElementById(`speech-${nodeId}`);
   if (!bubble) return;
-  const actions = (actionOptions || []).slice(0, 3);
+  hideAllNodeSpeech(nodeId);
+  const opts = Array.isArray(actionOptions) ? { actionOptions } : (actionOptions || {});
+  const actions = (opts.actionOptions || []).slice(0, 3);
+  const bodyHtml = opts.html ? String(content || '') : renderContent(cleanVisibleContent(content || 'Listo.'));
   bubble.innerHTML = `
     <div class="node-speech-meta">${escapeHtml(header || 'Rémora')}</div>
-    <div>${renderContent(cleanVisibleContent(content || 'Listo.'))}</div>
+    <div>${bodyHtml}</div>
     ${actions.length ? `<div class="node-speech-actions">
       ${actions.map((opt, idx) => `<button class="node-speech-action" type="button" onclick="selectCanvasAction('${escapeAttr(nodeId)}', ${idx})">
         ${escapeHtml(opt.label || opt.id || 'Acción')}
@@ -7175,22 +7622,14 @@ function selectCanvasAction(nodeId, idx) {
   const options = (window.__canvasActionOptions || {})[nodeId] || [];
   const opt = options[idx];
   if (!opt) return;
-  if (!canvasFlowState || !canvasFlowState.manifest) return;
-  const selection = {
-    artifact_type: 'action.selection.v1',
+  const btns = document.querySelectorAll(`#speech-${nodeId} .node-speech-action`);
+  btns.forEach((b, i) => b.style.opacity = i === idx ? '1' : '0.4');
+  continueCanvasWithSelectedAction({
     id: opt.id || String(idx + 1),
     label: opt.label || '',
     description: opt.description || '',
-    bound_id: opt.bound_id || '',
-    source: 'canvas_user_click',
-    selected_at: new Date().toISOString()
-  };
-  canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
-  canvasFlowState.initialArtifacts['action.selection.v1'] = selection;
-  const btns = document.querySelectorAll(`#speech-${nodeId} .node-speech-action`);
-  btns.forEach((b, i) => b.style.opacity = i === idx ? '1' : '0.4');
-  showCanvasThought('Usuario', `Seleccionaste: ${escapeHtml(opt.label || opt.id || 'opción')}`);
-  runCanvasFlowWithSelection(selection);
+    bound_id: opt.bound_id || ''
+  });
 }
 
 async function runCanvasFlowWithSelection(selection) {
@@ -7238,7 +7677,9 @@ async function runCanvasFlowWithSelection(selection) {
         }
         if (event === 'step_start') {
           const step = data.step || {};
+          if (stepVisibility(step) === 'infrastructure') continue;
           const nid = ensureCanvasNodeForStep(step);
+          if (!nid) continue;
           deactivateAllNodes();
           setNodeActive(nid, true);
           setNodeSpeaking(nid, true);
@@ -7247,7 +7688,9 @@ async function runCanvasFlowWithSelection(selection) {
         }
         if (event === 'step_complete') {
           const step = data.step || {};
+          if (stepVisibility(step) === 'infrastructure') continue;
           const nid = ensureCanvasNodeForStep(step);
+          if (!nid) continue;
           setNodeSpeaking(nid, false);
           setNodeActive(nid, true);
           showCanvasThought(speakerForStep(step), step.status === 'completed' ? 'Paso completado.' : (step.error || step.status || 'Paso detenido.'));
@@ -7257,14 +7700,13 @@ async function runCanvasFlowWithSelection(selection) {
           deactivateAllNodes();
           nodeUser.classList.add('active');
           const status = data.status || 'completed';
+          canvasFlowState.lastFlowData = data;
+          syncCanvasGraph(data);
           const semantic = renderFlowSemanticArtifacts(data, manifest);
           let thoughtContent = '';
           if (status === 'needs_input' && (data.needs_input || []).length) {
-            const prereqs = data.prerequisites || (data.artifacts && data.artifacts['flow.prerequisites.v1']);
-            if (prereqs) {
-              thoughtContent += renderCanvasPrerequisites(prereqs);
-            }
-            thoughtContent += renderCanvasNeedsInput(data.needs_input);
+            applyCanvasNeedsInput(data.needs_input, data);
+            continue;
           } else if (status === 'completed') {
             thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}Operacion completada.`;
           } else {
@@ -7275,6 +7717,8 @@ async function runCanvasFlowWithSelection(selection) {
           if (status === 'needs_input') {
             canvasFlowState.needsInput = data.needs_input;
             canvasFlowState.lastFlowData = data;
+          } else {
+            canvasFlowState.needsInput = [];
           }
         }
       }
@@ -7296,6 +7740,16 @@ function deactivateAllNodes() {
   });
 }
 
+function hideAllNodeSpeech(exceptId = '') {
+  document.querySelectorAll('.node-speech-bubble.visible').forEach(bubble => {
+    if (exceptId && bubble.id === `speech-${exceptId}`) return;
+    bubble.classList.remove('visible');
+  });
+  if (!exceptId) {
+    window.__canvasActionOptions = {};
+  }
+}
+
 function openFlowInNodeView(flow) {
   if (!flow || !flow.manifest) return;
   hideFlowsModal();
@@ -7308,33 +7762,17 @@ function openFlowInNodeView(flow) {
 
   const nodes = (flow.manifest.nodes || []);
   const bootstrapNodes = nodes.filter(n => n.role === 'bootstrap');
-  const operativeNodes = nodes.filter(n => n.role !== 'bootstrap');
   const isInstalled = flow.status === 'installed' || flow.status === 'active';
   canvasFlowState = { flow, manifest: flow.manifest, phase: isInstalled ? 'operative' : 'bootstrap' };
+  syncCanvasGraph();
 
   if (!isInstalled && bootstrapNodes.length > 0) {
-    // Phase bootstrap: only show HUMANO + bootstrap nodes (e.g. Radar)
-    bootstrapNodes.forEach((n, idx) => {
-      const fw = discoveredFrameworks.find(f => f.name === n.framework);
-      const info = getFrameworkDisplayInfo(fw || { name: n.framework });
-      const label = `${info.name} · Bootstrap`;
-      addNode(n.id || n.framework || `bootstrap_${idx}`, label, frameworkType(n.framework), { x: 50, y: 42 });
-    });
-    requestAnimationFrame(drawConnections);
     showCanvasThought('Rémora', `<div>
       <p><strong>${escapeHtml(flow.name || 'Flujo')}</strong></p>
       <p>Fase de configuración inicial. Radar va a proponer la configuración de análisis. Una vez aceptada, el flujo se instala y aparecen los demás nodos operativos.</p>
       <button class="modal-btn confirm" onclick="runCanvasFlowReal()">Iniciar configuración</button>
     </div>`);
   } else {
-    // Phase operative: show all non-bootstrap nodes
-    operativeNodes.forEach((n, idx) => {
-      const fw = discoveredFrameworks.find(f => f.name === n.framework);
-      const info = getFrameworkDisplayInfo(fw || { name: n.framework });
-      const label = `${info.name}${n.role ? ' · ' + flowRoleLabelShort(n.role, n.framework) : ''}`;
-      addNode(n.id || n.framework || `step_${idx + 1}`, label, frameworkType(n.framework), flowNodeCanvasPosition(n, idx, operativeNodes));
-    });
-    requestAnimationFrame(drawConnections);
     showCanvasThought('Rémora', `<div>
       <p><strong>${escapeHtml(flow.name || 'Flujo')}</strong></p>
       <p>Vista de operación real: cada nodo mantiene su propio speech bubble. El bubble superior muestra el último pensamiento del framework activo.</p>
@@ -7346,32 +7784,16 @@ function openFlowInNodeView(flow) {
 function transitionToOperativePhase() {
   if (!canvasFlowState || canvasFlowState.phase === 'operative') return;
   canvasFlowState.phase = 'operative';
-  const flow = canvasFlowState.flow;
-  const nodes = (flow.manifest.nodes || []);
-  const bootstrapNodes = nodes.filter(n => n.role === 'bootstrap');
-  const operativeNodes = nodes.filter(n => n.role !== 'bootstrap');
-  // Remove bootstrap nodes
-  bootstrapNodes.forEach(n => {
-    const id = n.id || n.framework;
-    const el = document.getElementById(`node-${id}`);
-    if (el) el.remove();
-    const idx = activeNodes.findIndex(an => an.id === id);
-    if (idx >= 0) activeNodes.splice(idx, 1);
-  });
-  // Add operative nodes
-  operativeNodes.forEach((n, idx) => {
-    const fw = discoveredFrameworks.find(f => f.name === n.framework);
-    const info = getFrameworkDisplayInfo(fw || { name: n.framework });
-    const label = `${info.name}${n.role ? ' · ' + flowRoleLabelShort(n.role, n.framework) : ''}`;
-    if (!document.getElementById(`node-${n.id || n.framework}`)) {
-      addNode(n.id || n.framework || `step_${idx + 1}`, label, frameworkType(n.framework), flowNodeCanvasPosition(n, idx, operativeNodes));
-    }
-  });
-  requestAnimationFrame(drawConnections);
+  syncCanvasGraph(canvasFlowState.lastFlowData);
   showCanvasThought('Rémora', 'Flujo instalado. Fase operativa activa.');
 }
 
 function flowNodeCanvasPosition(node, index, nodes) {
+  if (canvasFlowState && canvasFlowState.manifest) {
+    const graph = computeCanvasRuntimeGraph(canvasFlowState.lastFlowData);
+    const layout = computeCanvasNodeLayout(graph.nodes, graph.edges);
+    if (layout[node.id]) return layout[node.id];
+  }
   const role = node.role || 'pipeline';
   const fw = node.framework || '';
   if (role === 'bootstrap') return { x: 50, y: 16 };
@@ -7430,7 +7852,9 @@ async function runCanvasFlowReal() {
         }
         if (event === 'step_start') {
           const step = data.step || {};
+          if (stepVisibility(step) === 'infrastructure') continue;
           const nodeId = ensureCanvasNodeForStep(step);
+          if (!nodeId) continue;
           deactivateAllNodes();
           setNodeActive(nodeId, true);
           setNodeSpeaking(nodeId, true);
@@ -7439,7 +7863,9 @@ async function runCanvasFlowReal() {
         }
         if (event === 'step_complete') {
           const step = data.step || {};
+          if (stepVisibility(step) === 'infrastructure') continue;
           const nodeId = ensureCanvasNodeForStep(step);
+          if (!nodeId) continue;
           setNodeSpeaking(nodeId, false);
           setNodeActive(nodeId, true);
           showCanvasThought(speakerForStep(step), step.status === 'completed' ? 'Paso completado. Entrego contexto al siguiente framework.' : (step.error || step.status || 'Paso detenido.'));
@@ -7449,15 +7875,13 @@ async function runCanvasFlowReal() {
           deactivateAllNodes();
           nodeUser.classList.add('active');
           const status = data.status || 'completed';
+          canvasFlowState.lastFlowData = data;
+          syncCanvasGraph(data);
           const semantic = renderFlowSemanticArtifacts(data, manifest);
           let thoughtContent = '';
           if (status === 'needs_input' && (data.needs_input || []).length) {
-            // Render prerequisites semaphore if available
-            const prereqs = data.prerequisites || (data.artifacts && data.artifacts['flow.prerequisites.v1']);
-            if (prereqs) {
-              thoughtContent += renderCanvasPrerequisites(prereqs);
-            }
-            thoughtContent += renderCanvasNeedsInput(data.needs_input);
+            applyCanvasNeedsInput(data.needs_input, data);
+            continue;
           } else if (status === 'completed') {
             thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}Operación real completada. El flujo terminó todos sus pasos.`;
           } else {
@@ -7465,10 +7889,11 @@ async function runCanvasFlowReal() {
             thoughtContent = `${semantic}${semantic ? '<div style="height:10px;"></div>' : ''}${escapeHtml(msg)}`;
           }
           showCanvasThought('Rémora', thoughtContent);
-          // Also store needs_input for re-run
           if (status === 'needs_input') {
             canvasFlowState.needsInput = data.needs_input;
             canvasFlowState.lastFlowData = data;
+          } else {
+            canvasFlowState.needsInput = [];
           }
         }
       }
@@ -7479,14 +7904,21 @@ async function runCanvasFlowReal() {
 }
 
 function ensureCanvasNodeForStep(step) {
-  const id = step.node || step.framework || `step_${activeNodes.length + 1}`;
-  const isInfra = stepVisibility(step) === 'infrastructure';
-  if (isInfra) ensureDataNode();
+  if (!step || stepVisibility(step) === 'infrastructure') return null;
+  const id = frameworkType(step.framework || step.node || `step_${activeNodes.length + 1}`);
   if (!document.getElementById(`node-${id}`)) {
-    const pos = isInfra ? infrastructureNodePosition(activeNodes.length) : flowNodeGridPosition(activeNodes.filter(n => n.visibility !== 'infrastructure').length, activeNodes.length + 1);
-    addNode(id, speakerForStep(step), frameworkType(step.framework), pos, { visibility: stepVisibility(step), triggeredBy: step.triggered_by || null });
-    requestAnimationFrame(drawConnections);
+    addNode(id, getFrameworkName(step.framework || id), frameworkType(step.framework), { x: 50, y: 40 }, {
+      framework: step.framework || id,
+      capability: step.capability || '',
+      capabilities: step.capability ? [step.capability] : [],
+      role: step.role || '',
+      roles: step.role ? [step.role] : [],
+      visibility: stepVisibility(step),
+      triggeredBy: step.triggered_by || null,
+      suppressRedraw: true
+    });
   }
+  syncCanvasGraph(canvasFlowState && canvasFlowState.lastFlowData);
   return id;
 }
 
