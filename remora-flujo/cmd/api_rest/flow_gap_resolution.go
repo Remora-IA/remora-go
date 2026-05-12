@@ -14,12 +14,15 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 	const maxResolutionPasses = 2
 	scopeTables := s.loadBusinessScopeTables(req.Flow.BusinessID)
 	packPath := s.businessSemanticPackPath(req.Flow.BusinessID)
-	terminalReqs := flowTerminalRequirements(req.Flow)
+	terminalReqs := s.flowTerminalRequirementsForArtifacts(req.Flow, result.Artifacts)
 	requiredFields := flowRequiredDataFields(terminalReqs, packPath)
 	entityTable := entityTableFromPack(packPath)
 	for pass := 0; pass < maxResolutionPasses; pass++ {
 		allGaps := filterGapsByScope(parseDataGaps(result.Artifacts), scopeTables)
 		gaps := filterGapsByFlowPurpose(allGaps, requiredFields)
+		if len(terminalReqs) == 0 && len(requiredFields) == 0 {
+			gaps = nil
+		}
 		// Filter out gaps for fields the current entity already has data for.
 		entityRef := entityRefFromArtifacts(result.Artifacts)
 		gaps = filterGapsByExistingEntityData(gaps, entityRef, entityTable)
@@ -64,7 +67,7 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 				break
 			}
 		}
-		if hasContactGap && !available["contact.destination.v1"] {
+		if hasContactGap && !available["contact.destination.v1"] && !semanticArtifactBlocked("contact.destination.v1", result.Artifacts) {
 			contactProvider, contactProviderName, contactProviderOK := s.findProviderForCapability("contact.lookup")
 			if dest, ok := s.lookupSabioContactDestination(ctx, req.Flow.BusinessID, result.Artifacts); ok && contactProviderOK {
 				resNode := flowNode{ID: fmt.Sprintf("gap_resolve_contact_%d", pass), Framework: contactProviderName, Capability: "contact.lookup", Role: flowRoleResolution}
@@ -88,7 +91,7 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 				emitStep("step_complete", resStep)
 				result.Timeline = append(result.Timeline, resStep)
 				anyResolved = true
-			} else if s.flowRequiresArtifact(req.Flow, "contact.destination.v1") {
+			} else if s.flowRequiresArtifactInActiveSegment(req.Flow, result.Artifacts, "contact.destination.v1") {
 				// Antes de poner needs_input directo, delegamos a Mecánico como
 				// resolvedor conversacional estándar de gaps.
 				if questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, userCompletableGaps, result.Artifacts, available, result, emitStep, cycleIdx); hasQuestions {
@@ -329,6 +332,7 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 			params[p] = ""
 		}
 	}
+	s.materializePortableArtifactParams(runID, safeFilePart(providerName)+"_resolve_gaps", cmd, params)
 	args, err := cmd.ResolveArgs(params, nil, nil)
 	if err != nil {
 		return nil, false

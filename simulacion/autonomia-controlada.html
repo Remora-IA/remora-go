@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remora — Autonomia Controlada</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --white: #ffffff;
+    --surface: #f9f9fb;
+    --border: #e8e8ed;
+    --border-light: #f0f0f4;
+    --text: #1d1d1f;
+    --text-secondary: #6e6e73;
+    --text-muted: #aeaeb2;
+    --accent: #7c3aed;
+    --accent-light: #ede9fe;
+    --bar-fill: #d1d1d6;
+    --bar-dark: #8e8e93;
+    --sidebar-w: 60px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden;}
+
+  /* ── Icon sidebar ── */
+  .icon-sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;flex-shrink:0;}
+  .icon-sidebar .logo{width:30px;height:30px;margin-bottom:24px;cursor:pointer;}
+  .sidebar-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;cursor:pointer;color:var(--text-muted);transition:all .15s;position:relative;}
+  .sidebar-icon:hover{background:var(--surface);color:var(--text-secondary);}
+  .sidebar-icon.active{color:var(--accent);}
+  .sidebar-icon.active::before{content:'';position:absolute;left:-8px;width:3px;height:18px;background:var(--accent);border-radius:0 2px 2px 0;}
+  .sidebar-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .sidebar-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .sidebar-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-top:6px;}
+
+  /* ── Main ── */
+  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+
+  /* ── Topbar ── */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);background:var(--white);flex-shrink:0;height:50px;}
+  .topbar-left{display:flex;align-items:center;gap:6px;}
+  .model-sel{display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;color:var(--text);cursor:pointer;background:var(--white);}
+  .model-sel:hover{background:var(--surface);}
+  .model-sel .ms-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);}
+  .topbar-right{display:flex;align-items:center;gap:6px;}
+  .tb-btn{display:flex;align-items:center;gap:5px;padding:6px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:500;color:var(--text-secondary);cursor:pointer;background:var(--white);font-family:inherit;}
+  .tb-btn:hover{background:var(--surface);}
+  .tb-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .tb-btn.dark{background:var(--text);color:#fff;border-color:var(--text);}
+  .state-badge{font-size:10px;padding:3px 9px;border-radius:20px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;margin-right:6px;}
+  .state-badge.idle{background:var(--surface);color:var(--text-muted);}
+  .state-badge.analyzing{background:var(--accent-light);color:var(--accent);}
+  .state-badge.done{background:var(--surface);color:var(--text-muted);}
+
+  /* ── Welcome screen ── */
+  .welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:0;}
+  .welcome .orb{width:80px;height:80px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#c4b5fd,#7c3aed 50%,#5b21b6);box-shadow:0 8px 30px rgba(124,58,237,.25);margin-bottom:28px;}
+  .welcome h2{font-size:32px;font-weight:700;color:var(--text);text-align:center;line-height:1.3;}
+  .welcome h2 span{color:var(--accent);}
+  .welcome-input{margin-top:28px;width:100%;max-width:560px;}
+  .welcome-box{border:1px solid var(--border);border-radius:14px;background:var(--white);overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+  .welcome-box textarea{width:100%;border:none;outline:none;padding:16px 18px 10px;font-size:14px;font-family:inherit;color:var(--text);resize:none;min-height:44px;background:transparent;}
+  .welcome-box textarea::placeholder{color:var(--text-muted);}
+  .welcome-box-footer{display:flex;align-items:center;justify-content:space-between;padding:6px 10px 8px;}
+  .welcome-chip{display:flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;background:var(--white);font-family:inherit;}
+  .welcome-chip .chip-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;}
+  .send-btn{width:28px;height:28px;border-radius:6px;border:none;background:var(--text-muted);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .send-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;}
+  .welcome-examples{margin-top:24px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:600px;}
+  .we-card{padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:var(--white);font-size:13px;color:var(--text-secondary);cursor:pointer;transition:all .15s;min-width:140px;flex:1;max-width:180px;}
+  .we-card:hover{border-color:var(--accent);color:var(--text);}
+  .we-card .we-icon{font-size:16px;margin-top:8px;color:var(--text-muted);}
+
+  /* ── Chat area ── */
+  .chat-view{flex:1;display:none;flex-direction:column;overflow:hidden;}
+  .chat-view.visible{display:flex;}
+  .chat-scroll{flex:1;overflow-y:auto;}
+  .chat-inner{max-width:740px;width:100%;margin:0 auto;padding:20px 28px;}
+  .owner-banner{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:16px;font-size:11px;font-weight:600;margin-bottom:16px;}
+  .owner-banner .dot{width:6px;height:6px;border-radius:50%;animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .owner-banner.active{background:var(--accent-light);color:var(--accent);}
+  .owner-banner.active .dot{background:var(--accent);}
+  .owner-banner.idle{background:var(--surface);color:var(--text-muted);}
+  .owner-banner.idle .dot{background:var(--text-muted);}
+
+  /* Messages */
+  .msg{margin-bottom:20px;animation:msgIn .25s ease;}
+  @keyframes msgIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+  .msg-header{display:flex;align-items:center;gap:7px;margin-bottom:6px;}
+  .msg-avatar{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+  .msg-avatar.ai{background:var(--accent);}
+  .msg-avatar.user{background:var(--text-muted);}
+  .msg-name{font-size:13px;font-weight:600;color:var(--text);display:none;}
+  .msg-body{padding-left:31px;font-size:14px;line-height:1.7;color:var(--text-secondary);}
+  .msg-body strong{color:var(--text);}
+  .msg.user-msg .msg-body{padding-left:0;text-align:right;}
+  .msg.user-msg .msg-header{justify-content:flex-end;}
+  .msg.user-msg .user-bubble{display:inline-block;background:var(--white);border:1px solid var(--border);border-radius:14px 14px 4px 14px;padding:8px 16px;font-size:14px;color:var(--text);text-align:left;max-width:420px;}
+
+  /* Analysis card */
+  .a-card{margin-top:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--white);}
+  .a-card-h{padding:9px 14px;font-size:12px;font-weight:600;border-bottom:1px solid var(--border-light);color:var(--text);background:var(--surface);display:flex;align-items:center;gap:6px;}
+  .a-card-b{padding:14px;}
+
+  /* Score */
+  .score-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+  .score-num{width:56px;height:56px;border-radius:50%;background:var(--text);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;flex-shrink:0;position:relative;}
+  .score-num .sn-sub{position:absolute;bottom:-2px;font-size:8px;font-weight:700;padding:1px 6px;border-radius:8px;background:var(--text-secondary);color:#fff;}
+  .score-meta{flex:1;}
+  .score-meta .sm-title{font-size:14px;font-weight:700;color:var(--text);}
+  .score-meta .sm-desc{font-size:11px;color:var(--text-muted);margin-top:1px;}
+
+  /* Bars */
+  .bar-row{display:flex;align-items:center;margin-bottom:6px;gap:8px;}
+  .bar-label{width:130px;font-size:11px;color:var(--text-muted);flex-shrink:0;text-align:right;font-weight:500;}
+  .bar-track{flex:1;height:16px;background:var(--surface);border-radius:4px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:4px;background:var(--bar-fill);transition:width .5s ease;display:flex;align-items:center;padding-left:6px;font-size:9px;font-weight:600;color:var(--text-secondary);}
+  .bar-fill.dark{background:var(--bar-dark);color:#fff;}
+  .bar-fill.accent{background:var(--accent);color:#fff;}
+  .bar-value{font-size:11px;font-weight:600;color:var(--text);width:50px;text-align:right;flex-shrink:0;}
+
+  /* Data table */
+  .d-table{width:100%;border-collapse:collapse;margin:6px 0;font-size:12px;}
+  .d-table th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);padding:6px 8px;border-bottom:1px solid var(--border);font-weight:700;}
+  .d-table td{padding:7px 8px;border-bottom:1px solid var(--border-light);color:var(--text-secondary);}
+  .d-table tr:last-child td{border-bottom:none;}
+  .d-table .val{font-weight:600;color:var(--text);}
+  .tag{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;background:var(--surface);color:var(--text-secondary);}
+  .tag.alert{background:#fef2f2;color:#991b1b;}
+
+  /* Metric grid */
+  .m-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin:8px 0;}
+  .m-card{padding:10px;border-radius:8px;background:var(--surface);text-align:center;border:1px solid var(--border-light);}
+  .m-card .mv{font-size:20px;font-weight:800;color:var(--text);}
+  .m-card .ml{font-size:10px;color:var(--text-muted);margin-top:2px;}
+
+  /* Delegation */
+  .dlg{margin-top:10px;padding:10px 14px;border-radius:8px;font-size:12px;border-left:3px solid var(--bar-dark);background:var(--surface);}
+  .dlg .dlg-l{font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;color:var(--text-secondary);}
+  .dlg .dlg-b{color:var(--text-secondary);line-height:1.5;}
+
+  /* Sufficiency */
+  .suf{margin-top:12px;font-size:11px;display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface);border-radius:6px;}
+  .suf .suf-l{font-weight:600;white-space:nowrap;color:var(--text-secondary);}
+  .suf .suf-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;max-width:160px;}
+  .suf .suf-fill{height:100%;border-radius:2px;background:var(--bar-dark);transition:width .4s;}
+  .suf .suf-p{font-weight:700;color:var(--text);}
+
+  /* Bottom */
+  .bottom-area{padding:0 28px 16px;max-width:740px;width:100%;margin:0 auto;}
+  .action-strip{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px;}
+  .action-strip .label{font-size:10px;color:var(--text-muted);font-weight:600;margin-right:2px;}
+  .action-btn{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:var(--white);color:var(--text-secondary);font-size:12px;cursor:pointer;transition:all .15s;font-family:inherit;font-weight:500;}
+  .action-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-light);}
+  .action-btn.primary{background:var(--text);color:#fff;border-color:var(--text);font-weight:600;}
+  .action-btn.primary:hover{opacity:.85;}
+  .action-btn.muted{color:var(--text-muted);border-color:var(--border-light);}
+  .action-btn.muted:hover{color:var(--text-secondary);background:var(--surface);}
+  .input-box{border:1px solid var(--border);border-radius:14px;background:var(--white);overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+  .input-box:focus-within{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,58,237,.08);}
+  .input-box textarea{width:100%;border:none;outline:none;padding:14px 16px 6px;font-size:14px;font-family:inherit;color:var(--text);resize:none;min-height:40px;background:transparent;}
+  .input-box textarea::placeholder{color:var(--text-muted);}
+  .input-box-f{display:flex;align-items:center;justify-content:space-between;padding:4px 10px 8px;}
+  .ib-chip{display:flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:500;color:var(--text-secondary);cursor:pointer;background:var(--white);font-family:inherit;}
+  .ib-chip .chip-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;}
+
+  /* Right panel */
+  .right-panel{width:200px;border-left:1px solid var(--border);background:var(--white);padding:16px 12px;overflow-y:auto;flex-shrink:0;font-size:11px;}
+  .right-panel h4{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px;font-weight:700;}
+  .rp-node{padding:6px 8px;border-radius:6px;margin-bottom:3px;border:1px solid transparent;color:var(--text-muted);font-size:11px;}
+  .rp-node.active{border-color:var(--accent-light);background:var(--accent-light);color:var(--accent);font-weight:600;}
+  .rp-node.active.s0{border-color:#fde68a;background:#fffbeb;color:#92400e;}
+  .rp-subs{padding-left:8px;border-left:2px solid var(--border-light);margin:3px 0 3px 6px;}
+  .rp-subs .rp-sub{font-size:10px;padding:2px 0;color:var(--text-muted);}
+  .rp-subs .rp-sub.active{color:var(--accent);font-weight:600;}
+
+  @media(max-width:1000px){.right-panel{display:none;}}
+  @media(max-width:700px){.icon-sidebar{display:none;}.chat-inner,.bottom-area{padding-left:14px;padding-right:14px;}}
+  .mt-2{margin-top:6px;}.mt-3{margin-top:10px;}.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="icon-sidebar">
+  <div class="logo"><svg viewBox="0 0 30 30" fill="none"><rect width="30" height="30" rx="7" fill="url(#g1)"/><defs><linearGradient id="g1" x1="0" y1="0" x2="30" y2="30"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="Inter">R</text></svg></div>
+  <div class="sidebar-icon active"><svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg></div>
+  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div>
+  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
+  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg></div>
+  <div class="sidebar-bottom">
+    <div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+    <div class="sidebar-avatar">TM</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="model-sel"><span class="ms-dot"></span> Asistente <span style="color:var(--text-muted);font-size:10px">&#9662;</span></div>
+    </div>
+    <div class="topbar-right">
+      <span class="state-badge idle" id="globalBadge" style="display:none;">Listo</span>
+      <button class="tb-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>Buscar</button>
+      <button class="tb-btn dark">+ Nuevo hilo</button>
+    </div>
+  </div>
+
+  <!-- WELCOME SCREEN -->
+  <div class="welcome" id="welcomeScreen">
+    <div class="orb"></div>
+    <h2>Que deseas <span>gestionar?</span></h2>
+    <div class="welcome-input">
+      <div class="welcome-box">
+        <textarea rows="1" placeholder="Describe el problema o proceso que quieres automatizar..." id="welcomeInput"></textarea>
+        <div class="welcome-box-footer">
+          <button class="welcome-chip"><span class="chip-dot"></span> gammav1</button>
+          <button class="send-btn" id="welcomeSend"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class="welcome-examples">
+      <div class="we-card" onclick="startFromExample('Analiza la cartera morosa y prioriza')">Analizar cartera morosa<div class="we-icon">&#9634;</div></div>
+      <div class="we-card" onclick="startFromExample('Redacta cobranza para cliente critico')">Redactar cobranza<div class="we-icon">&#9993;</div></div>
+      <div class="we-card" onclick="startFromExample('Evalua riesgo de prescripcion')">Evaluar prescripcion<div class="we-icon">&#9201;</div></div>
+      <div class="we-card" onclick="startFromExample('Compara clientes similares')">Comparar clientes<div class="we-icon">&lt;/&gt;</div></div>
+    </div>
+  </div>
+
+  <!-- CHAT VIEW -->
+  <div class="chat-view" id="chatView">
+    <div class="chat-scroll" id="chatScroll">
+      <div class="chat-inner" id="chatInner">
+        <div id="ownerBanner" class="owner-banner idle"><span class="dot"></span><span id="ownerLabel">Listo</span></div>
+        <div id="messages"></div>
+      </div>
+    </div>
+    <div class="bottom-area">
+      <div class="action-strip" id="actionStrip" style="display:none;"></div>
+      <div class="input-box">
+        <textarea rows="1" placeholder="Escribe un mensaje..." disabled></textarea>
+        <div class="input-box-f">
+          <button class="ib-chip"><span class="chip-dot"></span> gammav1</button>
+          <button class="send-btn"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel" id="rightPanel">
+  <h4>Proceso</h4>
+  <div class="rp-node active s0" id="nodeS0">Deteccion</div>
+  <div class="rp-node" id="nodeS1">Analisis
+    <div class="rp-subs">
+      <div class="rp-sub" id="subExplore">Exploracion</div>
+      <div class="rp-sub" id="subSynth">Sintesis</div>
+      <div class="rp-sub" id="subDecision">Decision</div>
+    </div>
+  </div>
+  <div class="rp-node" id="nodeS2">Accion</div>
+  <div class="rp-node" id="nodeS3">Completado</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const msgs=$('messages');
+let currentStep=0;
+
+function scrollBottom(){setTimeout(()=>{$('chatScroll').scrollTop=$('chatScroll').scrollHeight;},50);}
+
+function enterChat(){
+  $('welcomeScreen').style.display='none';
+  $('chatView').classList.add('visible');
+  $('globalBadge').style.display='';
+}
+function startFromExample(text){enterChat();nextStep();}
+$('welcomeSend').onclick=()=>{enterChat();nextStep();};
+$('welcomeInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();enterChat();nextStep();}});
+
+function addMsg(sender,cls,html){
+  const map={radar:'R',foco:'F',user:'T'};
+  const div=document.createElement('div');
+  if(cls==='user'){
+    div.className='msg user-msg';
+    div.innerHTML=`<div class="msg-header"><span class="msg-name">Tu</span><div class="msg-avatar user">${map[cls]}</div></div><div class="msg-body"><div class="user-bubble">${html}</div></div>`;
+  } else {
+    div.className='msg';
+    div.innerHTML=`<div class="msg-header"><div class="msg-avatar ${cls}">${map[cls]}</div><span class="msg-name">${sender}</span></div><div class="msg-body">${html}</div>`;
+  }
+  msgs.appendChild(div);scrollBottom();
+}
+
+function dlg(label,body){return `<div class="dlg"><div class="dlg-l">${label}</div><div class="dlg-b">${body}</div></div>`;}
+function suf(pct){return `<div class="suf"><span class="suf-l">Suficiencia:</span><div class="suf-bar"><div class="suf-fill" style="width:${pct}%"></div></div><span class="suf-p">${pct}%</span></div>`;}
+function br(label,pct,valText,accent){return `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill ${accent?'accent':'dark'}" style="width:${pct}%">${pct>25?valText||'':''}</div></div><div class="bar-value">${valText||pct+'%'}</div></div>`;}
+
+function setStateTo(state,sub){
+  ['nodeS0','nodeS1','nodeS2','nodeS3'].forEach(id=>{$(id).classList.remove('active','s0');});
+  ['subExplore','subSynth','subDecision'].forEach(id=>$(id).classList.remove('active'));
+  const ob=$('ownerBanner'),gl=$('globalBadge'),ol=$('ownerLabel');
+  if(state==='S0'){$('nodeS0').classList.add('active','s0');gl.className='state-badge foco';gl.textContent='S0 Foco';ob.className='owner-banner foco';ol.textContent='Foco conduce';}
+  else if(state==='S1'){$('nodeS1').classList.add('active');gl.className='state-badge radar';gl.textContent='S1 Radar';ob.className='owner-banner radar';ol.textContent='Radar conduce el analisis';if(sub)$(sub).classList.add('active');}
+  else if(state==='S2'){$('nodeS2').classList.add('active');gl.className='state-badge foco';gl.textContent='S2 Retorno';ob.className='owner-banner foco';ol.textContent='Foco retoma';}
+  else if(state==='S3'){$('nodeS3').classList.add('active');gl.className='state-badge closed';gl.textContent='S3 Cerrado';ob.className='owner-banner foco';ol.textContent='Cerrado';}
+}
+function showActions(s){$('actionStrip').style.display=s?'flex':'none';}
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+
+const steps=[
+
+// STEP 0: Foco — conversational alert
+async function(){
+  setStateTo('S0');showActions(false);
+  addMsg('Foco','foco',
+    'Tengo un caso que necesita tu atencion. <strong>Acme Corp</strong> nos debe <strong>$45,200</strong> en 3 facturas y llevan <strong>62 dias de mora</strong>. No han respondido a ningun intento de contacto hasta ahora.'+
+    '<div class="m-grid mt-2">'+
+      '<div class="m-card"><div class="mv">$45.2k</div><div class="ml">Deuda</div></div>'+
+      '<div class="m-card"><div class="mv">62d</div><div class="ml">Mora</div></div>'+
+      '<div class="m-card"><div class="mv">3</div><div class="ml">Facturas</div></div>'+
+      '<div class="m-card"><div class="mv">0</div><div class="ml">Respuestas</div></div>'+
+    '</div>'
+  );
+  await delay(300);
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="nextStep()">Analizar caso</button><button class="action-btn" onclick="alert('Mockup')">Contactar directo</button><button class="action-btn muted" onclick="alert('Mockup')">Siguiente caso</button>`;
+  showActions(true);
+},
+
+// STEP 1: Radar — verbal analysis + score
+async function(){
+  showActions(false);
+  addMsg('Tu','user','Analizar caso');
+  await delay(600);
+  setStateTo('S1','subExplore');
+
+  addMsg('Radar','radar',
+    'Revise a Acme Corp en detalle. El caso tiene un score de urgencia de <strong>78/100</strong>, lo que lo coloca en <strong>Nivel 2</strong> — seguimiento intensivo. Esta cerca de ser critico.'+
+
+    '<div class="a-card mt-2"><div class="a-card-b">'+
+      '<div class="score-row"><div class="score-num">78<span class="sn-sub">/100</span></div><div class="score-meta"><div class="sm-title">Nivel 2 — Seguimiento Intensivo</div></div></div>'+
+      br('Materialidad',82,'33/40',true)+br('Comportamiento',70,'21/30')+br('Riesgo Legal',80,'24/30')+
+    '</div></div>'+
+
+    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'Lo que mas me preocupa es el peso financiero: Acme representa el <strong>18.2%</strong> de tu portafolio, que es una concentracion alta. Ademas, el comportamiento de pago cambio de forma abrupta — pagaban en promedio cada 28 dias, y a partir de junio dejaron de pagar completamente. No fue gradual.'+
+    '</div>'+
+    '<div class="mt-2" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'Le pedi a <strong>Sabio</strong> que revisara el patron y encontro que el quiebre coincide con un cambio de contacto financiero en junio del 2025. Eso sugiere que es un evento puntual — no evasion sistematica. Hay espacio para recuperar, pero necesito revisar el riesgo legal antes de recomendar algo.'+
+    '</div>'+
+    suf(40)
+  );
+  await delay(300);
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('profundiza')">Profundizar riesgo legal</button><button class="action-btn" onclick="runSubStep('actuar')">Actuar con lo disponible</button><button class="action-btn muted" onclick="runSubStep('salir')">Dejar</button>`;
+  showActions(true);
+},
+
+// STEP 2: Legal — verbal with minimal data
+async function(){
+  showActions(false);
+  addMsg('Tu','user','Profundizar riesgo legal');
+  await delay(800);
+  setStateTo('S1','subExplore');
+
+  addMsg('Radar','radar',
+    'Delegue dos tareas: le pedi a <strong>Sabio</strong> que revise la prescripcion aplicable y compare con clientes similares, y a <strong>Auditor</strong> que valide los titulos ejecutivos.'+
+
+    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'La buena noticia es que <strong>la prescripcion no es un riesgo</strong>. Aplica el plazo de 2 anos del Art. 2521, y solo han consumido 62 de 730 dias. Quedan 668 dias de margen — tiempo de sobra para actuar sin presion legal.'+
+    '</div>'+
+
+    '<div class="mt-2" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'Ahora, hay un detalle importante con los titulos: <strong>2 de las 3 facturas tienen merito ejecutivo</strong>, pero la factura #2847 por $12,300 no. Si llega a juicio, esa tendria que ir por via ordinaria, que es mas lenta. Auditor recomienda incluirla de todas formas en la gestion prejudicial.'+
+    '</div>'+
+
+    '<div class="a-card mt-2"><div class="a-card-b">'+
+      '<table class="d-table">'+
+        '<tr><td>Prescripcion</td><td class="val">668 dias restantes</td><td><span class="tag">Sin riesgo</span></td></tr>'+
+        '<tr><td>Titulos ejecutivos</td><td class="val">2 de 3 facturas</td></tr>'+
+        '<tr><td>Sin titulo</td><td class="val">#2847 ($12.3k)</td><td><span class="tag alert">Via ordinaria</span></td></tr>'+
+      '</table>'+
+    '</div></div>'+
+
+    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'Sabio tambien comparo con <strong>12 clientes similares</strong> en manufactura con montos entre $30k-$60k y mora mayor a 45 dias. La estrategia que mejor funciono fue <strong>escalar directamente a gerencia financiera — 72% de exito</strong>. Enviar correos estandar tuvo solo 33%. La diferencia es grande.'+
+    '</div>'+
+    '<div class="mt-2" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'Lo unico que me falta para darte una recomendacion firme es verificar que el contacto actual — <strong>Laura Mendez</strong> — siga activa como tesorera.'+
+    '</div>'+
+    suf(65)
+  );
+  await delay(300);
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('profundiza2')">Verificar contacto</button><button class="action-btn" onclick="runSubStep('actuar')">Actuar con lo disponible</button><button class="action-btn muted" onclick="runSubStep('salir')">Dejar</button>`;
+  showActions(true);
+},
+
+// STEP 3: Synthesis — verbal recommendation
+async function(){
+  showActions(false);
+  addMsg('Tu','user','Verificar contacto');
+  await delay(800);
+  setStateTo('S1','subSynth');
+
+  addMsg('Radar','radar',
+    'Sabio verifico el contacto. <strong>Laura Mendez sigue activa</strong> como Tesorera desde junio 2025, tiene firma autorizada y su correo (lmendez@acmecorp.cl) esta vigente.'+
+
+    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'Con esto ya tengo todo lo necesario. Mi recomendacion es clara:'+
+    '</div>'+
+
+    '<div class="a-card mt-2"><div class="a-card-h">Recomendacion</div><div class="a-card-b" style="line-height:1.7;">'+
+      '<div style="font-size:13px;color:var(--text-secondary);">'+
+        '<strong style="color:var(--text)">Escalar a Laura Mendez</strong> (Tesorera)<br>'+
+        'Probabilidad de recupero: <strong>72%</strong><br>'+
+        'Plan B: carta notarial a 15 dias (62%)'+
+      '</div>'+
+    '</div></div>'+
+
+    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
+      'No creo que valga la pena seguir analizando. La evidencia es suficiente y el patron es claro: hubo un cambio de persona, no una decision de no pagar. Un escalamiento profesional directo a la tesorera tiene la mejor probabilidad de resultado. Si no responde en 15 dias, pasamos a carta notarial.'+
+    '</div>'+
+    suf(92)
+  );
+  await delay(300);
+  setStateTo('S1','subDecision');
+  $('actionStrip').innerHTML=`<button class="action-btn" onclick="runSubStep('profundiza3')">Seguir analizando</button><button class="action-btn primary" onclick="runSubStep('actuar')">Actuar — escalar</button><button class="action-btn muted" onclick="runSubStep('salir')">Dejar</button>`;
+  showActions(true);
+},
+
+// STEP 4: Handoff to Foco
+async function(){
+  showActions(false);
+  addMsg('Tu','user','Actuar.');
+  await delay(500);
+  addMsg('Radar','radar','Perfecto. Cierro el analisis y le transfiero el caso a Foco con toda la evidencia y la recomendacion de escalamiento a Laura Mendez.');
+  await delay(700);
+  setStateTo('S2');
+  addMsg('Foco','foco','Recibi el caso. Voy a preparar un borrador de correo a <strong>Laura Mendez</strong> con tono de escalamiento profesional — firme pero respetuoso, considerando que llevan 3.2 anos como cliente. Te lo muestro antes de enviarlo.');
+  await delay(300);
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('draft')">Si, redacta</button><button class="action-btn" onclick="alert('Mockup')">Ajustar tono</button><button class="action-btn muted" onclick="alert('Mockup')">Cancelar</button>`;
+  showActions(true);
+},
+
+// STEP 5: Draft
+async function(){
+  showActions(false);
+  addMsg('Tu','user','Si, redacta.');
+  await delay(600);
+  addMsg('Foco','foco',
+    'Listo. Redacte el borrador manteniendo un tono profesional. Menciono las 3 facturas con montos especificos para que no haya ambiguedad, y cierro con apertura a coordinar solucion:'+
+    '<div class="a-card mt-2"><div class="a-card-b" style="font-size:13px;line-height:1.8;">'+
+      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;"><strong>Para:</strong> lmendez@acmecorp.cl &nbsp;&middot;&nbsp; <strong>Asunto:</strong> Facturas pendientes Acme Corp</div>'+
+      '<div style="padding:12px;background:var(--surface);border-radius:8px;border:1px solid var(--border-light);">'+
+        'Estimada Laura,<br><br>Nos comunicamos por <strong>3 facturas pendientes</strong> por $45,200 USD (62 dias mora):<br>'+
+        '- #2845 — $18,400<br>- #2846 — $14,500<br>- #2847 — $12,300<br><br>'+
+        'Valoramos la relacion con Acme Corp. Quisieramos coordinar una solucion a la brevedad.<br><br>Atentamente,<br><em>[Firma]</em>'+
+      '</div></div></div>'
+  );
+  await delay(300);
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('fin')">Enviar</button><button class="action-btn" onclick="alert('Mockup')">Editar</button>`;
+  showActions(true);
+},
+
+// STEP 6: Fin
+async function(){
+  showActions(false);
+  addMsg('Tu','user','Enviar.');
+  await delay(400);
+  addMsg('Foco','foco','Enviado. Programe una alerta automatica a 15 dias — si Laura no responde, te notifico para evaluar la carta notarial como Plan B.');
+  setStateTo('S0');
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="alert('Mockup')">Siguiente caso</button><button class="action-btn muted" onclick="location.reload()">Reiniciar</button>`;
+  showActions(true);
+}
+];
+
+async function exitBranch(){
+  showActions(false);
+  addMsg('Tu','user','Dejalo, pasemos al siguiente.');
+  await delay(400);
+  addMsg('Radar','radar','Entendido. Cierro analisis sin acciones. Contexto guardado.');
+  setStateTo('S3');await delay(500);setStateTo('S0');
+  addMsg('Foco','foco','Siguiente caso?');
+  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="alert('Mockup')">Siguiente caso</button><button class="action-btn muted" onclick="location.reload()">Reiniciar</button>`;
+  showActions(true);
+}
+
+async function nextStep(){if(currentStep<steps.length)await steps[currentStep++]();}
+function runSubStep(t){
+  if(t==='salir'){exitBranch();return;}
+  if(t==='draft'||t==='fin'){nextStep();return;}
+  if(t.startsWith('profundiza')){nextStep();return;}
+  if(t==='actuar'){currentStep=4;nextStep();return;}
+}
+</script>
+</body>
+</html>

@@ -451,6 +451,44 @@ func (s *authStore) createBusiness(ownerUserID, name, domain, country string) (*
 	return business, membership, nil
 }
 
+func (s *authStore) business(businessID string) (*authBusiness, error) {
+	businessID = strings.TrimSpace(businessID)
+	if businessID == "" {
+		return nil, sql.ErrNoRows
+	}
+	var business authBusiness
+	var createdAt string
+	err := s.db.QueryRow(`SELECT id, name, domain, country, default_framework, owner_user_id, created_at FROM businesses WHERE id = ?`, businessID).
+		Scan(&business.ID, &business.Name, &business.Domain, &business.Country, &business.DefaultFramework, &business.OwnerUserID, &createdAt)
+	if err != nil {
+		return nil, err
+	}
+	business.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+	return &business, nil
+}
+
+func (s *authStore) listBusinesses() ([]authBusiness, error) {
+	rows, err := s.db.Query(`SELECT id, name, domain, country, default_framework, owner_user_id, created_at FROM businesses ORDER BY created_at ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var businesses []authBusiness
+	for rows.Next() {
+		var business authBusiness
+		var createdAt string
+		if err := rows.Scan(&business.ID, &business.Name, &business.Domain, &business.Country, &business.DefaultFramework, &business.OwnerUserID, &createdAt); err != nil {
+			return nil, err
+		}
+		business.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		businesses = append(businesses, business)
+	}
+	if businesses == nil {
+		businesses = []authBusiness{}
+	}
+	return businesses, rows.Err()
+}
+
 func (s *authStore) listUsersOverview() ([]remoraUserOverview, error) {
 	rows, err := s.db.Query(`SELECT id, email, name, role, created_at FROM users ORDER BY created_at DESC`)
 	if err != nil {

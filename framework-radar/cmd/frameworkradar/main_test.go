@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -165,5 +166,171 @@ func TestLoadPersistedAnalysisPlanReusesConfiguredModel(t *testing.T) {
 	}
 	if loaded.EntityTable != original.EntityTable || loaded.AmountColumn != original.AmountColumn {
 		t.Fatalf("loaded=%#v original=%#v", loaded, original)
+	}
+}
+
+func TestLoadJSONPayloadPrefersPath(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "priority.json")
+	if err := os.WriteFile(path, []byte(`{"source":"path","text":"saldo; > 30"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	got := loadJSONPayload(path, `{"source":"inline"}`)
+	if got != `{"source":"path","text":"saldo; > 30"}` {
+		t.Fatalf("expected file payload, got %q", got)
+	}
+}
+
+func TestLoadJSONPayloadFallsBackToInline(t *testing.T) {
+	got := loadJSONPayload("", `{"source":"inline"}`)
+	if got != `{"source":"inline"}` {
+		t.Fatalf("expected inline fallback, got %q", got)
+	}
+}
+
+func TestRadarDeepDivePriorityItemFindsSelectedEntity(t *testing.T) {
+	raw := `{
+		"priority_item": {
+			"deudor_id": "cust_1",
+			"deudor": "Cliente Uno",
+			"score": 82
+		},
+		"items": [
+			{"deudor_id": "cust_2", "deudor": "Cliente Dos", "score": 50},
+			{"deudor_id": "cust_1", "deudor": "Cliente Uno", "score": 82}
+		]
+	}`
+	item := radarDeepDivePriorityItem(raw, "cust_1")
+	if got := jsonStringFromMap(item, "deudor_id"); got != "cust_1" {
+		t.Fatalf("selected item=%#v", item)
+	}
+}
+
+func TestRadarDeepDiveNarrativeIncludesUsefulSections(t *testing.T) {
+	text := radarDeepDiveNarrative(
+		"Cliente Uno",
+		"Se priorizó porque quedó rankeado #1 y score 82/100.",
+		[]string{"saldo abierto estimado: 9000", "mora máxima observada: 120 días"},
+		"Riesgo alto.",
+		"La mora ya está en 120 días.",
+		"Se observan 3 documentos abiertos.",
+		[]string{"falta validar email de contacto"},
+		[]string{"pedir a Sabio contexto 360"},
+		[]string{"si luego quisieras actuar, preparar borrador"},
+		[]string{"¿por qué quedó por encima de casos parecidos?"},
+	)
+	for _, want := range []string{
+		"Resumen del análisis profundo de Cliente Uno",
+		"Por qué se priorizó:",
+		"Qué sabemos:",
+		"Qué falta:",
+		"Qué haría después, sin ejecutarlo:",
+		"Preguntas abiertas:",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("expected narrative to contain %q, got:\n%s", want, text)
+		}
+	}
+}
+
+func TestRadarManifestParamReferencesStayWithinCommandContract(t *testing.T) {
+	var m struct {
+		Commands map[string]struct {
+			Args     []string          `json:"args"`
+			Params   []string          `json:"params"`
+			Defaults map[string]string `json:"defaults"`
+		} `json:"commands"`
+	}
+	raw, err := os.ReadFile(filepath.Join("..", "..", "framework.manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	tokenRe := regexp.MustCompile(`\{params\.([a-zA-Z0-9_]+)\}`)
+	for name, cmd := range m.Commands {
+		declared := map[string]bool{}
+		for _, param := range cmd.Params {
+			declared[param] = true
+		}
+		for param := range cmd.Defaults {
+			declared[param] = true
+		}
+		for _, arg := range cmd.Args {
+			matches := tokenRe.FindAllStringSubmatch(arg, -1)
+			for _, match := range matches {
+				if !declared[match[1]] {
+					t.Fatalf("command %s references undeclared param %q in arg %q", name, match[1], arg)
+				}
+			}
+		}
+	}
+}
+
+func TestRadarManifestPrioritizeResolvesWithoutDeepDiveParams(t *testing.T) {
+	var m struct {
+		Commands map[string]struct {
+			Args     []string          `json:"args"`
+			Params   []string          `json:"params"`
+			Defaults map[string]string `json:"defaults"`
+		} `json:"commands"`
+	}
+	raw, err := os.ReadFile(filepath.Join("..", "..", "framework.manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	cmd, ok := m.Commands["prioritize"]
+	if !ok {
+		t.Fatal("missing prioritize command")
+	}
+	params := map[string]string{}
+	for key, value := range cmd.Defaults {
+		params[key] = value
+	}
+	params["business_id"] = "acme"
+	params["semantic_pack"] = "/tmp/semantic.json"
+	params["dataset_artifact"] = "/tmp/dataset.json"
+	params["context_b64"] = "ctx"
+	joined := strings.Join(cmd.Args, " ")
+	for _, forbidden := range []string{"{params.priority_list_path}", "{params.priority_list_json}", "{params.strategy_path}", "{params.strategy_json}"} {
+		if strings.Contains(joined, forbidden) {
+			t.Fatalf("prioritize args should not reference %s: %v", forbidden, cmd.Args)
+		}
+	}
+	for _, param := range cmd.Params {
+		if _, ok := params[param]; !ok {
+			t.Fatalf("missing declared param %s", param)
+		}
+	}
+}
+
+func TestRadarManifestDeepDiveResolvesPathAndFallbackParams(t *testing.T) {
+	var m struct {
+		Commands map[string]struct {
+			Args     []string          `json:"args"`
+			Params   []string          `json:"params"`
+			Defaults map[string]string `json:"defaults"`
+		} `json:"commands"`
+	}
+	raw, err := os.ReadFile(filepath.Join("..", "..", "framework.manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	cmd, ok := m.Commands["deep-dive"]
+	if !ok {
+		t.Fatal("missing deep-dive command")
+	}
+	joined := strings.Join(cmd.Args, " ")
+	for _, want := range []string{"{params.priority_list_path}", "{params.priority_list_json}", "{params.strategy_path}", "{params.strategy_json}", "{params.context_b64}"} {
+		if !strings.Contains(joined, want) {
+			t.Fatalf("expected %q in deep-dive args, got %v", want, cmd.Args)
+		}
 	}
 }

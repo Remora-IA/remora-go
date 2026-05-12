@@ -2277,6 +2277,128 @@ func TestMaterializePortableArtifactParamsMovesSmallJSONWhenPathExists(t *testin
 	}
 }
 
+func TestMaterializePortableArtifactParamsKeepsInlineWhenNoPathDeclared(t *testing.T) {
+	root := t.TempDir()
+	s := &server{rootDir: root}
+	cmd := manifest.Command{Params: []string{"strategy_json"}, Defaults: map[string]string{"strategy_json": ""}}
+	payload := `{"reason":"Saldo alto; requiere seguimiento"}`
+	params := map[string]string{"strategy_json": payload}
+	s.materializePortableArtifactParams("run_4", "radar", cmd, params)
+	if params["strategy_json"] != payload {
+		t.Fatalf("expected inline JSON to remain when no path/artifact is declared, got %q", params["strategy_json"])
+	}
+}
+
+func TestRunFlowManifestDeepDiveUsesMaterializedPaths(t *testing.T) {
+	root := t.TempDir()
+	var capturedArgs []string
+	var sawRadar bool
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("decode request: %v", err)
+		}
+		params, _ := body["params"].(map[string]interface{})
+		argsRaw, _ := params["args"].([]interface{})
+		args := make([]string, 0, len(argsRaw))
+		for _, arg := range argsRaw {
+			s, _ := arg.(string)
+			args = append(args, s)
+		}
+		if containsString(args, "radar-deep-dive") {
+			sawRadar = true
+			capturedArgs = append([]string(nil), args...)
+			for _, arg := range args {
+				if strings.Contains(arg, ";") || strings.Contains(arg, ">") {
+					_ = json.NewEncoder(w).Encode(adapter.Response{Success: false, ExitCode: 1, Error: "path not safe: " + arg})
+					return
+				}
+			}
+			_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"analysis.case_review.v1","artifacts":["analysis.case_review.v1","answer.grounded.v1"],"summary":"Radar takeover ok"}`})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(adapter.Response{Success: true, ExitCode: 0, Stdout: `{"artifact_type":"focus.next_task.v1","artifacts":["focus.next_task.v1","task.next","entity.ref.v1"],"selected":{"artifact_type":"entity.ref.v1","type":"client","id":"cust_1","name":"Cliente Uno"},"transfer_control":true}`})
+	}))
+	defer channel.Close()
+
+	s := &server{rootDir: root, channel: adapter.New(channel.URL, "test-key"), allManifests: map[string]*manifest.Manifest{
+		"radar": {
+			Name:   "radar",
+			Cwd:    ".",
+			Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"deep-dive": {
+					Args: []string{
+						"-c", "radar-deep-dive",
+						"--priority-list-path", "{params.priority_list_path}",
+						"--priority-list-json", "{params.priority_list_json}",
+						"--strategy-path", "{params.strategy_path}",
+						"--strategy-json", "{params.strategy_json}",
+						"--context-b64", "{params.context_b64}",
+					},
+					Params: []string{"priority_list_path", "priority_list_json", "strategy_path", "strategy_json", "context_b64"},
+					Defaults: map[string]string{
+						"priority_list_path": "",
+						"priority_list_json": "",
+						"strategy_path":      "",
+						"strategy_json":      "",
+						"context_b64":        "",
+					},
+				},
+			},
+			Capabilities: []manifest.CapabilitySpec{{ID: "analysis.deep_dive", Command: "deep-dive", Requires: []string{"collection.priority_list.v1", "entity.ref.v1"}, Produces: []string{"analysis.case_review.v1", "answer.grounded.v1"}}},
+		},
+		"foco": {
+			Name:   "foco",
+			Cwd:    ".",
+			Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"next-task": {Args: []string{"-c", "focus-next-task"}, Params: []string{"action_id"}, Defaults: map[string]string{"action_id": ""}},
+			},
+			Capabilities: []manifest.CapabilitySpec{{ID: "focus.next_collection_task", Command: "next-task", Requires: []string{"collection.priority_list.v1"}, Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"}}},
+		},
+	}}
+
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		Flow: flowManifest{
+			ID:                "deep_dive_transport",
+			BusinessID:        "biz_test",
+			ProvidedArtifacts: []string{"collection.priority_list.v1", "entity.ref.v1", "strategy.recommendation.v1"},
+			Nodes:             []flowNode{{ID: "focus", Framework: "foco", Capability: "focus.next_collection_task", Role: flowRoleEntry}},
+		},
+		InitialArtifacts: map[string]interface{}{
+			"action.selection.v1": map[string]interface{}{"artifact_type": "action.selection.v1", "id": "deep_analysis", "bound_id": "escalate", "label": "Ver análisis profundo"},
+			"entity.ref.v1":       map[string]interface{}{"artifact_type": "entity.ref.v1", "type": "client", "id": "cust_1", "name": "Cliente Uno"},
+			"collection.priority_list.v1": map[string]interface{}{
+				"artifact_type": "collection.priority_list.v1",
+				"items": []interface{}{
+					map[string]interface{}{"rank": 1, "deudor": "Cliente Uno", "razon": "Saldo vencido; requiere revisión > 30 días"},
+				},
+				"selected": map[string]interface{}{"artifact_type": "entity.ref.v1", "type": "client", "id": "cust_1", "name": "Cliente Uno"},
+			},
+			"strategy.recommendation.v1": map[string]interface{}{
+				"artifact_type": "strategy.recommendation.v1",
+				"recommendations": []interface{}{
+					map[string]interface{}{"action_id": "deep_analysis", "description": "Investigar; revisar > enviar"},
+				},
+			},
+		},
+	}, nil)
+	if result.Status != "completed" {
+		t.Fatalf("expected completed flow, got %s %#v", result.Status, result)
+	}
+	if !sawRadar {
+		t.Fatalf("expected radar deep-dive execution, got args=%v", capturedArgs)
+	}
+	joined := strings.Join(capturedArgs, " ")
+	if !strings.Contains(joined, "--priority-list-path") || !strings.Contains(joined, "--strategy-path") {
+		t.Fatalf("expected materialized path args, got %v", capturedArgs)
+	}
+	if strings.Contains(joined, "Saldo vencido;") || strings.Contains(joined, "revisar > enviar") {
+		t.Fatalf("expected no inline structured payload in args, got %v", capturedArgs)
+	}
+}
+
 func TestRunFlowManifestRespectsMaxCycles(t *testing.T) {
 	root := t.TempDir()
 	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2391,6 +2513,9 @@ func TestCollectionFlowActivatesHostingWhenSMTPMissing(t *testing.T) {
 	if _, ok := result.Artifacts["message.draft.v1"]; !ok {
 		t.Fatalf("expected draft before SMTP block: %#v", result.Artifacts)
 	}
+	if ni.SegmentMode != "operational" || ni.SegmentOwner != "foco" || ni.SegmentRole != "delegate" {
+		t.Fatalf("expected operational segment metadata on hosting need, got %#v", ni)
+	}
 }
 
 func TestCollectionFlowRoutesNodeViewAnswerToHosting(t *testing.T) {
@@ -2443,6 +2568,185 @@ func TestCollectionFlowCompletesCycleWhenContactAndSMTPExist(t *testing.T) {
 	}
 	if result.CyclesDone != 1 {
 		t.Fatalf("cycles_done=%d want 1", result.CyclesDone)
+	}
+}
+
+func TestCollectionFlowDeepAnalysisStaysInAnalyticalSegment(t *testing.T) {
+	s, closeFn := newCollectionSmokeServer(t)
+	defer closeFn()
+
+	req := collectionSmokeRequest(false, false)
+	req.InitialArtifacts["action.selection.v1"] = map[string]interface{}{
+		"artifact_type": "action.selection.v1",
+		"id":            "deep_analysis",
+		"bound_id":      "escalate",
+		"label":         "Ver análisis profundo",
+	}
+	result := s.runFlowManifest(context.Background(), req, nil)
+	if result.Status != "completed" {
+		t.Fatalf("status=%s result=%#v", result.Status, result)
+	}
+	if len(result.NeedsInput) != 0 {
+		t.Fatalf("expected no needs_input in analytical segment, got %#v", result.NeedsInput)
+	}
+	for _, artifact := range []string{"dataset.raw.v1", "collection.priority_list.v1", "analysis.case_review.v1", "entity_360.v1", "auditor.findings.v1", "segment.active.v1", "segment.constraints.v1", "segment.owner.v1"} {
+		if _, ok := result.Artifacts[artifact]; !ok {
+			t.Fatalf("missing %s in %#v", artifact, result.Artifacts)
+		}
+	}
+	for _, artifact := range []string{"message.draft.v1", "message.sent.v1", "contact.destination.v1", "credentials.smtp", "action.options.v1"} {
+		if _, ok := result.Artifacts[artifact]; ok {
+			t.Fatalf("did not expect %s in analytical segment: %#v", artifact, result.Artifacts[artifact])
+		}
+	}
+	active, _ := result.Artifacts["segment.active.v1"].Payload.(map[string]interface{})
+	if active["mode"] != "analytical" {
+		t.Fatalf("expected analytical segment, got %#v", active)
+	}
+	if active["owner_framework"] != "radar" || active["owner_capability"] != "analysis.deep_dive" {
+		t.Fatalf("expected radar deep-dive owner, got %#v", active)
+	}
+	if active["subject_ref"] != "cust_1" {
+		t.Fatalf("expected segment subject_ref=cust_1, got %#v", active)
+	}
+	owner, _ := result.Artifacts["segment.owner.v1"].Payload.(map[string]interface{})
+	if owner["framework"] != "radar" || owner["capability"] != "analysis.deep_dive" {
+		t.Fatalf("expected segment.owner.v1 owned by radar deep dive, got %#v", owner)
+	}
+	var radarStep, focusStep, draftStep, sendStep flowRunStep
+	var radarIdx, focusIdx int = -1, -1
+	for _, step := range result.Timeline {
+		if step.Node == "radar_deep_analysis" {
+			radarStep = step
+		}
+		if step.Node == "focus" {
+			focusStep = step
+		}
+		if step.Node == "draft" {
+			draftStep = step
+		}
+		if step.Node == "send" {
+			sendStep = step
+		}
+	}
+	for idx, step := range result.Timeline {
+		if step.Node == "radar_deep_analysis" {
+			radarIdx = idx
+		}
+		if step.Node == "focus" {
+			focusIdx = idx
+		}
+	}
+	if radarIdx < 0 || focusIdx < 0 || radarIdx >= focusIdx {
+		t.Fatalf("expected radar takeover before focus reentry, got timeline %#v", result.Timeline)
+	}
+	if radarStep.Status != "completed" || radarStep.SegmentRole != "owner" || radarStep.SegmentOwner != "radar" {
+		t.Fatalf("expected radar deep-dive owner step, got %#v", radarStep)
+	}
+	if focusStep.Status != "skipped" || focusStep.SegmentRole != "delegate" || focusStep.SegmentOwner != "radar" {
+		t.Fatalf("expected foco skipped under radar ownership, got %#v", focusStep)
+	}
+	if draftStep.Status != "skipped" || draftStep.SegmentMode != "analytical" {
+		t.Fatalf("expected draft skipped in analytical segment, got %#v", draftStep)
+	}
+	if draftStep.SegmentRole != "delegate" || draftStep.SegmentOwner != "radar" {
+		t.Fatalf("expected draft step to remain delegated under radar ownership, got %#v", draftStep)
+	}
+	if sendStep.Status != "skipped" || sendStep.SegmentMode != "analytical" {
+		t.Fatalf("expected send skipped in analytical segment, got %#v", sendStep)
+	}
+	if sendStep.SegmentRole != "delegate" || sendStep.SegmentOwner != "radar" {
+		t.Fatalf("expected send step to remain delegated under radar ownership, got %#v", sendStep)
+	}
+	if len(result.DynamicNodes) == 0 || result.DynamicNodes[0].ID != "radar_deep_analysis" {
+		t.Fatalf("expected radar deep-dive as dynamic owner node, got %#v", result.DynamicNodes)
+	}
+	if _, ok := result.Artifacts["segment.delegate.v1"]; !ok {
+		t.Fatalf("expected segment.delegate.v1, got %#v", result.Artifacts)
+	}
+	if _, ok := result.Artifacts["segment.return.v1"]; !ok {
+		t.Fatalf("expected segment.return.v1, got %#v", result.Artifacts)
+	}
+}
+
+func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T) {
+	s, closeFn := newCollectionSmokeServer(t)
+	defer closeFn()
+
+	req := collectionSmokeRequest(false, false)
+	artifacts := map[string]flowRunArtifact{
+		"data.sqlite_db.v1":         {Type: "data.sqlite_db.v1", Source: "test"},
+		"business.semantic_pack.v1": {Type: "business.semantic_pack.v1", Source: "test"},
+		"dataset.raw.v1":            {Type: "dataset.raw.v1", Source: "test", Payload: map[string]interface{}{"artifact_type": "dataset.raw.v1"}},
+		"collection.priority_list.v1": {
+			Type:   "collection.priority_list.v1",
+			Source: "test",
+			Payload: map[string]interface{}{
+				"artifact_type": "collection.priority_list.v1",
+				"items": []interface{}{
+					map[string]interface{}{"rank": 1, "deudor": "Cliente Uno", "saldo_total": 1000, "dias_mora_max": 45},
+				},
+				"selected": map[string]interface{}{"artifact_type": "entity.ref.v1", "type": "client", "id": "cust_1", "name": "Cliente Uno"},
+			},
+		},
+		"entity.ref.v1": {Type: "entity.ref.v1", Source: "test", Payload: map[string]interface{}{"artifact_type": "entity.ref.v1", "type": "client", "id": "cust_1", "name": "Cliente Uno"}},
+		"strategy.recommendation.v1": {Type: "strategy.recommendation.v1", Source: "test", Payload: map[string]interface{}{
+			"artifact_type": "strategy.recommendation.v1",
+			"recommendations": []interface{}{
+				map[string]interface{}{"action_id": "deep_analysis", "label": "Ver análisis profundo", "description": "Investigar antes de actuar"},
+			},
+		}},
+		"action.options.v1": {Type: "action.options.v1", Source: "test", Payload: map[string]interface{}{
+			"artifact_type": "action.options.v1",
+			"action_options": []interface{}{
+				map[string]interface{}{"id": "deep_analysis", "label": "Ver análisis profundo", "description": "Investigar antes de actuar", "bound_id": "escalate"},
+			},
+		}},
+	}
+
+	branches := s.runFlowActionBranches(context.Background(), req, artifacts)
+	if len(branches) != 1 {
+		t.Fatalf("expected one branch, got %#v", branches)
+	}
+	branch := branches[0]
+	if branch.Action["id"] != "deep_analysis" {
+		t.Fatalf("expected deep_analysis branch, got %#v", branch.Action)
+	}
+	countUser := 0
+	countFollowup := 0
+	countOperational := 0
+	countHandoff := 0
+	for _, step := range branch.Timeline {
+		if step.Node == "deep_analysis_simulated_user" {
+			countUser++
+		}
+		if step.Node == "radar_deep_analysis_followup" && step.Status == "completed" {
+			countFollowup++
+		}
+		if step.Node == "analysis_handoff_to_foco" && step.Status == "completed" {
+			countHandoff++
+			if step.SegmentMode == segmentModeOperational && step.SegmentOwner == "foco" {
+				countOperational++
+			}
+		}
+	}
+	if countUser < 3 {
+		t.Fatalf("expected at least 3 simulated user turns, got %d timeline=%#v", countUser, branch.Timeline)
+	}
+	if countFollowup < 2 {
+		t.Fatalf("expected at least 2 real Radar followups, got %d timeline=%#v", countFollowup, branch.Timeline)
+	}
+	if countOperational != 1 || countHandoff != 1 {
+		t.Fatalf("expected one operational handoff to Foco, operational=%d handoff=%d timeline=%#v", countOperational, countHandoff, branch.Timeline)
+	}
+	if !containsString(branch.Artifacts, "segment.session.v1") {
+		t.Fatalf("expected branch artifacts to include segment.session.v1, got %#v", branch.Artifacts)
+	}
+	if !containsString(branch.Artifacts, "analysis.handoff.v1") {
+		t.Fatalf("expected branch artifacts to include analysis.handoff.v1, got %#v", branch.Artifacts)
+	}
+	if containsString(branch.Artifacts, "message.sent.v1") {
+		t.Fatalf("deep analysis dimension must not send before handoff, artifacts=%#v", branch.Artifacts)
 	}
 }
 
@@ -2500,6 +2804,10 @@ func newCollectionSmokeServer(t *testing.T) (*server, func()) {
 			stdout = `{"artifacts":["dataset.raw.v1","external.api.dump.v1"],"tables":{"clients":[{"id":"cust_1","name":"Cliente Uno"}]}}`
 		case "smoke-radar":
 			stdout = `{"artifact_type":"collection.priority_list.v1","artifacts":["collection.priority_list.v1","collection.priority_item.v1","entity.ref.v1","strategy.recommendation.v1"],"items":[{"rank":1,"deudor":"Cliente Uno","saldo_total":1000,"dias_mora_max":45}],"priority_item":{"artifact_type":"collection.priority_item.v1","rank":1,"deudor":"Cliente Uno","saldo_total":1000,"dias_mora_max":45},"selected":{"artifact_type":"entity.ref.v1","type":"client","id":"cust_1","name":"Cliente Uno"},"recommendations":[{"action_id":"send_email","label":"Enviar email","description":"Cobrar por email"}]}`
+		case "smoke-radar-deep":
+			stdout = `{"artifact_type":"analysis.case_review.v1","artifacts":["analysis.case_review.v1","answer.grounded.v1"],"summary":"Radar toma control del análisis profundo de Cliente Uno antes de cualquier acción operativa.","selected":{"artifact_type":"entity.ref.v1","type":"client","id":"cust_1","name":"Cliente Uno"},"owner":{"framework":"radar","capability":"analysis.deep_dive","transfer_control":true}}`
+		case "smoke-radar-followup":
+			stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"text":"Radar analiza el follow-up usando el contexto real recibido y mantiene el tramo analítico sin ejecutar operación.","grounded_answer":{"artifact_type":"answer.grounded.v1","text":"Radar analiza el follow-up usando el contexto real recibido y mantiene el tramo analítico sin ejecutar operación."}}`
 		case "smoke-foco":
 			stdout = `{"artifact_type":"focus.next_task.v1","artifacts":["focus.next_task.v1","task.next","entity.ref.v1","action.options.v1"],"task_id":"task_1","selected":{"artifact_type":"entity.ref.v1","type":"client","id":"cust_1","name":"Cliente Uno"},"action_options":[{"id":"send_email","label":"Enviar email","description":"Cobrar por email"},{"id":"skip","label":"Saltar","description":"Pasar al siguiente"}]}`
 		case "smoke-sabio-query":
@@ -2546,10 +2854,21 @@ func collectionSmokeManifests() map[string]*manifest.Manifest {
 				{ID: "contact.lookup", Command: "contact-lookup", Requires: []string{"entity.ref.v1"}, Produces: []string{"contact.lookup.v1", "contact.destination.v1"}},
 			},
 		},
-		"radar":     {Name: "radar", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"prioritize": {Args: []string{"-c", "smoke-radar"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "collection.priority_list", Command: "prioritize", Requires: []string{"dataset.raw.v1", "business.semantic_pack.v1"}, Produces: []string{"collection.priority_list.v1", "collection.priority_item.v1", "entity.ref.v1", "strategy.recommendation.v1"}}}},
-		"foco":      {Name: "foco", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"next-task": {Args: []string{"-c", "smoke-foco"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "focus.next_collection_task", Command: "next-task", Requires: []string{"collection.priority_list.v1"}, Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"}}}},
-		"auditor":   {Name: "auditor", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"scan": {Args: []string{"-c", "smoke-auditor"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "data.quality.audit", Command: "scan", Requires: []string{"dataset.raw.v1"}, Produces: []string{"auditor.findings.v1", "data.gaps.v1"}}}},
-		"mecanico":  {Name: "mecanico", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"resolve-gaps": {Args: []string{"-c", "smoke-mecanico-resolve"}, Params: []string{"data_gaps_json", "findings_json", "entity_ref_json"}}, "draft-email": {Args: []string{"-c", "smoke-mecanico-draft"}, Params: []string{"deudor", "to", "saldo", "dias_mora"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "message.draft.collection_email", Command: "draft-email", Requires: []string{"entity.ref.v1", "contact.destination.v1"}, Produces: []string{"message.draft.v1"}}}},
+		"radar": {
+			Name: "radar", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{
+				"prioritize":       {Args: []string{"-c", "smoke-radar"}},
+				"deep-dive":        {Args: []string{"-c", "smoke-radar-deep", "--entity-ref", "{params.entity_ref}", "--entity-type", "{params.entity_type}", "--priority-list-path", "{params.priority_list_path}", "--priority-list-json", "{params.priority_list_json}", "--strategy-path", "{params.strategy_path}", "--strategy-json", "{params.strategy_json}", "--context-b64", "{params.context_b64}"}, Params: []string{"entity_ref", "entity_type", "priority_list_path", "priority_list_json", "strategy_path", "strategy_json", "context_b64"}, Defaults: map[string]string{"entity_ref": "", "entity_type": "", "priority_list_path": "", "priority_list_json": "", "strategy_path": "", "strategy_json": "", "context_b64": ""}},
+				"analyze-followup": {Args: []string{"-c", "smoke-radar-followup", "--input", "{params.input}", "--turn-count", "{params.turn_count}", "--delegation-results-json", "{params.delegation_results_json}"}, Params: []string{"input", "turn_count", "delegation_results_json"}, Defaults: map[string]string{"input": "", "turn_count": "0", "delegation_results_json": ""}},
+			},
+			Capabilities: []manifest.CapabilitySpec{
+				{ID: "collection.priority_list", Command: "prioritize", Requires: []string{"dataset.raw.v1", "business.semantic_pack.v1"}, Produces: []string{"collection.priority_list.v1", "collection.priority_item.v1", "entity.ref.v1", "strategy.recommendation.v1"}},
+				{ID: "analysis.deep_dive", Command: "deep-dive", Requires: []string{"collection.priority_list.v1", "entity.ref.v1"}, Produces: []string{"analysis.case_review.v1", "answer.grounded.v1"}, Session: &manifest.CapabilitySession{Conversational: true, FollowupCommand: "analyze-followup", ContinueSignals: []string{"explica", "por qué", "evidencia", "contradicciones", "gaps"}, OperationalSignals: []string{"con eso basta", "avanza"}, ExitSignals: []string{"siguiente caso"}, AllowedDelegates: []string{"data.entity_360", "data.quality.audit"}, MaxTurns: 10}},
+			},
+		},
+		"foco":     {Name: "foco", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"next-task": {Args: []string{"-c", "smoke-foco"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "focus.next_collection_task", Command: "next-task", Requires: []string{"collection.priority_list.v1"}, Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"}}}},
+		"auditor":  {Name: "auditor", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"scan": {Args: []string{"-c", "smoke-auditor"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "data.quality.audit", Command: "scan", Requires: []string{"dataset.raw.v1"}, Produces: []string{"auditor.findings.v1", "data.gaps.v1"}}}},
+		"mecanico": {Name: "mecanico", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"resolve-gaps": {Args: []string{"-c", "smoke-mecanico-resolve", "--data-gaps-path", "{params.data_gaps_path}", "--data-gaps-json", "{params.data_gaps_json}", "--findings-path", "{params.findings_path}", "--findings-json", "{params.findings_json}", "--entity-ref-path", "{params.entity_ref_path}", "--entity-ref-json", "{params.entity_ref_json}", "--scope-tables-path", "{params.scope_tables_path}", "--scope-tables-json", "{params.scope_tables_json}"}, Params: []string{"data_gaps_path", "data_gaps_json", "findings_path", "findings_json", "entity_ref_path", "entity_ref_json", "scope_tables_path", "scope_tables_json"}, Defaults: map[string]string{"data_gaps_path": "", "data_gaps_json": "", "findings_path": "", "findings_json": "", "entity_ref_path": "", "entity_ref_json": "", "scope_tables_path": "", "scope_tables_json": ""}}, "draft-email": {Args: []string{"-c", "smoke-mecanico-draft"}, Params: []string{"deudor", "to", "saldo", "dias_mora"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "message.draft.collection_email", Command: "draft-email", Requires: []string{"entity.ref.v1", "contact.destination.v1"}, Produces: []string{"message.draft.v1"}}}},
 		"hosting": {
 			Name: "hosting", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"},
 			Commands: map[string]manifest.Command{

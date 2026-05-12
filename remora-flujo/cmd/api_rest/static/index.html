@@ -4530,11 +4530,15 @@ function renderFlowExecutionTopology(manifest, result = null) {
   const nodes = flowExecutionTopologyNodes((manifest || {}).nodes || [], result);
   const installed = Boolean((flowsState.selectedFlow || {}).installed && (flowsState.selectedFlow || {}).installed.installed);
   const hasBootstrap = nodes.some(n => n.role === 'bootstrap');
+  const segment = activeSegmentPayload(result);
+  const subtitle = segment
+    ? `Tramo ${segmentModeLabel(segment.mode)} activo: ${frameworkDisplayName(segment.owner_framework || 'foco')} mantiene ownership.`
+    : (installed ? 'Fase operativa: Radar queda instalado y Foco toma el entry point.' : hasBootstrap ? 'Fase bootstrap: Radar configura, el usuario acepta y luego Foco opera.' : 'Fase operativa: los nodos principales invocan auxiliares por capability.');
   return `<div class="flow-execution-map">
     <div class="flow-execution-map-head">
       <div>
         <div class="flow-execution-map-title">Topología real de ejecución</div>
-        <div class="flow-execution-map-sub">${installed ? 'Fase operativa: Radar queda instalado y Foco toma el entry point.' : hasBootstrap ? 'Fase bootstrap: Radar configura, el usuario acepta y luego Foco opera.' : 'Fase operativa: los nodos principales invocan auxiliares por capability.'}</div>
+        <div class="flow-execution-map-sub">${escapeHtml(subtitle)}</div>
       </div>
       <div class="flow-execution-map-legend">
         <span><b class="legend-dot bootstrap"></b>Bootstrap</span>
@@ -4755,6 +4759,130 @@ function artifactPayload(result, type) {
   return art.payload || art;
 }
 
+function activeSegmentPayload(result) {
+  return artifactPayload(result, 'segment.active.v1');
+}
+
+function segmentDelegatePayload(result) {
+  return artifactPayload(result, 'segment.delegate.v1');
+}
+
+function segmentReturnPayload(result) {
+  return artifactPayload(result, 'segment.return.v1');
+}
+
+function frameworkDisplayName(name) {
+  return getFrameworkName(name || '') || String(name || 'framework');
+}
+
+function segmentModeLabel(mode) {
+  if (mode === 'analytical') return 'analítico';
+  if (mode === 'operational') return 'operativo';
+  return mode || 'activo';
+}
+
+function segmentRoleLabel(role) {
+  if (role === 'owner') return 'owner';
+  if (role === 'delegate') return 'delegado';
+  return role || '';
+}
+
+function renderFlowSegmentHint(item) {
+  if (!item || !item.segment_mode) return '';
+  const owner = frameworkDisplayName(item.segment_owner || item.framework || 'framework');
+  const actor = frameworkDisplayName(item.framework || item.segment_owner || 'framework');
+  const parts = [`Tramo ${segmentModeLabel(item.segment_mode)}`, `owner: ${owner}`];
+  if (item.segment_role && actor) parts.push(`${segmentRoleLabel(item.segment_role)}: ${actor}`);
+  return `<div class="composer-muted" style="margin-bottom:8px;font-size:12px;">${escapeHtml(parts.join(' · '))}</div>`;
+}
+
+function flowStepHeading(step) {
+  const parts = [flowRoleLabel(step.role), capSemanticName(step)];
+  if (step.segment_mode) parts.push(`tramo ${segmentModeLabel(step.segment_mode)}`);
+  if (step.segment_role) parts.push(segmentRoleLabel(step.segment_role));
+  return parts.filter(Boolean).join(' · ');
+}
+
+function flowStepHandoffSummary(step, next = null) {
+  const current = frameworkDisplayName(step.framework || 'framework');
+  const owner = frameworkDisplayName(step.segment_owner || step.framework || 'framework');
+  const nextName = next ? frameworkDisplayName(next.framework || 'framework') : '';
+  const produced = (step.produces || step.outputs || []).map(artifactLabel).slice(0, 2).join(', ');
+  if (step.segment_mode && step.segment_role === 'owner' && next && next.segment_role === 'delegate') {
+    return `${owner} delega ${capSemanticName(next)} a ${nextName}.`;
+  }
+  if (step.segment_mode && step.segment_role === 'delegate') {
+    return `${current} devuelve ${produced || 'contexto'} a ${owner}.`;
+  }
+  return `${current} entrega ${produced || 'contexto'}${nextName ? ` a ${nextName}` : ' al siguiente paso'}.`;
+}
+
+function canvasSelectionSummary(action) {
+  if (!action) return 'Continuo con la opción seleccionada.';
+  const bound = String(action.bound_id || '').trim();
+  const id = String(action.id || '').trim();
+  if (bound === 'escalate' || id === 'deep_analysis') {
+    return 'Foco mantiene ownership del caso y abre un tramo analítico sin habilitar acciones operativas.';
+  }
+  return 'Foco mantiene ownership del caso y continúa el tramo operativo.';
+}
+
+function canvasStepStartSummary(step) {
+  if (!step || !step.segment_mode) return `Ejecutando ${capSemanticName(step)}...`;
+  const owner = frameworkDisplayName(step.segment_owner || step.framework || 'framework');
+  const actor = frameworkDisplayName(step.framework || 'framework');
+  if (step.segment_role === 'owner') return `${owner} conduce el tramo ${segmentModeLabel(step.segment_mode)}.`;
+  return `${owner} delega ${capSemanticName(step)} a ${actor}.`;
+}
+
+function canvasStepCompleteSummary(step) {
+  if (!step) return 'Paso completado.';
+  if (step.status === 'skipped' && step.segment_mode) {
+    return `Paso omitido por restricciones del tramo ${segmentModeLabel(step.segment_mode)}.`;
+  }
+  if (step.segment_role === 'delegate' && step.segment_mode) {
+    return `${frameworkDisplayName(step.framework || 'framework')} devuelve contexto al owner ${frameworkDisplayName(step.segment_owner || 'framework')}.`;
+  }
+  return step.status === 'completed' ? 'Paso completado.' : (step.error || step.status || 'Paso detenido.');
+}
+
+function analyticalSkipBlockReason(step) {
+  if (!step || step.status !== 'skipped' || step.segment_mode !== 'analytical') return '';
+  const summary = String(step.human_summary || step.error || '').trim().toLowerCase();
+  if (!summary) return '';
+  if (
+    summary.includes('side effects') ||
+    summary.includes('mutación de estado') ||
+    summary.includes('mutacion de estado') ||
+    summary.includes('se bloquean acciones operativas') ||
+    summary.includes('queda fuera del tramo por requerir o producir')
+  ) {
+    return summary;
+  }
+  return '';
+}
+
+function shouldCanvasDeferSkippedAnalyticalSpeaker(step) {
+  return Boolean(analyticalSkipBlockReason(step));
+}
+
+function ownerSpeakerForStep(step) {
+  const owner = frameworkDisplayName((step && step.segment_owner) || (step && step.framework) || 'framework');
+  return `${owner} · ${segmentRoleLabel('owner')}`;
+}
+
+function ownerNodeIdForStep(step) {
+  const owner = frameworkType((step && step.segment_owner) || '');
+  if (!owner) return null;
+  return document.getElementById(`node-${owner}`) ? owner : null;
+}
+
+function canvasDeferredSkippedSummary(step) {
+  const actor = frameworkDisplayName((step && step.framework) || 'framework');
+  const owner = frameworkDisplayName((step && step.segment_owner) || 'framework');
+  return `${actor} fue omitido porque el tramo ${segmentModeLabel((step && step.segment_mode) || 'analytical')} sigue abierto bajo ${owner}.`;
+}
+
 function manifestIntentPayload(manifest) {
   const intent = (manifest || {}).intent || {};
   return intent && Object.keys(intent).some(k => intent[k] && (!Array.isArray(intent[k]) || intent[k].length)) ? intent : null;
@@ -4765,6 +4893,9 @@ function renderFlowSemanticArtifacts(result, manifest, opts = {}) {
   const intent = artifactPayload(result, 'flow.intent.v1') || manifestIntentPayload(manifest);
   const work = artifactPayload(result, 'work.context.v1');
   const cycle = artifactPayload(result, 'cycle.result.v1');
+  const segment = activeSegmentPayload(result);
+  const delegate = segmentDelegatePayload(result);
+  const returned = segmentReturnPayload(result);
   const totalCycles = opts.maxCycles || ((flowsState.detail || {}).maxCycles) || (result && result.cycles_done) || 0;
   const currentCycle = cycle && cycle.cycle_index !== undefined ? Number(cycle.cycle_index) + 1 : (result && result.cycles_done) || 1;
   const operational = (flowsState.selectedFlow || {}).operational || {};
@@ -4783,6 +4914,20 @@ function renderFlowSemanticArtifacts(result, manifest, opts = {}) {
       <div class="flow-semantic-label">Ahora</div>
       <div class="flow-semantic-value">${escapeHtml(entity)} — ${escapeHtml(task)}</div>
       ${work.expected_outcome ? `<div class="flow-semantic-sub">${escapeHtml(work.expected_outcome)}</div>` : ''}
+    </div>`);
+  }
+  if (segment) {
+    const owner = frameworkDisplayName(segment.owner_framework || 'foco');
+    const subject = segment.subject_name || segment.subject_ref || segment.task_title || segment.selected_action_label || segment.selected_action_id || 'caso actual';
+    const delegateText = delegate && delegate.delegate_framework
+      ? `Delegado activo: ${frameworkDisplayName(delegate.delegate_framework)}`
+      : 'Owner retiene control';
+    const returnText = returned && returned.return_artifact ? `Último retorno: ${artifactLabel(returned.return_artifact)}` : '';
+    cards.push(`<div class="flow-semantic-card work">
+      <div class="flow-semantic-label">Tramo activo</div>
+      <div class="flow-semantic-value">${escapeHtml(segmentModeLabel(segment.mode))} · owner ${escapeHtml(owner)}</div>
+      <div class="flow-semantic-sub">${escapeHtml(subject)}</div>
+      <div class="flow-semantic-sub">${escapeHtml(delegateText)}${returnText ? ` · ${escapeHtml(returnText)}` : ''}</div>
     </div>`);
   }
   if (cycle) {
@@ -4902,7 +5047,8 @@ function renderHumanRunResult(r) {
   html += renderFlowChatMessage('assistant', 'Rémora', 'Inicio el flujo con datos reales del negocio. El usuario no tiene que decir qué hacer; el primer framework prepara o presenta el trabajo.');
 
   const infraGroups = groupInfrastructureSteps(timeline);
-  const visibleTimeline = timeline.filter(step => stepVisibility(step) !== 'infrastructure');
+  const deferredAnalyticalSkips = timeline.filter(step => shouldHideAnalyticalSkippedStep(step));
+  const visibleTimeline = timeline.filter(step => stepVisibility(step) !== 'infrastructure' && !shouldHideAnalyticalSkippedStep(step));
   let lastCycleIndex = -1;
   visibleTimeline.forEach((step, i) => {
     const next = visibleTimeline[i + 1];
@@ -4921,7 +5067,7 @@ function renderHumanRunResult(r) {
     }
     lastCycleIndex = step.cycle_index || 0;
 
-    html += `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(flowRoleLabel(step.role))} · ${escapeHtml(capSemanticName(step))}${step.duration_ms ? ' · ' + step.duration_ms + 'ms' : ''}</div></div>`;
+    html += `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(flowStepHeading(step))}${step.duration_ms ? ' · ' + step.duration_ms + 'ms' : ''}</div></div>`;
 
     const text = extractHumanSummaryFromStdout(step);
     html += renderFlowChatMessage('assistant', step.framework || 'framework', text, {
@@ -4942,14 +5088,17 @@ function renderHumanRunResult(r) {
     }
 
     if (ok && next) {
-      const produced = (step.produces || step.outputs || []).map(artifactLabel).slice(0, 2).join(', ');
-      html += `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(step.framework)} entrega ${escapeHtml(produced || 'contexto')} a ${escapeHtml(next.framework)}.</div></div>`;
+      html += `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(flowStepHandoffSummary(step, next))}</div></div>`;
     }
   });
 
   if (infraGroups.unassigned.length) {
     html += renderCollapsedInfrastructureSteps(infraGroups.unassigned, 'Infraestructura');
   }
+  if (deferredAnalyticalSkips.length) {
+    html += renderCollapsedAnalyticalSkips(deferredAnalyticalSkips);
+  }
+  html += renderAnalyticalSegmentClosure(r);
   html += renderCycleResultMessage(r);
 
   if (r.status === 'needs_input') {
@@ -5009,6 +5158,20 @@ function stepVisibility(step) {
   return (step && step.visibility) || 'user_facing';
 }
 
+function shouldHideAnalyticalSkippedStep(step) {
+  if (!step || step.status !== 'skipped' || step.segment_mode !== 'analytical') return false;
+  const summary = String(step.human_summary || step.error || '').trim().toLowerCase();
+  if (!summary) return false;
+  return (
+    summary.includes('no retoma control hasta retorno explícito') ||
+    summary.includes('no retoma control hasta retorno explicito') ||
+    summary.includes('se suprime la reemisión de action_options') ||
+    summary.includes('se suprime la reemision de action_options') ||
+    summary.includes('se bloquean acciones operativas') ||
+    summary.includes('queda fuera del tramo por requerir o producir')
+  );
+}
+
 function groupInfrastructureSteps(timeline) {
   const byTrigger = new Map();
   const unassigned = [];
@@ -5037,6 +5200,51 @@ function renderCollapsedInfrastructureSteps(steps, title = 'Infraestructura usad
       }).join('')}
     </div>
   </details></div>`;
+}
+
+function renderCollapsedAnalyticalSkips(steps) {
+  if (!steps || !steps.length) return '';
+  return `<div class="flow-chat-row system"><details class="flow-branch-details" style="margin:4px 0 10px 44px;max-width:760px;">
+    <summary>Pasos operativos omitidos por el tramo analítico (${steps.length})</summary>
+    <div style="padding-top:8px;display:flex;flex-direction:column;gap:6px;">
+      ${steps.map(step => `<div class="composer-muted" style="font-size:12px;">↳ ${escapeHtml(frameworkDisplayName(step.framework || 'framework'))} · ${escapeHtml(capSemanticName(step))} — ${escapeHtml(canvasDeferredSkippedSummary(step))}</div>`).join('')}
+    </div>
+  </details></div>`;
+}
+
+function renderAnalyticalSegmentClosure(result) {
+  const segment = activeSegmentPayload(result);
+  if (!segment || segment.mode !== 'analytical') return '';
+  const review = artifactPayload(result, 'analysis.case_review.v1');
+  if (!review) return '';
+  const subject = segment.subject_name || segment.subject_ref || review.selected && (review.selected.name || review.selected.id) || 'el caso';
+  const evidence = arrayifyStrings(review.evidence_summary);
+  const gaps = arrayifyStrings(review.blocking_gaps);
+  const next = arrayifyStrings(review.recommended_next_non_operational_steps).concat(arrayifyStrings(review.recommended_next_operational_steps));
+  const openQuestions = arrayifyStrings(review.open_questions);
+  const sections = [
+    `Resumen del análisis profundo de ${subject}.`,
+    review.why_prioritized ? `Por qué se priorizó: ${review.why_prioritized}` : '',
+    renderAnalyticalClosureLine('Qué sabemos', evidence.length ? evidence : [review.risk_summary, review.aging_summary, review.invoice_summary].filter(Boolean)),
+    renderAnalyticalClosureLine('Qué falta', gaps.length ? gaps : ['no aparece una brecha crítica estructurada; conviene validar esto con Auditor']),
+    renderAnalyticalClosureLine('Qué haría después si quisieras actuar', next.length ? next : ['usar este análisis como insumo antes de pasar a drafting o envío']),
+    openQuestions.length ? renderAnalyticalClosureLine('Preguntas abiertas', openQuestions) : ''
+  ].filter(Boolean).join('\n\n');
+  return renderFlowChatMessage('assistant', frameworkDisplayName(segment.owner_framework || 'radar'), sections, {
+    status: 'cierre analítico',
+    outputs: ['analysis.case_review.v1', 'answer.grounded.v1']
+  });
+}
+
+function renderAnalyticalClosureLine(title, items) {
+  const list = arrayifyStrings(items);
+  if (!list.length) return '';
+  return `${title}: ${list.join(' | ')}`;
+}
+
+function arrayifyStrings(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(v => String(v || '').trim()).filter(Boolean);
 }
 
 function extractHumanSummaryFromStdout(step) {
@@ -5091,7 +5299,7 @@ function renderFlowBranches(branches) {
   if (!branches || !branches.length) return '';
   return `<div class="flow-branches-panel">
     <div class="flow-branches-title">Dimensiones paralelas ejecutadas (${branches.length})</div>
-    <div class="composer-muted" style="margin-bottom:10px;">Cada columna es un flujo completo de prueba, ejecutado en paralelo con una acción distinta. No es solo simulación visual: cada dimensión tiene timeline, artifacts y comandos propios.</div>
+    <div class="composer-muted" style="margin-bottom:10px;">Cada columna muestra una rama segura del workflow con una decisión distinta. Sirve para comparar resultados y artifacts; no equivale todavía a una conversación independiente con el owner del tramo.</div>
     <div class="flow-branches-grid">
       ${branches.map((b, idx) => renderFlowBranchThread(b, idx)).join('')}
     </div>
@@ -5130,7 +5338,7 @@ function visibleBranchSteps(steps) {
     'collection.priority_list',
     'focus.next_collection_task'
   ]);
-  let visible = steps.filter(step => !setupCaps.has(step.capability || ''));
+  let visible = steps.filter(step => !setupCaps.has(step.capability || '') && !shouldHideAnalyticalSkippedStep(step));
   if (!visible.length) visible = steps.slice(-3);
   return visible.slice(0, 6);
 }
@@ -5225,6 +5433,7 @@ function renderFlowCommandDetails(step) {
   if (step.missing_artifacts && step.missing_artifacts.length) lines.push(`<div class="flow-chat-meta-line" style="color:#ef4444;"><strong>Faltantes:</strong> ${step.missing_artifacts.map(a => escapeHtml(artifactLabel(a))).join(', ')}</div>`);
   if (step.policies && step.policies.length) lines.push(`<div class="flow-chat-meta-line"><strong>Políticas:</strong> ${step.policies.map(p => escapeHtml(p)).join(', ')}</div>`);
   if (step.action_bounds && step.action_bounds.length) lines.push(`<div class="flow-chat-meta-line"><strong>Action bounds:</strong> ${step.action_bounds.map(b => escapeHtml(b)).join(', ')}</div>`);
+  if (step.segment_mode) lines.push(`<div class="flow-chat-meta-line"><strong>Segmento:</strong> ${escapeHtml(segmentModeLabel(step.segment_mode))} · owner ${escapeHtml(frameworkDisplayName(step.segment_owner || step.framework || 'framework'))} · ${escapeHtml(segmentRoleLabel(step.segment_role || 'delegate'))}</div>`);
   if (step.triggered_by) {
     const tb = step.triggered_by;
     lines.push(`<div class="flow-chat-meta-line"><strong>Disparado por:</strong> ${escapeHtml(tb.framework || '')}${tb.capability ? ' · ' + escapeHtml(tb.capability) : ''}${tb.reason ? ' (' + escapeHtml(tb.reason) + ')' : ''}</div>`);
@@ -5240,33 +5449,34 @@ function renderFlowNeedsInput(items) {
   return `<div style="margin-top:12px;padding:12px;background:var(--surface);border:1px solid ${hasConversational ? 'var(--border)' : '#f59e0b'};border-radius:8px;">
     <div style="font-weight:600;margin-bottom:6px;">${hasConversational ? 'Responder para continuar' : 'Falta información para continuar'}</div>
     ${items.map((item, idx) => {
+      const segmentHint = renderFlowSegmentHint(item);
       if (item.kind === 'conversational_question') {
-        return renderConversationalFlowQuestion(item, idx);
+        return `${segmentHint}${renderConversationalFlowQuestion(item, idx)}`;
       }
       if (item.kind === 'hosting_connect') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+        return `${segmentHint}<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
           <button class="modal-btn confirm" onclick="startHostingConversationFromFlow()">Conectar hosting</button>`;
       }
       if (item.kind === 'framework_question' && item.framework === 'hosting') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+        return `${segmentHint}<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
           <button class="modal-btn confirm" onclick="startHostingConversationFromFlow()">Continuar con Hosting</button>`;
       }
       if (item.kind === 'contact_email') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+        return `${segmentHint}<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
           <div style="display:flex;gap:8px;align-items:center;">
             <input id="flow-contact-email-${idx}" type="email" placeholder="cliente@empresa.com" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
             <button class="modal-btn confirm" onclick="saveFlowContactDestination(${idx})">Guardar destinatario</button>
           </div>`;
       }
       if (item.kind === 'approval' && item.framework === 'mecanico') {
-        return `<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
+        return `${segmentHint}<div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="modal-btn confirm" onclick="approveMecanicoProposals()">Aplicar propuestas aprobadas</button>
             <button class="modal-btn cancel" onclick="rejectMecanicoProposals()">Rechazar por ahora</button>
           </div>`;
       }
       if (item.kind === 'analysis_acceptance') {
-        return `<div style="margin-bottom:10px;">
+        return `${segmentHint}<div style="margin-bottom:10px;">
             <div style="font-weight:600;margin-bottom:6px;">Radar propone esta configuración de análisis</div>
             <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -5275,7 +5485,7 @@ function renderFlowNeedsInput(items) {
             </div>
           </div>`;
       }
-      return `<div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta información')}</div>`;
+      return `${segmentHint}<div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta información')}</div>`;
     }).join('')}
   </div>`;
 }
@@ -5339,6 +5549,7 @@ function renderConversationalFlowQuestion(item, idx) {
       <div class="flow-chat-meta-line"><strong>Gap:</strong> ${escapeHtml(item.gap_type || 'missing_data')}</div>
       <div class="flow-chat-meta-line"><strong>Entidad:</strong> ${escapeHtml(item.entity_ref || (item.context && item.context.entity_ref) || 'actual')}</div>
       <div class="flow-chat-meta-line"><strong>Siguiente transición:</strong> ${escapeHtml(item.next_transition || 'continuar wizard')}</div>
+      ${item.segment_mode ? `<div class="flow-chat-meta-line"><strong>Segmento:</strong> ${escapeHtml(segmentModeLabel(item.segment_mode))} · owner ${escapeHtml(frameworkDisplayName(item.segment_owner || item.framework || 'framework'))} · ${escapeHtml(segmentRoleLabel(item.segment_role || 'delegate'))}</div>` : ''}
       <div class="flow-chat-meta-line"><strong>Trace:</strong> ${escapeHtml(traceText)}</div>
     </div>
   </details>` : '';
@@ -5511,14 +5722,16 @@ function renderCanvasNeedsInput(items) {
 function renderCanvasInteractionItem(item, idx) {
   if (!item) return '';
   const title = item.title ? `<div style="font-weight:700;margin-bottom:6px;">${escapeHtml(item.title)}</div>` : '';
+  const segmentHint = renderFlowSegmentHint(item);
   const actions = renderCanvasInteractionActions(item, idx);
   if (item.kind === 'conversational_question') {
-    return `<div style="margin-bottom:10px;">${title}${renderCanvasConversationalQuestion(item, idx)}</div>`;
+    return `<div style="margin-bottom:10px;">${title}${segmentHint}${renderCanvasConversationalQuestion(item, idx)}</div>`;
   }
   if (item.kind === 'contact_email') {
     const field = (item.fields || [])[0] || {};
     return `<div style="margin-bottom:10px;">
       ${title}
+      ${segmentHint}
       <div class="composer-muted" style="margin-bottom:10px;">${escapeHtml(item.message || '')}</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <input id="canvas-contact-email-${idx}" type="${escapeAttr(field.type || 'email')}" placeholder="${escapeAttr(field.placeholder || 'cliente@empresa.com')}" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text-primary);font-size:13px;">
@@ -5528,6 +5741,7 @@ function renderCanvasInteractionItem(item, idx) {
   }
   return `<div style="margin-bottom:10px;">
     ${title}
+    ${segmentHint}
     ${actions ? `<div style="margin-bottom:10px;">${actions}</div>` : ''}
     <div class="composer-muted">${escapeHtml(item.message || item.artifact || 'Falta informacion')}</div>
   </div>`;
@@ -5605,7 +5819,7 @@ function continueCanvasWithSelectedAction(action) {
   };
   canvasFlowState.initialArtifacts = canvasFlowState.initialArtifacts || {};
   canvasFlowState.initialArtifacts['action.selection.v1'] = selection;
-  showCanvasThought('Usuario', `Seleccionaste: ${escapeHtml(selection.label || selection.id || 'opción')}`);
+  showCanvasThought('Usuario', `Seleccionaste: ${escapeHtml(selection.label || selection.id || 'opción')}. ${escapeHtml(canvasSelectionSummary(action))}`);
   runCanvasFlowWithSelection(selection);
 }
 
@@ -5657,7 +5871,13 @@ function applyCanvasNeedsInput(items, flowData = null) {
     setNodeSpeech(nodeId, speakerForStep(item), renderCanvasNodeInteractionBubble(entries), { html: true });
   });
   const summary = grouped.size === 1
-    ? `Necesito tu siguiente acción en ${canvasNodeLabel({ framework: [...grouped.values()][0][0].item.framework || [...grouped.keys()][0], role: [...grouped.values()][0][0].item.role || '' })}.`
+    ? (() => {
+        const item = [...grouped.values()][0][0].item || {};
+        const owner = frameworkDisplayName(item.segment_owner || item.framework || [...grouped.keys()][0]);
+        const actor = canvasNodeLabel({ framework: item.framework || [...grouped.keys()][0], role: item.role || '' });
+        if (item.segment_mode) return `${owner} espera tu respuesta para continuar el tramo ${segmentModeLabel(item.segment_mode)} en ${actor}.`;
+        return `Necesito tu siguiente acción en ${actor}.`;
+      })()
     : `Necesito tu siguiente acción en ${grouped.size} nodos del flujo.`;
   showCanvasThought('Rémora', summary);
 }
@@ -6149,9 +6369,11 @@ function flowRoleLabel(role) {
 }
 
 function speakerForStep(step) {
-  if ((step.role || '') === 'entry') return capSemanticName(step);
-  if ((step.role || '') === 'bootstrap') return capSemanticName(step);
-  return step.framework || 'framework';
+  let base = frameworkDisplayName((step && step.framework) || 'framework');
+  if ((step.role || '') === 'entry') base = capSemanticName(step);
+  if ((step.role || '') === 'bootstrap') base = capSemanticName(step);
+  if (step && step.segment_role) return `${base} · ${segmentRoleLabel(step.segment_role)}`;
+  return base;
 }
 
 function flowRealisticPrompt(flow) {
@@ -6404,7 +6626,7 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
           }
 
           thread.insertAdjacentHTML('beforeend',
-            `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(flowRoleLabel(step.role))} · ${escapeHtml(capSemanticName(step))}</div></div>`);
+            `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(flowStepHeading(step))}</div></div>`);
           const runId = 'flow-stream-step-' + stepIndex;
           lastRunningId = runId;
           thread.insertAdjacentHTML('beforeend', renderFlowChatMessage('assistant', speakerForStep(step),
@@ -6443,9 +6665,8 @@ async function streamFlowRun(manifest, dryRun, approved, title, opts = {}) {
           }
 
           if (ok && stepIndex < data.total_steps) {
-            const produced = (step.produces || step.outputs || []).map(artifactLabel).slice(0, 2).join(', ');
             thread.insertAdjacentHTML('beforeend',
-              `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(capSemanticName(step))} entrega ${escapeHtml(produced || 'contexto')} al siguiente paso.</div></div>`);
+              `<div class="flow-chat-row system"><div class="flow-chat-handoff">${escapeHtml(flowStepHandoffSummary(step))}</div></div>`);
           }
           scrollStreamBottom(thread);
         }
@@ -7337,6 +7558,9 @@ function aggregateCanvasNodes(nodes) {
         role: node.role || '',
         roles: node.role ? [node.role] : [],
         visibility: node.visibility || 'user_facing',
+        segmentMode: node.segmentMode || '',
+        segmentRole: node.segmentRole || '',
+        segmentOwner: node.segmentOwner || '',
         inputs: [...(node.inputs || []), ...(node.requires || [])],
         outputs: [...(node.outputs || []), ...(node.produces || [])],
         requires: [...(node.requires || [])],
@@ -7353,6 +7577,9 @@ function aggregateCanvasNodes(nodes) {
       current.role = node.role || current.role;
     }
     current.visibility = current.visibility === 'infrastructure' ? current.visibility : (node.visibility || current.visibility);
+    if (!current.segmentMode && node.segmentMode) current.segmentMode = node.segmentMode;
+    if (!current.segmentRole && node.segmentRole) current.segmentRole = node.segmentRole;
+    if (!current.segmentOwner && node.segmentOwner) current.segmentOwner = node.segmentOwner;
     current.inputs = [...new Set([...(current.inputs || []), ...(node.inputs || []), ...(node.requires || [])])];
     current.outputs = [...new Set([...(current.outputs || []), ...(node.outputs || []), ...(node.produces || [])])];
     current.requires = [...new Set([...(current.requires || []), ...(node.requires || [])])];
@@ -7476,7 +7703,10 @@ function computeCanvasRuntimeGraph(result = null) {
       id: frameworkType(item.framework || item.node || item.capability || ''),
       framework: item.framework || canvasInteractionNodeId(item),
       capability: item.capability || '',
-      role: item.role || 'resolution'
+      role: item.role || 'resolution',
+      segmentMode: item.segment_mode || '',
+      segmentRole: item.segment_role || '',
+      segmentOwner: item.segment_owner || ''
     }))
     .filter(node => node.id);
   const liveNodes = activeNodes.map(node => ({
@@ -7485,7 +7715,10 @@ function computeCanvasRuntimeGraph(result = null) {
     capability: node.capability || '',
     capabilities: node.capabilities || [],
     role: node.role || '',
-    roles: node.roles || []
+    roles: node.roles || [],
+    segmentMode: node.segmentMode || '',
+    segmentRole: node.segmentRole || '',
+    segmentOwner: node.segmentOwner || ''
   }));
   const normalizedBaseNodes = baseNodes.map(node => ({ ...node, id: frameworkType(node.framework || node.id) }));
   const normalizedDynamicNodes = dynamicNodes.map(node => ({ ...node, id: frameworkType(node.framework || node.id) }));
@@ -7531,6 +7764,9 @@ function syncCanvasGraph(result = null) {
     existing.capabilities = node.capabilities || existing.capabilities || [];
     existing.role = node.role;
     existing.roles = node.roles || existing.roles || [];
+    existing.segmentMode = node.segmentMode || existing.segmentMode || '';
+    existing.segmentRole = node.segmentRole || existing.segmentRole || '';
+    existing.segmentOwner = node.segmentOwner || existing.segmentOwner || '';
     const labelEl = document.querySelector(`#node-${node.id} .node-label`);
     if (labelEl) labelEl.textContent = label;
   });
@@ -7683,7 +7919,7 @@ async function runCanvasFlowWithSelection(selection) {
           deactivateAllNodes();
           setNodeActive(nid, true);
           setNodeSpeaking(nid, true);
-          showCanvasThought(speakerForStep(step), `Ejecutando ${capSemanticName(step)}...`);
+          showCanvasThought(speakerForStep(step), canvasStepStartSummary(step));
           setNodeSpeech(nid, speakerForStep(step), 'Procesando...');
         }
         if (event === 'step_complete') {
@@ -7692,9 +7928,7 @@ async function runCanvasFlowWithSelection(selection) {
           const nid = ensureCanvasNodeForStep(step);
           if (!nid) continue;
           setNodeSpeaking(nid, false);
-          setNodeActive(nid, true);
-          showCanvasThought(speakerForStep(step), step.status === 'completed' ? 'Paso completado.' : (step.error || step.status || 'Paso detenido.'));
-          setNodeSpeech(nid, speakerForStep(step), extractHumanSummaryFromStdout(step), step.action_options || []);
+          applyCanvasStepCompletionVisual(step, nid);
         }
         if (event === 'flow_complete') {
           deactivateAllNodes();
@@ -7731,6 +7965,21 @@ async function runCanvasFlowWithSelection(selection) {
 function showCanvasThought(header, content) {
   showThoughtBubble('user', header || 'Pensamiento', content || '', false, 'pos-above');
   thoughtBubble.classList.add('canvas-global');
+}
+
+function applyCanvasStepCompletionVisual(step, fallbackNodeId) {
+  const deferSkippedSpeaker = shouldCanvasDeferSkippedAnalyticalSpeaker(step);
+  const preferredNodeId = deferSkippedSpeaker ? (ownerNodeIdForStep(step) || fallbackNodeId) : fallbackNodeId;
+  if (!preferredNodeId) return;
+  if (deferSkippedSpeaker && fallbackNodeId && fallbackNodeId !== preferredNodeId) {
+    setNodeActive(fallbackNodeId, false);
+  }
+  setNodeActive(preferredNodeId, true);
+  const header = deferSkippedSpeaker ? ownerSpeakerForStep(step) : speakerForStep(step);
+  const thought = deferSkippedSpeaker ? canvasDeferredSkippedSummary(step) : canvasStepCompleteSummary(step);
+  const body = deferSkippedSpeaker ? canvasDeferredSkippedSummary(step) : extractHumanSummaryFromStdout(step);
+  showCanvasThought(header, thought);
+  setNodeSpeech(preferredNodeId, header, body, deferSkippedSpeaker ? [] : (step.action_options || []));
 }
 
 function deactivateAllNodes() {
@@ -7858,7 +8107,7 @@ async function runCanvasFlowReal() {
           deactivateAllNodes();
           setNodeActive(nodeId, true);
           setNodeSpeaking(nodeId, true);
-          showCanvasThought(speakerForStep(step), `Estoy ejecutando ${capSemanticName(step)}. Rol: ${flowRoleLabel(step.role)}.`);
+          showCanvasThought(speakerForStep(step), canvasStepStartSummary(step));
           setNodeSpeech(nodeId, speakerForStep(step), 'Procesando...');
         }
         if (event === 'step_complete') {
@@ -7867,9 +8116,7 @@ async function runCanvasFlowReal() {
           const nodeId = ensureCanvasNodeForStep(step);
           if (!nodeId) continue;
           setNodeSpeaking(nodeId, false);
-          setNodeActive(nodeId, true);
-          showCanvasThought(speakerForStep(step), step.status === 'completed' ? 'Paso completado. Entrego contexto al siguiente framework.' : (step.error || step.status || 'Paso detenido.'));
-          setNodeSpeech(nodeId, speakerForStep(step), extractHumanSummaryFromStdout(step), step.action_options || []);
+          applyCanvasStepCompletionVisual(step, nodeId);
         }
         if (event === 'flow_complete') {
           deactivateAllNodes();
@@ -7913,10 +8160,20 @@ function ensureCanvasNodeForStep(step) {
       capabilities: step.capability ? [step.capability] : [],
       role: step.role || '',
       roles: step.role ? [step.role] : [],
+      segmentMode: step.segment_mode || '',
+      segmentRole: step.segment_role || '',
+      segmentOwner: step.segment_owner || '',
       visibility: stepVisibility(step),
       triggeredBy: step.triggered_by || null,
       suppressRedraw: true
     });
+  } else {
+    const existing = canvasNodeById(id);
+    if (existing) {
+      existing.segmentMode = step.segment_mode || existing.segmentMode || '';
+      existing.segmentRole = step.segment_role || existing.segmentRole || '';
+      existing.segmentOwner = step.segment_owner || existing.segmentOwner || '';
+    }
   }
   syncCanvasGraph(canvasFlowState && canvasFlowState.lastFlowData);
   return id;

@@ -343,7 +343,7 @@ func entityTableFromPack(packPath string) string {
 // without requiring staff to understand the database.
 func (s *server) generateFlowPrerequisites(runID string, flow flowManifest, entityRef map[string]interface{}, artifacts map[string]flowRunArtifact, available map[string]bool, gaps []dataGap, timeline []flowRunStep) map[string]interface{} {
 	packPath := s.businessSemanticPackPath(flow.BusinessID)
-	terminalReqs := flowTerminalRequirements(flow)
+	terminalReqs := s.flowTerminalRequirementsForArtifacts(flow, artifacts)
 	requiredFields := flowRequiredDataFields(terminalReqs, packPath)
 	fieldEvidence := buildFlowFieldEvidence(requiredFields, entityRef, artifacts, available)
 

@@ -21,13 +21,8 @@ func flowInputFromNode(need flowRequiredInput, node flowNode) flowRequiredInput 
 	return need
 }
 
-func normalizeFlowRequiredInputs(needs []flowRequiredInput) []flowRequiredInput {
-	for i := range needs {
-		if strings.TrimSpace(needs[i].Visibility) == "" {
-			needs[i].Visibility = flowStepVisibilityUserFacing
-		}
-	}
-	return needs
+func normalizeFlowRequiredInputs(needs []flowRequiredInput, artifacts map[string]flowRunArtifact) []flowRequiredInput {
+	return normalizeFlowRequiredInputsWithSegments(needs, artifacts)
 }
 
 func flowActionSelectionProvided(req flowRunRequest) bool {

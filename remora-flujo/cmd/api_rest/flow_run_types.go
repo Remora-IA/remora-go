@@ -78,6 +78,10 @@ type flowRunStep struct {
 	StdoutPreview    string              `json:"stdout_preview,omitempty"`
 	StderrPreview    string              `json:"stderr_preview,omitempty"`
 	ActionOptions    []map[string]string `json:"action_options,omitempty"`
+	SegmentID        string              `json:"segment_id,omitempty"`
+	SegmentMode      string              `json:"segment_mode,omitempty"`
+	SegmentOwner     string              `json:"segment_owner,omitempty"`
+	SegmentRole      string              `json:"segment_role,omitempty"`
 }
 
 type flowStepTrigger struct {
@@ -122,6 +126,10 @@ type flowRequiredInput struct {
 	Field          string            `json:"field,omitempty"`
 	Step           string            `json:"step,omitempty"`
 	NextTransition string            `json:"next_transition,omitempty"`
+	SegmentID      string            `json:"segment_id,omitempty"`
+	SegmentMode    string            `json:"segment_mode,omitempty"`
+	SegmentOwner   string            `json:"segment_owner,omitempty"`
+	SegmentRole    string            `json:"segment_role,omitempty"`
 }
 
 type flowInputAction struct {

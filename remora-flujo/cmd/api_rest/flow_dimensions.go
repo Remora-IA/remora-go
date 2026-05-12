@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,7 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"encoding/json"
+	"channel/manifest"
+	"remora-flujo/handoff"
 	"remora-flujo/internal/llm"
 )
 
@@ -55,6 +57,9 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 			}
 			branchReq.Flow.ID = req.Flow.ID + "_dim_" + safeFilePart(optionIDForBranch(option, i))
 			branchResult := s.runFlowManifest(ctx, branchReq, nil)
+			if isDeepAnalysisOption(option) {
+				s.simulateDeepAnalysisConversation(ctx, branchReq, &branchResult)
+			}
 			branches[i] = flowBranchRun{
 				BranchID:       branchResult.RunID,
 				Action:         option,
@@ -68,6 +73,217 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 	}
 	wg.Wait()
 	return branches
+}
+
+func isDeepAnalysisOption(option map[string]string) bool {
+	id := strings.TrimSpace(option["id"])
+	return strings.EqualFold(id, "deep_analysis")
+}
+
+func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowRunRequest, result *flowRunResult) {
+	if result == nil || result.Status != "completed" {
+		return
+	}
+	sessionPayload := segmentSessionPayload(result.Artifacts)
+	if len(sessionPayload) == 0 || jsonFirstString(sessionPayload, "status") != "active" {
+		return
+	}
+	session := sessionInfoFromPayload(result.Artifacts[segmentSessionArtifact].Path, sessionPayload)
+	if session == nil {
+		return
+	}
+	conv := &Conversation{
+		ID:         result.RunID + "_simulated_conversation",
+		Title:      "Prueba simulada deep_analysis",
+		Frameworks: activeFrameworkNames(req.Flow, s.allManifests),
+		BusinessID: req.Flow.BusinessID,
+	}
+	if conv.BusinessID == "" {
+		conv.BusinessID = result.BusinessID
+	}
+	if session.ConversationID == "" && session.Path != "" {
+		s.claimSessionForConversation(session.Path, conv.ID)
+		session.ConversationID = conv.ID
+	}
+	queue := handoff.NewQuestionsQueue(conv.Frameworks...)
+
+	for _, input := range simulatedDeepAnalysisContinuePrompts() {
+		started := time.Now().UTC().Format(time.RFC3339Nano)
+		result.Timeline = append(result.Timeline, flowRunStep{
+			Node:         "deep_analysis_simulated_user",
+			Framework:    "simulacion",
+			Capability:   "analysis.followup.user",
+			Role:         "human",
+			Status:       "completed",
+			HumanSummary: "Usuario simulado: " + input,
+			StartedAt:    started,
+			FinishedAt:   time.Now().UTC().Format(time.RFC3339Nano),
+			SegmentID:    session.SegmentID,
+			SegmentMode:  segmentModeAnalytical,
+			SegmentOwner: session.Framework,
+			SegmentRole:  "user",
+		})
+		intent := classifySegmentIntent(input, session)
+		if intent != segmentIntentContinue {
+			continue
+		}
+		q, ok, err := s.executeSessionFollowup(ctx, s.channel, conv, s.allManifests, queue, session, input)
+		if err != nil || !ok {
+			result.Timeline = append(result.Timeline, failedSimulatedConversationStep(session, input, err))
+			continue
+		}
+		turn := segmentSessionTurnCountFromPath(session.Path)
+		if turn > 0 {
+			session.TurnCount = turn
+		}
+		result.Timeline = append(result.Timeline, flowRunStep{
+			Node:          "radar_deep_analysis_followup",
+			Framework:     session.Framework,
+			Capability:    session.Capability,
+			Command:       session.FollowupCmd,
+			Role:          "owner",
+			Status:        "completed",
+			HumanSummary:  q.Text,
+			ArtifactTypes: []string{"analysis.followup.v1", "answer.grounded.v1"},
+			StartedAt:     started,
+			FinishedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+			SegmentID:     session.SegmentID,
+			SegmentMode:   segmentModeAnalytical,
+			SegmentOwner:  session.Framework,
+			SegmentRole:   "owner",
+		})
+	}
+
+	operationalInput := "Con eso basta, avanza con la recomendación."
+	started := time.Now().UTC().Format(time.RFC3339Nano)
+	result.Timeline = append(result.Timeline, flowRunStep{
+		Node:         "deep_analysis_simulated_user",
+		Framework:    "simulacion",
+		Capability:   "analysis.followup.user",
+		Role:         "human",
+		Status:       "completed",
+		HumanSummary: "Usuario simulado: " + operationalInput,
+		StartedAt:    started,
+		FinishedAt:   time.Now().UTC().Format(time.RFC3339Nano),
+		SegmentID:    session.SegmentID,
+		SegmentMode:  segmentModeAnalytical,
+		SegmentOwner: session.Framework,
+		SegmentRole:  "user",
+	})
+	if classifySegmentIntent(operationalInput, session) == segmentIntentOperational {
+		s.concludeSessionOnDisk(session.Path, "simulated_operational: "+operationalInput)
+		s.persistAnalysisHandoff(ctx, s.channel, conv, s.allManifests, session, operationalInput)
+		attachLatestArtifact(result, s.latestFlowArtifactPath(conv.BusinessID, "analysis.handoff.v1"), "analysis.handoff.v1")
+		result.Timeline = append(result.Timeline, flowRunStep{
+			Node:          "analysis_handoff_to_foco",
+			Framework:     "flow_engine",
+			Capability:    "analysis.handoff",
+			Role:          "handoff",
+			Status:        "completed",
+			HumanSummary:  "Radar cerró el tramo analítico y entregó analysis.handoff.v1 para que Foco retome la operación.",
+			ArtifactTypes: []string{"analysis.handoff.v1"},
+			StartedAt:     started,
+			FinishedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+			SegmentID:     session.SegmentID,
+			SegmentMode:   segmentModeOperational,
+			SegmentOwner:  "foco",
+			SegmentRole:   "owner",
+		})
+	}
+}
+
+func simulatedDeepAnalysisContinuePrompts() []string {
+	return []string{
+		"Ok, explícame mejor por qué este caso quedó primero y qué evidencia pesa más.",
+		"¿Qué contradicciones, riesgos residuales o gaps ves en la data antes de actuar?",
+	}
+}
+
+func activeFrameworkNames(flow flowManifest, manifests map[string]*manifest.Manifest) []string {
+	seen := map[string]bool{}
+	var names []string
+	for _, node := range flow.Nodes {
+		if node.Framework == "" || seen[node.Framework] {
+			continue
+		}
+		if manifests != nil {
+			if _, ok := manifests[node.Framework]; !ok {
+				continue
+			}
+		}
+		seen[node.Framework] = true
+		names = append(names, node.Framework)
+	}
+	if len(names) == 0 {
+		for name := range manifests {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func failedSimulatedConversationStep(session *activeSessionInfo, input string, err error) flowRunStep {
+	msg := "No se pudo ejecutar el follow-up simulado contra Radar."
+	if err != nil {
+		msg = msg + " " + err.Error()
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	return flowRunStep{
+		Node:         "radar_deep_analysis_followup",
+		Framework:    session.Framework,
+		Capability:   session.Capability,
+		Command:      session.FollowupCmd,
+		Role:         "owner",
+		Status:       "failed",
+		Error:        msg,
+		HumanSummary: "Follow-up falló para input simulado: " + input,
+		StartedAt:    now,
+		FinishedAt:   now,
+		SegmentID:    session.SegmentID,
+		SegmentMode:  segmentModeAnalytical,
+		SegmentOwner: session.Framework,
+		SegmentRole:  "owner",
+	}
+}
+
+func segmentSessionTurnCountFromPath(path string) int {
+	if strings.TrimSpace(path) == "" {
+		return 0
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return 0
+	}
+	var payload map[string]interface{}
+	if json.Unmarshal(raw, &payload) != nil {
+		return 0
+	}
+	return jsonFirstInt(payload, "turn_count")
+}
+
+func attachLatestArtifact(result *flowRunResult, path, typ string) {
+	if result == nil || strings.TrimSpace(path) == "" {
+		return
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	var payload map[string]interface{}
+	if json.Unmarshal(raw, &payload) != nil {
+		return
+	}
+	if result.Artifacts == nil {
+		result.Artifacts = map[string]flowRunArtifact{}
+	}
+	result.Artifacts[typ] = flowRunArtifact{
+		Type:      typ,
+		Source:    "flow_engine.dimension_conversation",
+		Node:      "analysis_handoff_to_foco",
+		Path:      path,
+		Payload:   payload,
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
 }
 
 func flowBranchLimit(req flowRunRequest) int {

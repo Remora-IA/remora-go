@@ -167,14 +167,16 @@ func loadDatasetOrJSONPath(jsonStr, pathArg, defaultPath string) (*auditdata.Dat
 func cmdPropose(args []string) {
 	fs := flag.NewFlagSet("propose", flag.ExitOnError)
 	findingID := fs.String("finding-id", "", "id del finding")
+	findingsPath := fs.String("findings-path", "", "ruta a archivo JSON de findings")
 	findingsJSON := fs.String("findings-json", "", "findings como JSON string (artifact)")
+	datasetPath := fs.String("dataset-path", "", "ruta a archivo JSON de dataset")
 	datasetJSON := fs.String("dataset-json", "", "dataset como JSON string (artifact)")
 	fs.Parse(args)
 	if *findingID == "" {
 		fail("propose: --finding-id requerido")
 	}
 	fp, dp, pp, _, _ := paths()
-	finds, err := loadFindingsOrJSON(*findingsJSON, fp)
+	finds, err := loadFindingsOrJSONPath(*findingsJSON, *findingsPath, fp)
 	if err != nil {
 		fail("load findings: %v", err)
 	}
@@ -188,7 +190,7 @@ func cmdPropose(args []string) {
 	if target == nil {
 		fail("finding %s no existe", *findingID)
 	}
-	ds, err := loadDatasetOrJSON(*datasetJSON, dp)
+	ds, err := loadDatasetOrJSONPath(*datasetJSON, *datasetPath, dp)
 	if err != nil {
 		fail("load dataset: %v", err)
 	}
@@ -325,6 +327,7 @@ func displayValue(v interface{}) string {
 func cmdApply(args []string) {
 	fs := flag.NewFlagSet("apply", flag.ExitOnError)
 	proposalID := fs.String("proposal-id", "", "id de la propuesta")
+	datasetPath := fs.String("dataset-path", "", "ruta a archivo JSON de dataset")
 	datasetJSON := fs.String("dataset-json", "", "dataset como JSON string (artifact)")
 	fs.Parse(args)
 	if *proposalID == "" {
@@ -346,7 +349,9 @@ func cmdApply(args []string) {
 		fail("propuesta %s no existe", *proposalID)
 	}
 	dsPath := dp
-	if strings.TrimSpace(*datasetJSON) != "" {
+	if strings.TrimSpace(*datasetPath) != "" {
+		dsPath = *datasetPath
+	} else if strings.TrimSpace(*datasetJSON) != "" {
 		tmp, err := writeTempDatasetJSON(*datasetJSON)
 		if err != nil {
 			fail("write temp dataset: %v", err)
@@ -464,23 +469,35 @@ func readJSONMap(path string) map[string]interface{} {
 
 func cmdResolveGaps(args []string) {
 	fs := flag.NewFlagSet("resolve-gaps", flag.ExitOnError)
+	dataGapsPath := fs.String("data-gaps-path", "", "path a data.gaps.v1 como JSON")
 	dataGapsJSON := fs.String("data-gaps-json", "", "data.gaps.v1 como JSON string")
+	findingsPath := fs.String("findings-path", "", "path a auditor.findings.v1 como JSON")
 	findingsJSON := fs.String("findings-json", "", "auditor.findings.v1 como JSON string")
+	entityRefPath := fs.String("entity-ref-path", "", "path a entity.ref.v1 como JSON")
 	entityRefJSON := fs.String("entity-ref-json", "", "entity.ref.v1 como JSON string")
+	scopeTablesPath := fs.String("scope-tables-path", "", "path a scope tables como JSON array")
 	scopeTablesJSON := fs.String("scope-tables-json", "", "tables in scope for current entity (JSON array of strings)")
 	fs.Parse(args)
-	if strings.TrimSpace(*dataGapsJSON) == "" {
+	resolvedDataGapsJSON, err := loadJSONArg(*dataGapsPath, *dataGapsJSON)
+	if err != nil {
+		fail("read data-gaps-path: %v", err)
+	}
+	if strings.TrimSpace(resolvedDataGapsJSON) == "" {
 		fail("resolve-gaps: --data-gaps-json requerido")
 	}
 	var gaps []map[string]interface{}
-	if err := json.Unmarshal([]byte(*dataGapsJSON), &gaps); err != nil {
+	if err := json.Unmarshal([]byte(resolvedDataGapsJSON), &gaps); err != nil {
 		fail("parse data-gaps-json: %v", err)
 	}
 	// Filter gaps by scope tables if provided.
 	var scopeTables map[string]bool
-	if strings.TrimSpace(*scopeTablesJSON) != "" {
+	resolvedScopeTablesJSON, err := loadJSONArg(*scopeTablesPath, *scopeTablesJSON)
+	if err != nil {
+		fail("read scope-tables-path: %v", err)
+	}
+	if strings.TrimSpace(resolvedScopeTablesJSON) != "" {
 		var tableNames []string
-		if err := json.Unmarshal([]byte(*scopeTablesJSON), &tableNames); err == nil && len(tableNames) > 0 {
+		if err := json.Unmarshal([]byte(resolvedScopeTablesJSON), &tableNames); err == nil && len(tableNames) > 0 {
 			scopeTables = make(map[string]bool, len(tableNames))
 			for _, t := range tableNames {
 				scopeTables[t] = true
@@ -496,16 +513,23 @@ func cmdResolveGaps(args []string) {
 		}
 	}
 	var findings []auditdata.Finding
-	if strings.TrimSpace(*findingsJSON) != "" {
-		var err error
-		findings, err = auditdata.ParseFindings([]byte(*findingsJSON))
+	resolvedFindingsJSON, err := loadJSONArg(*findingsPath, *findingsJSON)
+	if err != nil {
+		fail("read findings-path: %v", err)
+	}
+	if strings.TrimSpace(resolvedFindingsJSON) != "" {
+		findings, err = auditdata.ParseFindings([]byte(resolvedFindingsJSON))
 		if err != nil {
 			fail("parse findings-json: %v", err)
 		}
 	}
 	var entityRef map[string]interface{}
-	if strings.TrimSpace(*entityRefJSON) != "" {
-		_ = json.Unmarshal([]byte(*entityRefJSON), &entityRef)
+	resolvedEntityRefJSON, err := loadJSONArg(*entityRefPath, *entityRefJSON)
+	if err != nil {
+		fail("read entity-ref-path: %v", err)
+	}
+	if strings.TrimSpace(resolvedEntityRefJSON) != "" {
+		_ = json.Unmarshal([]byte(resolvedEntityRefJSON), &entityRef)
 	}
 	entityName := "esta entidad"
 	if entityRef != nil {
@@ -552,6 +576,17 @@ func cmdResolveGaps(args []string) {
 		"generated_at":    time.Now().Format(time.RFC3339),
 		"human_summary":   fmt.Sprintf("Mecánico generó %d preguntas para resolver gaps de %s.", len(questions), entityName),
 	})
+}
+
+func loadJSONArg(pathArg, jsonArg string) (string, error) {
+	if strings.TrimSpace(pathArg) != "" {
+		raw, err := os.ReadFile(pathArg)
+		if err != nil {
+			return "", err
+		}
+		return string(raw), nil
+	}
+	return strings.TrimSpace(jsonArg), nil
 }
 
 func questionForGapWithLLM(gap map[string]interface{}, entityRef map[string]interface{}, entityName string, idx int) map[string]interface{} {

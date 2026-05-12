@@ -60,6 +60,26 @@ func applyArtifactParamDefaults(cmd manifest.Command, params map[string]string, 
 			}
 		}
 	}
+	if commandHasParam(cmd, "findings_path") && params["findings_path"] == "" {
+		art := artifacts["auditor.findings.v1"]
+		if art.Path != "" {
+			params["findings_path"] = art.Path
+		}
+	}
+	if commandHasParam(cmd, "data_gaps_json") && params["data_gaps_json"] == "" {
+		art := artifacts["data.gaps.v1"]
+		if art.Payload != nil {
+			if raw, err := json.Marshal(art.Payload); err == nil {
+				params["data_gaps_json"] = string(raw)
+			}
+		}
+	}
+	if commandHasParam(cmd, "data_gaps_path") && params["data_gaps_path"] == "" {
+		art := artifacts["data.gaps.v1"]
+		if art.Path != "" {
+			params["data_gaps_path"] = art.Path
+		}
+	}
 	if commandHasParam(cmd, "dataset_json") && params["dataset_json"] == "" {
 		// Prefer dataset.raw.v1, fallback to external.api.dump.v1.
 		art := artifacts["dataset.raw.v1"]
@@ -116,6 +136,26 @@ func applyArtifactParamDefaults(cmd manifest.Command, params map[string]string, 
 			if raw, err := json.Marshal(art.Payload); err == nil {
 				params["priority_list_json"] = string(raw)
 			}
+		}
+	}
+	if commandHasParam(cmd, "priority_list_path") && params["priority_list_path"] == "" {
+		art := artifacts["collection.priority_list.v1"]
+		if art.Path != "" {
+			params["priority_list_path"] = art.Path
+		}
+	}
+	if commandHasParam(cmd, "entity_ref_json") && params["entity_ref_json"] == "" {
+		art := artifacts["entity.ref.v1"]
+		if art.Payload != nil {
+			if raw, err := json.Marshal(art.Payload); err == nil {
+				params["entity_ref_json"] = string(raw)
+			}
+		}
+	}
+	if commandHasParam(cmd, "entity_ref_path") && params["entity_ref_path"] == "" {
+		art := artifacts["entity.ref.v1"]
+		if art.Path != "" {
+			params["entity_ref_path"] = art.Path
 		}
 	}
 	if commandHasParam(cmd, "tono") && params["tono"] == "" {
@@ -247,7 +287,7 @@ func artifactFieldString(value interface{}, path []string) (string, error) {
 	}
 }
 
-func encodeFlowRunContext(req flowRunRequest) string {
+func encodeFlowRunContext(req flowRunRequest, artifacts map[string]flowRunArtifact) string {
 	ctx := map[string]interface{}{
 		"business_id": req.Flow.BusinessID,
 		"audience":    req.Flow.Audience,
@@ -256,6 +296,15 @@ func encodeFlowRunContext(req flowRunRequest) string {
 	}
 	if flowIntentDefined(req.Flow.Intent) {
 		ctx["intent"] = flowIntentArtifactPayload(req.Flow)
+	}
+	if selected := selectedActionPayload(artifacts); len(selected) > 0 {
+		ctx["selected_action"] = selected
+	}
+	if entity := firstArtifactMap(artifacts, "entity.ref.v1"); len(entity) > 0 {
+		ctx["entity"] = entity
+	}
+	if active := activeSemanticSegmentPayload(artifacts); len(active) > 0 {
+		ctx["active_segment"] = active
 	}
 	raw, err := json.Marshal(ctx)
 	if err != nil {

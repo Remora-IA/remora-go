@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.28] - 2026-05-12
+
+> **Release**: expandir charlie, flujo
+
+### Charlie
+
+- **charlie/charlie.go**: +2 / -2
+
+### Flujo
+
+- **static/index.html**: +290 / -33
+- **api_rest/auth.go**: funciones: (s *authStore) business, (s *authStore) listBusinesses
+- **api_rest/auth_handlers.go**: +4
+- **api_rest/business_artifacts.go**: +11
+- **api_rest/business_defaults.go**: archivo nuevo
+- **api_rest/flow_prerequisites.go**: +1 / -1
+- **api_rest/flow_run_types.go**: +8
+- **api_rest/flow_segments.go**: archivo nuevo
+- **api_rest/main.go**: +6 / -3
+- **api_rest/orchestrator.go**: funciones: (s *server) runLoop, (s *server) executeSessionFollowup, (s *server) executeDelegations, (s *server) generateOwnerFollowupWithLLM
+- **api_rest/flow_artifacts.go**: funciones: appendDynamicFlowNode
+- **api_rest/flow_dimensions.go**: funciones: isDeepAnalysisOption, (s *server) simulateDeepAnalysisConversation, simulatedDeepAnalysisContinuePrompts, activeFrameworkNames
+- **api_rest/flow_execution.go**: funciones: (s *server) resolvePortableCommandArgs
+- **api_rest/flow_gap_resolution.go**: +7 / -3
+- **api_rest/flow_interactions.go**: funciones: normalizeFlowRequiredInputs
+- **api_rest/flow_params.go**: funciones: encodeFlowRunContext
+- **api_rest/flow_runner.go**: +36 / -2
+- **api_rest/business_defaults_test.go**: archivo nuevo
+- **api_rest/flow_run_test.go**: funciones: TestMaterializePortableArtifactParamsKeepsInlineWhenNoPathDeclared, TestRunFlowManifestDeepDiveUsesMaterializedPaths, TestCollectionFlowDeepAnalysisStaysInAnalyticalSegment, TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff
+- **api_rest/session_engine_test.go**: archivo nuevo
+
+### Repo
+
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (frameworkmecanico/main.go, frameworkradar/main.go)
+- **data/findings.json**: +1 / -1
+- **framework-mecanico/framework.manifest.json**: +31 / -2
+- **framework-radar/framework.manifest.json**: +166
+- **framework-radar/frameworkradar**: configuracion
+- **biz_-vvG6gwJyVXqvXgX/sabio.business.json**: archivo nuevo
+- **biz_28wRw-nkuUClBWwG/sabio.business.json**: archivo nuevo
+- **simulacion/autonomia-controlada.html**: archivo nuevo
+- **manifest/manifest.go**: tipos: CapabilitySession
+- **foco/main.go**: +14 / -5
+- **frameworkmecanico/main_test.go**: archivo nuevo
+- **frameworkradar/main_test.go**: funciones: TestLoadJSONPayloadPrefersPath, TestLoadJSONPayloadFallsBackToInline, TestRadarDeepDivePriorityItemFindsSelectedEntity, TestRadarDeepDiveNarrativeIncludesUsefulSections
+
 ## [0.1.27] - 2026-05-12
 
 > **Release**: expandir flujo

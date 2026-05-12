@@ -142,6 +142,10 @@ func (s *server) handleBusinessCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	if err := s.ensureDefaultBusinessAssets(*business); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	memberships, _ := s.auth.memberships(user.ID)
 	writeOK(w, map[string]any{
 		"business":    business,

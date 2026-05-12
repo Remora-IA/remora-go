@@ -66,15 +66,30 @@ type CapabilitiesSemantic struct {
 }
 
 type CapabilitySpec struct {
-	ID          string   `json:"id"`
-	Description string   `json:"description"`
-	Command     string   `json:"command"`
-	Inputs      []string `json:"inputs,omitempty"`
-	Outputs     []string `json:"outputs,omitempty"`
-	Requires    []string `json:"requires,omitempty"`
-	Produces    []string `json:"produces,omitempty"`
-	Execution   string   `json:"execution"`
-	Policies    []string `json:"policies,omitempty"`
+	ID          string             `json:"id"`
+	Description string             `json:"description"`
+	Command     string             `json:"command"`
+	Inputs      []string           `json:"inputs,omitempty"`
+	Outputs     []string           `json:"outputs,omitempty"`
+	Requires    []string           `json:"requires,omitempty"`
+	Produces    []string           `json:"produces,omitempty"`
+	Execution   string             `json:"execution"`
+	Policies    []string           `json:"policies,omitempty"`
+	Session     *CapabilitySession `json:"session,omitempty"`
+}
+
+// CapabilitySession declares that a capability can sustain a multi-turn
+// conversational session when it owns a segment. The flow engine uses these
+// fields to route follow-up user messages to the owner instead of treating
+// the segment as a single-shot execution.
+type CapabilitySession struct {
+	Conversational     bool     `json:"conversational"`
+	FollowupCommand    string   `json:"followup_command"`
+	ContinueSignals    []string `json:"continue_signals,omitempty"`
+	OperationalSignals []string `json:"operational_signals,omitempty"`
+	ExitSignals        []string `json:"exit_signals,omitempty"`
+	AllowedDelegates   []string `json:"allowed_delegates,omitempty"`
+	MaxTurns           int      `json:"max_turns,omitempty"`
 }
 
 type ActionBoundSpec struct {

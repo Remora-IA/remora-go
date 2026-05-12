@@ -24,8 +24,8 @@ const (
 	TypeCI       ChangeType = "ci"
 )
 
-const RepoRoot = "/Users/alcless_a1234_cursor/remora-go"
-const BackupRoot = "/Users/alcless_a1234_cursor/remora-go-charlie-backups"
+const RepoRoot = "/Users/alcless_a1234_cursor/remora-go-lite"
+const BackupRoot = "/Users/alcless_a1234_cursor/remora-go-lite-charlie-backups"
 
 type Change struct {
 	FilePath    string

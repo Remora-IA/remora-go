@@ -114,6 +114,17 @@ func (s *server) businessSemanticPackPath(businessID string) string {
 		filepath.Join(s.rootDir, "framework-sabio", "businesses", businessID, "sabio.business.json"),
 		filepath.Join(s.rootDir, "profiles", businessID, "sabio.business.json"),
 	}
+	if s != nil && s.auth != nil {
+		if business, err := s.auth.business(businessID); err == nil && business != nil {
+			slug := flowSafeIDStr(business.Name)
+			if slug != "" {
+				candidates = append(candidates,
+					filepath.Join(s.rootDir, "framework-sabio", "businesses", slug, "sabio.business.json"),
+					filepath.Join(s.rootDir, "profiles", slug, "sabio.business.json"),
+				)
+			}
+		}
+	}
 	for _, path := range candidates {
 		if fileExists(path) {
 			return path

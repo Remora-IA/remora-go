@@ -75,10 +75,16 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 		available[artifact] = true
 		result.Artifacts[artifact] = flowRunArtifact{Type: artifact, Source: "initial_payload", Payload: payload, CreatedAt: result.CreatedAt}
 	}
+	s.ensureSemanticSegmentInitialized(runID, req.Flow, available, result.Artifacts)
+	if ownerNode, ok := semanticSegmentOwnerRuntimeNode(result.Artifacts); ok && !flowNodeExists(nodeOrder, ownerNode.ID) {
+		nodeOrder = injectSemanticSegmentOwnerNode(nodeOrder, ownerNode)
+		appendDynamicFlowNode(&result, ownerNode)
+	}
 	s.storeUserContactDestinationIfPossible(runID, req.Flow.BusinessID, result.Artifacts)
 
 	totalSteps := len(nodeOrder)
 	emitStep := func(event string, step flowRunStep) {
+		applySemanticSegmentToStep(&step, result.Artifacts)
 		if onStep != nil {
 			onStep(event, step, totalSteps)
 		}
@@ -143,6 +149,7 @@ cycleStart:
 			Status:         "running",
 			StartedAt:      time.Now().UTC().Format(time.RFC3339Nano),
 		}
+		applySemanticSegmentToStep(&step, result.Artifacts)
 		emitStep("step_start", step)
 		m := s.allManifests[node.Framework]
 		if m == nil {
@@ -174,6 +181,14 @@ cycleStart:
 		step.ResolutionMode = resolutionModeFromPolicies(contract.Policies)
 		runtime := resolveManifestRuntime(s.rootDir, m)
 		step.Runtime = &runtime
+		if blocked, reason := semanticSegmentBlockedByNode(node, contract, result.Artifacts); blocked {
+			step.Status = "skipped"
+			step.HumanSummary = reason
+			finished := finishFlowRunStep(step)
+			emitStep("step_complete", finished)
+			result.Timeline = append(result.Timeline, finished)
+			continue
+		}
 		dataValidationRequired := !dataValidationApplied && s.shouldRunLayeredDataValidation(node, contract, available)
 		preflightRequired := s.shouldRunPreflightAudit(node, contract, available)
 		if dataValidationRequired || preflightRequired {
@@ -301,6 +316,18 @@ cycleStart:
 		}
 		step.Status = "completed"
 		step.ArtifactTypes = s.recordNodeArtifacts(runID, node.ID, contract, resp.Stdout, available, result.Artifacts)
+		s.recordSemanticSegmentDelegation(runID, node, available, result.Artifacts)
+		s.recordSemanticSegmentReturn(runID, node, step.ArtifactTypes, available, result.Artifacts)
+		s.maybeRefreshSemanticSegment(runID, available, result.Artifacts)
+		// If this node's capability declares a conversational session and the
+		// node owns an analytical segment, create the session artifact so the
+		// orchestrator can route follow-up messages to this owner.
+		if cap, capOK := findManifestCapability(m, node.Capability); capOK && cap.Session != nil && cap.Session.Conversational {
+			if activePayload := activeSemanticSegmentPayload(result.Artifacts); len(activePayload) > 0 {
+				s.createSegmentSession(runID, result.BusinessID, node, cap, available, result.Artifacts)
+				step.ArtifactTypes = append(step.ArtifactTypes, segmentSessionArtifact)
+			}
+		}
 		if containsString(step.ArtifactTypes, "action.options.v1") {
 			step.ActionOptions = s.validateActionOptionsForNode(runID, node.ID, m, available, result.Artifacts)
 			if _, ok := result.Artifacts["action.bounds.validation.v1"]; ok {
@@ -325,7 +352,13 @@ cycleStart:
 		if containsString(step.ArtifactTypes, "action.options.v1") && len(step.ActionOptions) == 0 {
 			step.ActionOptions = flowActionOptionsFromArtifacts(result.Artifacts)
 		}
-		if containsString(step.ArtifactTypes, "action.options.v1") && len(step.ActionOptions) > 0 && !req.DryRun && !req.SimulateHuman && !flowActionSelectionProvided(req) {
+		shouldPauseForActionSelection := containsString(step.ArtifactTypes, "action.options.v1") &&
+			len(step.ActionOptions) > 0 &&
+			!req.DryRun &&
+			!req.SimulateHuman &&
+			!flowActionSelectionProvided(req) &&
+			(req.MaxBranches <= 0 || req.BranchMode)
+		if shouldPauseForActionSelection {
 			step.Status = "needs_input"
 			result.Status = "needs_input"
 			result.NeedsInput = append(result.NeedsInput, inputRequestForActionSelection(node, step, result.Artifacts))
@@ -444,7 +477,8 @@ cycleStart:
 		goto cycleStart
 	}
 	result.CyclesDone = cyclesDone
-	result.NeedsInput = normalizeFlowRequiredInputs(result.NeedsInput)
+	result.Timeline = normalizeFlowTimelineSegments(result.Timeline, result.Artifacts)
+	result.NeedsInput = normalizeFlowRequiredInputs(result.NeedsInput, result.Artifacts)
 	if result.Status == "completed" {
 		s.recordFlowReadiness(runID, "flow", true, nil, available, result.Artifacts)
 	}

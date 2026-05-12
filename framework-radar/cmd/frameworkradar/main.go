@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -122,6 +123,14 @@ func main() {
 	switch os.Args[1] {
 	case "configure-analysis":
 		if err := runConfigureAnalysis(os.Args[2:]); err != nil {
+			fail("%v", err)
+		}
+	case "deep-dive":
+		if err := runDeepDive(os.Args[2:]); err != nil {
+			fail("%v", err)
+		}
+	case "analyze-followup":
+		if err := runAnalyzeFollowup(os.Args[2:]); err != nil {
 			fail("%v", err)
 		}
 	case "prioritize":
@@ -247,6 +256,400 @@ func runConfigureAnalysis(args []string) error {
 		},
 	})
 	return nil
+}
+
+func runDeepDive(args []string) error {
+	fs := flag.NewFlagSet("deep-dive", flag.ExitOnError)
+	businessID := fs.String("business-id", "", "negocio activo")
+	entityRef := fs.String("entity-ref", "", "referencia de entidad")
+	entityType := fs.String("entity-type", "customer", "tipo de entidad")
+	semanticPath := fs.String("semantic-pack", "", "path semantic pack")
+	priorityListPath := fs.String("priority-list-path", "", "path a collection.priority_list.v1")
+	priorityListJSON := fs.String("priority-list-json", "", "collection.priority_list.v1 como JSON")
+	strategyPath := fs.String("strategy-path", "", "path a strategy.recommendation.v1")
+	strategyJSON := fs.String("strategy-json", "", "strategy.recommendation.v1 como JSON")
+	contextB64 := fs.String("context-b64", "", "contexto runtime codificado")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	bid := strings.TrimSpace(*businessID)
+	if strings.TrimSpace(*semanticPath) != "" {
+		if pack, err := loadSemanticPack(*semanticPath); err == nil {
+			bid = firstNonEmpty(bid, pack.BusinessID)
+		}
+	}
+	target := radarDeepDiveTarget(loadJSONPayload(*priorityListPath, *priorityListJSON), *entityRef, *entityType)
+	priorityItem := radarDeepDivePriorityItem(loadJSONPayload(*priorityListPath, *priorityListJSON), jsonStringFromMap(target, "id"))
+	contextPayload := decodeContextPayload(*contextB64)
+	selectedAction := jsonStringFromMap(contextPayload, "selected_action_id")
+	if selectedAction == "" {
+		if selected, ok := contextPayload["selected_action"].(map[string]interface{}); ok {
+			selectedAction = jsonStringFromMap(selected, "id", "action_id")
+		}
+	}
+	if selectedAction == "" {
+		selectedAction = "deep_analysis"
+	}
+	recommendation := radarDeepDiveRecommendation(loadJSONPayload(*strategyPath, *strategyJSON))
+	name := firstNonEmpty(jsonStringFromMap(target, "name", "entity_name"), strings.TrimSpace(*entityRef), "el caso seleccionado")
+	whyPrioritized := radarDeepDiveWhyPrioritized(priorityItem, recommendation)
+	evidenceSummary := radarDeepDiveEvidenceSummary(target, priorityItem)
+	riskSummary := radarDeepDiveRiskSummary(priorityItem, recommendation)
+	agingSummary := radarDeepDiveAgingSummary(target, priorityItem)
+	invoiceSummary := radarDeepDiveInvoiceSummary(target, priorityItem)
+	blockingGaps := radarDeepDiveBlockingGaps(priorityItem)
+	nextNonOperational := radarDeepDiveNonOperationalNextSteps(blockingGaps)
+	nextOperational := radarDeepDiveOperationalNextSteps(recommendation, blockingGaps)
+	openQuestions := radarDeepDiveOpenQuestions(target, priorityItem, blockingGaps)
+	summary := fmt.Sprintf("Radar prioriza %s para análisis profundo y mantiene el tramo analítico hasta cerrar evidencia, riesgos y brechas reales antes de operar.", name)
+	text := radarDeepDiveNarrative(name, whyPrioritized, evidenceSummary, riskSummary, agingSummary, invoiceSummary, blockingGaps, nextNonOperational, nextOperational, openQuestions)
+	printJSON(map[string]interface{}{
+		"artifact_type": "analysis.case_review.v1",
+		"artifacts":     []string{"analysis.case_review.v1", "answer.grounded.v1"},
+		"business_id":   bid,
+		"generated_at":  time.Now().UTC().Format(time.RFC3339),
+		"owner": map[string]interface{}{
+			"framework":        "radar",
+			"capability":       "analysis.deep_dive",
+			"transfer_control": true,
+		},
+		"selected_action_id":                     selectedAction,
+		"selected":                               target,
+		"summary":                                summary,
+		"text":                                   text,
+		"why_prioritized":                        whyPrioritized,
+		"evidence_summary":                       evidenceSummary,
+		"risk_summary":                           riskSummary,
+		"aging_summary":                          agingSummary,
+		"invoice_summary":                        invoiceSummary,
+		"blocking_gaps":                          blockingGaps,
+		"recommended_next_non_operational_steps": nextNonOperational,
+		"recommended_next_operational_steps":     nextOperational,
+		"open_questions":                         openQuestions,
+		"analysis_focus": []string{
+			"confirmar evidencia del caso priorizado",
+			"solicitar entity_360 y contexto relacional antes de redactar",
+			"validar hallazgos y huecos de datos antes de bajar a ejecución",
+		},
+		"delegation_plan": []map[string]interface{}{
+			{"framework": "sabio", "capability": "data.entity_360", "goal": "obtener contexto 360 del caso"},
+			{"framework": "auditor", "capability": "data.quality.audit", "goal": "validar evidencia y huecos del caso"},
+		},
+		"current_recommendation": recommendation,
+		"grounded_answer": map[string]interface{}{
+			"artifact_type": "answer.grounded.v1",
+			"text":          text,
+		},
+	})
+	return nil
+}
+
+func runAnalyzeFollowup(args []string) error {
+	fs := flag.NewFlagSet("analyze-followup", flag.ExitOnError)
+	businessID := fs.String("business-id", "", "negocio activo")
+	input := fs.String("input", "", "follow-up del usuario")
+	entityRef := fs.String("entity-ref", "", "referencia de entidad")
+	entityType := fs.String("entity-type", "customer", "tipo de entidad")
+	semanticPath := fs.String("semantic-pack", "", "path semantic pack")
+	previousAnalysisPath := fs.String("previous-analysis-path", "", "path a analysis.case_review.v1 previo")
+	previousAnalysisJSON := fs.String("previous-analysis-json", "", "analysis.case_review.v1 como JSON")
+	delegationResultsPath := fs.String("delegation-results-path", "", "path a resultados de delegacion")
+	delegationResultsJSON := fs.String("delegation-results-json", "", "resultados de delegacion como JSON")
+	priorityListPath := fs.String("priority-list-path", "", "path a collection.priority_list.v1")
+	priorityListJSON := fs.String("priority-list-json", "", "collection.priority_list.v1 como JSON")
+	turnCountStr := fs.String("turn-count", "0", "numero de turno actual")
+	llmFollowupJSON := fs.String("llm-followup-json", "", "respuesta analitica generada por LLM del owner")
+	contextB64 := fs.String("context-b64", "", "contexto runtime codificado")
+	_ = contextB64
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	bid := strings.TrimSpace(*businessID)
+	if strings.TrimSpace(*semanticPath) != "" {
+		if pack, err := loadSemanticPack(*semanticPath); err == nil {
+			bid = firstNonEmpty(bid, pack.BusinessID)
+		}
+	}
+	userInput := strings.TrimSpace(*input)
+	if userInput == "" {
+		printJSON(map[string]interface{}{
+			"artifact_type": "analysis.followup.v1",
+			"text":          "No se recibio un follow-up del usuario.",
+			"status":        "no_input",
+		})
+		return nil
+	}
+	turnCount := 0
+	if n, err := fmt.Sscanf(*turnCountStr, "%d", &turnCount); n == 0 || err != nil {
+		turnCount = 0
+	}
+
+	// Load previous analysis for context
+	previousAnalysis := parseJSONObject(loadJSONPayload(*previousAnalysisPath, *previousAnalysisJSON))
+	delegationResults := parseJSONObject(loadJSONPayload(*delegationResultsPath, *delegationResultsJSON))
+	target := radarDeepDiveTarget(loadJSONPayload(*priorityListPath, *priorityListJSON), *entityRef, *entityType)
+	priorityItem := radarDeepDivePriorityItem(loadJSONPayload(*priorityListPath, *priorityListJSON), jsonStringFromMap(target, "id"))
+	name := firstNonEmpty(jsonStringFromMap(target, "name", "entity_name"), strings.TrimSpace(*entityRef), "el caso seleccionado")
+
+	// Build the follow-up response. Prefer an LLM-generated analytical draft
+	// when the orchestrator provides one; otherwise use deterministic fallback.
+	responseText := followupTextFromLLM(*llmFollowupJSON)
+	if responseText == "" {
+		responseText = buildFollowupResponse(userInput, name, previousAnalysis, delegationResults, priorityItem, target)
+	}
+
+	// Determine if delegation is needed based on user question
+	delegationRequests := inferDelegationNeeds(userInput, delegationResults)
+
+	output := map[string]interface{}{
+		"artifact_type": "analysis.followup.v1",
+		"artifacts":     []string{"analysis.followup.v1", "answer.grounded.v1"},
+		"business_id":   bid,
+		"generated_at":  time.Now().UTC().Format(time.RFC3339),
+		"turn_count":    turnCount,
+		"user_input":    userInput,
+		"entity_ref":    target,
+		"text":          responseText,
+		"owner": map[string]interface{}{
+			"framework":  "radar",
+			"capability": "analysis.deep_dive",
+		},
+		"grounded_answer": map[string]interface{}{
+			"artifact_type": "answer.grounded.v1",
+			"text":          responseText,
+		},
+	}
+	if len(delegationRequests) > 0 {
+		output["delegation_requests"] = delegationRequests
+	}
+	printJSON(output)
+	return nil
+}
+
+// --- Data-driven followup response ---
+//
+// Instead of keyword-branching, the followup collects ALL available data
+// sections, scores each for relevance against the user's input, and
+// includes sections above a threshold. This makes the system extensible
+// without adding more keyword branches.
+
+// analyticalSection represents one block of analytical content that can
+// be included in a followup response.
+type analyticalSection struct {
+	Label    string   // heading for this section
+	Keywords []string // terms that boost this section's relevance
+	Content  func(target, priorityItem map[string]interface{}) string
+}
+
+// followupSections defines the available analytical sections.
+// Each section declares its relevance keywords. The system picks sections
+// whose keywords match the user's input, plus a generic context section
+// as fallback.
+var followupSections = []analyticalSection{
+	{
+		Label:    "Mora/Antiguedad",
+		Keywords: []string{"mora", "dias", "día", "antigued", "aging", "vencid", "atraso"},
+		Content: func(target, item map[string]interface{}) string {
+			if s := radarDeepDiveAgingSummary(target, item); s != "" {
+				return s
+			}
+			return "No hay datos suficientes de mora/antiguedad. Radar puede solicitar un entity_360 a Sabio."
+		},
+	},
+	{
+		Label:    "Evaluacion de riesgo",
+		Keywords: []string{"riesgo", "risk", "peligro", "critico", "crítico", "grave"},
+		Content: func(_, item map[string]interface{}) string {
+			return radarDeepDiveRiskSummary(item, nil)
+		},
+	},
+	{
+		Label:    "Evidencia y facturas",
+		Keywords: []string{"evidencia", "factura", "invoice", "comprobante", "documento", "soporte"},
+		Content: func(target, item map[string]interface{}) string {
+			var parts []string
+			for _, e := range radarDeepDiveEvidenceSummary(target, item) {
+				parts = append(parts, "  - "+e)
+			}
+			if s := radarDeepDiveInvoiceSummary(target, item); s != "" {
+				parts = append(parts, s)
+			}
+			return strings.Join(parts, "\n")
+		},
+	},
+	{
+		Label:    "Razon de priorizacion",
+		Keywords: []string{"prioriz", "por que", "por qué", "scoring", "puntaje", "ranking"},
+		Content: func(_, item map[string]interface{}) string {
+			return radarDeepDiveWhyPrioritized(item, nil)
+		},
+	},
+	{
+		Label:    "Brechas de datos",
+		Keywords: []string{"dato", "brecha", "gap", "falta", "pendiente", "incompleto"},
+		Content: func(_, item map[string]interface{}) string {
+			gaps := radarDeepDiveBlockingGaps(item)
+			if len(gaps) == 0 {
+				return ""
+			}
+			var parts []string
+			for _, g := range gaps {
+				parts = append(parts, "  - "+g)
+			}
+			return strings.Join(parts, "\n")
+		},
+	},
+}
+
+// buildFollowupResponse constructs a follow-up analytical response using a
+// data-driven approach: collect all sections, score relevance, include matches.
+func buildFollowupResponse(userInput, entityName string, previousAnalysis, delegationResults, priorityItem, target map[string]interface{}) string {
+	var sb strings.Builder
+
+	// If delegation results are available, integrate them directly.
+	if len(delegationResults) > 0 {
+		if text := jsonStringFromMap(delegationResults, "text", "answer"); text != "" {
+			sb.WriteString(fmt.Sprintf("Sobre %s, integrando datos adicionales:\n\n", entityName))
+			sb.WriteString(text)
+			sb.WriteString("\n\n---\nRadar mantiene el tramo analitico. Podes seguir preguntando o decir 'avanza' para pasar a accion.")
+			return sb.String()
+		}
+	}
+
+	inputLower := strings.ToLower(userInput)
+
+	// Score and collect relevant sections.
+	type scored struct {
+		label   string
+		content string
+	}
+	var matched []scored
+	for _, sec := range followupSections {
+		relevant := false
+		for _, kw := range sec.Keywords {
+			if strings.Contains(inputLower, kw) {
+				relevant = true
+				break
+			}
+		}
+		if !relevant {
+			continue
+		}
+		content := sec.Content(target, priorityItem)
+		if strings.TrimSpace(content) == "" {
+			continue
+		}
+		matched = append(matched, scored{label: sec.Label, content: content})
+	}
+
+	if len(matched) > 0 {
+		sb.WriteString(fmt.Sprintf("Analisis de seguimiento sobre %s:\n\n", entityName))
+		for _, m := range matched {
+			sb.WriteString(m.label + ":\n")
+			sb.WriteString(m.content)
+			sb.WriteString("\n\n")
+		}
+	} else {
+		// Fallback: dump all available context so the user gets something useful.
+		sb.WriteString(fmt.Sprintf("Sobre %s, respondiendo a '%s':\n\n", entityName, userInput))
+		for _, sec := range followupSections {
+			content := sec.Content(target, priorityItem)
+			if strings.TrimSpace(content) != "" {
+				sb.WriteString(sec.Label + ": " + content + "\n\n")
+			}
+		}
+		if sb.Len() <= len(fmt.Sprintf("Sobre %s, respondiendo a '%s':\n\n", entityName, userInput))+5 {
+			sb.WriteString("Radar no tiene datos adicionales para esta pregunta. Podes delegar a Sabio para obtener un entity_360.\n")
+		}
+	}
+
+	sb.WriteString("---\nRadar mantiene el tramo analitico. Podes seguir preguntando o decir 'avanza' para pasar a accion.")
+	return sb.String()
+}
+
+// --- Delegation inference ---
+//
+// Instead of keyword-driven hardcodes, delegation needs are inferred from
+// a declarative mapping of data domains → capabilities. The engine checks
+// which domains the user is asking about and maps them to the appropriate
+// delegate capability.
+
+// delegationDomain maps a set of user-intent keywords to a delegate
+// capability and a default query.
+type delegationDomain struct {
+	Keywords   []string
+	Framework  string
+	Capability string
+	Query      string
+	Reason     string
+}
+
+var delegationDomains = []delegationDomain{
+	{
+		Keywords:   []string{"compara", "otro", "cartera", "portfolio", "benchmark"},
+		Framework:  "sabio",
+		Capability: "data.query.sql",
+		Query:      "resumen de cartera completa para comparar con el caso actual",
+		Reason:     "el usuario quiere comparar con otros clientes de la cartera",
+	},
+	{
+		Keywords:   []string{"histor", "pago", "comportam", "patron", "patrón", "tendencia"},
+		Framework:  "sabio",
+		Capability: "data.entity_360",
+		Query:      "historial de pagos y comportamiento del deudor",
+		Reason:     "el usuario quiere profundizar el comportamiento historico de pagos",
+	},
+	{
+		Keywords:   []string{"valid", "audit", "verific", "calidad", "confiab"},
+		Framework:  "auditor",
+		Capability: "data.quality.audit",
+		Query:      "",
+		Reason:     "el usuario quiere validar la calidad de los datos del caso",
+	},
+}
+
+// inferDelegationNeeds determines if the follow-up requires data from
+// auxiliary frameworks based on declarative domain mappings.
+func inferDelegationNeeds(userInput string, existingDelegationResults map[string]interface{}) []map[string]interface{} {
+	if len(existingDelegationResults) > 0 {
+		return nil
+	}
+	inputLower := strings.ToLower(userInput)
+	var requests []map[string]interface{}
+	for _, domain := range delegationDomains {
+		for _, kw := range domain.Keywords {
+			if strings.Contains(inputLower, kw) {
+				params := map[string]string{}
+				if domain.Query != "" {
+					params["question"] = domain.Query
+				}
+				requests = append(requests, map[string]interface{}{
+					"framework":  domain.Framework,
+					"capability": domain.Capability,
+					"params":     params,
+					"reason":     domain.Reason,
+				})
+				break // one match per domain is enough
+			}
+		}
+	}
+	return requests
+}
+
+func followupTextFromLLM(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	var payload map[string]interface{}
+	if json.Unmarshal([]byte(raw), &payload) != nil {
+		return ""
+	}
+	text := jsonStringFromMap(payload, "text", "answer", "analysis")
+	if strings.TrimSpace(text) == "" {
+		return ""
+	}
+	return strings.TrimSpace(text) + "\n\n---\nRadar mantiene el tramo analitico. Podes seguir preguntando o decir 'avanza' para pasar a accion."
 }
 
 func loadSemanticPack(path string) (semanticPack, error) {
@@ -733,6 +1136,425 @@ func analysisModelPayload(model collectionScoring) map[string]string {
 		"date_column":        firstNonEmpty(model.AmountDateColumn, model.DateColumn),
 		"status_column":      model.StatusColumn,
 	}
+}
+
+func decodeContextPayload(contextB64 string) map[string]interface{} {
+	contextB64 = strings.TrimSpace(contextB64)
+	if contextB64 == "" {
+		return nil
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(contextB64)
+	if err != nil {
+		return nil
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil
+	}
+	return payload
+}
+
+func radarDeepDiveTarget(priorityListJSON, entityRef, entityType string) map[string]interface{} {
+	target := map[string]interface{}{
+		"artifact_type": "entity.ref.v1",
+		"type":          firstNonEmpty(strings.TrimSpace(entityType), "customer"),
+		"id":            strings.TrimSpace(entityRef),
+	}
+	if payload := parseJSONObject(priorityListJSON); len(payload) > 0 {
+		if selected, ok := payload["selected"].(map[string]interface{}); ok {
+			mergeStringAnyMaps(target, selected)
+		}
+		if item := radarDeepDivePriorityItem(priorityListJSON, strings.TrimSpace(entityRef)); len(item) > 0 {
+			if name := jsonStringFromMap(item, "deudor", "name"); name != "" && target["name"] == nil {
+				target["name"] = name
+			}
+			if saldo, ok := item["saldo_total"]; ok {
+				target["saldo_total"] = saldo
+			}
+			if dias, ok := item["dias_mora_max"]; ok {
+				target["dias_mora_max"] = dias
+			}
+			if rank, ok := item["rank"]; ok {
+				target["rank"] = rank
+			}
+		}
+	}
+	if target["id"] == nil || strings.TrimSpace(fmt.Sprint(target["id"])) == "" {
+		target["id"] = strings.TrimSpace(entityRef)
+	}
+	return target
+}
+
+func radarDeepDivePriorityItem(priorityListJSON, entityRef string) map[string]interface{} {
+	payload := parseJSONObject(priorityListJSON)
+	if len(payload) == 0 {
+		return nil
+	}
+	entityRef = strings.TrimSpace(entityRef)
+	if item, ok := payload["priority_item"].(map[string]interface{}); ok {
+		if entityRef == "" || radarDeepDivePriorityItemMatches(item, entityRef) {
+			return item
+		}
+	}
+	if items, ok := payload["items"].([]interface{}); ok {
+		for _, raw := range items {
+			item, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if entityRef == "" || radarDeepDivePriorityItemMatches(item, entityRef) {
+				return item
+			}
+		}
+	}
+	return nil
+}
+
+func radarDeepDivePriorityItemMatches(item map[string]interface{}, entityRef string) bool {
+	entityRef = strings.TrimSpace(entityRef)
+	if entityRef == "" {
+		return true
+	}
+	if jsonStringFromMap(item, "deudor_id", "entity_id", "id") == entityRef {
+		return true
+	}
+	if ref, ok := item["entity_ref"].(map[string]interface{}); ok {
+		return jsonStringFromMap(ref, "id") == entityRef
+	}
+	return false
+}
+
+func radarDeepDiveRecommendation(strategyJSON string) map[string]interface{} {
+	payload := parseJSONObject(strategyJSON)
+	if len(payload) == 0 {
+		return map[string]interface{}{
+			"recommended_action": "deep_analysis",
+			"reason":             "Sin strategy.recommendation.v1 explícita, Radar mantiene el tramo analítico abierto.",
+		}
+	}
+	return payload
+}
+
+func radarDeepDiveWhyPrioritized(priorityItem, recommendation map[string]interface{}) string {
+	reasons := interfaceStringSlice(priorityItem["reasons"])
+	score := jsonIntFromAny(priorityItem["score"])
+	rank := jsonIntFromAny(priorityItem["rank"])
+	scoreBits := []string{}
+	if rank > 0 {
+		scoreBits = append(scoreBits, fmt.Sprintf("quedó rankeado #%d", rank))
+	}
+	if score > 0 {
+		scoreBits = append(scoreBits, fmt.Sprintf("score %d/100", score))
+	}
+	if len(reasons) > 0 {
+		if len(scoreBits) > 0 {
+			return fmt.Sprintf("Se priorizó porque %s y %s.", joinNaturalList(scoreBits), strings.ToLower(strings.Join(reasons, "; ")))
+		}
+		return "Se priorizó porque " + strings.ToLower(strings.Join(reasons, "; ")) + "."
+	}
+	if reason := jsonStringFromMap(recommendation, "reason", "summary"); reason != "" {
+		if len(scoreBits) > 0 {
+			return fmt.Sprintf("Se priorizó porque %s; %s", joinNaturalList(scoreBits), strings.ToLower(reason))
+		}
+		return reason
+	}
+	if len(scoreBits) > 0 {
+		return "Se priorizó porque " + joinNaturalList(scoreBits) + "."
+	}
+	return "Se priorizó por la combinación de exposición, antigüedad y señales de riesgo disponibles."
+}
+
+func radarDeepDiveEvidenceSummary(target, priorityItem map[string]interface{}) []string {
+	evidence := []string{}
+	if saldo := jsonFloatFromAny(firstNonNil(priorityItem["saldo_total"], target["saldo_total"])); saldo > 0 {
+		evidence = append(evidence, fmt.Sprintf("saldo abierto estimado: %s", formatCurrencyCompact(saldo)))
+	}
+	if dias := jsonIntFromAny(firstNonNil(priorityItem["dias_mora_max"], target["dias_mora_max"])); dias > 0 {
+		evidence = append(evidence, fmt.Sprintf("mora máxima observada: %d días", dias))
+	}
+	if count := jsonIntFromAny(priorityItem["facturas_count"]); count > 0 {
+		evidence = append(evidence, fmt.Sprintf("documentos abiertos detectados: %d", count))
+	}
+	for key, value := range intMapFromAny(priorityItem["score_breakdown"]) {
+		if value <= 0 {
+			continue
+		}
+		evidence = append(evidence, fmt.Sprintf("señal %s: %d puntos", key, value))
+	}
+	if len(evidence) == 0 {
+		evidence = append(evidence, "el caso aparece como seleccionado en la lista priorizada actual")
+	}
+	return uniqueNonEmptyStrings(evidence)
+}
+
+func radarDeepDiveRiskSummary(priorityItem, recommendation map[string]interface{}) string {
+	score := jsonIntFromAny(priorityItem["score"])
+	strategy := jsonStringFromMap(priorityItem, "strategy")
+	switch {
+	case strategy != "" && score > 0:
+		return fmt.Sprintf("Riesgo estimado %d/100. %s", score, strategy)
+	case strategy != "":
+		return strategy
+	case score >= 75:
+		return fmt.Sprintf("Riesgo alto (%d/100): la combinación de exposición y antigüedad justifica frenar acciones operativas hasta validar evidencia.", score)
+	case score >= 50:
+		return fmt.Sprintf("Riesgo medio (%d/100): conviene confirmar contexto y huecos de datos antes de accionar.", score)
+	case score > 0:
+		return fmt.Sprintf("Riesgo preliminar %d/100: el caso merece lectura adicional, pero con menor urgencia relativa.", score)
+	}
+	if reason := jsonStringFromMap(recommendation, "reason"); reason != "" {
+		return reason
+	}
+	return "Riesgo preliminar sin score explícito: Radar conserva el tramo analítico hasta reunir más contexto."
+}
+
+func radarDeepDiveAgingSummary(target, priorityItem map[string]interface{}) string {
+	dias := jsonIntFromAny(firstNonNil(priorityItem["dias_mora_max"], target["dias_mora_max"]))
+	if dias <= 0 {
+		return "No hay antigüedad de mora explícita en el artifact actual."
+	}
+	switch {
+	case dias >= 120:
+		return fmt.Sprintf("La mora ya está en %d días o más, una señal fuerte de exposición de cobranza.", dias)
+	case dias >= 60:
+		return fmt.Sprintf("La mora alcanza %d días, suficiente para justificar revisión detallada antes de actuar.", dias)
+	default:
+		return fmt.Sprintf("La mora observada es de %d días; no es extrema, pero sí relevante para el contexto del caso.", dias)
+	}
+}
+
+func radarDeepDiveInvoiceSummary(target, priorityItem map[string]interface{}) string {
+	saldo := jsonFloatFromAny(firstNonNil(priorityItem["saldo_total"], target["saldo_total"]))
+	count := jsonIntFromAny(priorityItem["facturas_count"])
+	switch {
+	case saldo > 0 && count > 0:
+		return fmt.Sprintf("Se observan %d documentos abiertos por un saldo total aproximado de %s.", count, formatCurrencyCompact(saldo))
+	case saldo > 0:
+		return fmt.Sprintf("Se observa un saldo abierto aproximado de %s.", formatCurrencyCompact(saldo))
+	case count > 0:
+		return fmt.Sprintf("Se observan %d documentos abiertos en el caso.", count)
+	default:
+		return "No hay detalle consolidado de documentos en el artifact actual."
+	}
+}
+
+func radarDeepDiveBlockingGaps(priorityItem map[string]interface{}) []string {
+	gaps := uniqueNonEmptyStrings(interfaceStringSlice(priorityItem["data_gaps"]))
+	if len(gaps) == 0 {
+		return []string{"No aparece un gap crítico estructurado en la priorización; queda pendiente validarlo con Auditor."}
+	}
+	out := make([]string, 0, len(gaps))
+	for _, gap := range gaps {
+		out = append(out, fmt.Sprintf("falta validar %s", strings.TrimSpace(gap)))
+	}
+	return out
+}
+
+func radarDeepDiveNonOperationalNextSteps(blockingGaps []string) []string {
+	steps := []string{
+		"pedir a Sabio contexto 360 del cliente para entender relación, historial y señales adicionales",
+		"pedir a Auditor validación de calidad para confirmar qué evidencia falta o reduce confianza",
+		"comparar este caso contra otros casos priorizados antes de moverlo a ejecución",
+	}
+	if len(blockingGaps) > 0 {
+		steps = append(steps, "cerrar primero las brechas críticas de información antes de redactar o enviar nada")
+	}
+	return uniqueNonEmptyStrings(steps)
+}
+
+func radarDeepDiveOperationalNextSteps(recommendation map[string]interface{}, blockingGaps []string) []string {
+	action := strings.ToLower(jsonStringFromMap(recommendation, "recommended_action", "action"))
+	reason := jsonStringFromMap(recommendation, "reason")
+	switch action {
+	case "send_email", "send":
+		return []string{"si luego quisieras actuar, preparar un borrador de email revisado y verificar destinatario/credenciales antes del envío"}
+	case "quick_action", "proceed":
+		return []string{"si luego quisieras actuar, convertir este análisis en una acción rápida controlada una vez cerradas las brechas"}
+	}
+	if len(blockingGaps) > 0 {
+		return []string{"si luego quisieras actuar, primero resolver los gaps de datos y después evaluar draft + envío como paso separado"}
+	}
+	if reason != "" {
+		return []string{"si luego quisieras actuar, usar esta recomendación como guía operativa posterior: " + strings.ToLower(reason)}
+	}
+	return []string{"si luego quisieras actuar, el paso natural sería preparar un borrador o contactar al cliente, pero sin ejecutarlo desde este tramo"}
+}
+
+func radarDeepDiveOpenQuestions(target, priorityItem map[string]interface{}, blockingGaps []string) []string {
+	questions := []string{}
+	if len(blockingGaps) > 0 {
+		questions = append(questions, "¿qué impacto tienen las brechas de datos sobre la confianza del scoring?")
+	}
+	if jsonIntFromAny(firstNonNil(priorityItem["dias_mora_max"], target["dias_mora_max"])) == 0 {
+		questions = append(questions, "¿cuál es la antigüedad real de la mora de este caso?")
+	}
+	if jsonFloatFromAny(firstNonNil(priorityItem["saldo_total"], target["saldo_total"])) == 0 {
+		questions = append(questions, "¿cuál es el saldo exigible real que explica la prioridad?")
+	}
+	questions = append(questions, "¿este caso está por encima de pares similares por exposición, comportamiento o riesgo de cobro?")
+	return uniqueNonEmptyStrings(questions)
+}
+
+func radarDeepDiveNarrative(name, whyPrioritized string, evidence []string, riskSummary, agingSummary, invoiceSummary string, blockingGaps, nextNonOperational, nextOperational, openQuestions []string) string {
+	sections := []string{
+		"Resumen del análisis profundo de " + name,
+		"Por qué se priorizó: " + strings.TrimSpace(whyPrioritized),
+		"Qué sabemos: " + strings.Join(uniqueNonEmptyStrings(append(evidence, riskSummary, agingSummary, invoiceSummary)), " | "),
+		"Qué falta: " + strings.Join(uniqueNonEmptyStrings(blockingGaps), " | "),
+		"Qué haría después, sin ejecutarlo: " + strings.Join(uniqueNonEmptyStrings(append(nextNonOperational, nextOperational...)), " | "),
+	}
+	if len(openQuestions) > 0 {
+		sections = append(sections, "Preguntas abiertas: "+strings.Join(openQuestions, " | "))
+	}
+	return strings.Join(sections, "\n\n")
+}
+
+func interfaceStringSlice(raw interface{}) []string {
+	items, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+			out = append(out, strings.TrimSpace(s))
+		}
+	}
+	return out
+}
+
+func intMapFromAny(raw interface{}) map[string]int {
+	items, ok := raw.(map[string]interface{})
+	if !ok {
+		return nil
+	}
+	out := map[string]int{}
+	for key, value := range items {
+		if n := jsonIntFromAny(value); n != 0 {
+			out[key] = n
+		}
+	}
+	return out
+}
+
+func jsonIntFromAny(raw interface{}) int {
+	switch v := raw.(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case float64:
+		return int(v)
+	case json.Number:
+		n, _ := v.Int64()
+		return int(n)
+	}
+	return 0
+}
+
+func jsonFloatFromAny(raw interface{}) float64 {
+	switch v := raw.(type) {
+	case float64:
+		return v
+	case float32:
+		return float64(v)
+	case int:
+		return float64(v)
+	case int64:
+		return float64(v)
+	case json.Number:
+		n, _ := v.Float64()
+		return n
+	}
+	return 0
+}
+
+func firstNonNil(values ...interface{}) interface{} {
+	for _, value := range values {
+		if value != nil {
+			return value
+		}
+	}
+	return nil
+}
+
+func formatCurrencyCompact(v float64) string {
+	if v == 0 {
+		return "0"
+	}
+	if math.Abs(v-math.Round(v)) < 0.01 {
+		return fmt.Sprintf("%.0f", v)
+	}
+	return fmt.Sprintf("%.2f", v)
+}
+
+func uniqueNonEmptyStrings(items []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" || seen[item] {
+			continue
+		}
+		seen[item] = true
+		out = append(out, item)
+	}
+	return out
+}
+
+func joinNaturalList(items []string) string {
+	items = uniqueNonEmptyStrings(items)
+	switch len(items) {
+	case 0:
+		return ""
+	case 1:
+		return items[0]
+	case 2:
+		return items[0] + " y " + items[1]
+	default:
+		return strings.Join(items[:len(items)-1], ", ") + " y " + items[len(items)-1]
+	}
+}
+
+func loadJSONPayload(pathArg, inline string) string {
+	if strings.TrimSpace(pathArg) != "" {
+		if raw, err := os.ReadFile(pathArg); err == nil {
+			return string(raw)
+		}
+	}
+	return strings.TrimSpace(inline)
+}
+
+func parseJSONObject(raw string) map[string]interface{} {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		return nil
+	}
+	return payload
+}
+
+func mergeStringAnyMaps(dst map[string]interface{}, src map[string]interface{}) {
+	for key, value := range src {
+		if value == nil {
+			continue
+		}
+		dst[key] = value
+	}
+}
+
+func jsonStringFromMap(payload map[string]interface{}, fields ...string) string {
+	for _, field := range fields {
+		if value, ok := payload[field]; ok && value != nil {
+			if s, ok := value.(string); ok && strings.TrimSpace(s) != "" {
+				return strings.TrimSpace(s)
+			}
+		}
+	}
+	return ""
 }
 
 func radarAnalysisDir(businessID string) string {

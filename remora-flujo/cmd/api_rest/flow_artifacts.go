@@ -29,6 +29,21 @@ func recordDynamicFlowNode(result *flowRunResult, node flowNode) {
 	}
 }
 
+func appendDynamicFlowNode(result *flowRunResult, node flowNode) {
+	if result == nil || node.ID == "" {
+		return
+	}
+	for _, existing := range result.DynamicNodes {
+		if existing.ID == node.ID {
+			return
+		}
+	}
+	if node.Role == "" {
+		node.Role = flowRoleResolution
+	}
+	result.DynamicNodes = append(result.DynamicNodes, node)
+}
+
 func artifactStringNested(payload interface{}, path []string) (string, bool) {
 	current := payload
 	for _, part := range path {

@@ -51,23 +51,31 @@
   ],
   "commands": {
     "propose": {
-      "description": "Genera propuesta de fix para un finding (no ejecuta). Puede recibir findings/dataset como JSON inline.",
+      "description": "Genera propuesta de fix para un finding (no ejecuta). Prefiere findings/dataset por ruta; mantiene JSON inline como fallback.",
       "args": [
         "propose",
         "--finding-id",
         "{params.finding_id}",
+        "--findings-path",
+        "{params.findings_path}",
         "--findings-json",
         "{params.findings_json}",
+        "--dataset-path",
+        "{params.dataset_path}",
         "--dataset-json",
         "{params.dataset_json}"
       ],
       "params": [
         "finding_id",
+        "findings_path",
         "findings_json",
+        "dataset_path",
         "dataset_json"
       ],
       "defaults": {
+        "findings_path": "",
         "findings_json": "",
+        "dataset_path": "",
         "dataset_json": ""
       }
     },
@@ -105,19 +113,23 @@
       "params": []
     },
     "apply": {
-      "description": "Aplica un fix propuesto al dataset.working.json. Puede recibir dataset como JSON inline.",
+      "description": "Aplica un fix propuesto al dataset.working.json. Prefiere dataset por ruta; mantiene JSON inline como fallback.",
       "args": [
         "apply",
         "--proposal-id",
         "{params.proposal_id}",
+        "--dataset-path",
+        "{params.dataset_path}",
         "--dataset-json",
         "{params.dataset_json}"
       ],
       "params": [
         "proposal_id",
+        "dataset_path",
         "dataset_json"
       ],
       "defaults": {
+        "dataset_path": "",
         "dataset_json": ""
       }
     },
@@ -204,24 +216,41 @@
       "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano. Filtra por scope_tables si se proveen.",
       "args": [
         "resolve-gaps",
+        "--data-gaps-path",
+        "{params.data_gaps_path}",
         "--data-gaps-json",
         "{params.data_gaps_json}",
+        "--findings-path",
+        "{params.findings_path}",
         "--findings-json",
         "{params.findings_json}",
+        "--entity-ref-path",
+        "{params.entity_ref_path}",
         "--entity-ref-json",
         "{params.entity_ref_json}",
+        "--scope-tables-path",
+        "{params.scope_tables_path}",
         "--scope-tables-json",
         "{params.scope_tables_json}"
       ],
       "params": [
+        "data_gaps_path",
         "data_gaps_json",
+        "findings_path",
         "findings_json",
+        "entity_ref_path",
         "entity_ref_json",
+        "scope_tables_path",
         "scope_tables_json"
       ],
       "defaults": {
+        "data_gaps_path": "",
+        "data_gaps_json": "",
+        "findings_path": "",
         "findings_json": "",
+        "entity_ref_path": "",
         "entity_ref_json": "",
+        "scope_tables_path": "",
         "scope_tables_json": ""
       }
     }

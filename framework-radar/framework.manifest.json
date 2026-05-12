@@ -66,6 +66,118 @@
         "semantic_pack": "",
         "context_b64": ""
       }
+    },
+    "deep-dive": {
+      "description": "Analiza en profundidad el caso priorizado y formula el plan analítico antes de cualquier acción operativa.",
+      "args": [
+        "deep-dive",
+        "--business-id",
+        "{params.business_id}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--semantic-pack",
+        "{params.semantic_pack}",
+        "--priority-list-path",
+        "{params.priority_list_path}",
+        "--priority-list-json",
+        "{params.priority_list_json}",
+        "--strategy-path",
+        "{params.strategy_path}",
+        "--strategy-json",
+        "{params.strategy_json}",
+        "--context-b64",
+        "{params.context_b64}"
+      ],
+      "params": [
+        "business_id",
+        "entity_ref",
+        "entity_type",
+        "semantic_pack",
+        "priority_list_path",
+        "priority_list_json",
+        "strategy_path",
+        "strategy_json",
+        "context_b64"
+      ],
+      "defaults": {
+        "business_id": "",
+        "entity_ref": "",
+        "entity_type": "customer",
+        "semantic_pack": "",
+        "priority_list_path": "",
+        "priority_list_json": "",
+        "strategy_path": "",
+        "strategy_json": "",
+        "context_b64": ""
+      }
+    },
+    "analyze-followup": {
+      "description": "Recibe un follow-up del usuario dentro de la sesión analítica activa y responde con análisis adicional, delegando a Sabio/Auditor si hace falta.",
+      "args": [
+        "analyze-followup",
+        "--business-id",
+        "{params.business_id}",
+        "--input",
+        "{params.input}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--semantic-pack",
+        "{params.semantic_pack}",
+        "--previous-analysis-path",
+        "{params.previous_analysis_path}",
+        "--previous-analysis-json",
+        "{params.previous_analysis_json}",
+        "--delegation-results-path",
+        "{params.delegation_results_path}",
+        "--delegation-results-json",
+        "{params.delegation_results_json}",
+        "--priority-list-path",
+        "{params.priority_list_path}",
+        "--priority-list-json",
+        "{params.priority_list_json}",
+        "--turn-count",
+        "{params.turn_count}",
+        "--llm-followup-json",
+        "{params.llm_followup_json}",
+        "--context-b64",
+        "{params.context_b64}"
+      ],
+      "params": [
+        "business_id",
+        "input",
+        "entity_ref",
+        "entity_type",
+        "semantic_pack",
+        "previous_analysis_path",
+        "previous_analysis_json",
+        "delegation_results_path",
+        "delegation_results_json",
+        "priority_list_path",
+        "priority_list_json",
+        "turn_count",
+        "llm_followup_json",
+        "context_b64"
+      ],
+      "defaults": {
+        "business_id": "",
+        "input": "",
+        "entity_ref": "",
+        "entity_type": "customer",
+        "semantic_pack": "",
+        "previous_analysis_path": "",
+        "previous_analysis_json": "",
+        "delegation_results_path": "",
+        "delegation_results_json": "",
+        "priority_list_path": "",
+        "priority_list_json": "",
+        "turn_count": "0",
+        "llm_followup_json": "",
+        "context_b64": ""
+      }
     }
   },
   "capabilities_semantic": {
@@ -99,6 +211,60 @@
     ]
   },
   "capabilities": [
+    {
+      "id": "analysis.deep_dive",
+      "description": "Toma control del tramo analítico del caso seleccionado y explicita la evidencia/delegación necesaria antes de actuar.",
+      "command": "deep-dive",
+      "inputs": [
+        "collection.priority_list.v1",
+        "entity.ref.v1",
+        "strategy.recommendation.v1",
+        "business.semantic_pack.v1"
+      ],
+      "outputs": [
+        "analysis.case_review.v1",
+        "answer.grounded.v1"
+      ],
+      "requires": [
+        "collection.priority_list.v1",
+        "entity.ref.v1"
+      ],
+      "produces": [
+        "analysis.case_review.v1",
+        "answer.grounded.v1"
+      ],
+      "execution": "selected_case_analytical_takeover",
+      "policies": [
+        "readonly_dataset",
+        "trace_required",
+        "business_context_required",
+        "owner_takeover"
+      ],
+      "session": {
+        "conversational": true,
+        "followup_command": "analyze-followup",
+        "continue_signals": [
+          "profundiza", "explica", "por qué", "compara", "detalle",
+          "riesgo", "mora", "evidencia", "más", "amplía",
+          "qué pasaría", "alternativa", "y si"
+        ],
+        "operational_signals": [
+          "avanza", "actuar", "con eso basta",
+          "redacta", "manda", "envía", "usa lo que tenemos",
+          "gestionar", "cobrar", "contactar"
+        ],
+        "exit_signals": [
+          "siguiente caso", "siguiente cliente", "skip", "saltar",
+          "posponer", "déjalo", "dejalo", "otro caso", "no analizar"
+        ],
+        "allowed_delegates": [
+          "data.entity_360",
+          "data.query.sql",
+          "data.quality.audit"
+        ],
+        "max_turns": 10
+      }
+    },
     {
       "id": "analysis.configure",
       "description": "Formula una forma configurable de analizar los registros usando configuración semántica del negocio, sin acceso directo a SQLite.",

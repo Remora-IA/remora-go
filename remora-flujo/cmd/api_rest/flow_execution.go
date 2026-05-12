@@ -60,7 +60,7 @@ func (s *server) executeFlowNode(ctx context.Context, runID string, req flowRunR
 		params["semantic_pack"] = s.businessSemanticPackPath(req.Flow.BusinessID)
 	}
 	if commandHasParam(cmd, "context_b64") {
-		params["context_b64"] = encodeFlowRunContext(req)
+		params["context_b64"] = encodeFlowRunContext(req, artifacts)
 	}
 	if commandHasParam(cmd, "history") {
 		params["history"] = ""
@@ -111,6 +111,11 @@ func (s *server) materializePortableArtifactParams(runID, nodeID string, cmd man
 		}
 		params[key] = ""
 	}
+}
+
+func (s *server) resolvePortableCommandArgs(runID, nodeID string, cmd manifest.Command, params, inputs, outputs map[string]string) ([]string, error) {
+	s.materializePortableArtifactParams(runID, nodeID, cmd, params)
+	return cmd.ResolveArgs(params, inputs, outputs)
 }
 
 func firstDeclaredParam(cmd manifest.Command, names ...string) string {

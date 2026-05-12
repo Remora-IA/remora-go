@@ -3239,7 +3239,7 @@ func runNextCollectionTask(args []string) error {
 	case "quick_collection":
 		recommendedNext = "Generar borrador de cobranza con Mecánico (draft-email)."
 	case "deep_analysis":
-		recommendedNext = "Pedir a Sabio entity_360 y análisis de contexto antes de redactar."
+		recommendedNext = "Transferir control analítico a Radar para revisar evidencia y contexto antes de actuar."
 	}
 
 	task := map[string]interface{}{
@@ -3274,17 +3274,26 @@ func runNextCollectionTask(args []string) error {
 			quickActions = append(quickActions, label)
 		}
 	}
+	emitActionOptions := selectedAction != "deep_analysis"
+	artifacts := []string{"focus.next_task.v1", "task.next", "entity.ref.v1"}
 	out := map[string]interface{}{
 		"artifact_type":   "focus.next_task.v1",
-		"artifacts":       []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"},
+		"artifacts":       artifacts,
 		"business_id":     *businessID,
 		"generated_at":    time.Now().Format(time.RFC3339),
 		"task":            task,
 		"task_next":       task,
 		"selected":        entity,
-		"action_options":  actionOptions,
-		"quick_actions":   quickActions,
-		"requires_choice": true,
+		"requires_choice": emitActionOptions,
+	}
+	if emitActionOptions {
+		out["artifacts"] = append(artifacts, "action.options.v1")
+		out["action_options"] = actionOptions
+		out["quick_actions"] = quickActions
+	} else {
+		out["transfer_control"] = true
+		out["transfer_framework"] = "radar"
+		out["transfer_capability"] = "analysis.deep_dive"
 	}
 	raw, _ := json.MarshalIndent(out, "", "  ")
 	fmt.Println(string(raw))

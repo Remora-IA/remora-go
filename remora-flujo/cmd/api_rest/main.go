@@ -160,6 +160,9 @@ func main() {
 		auth:         authStore,
 		flows:        flowStore,
 	}
+	if err := srv.ensureDefaultBusinessAssetsForAllBusinesses(); err != nil {
+		bootLog.Printf("warn: no pude provisionar assets default de negocios: %v", err)
+	}
 
 	fmt.Printf("Runtime LLM: %s | %s | %s\n", srv.runtimeInfo.Provider, srv.runtimeInfo.Model, srv.runtimeInfo.Note)
 
@@ -829,7 +832,7 @@ func (s *server) postMessage(w http.ResponseWriter, r *http.Request) {
 	// 3. Marcar la entrada del usuario en el JSONL de Channel.
 	_, _ = ch.ExecuteCommand(ctx, "echo", []string{"user_input:", req.Content, "resources:", fmt.Sprintf("%d", len(copiedResources))}, "")
 
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
+	q, ok, err := s.runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -930,7 +933,7 @@ func (s *server) postMessageSSE(w http.ResponseWriter, r *http.Request, conv *Co
 	go func() {
 		ch := s.scoped(conv.ID)
 		_, _ = ch.ExecuteCommand(loopCtx, "echo", []string{"user_input:", req.Content, "resources:", fmt.Sprintf("%d", len(copiedResources))}, "")
-		q, ok, lerr := runLoop(loopCtx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
+		q, ok, lerr := s.runLoop(loopCtx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
 		resultCh <- loopResult{q: q, ok: ok, err: lerr}
 	}()
 
@@ -1703,7 +1706,7 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q, ok, err := runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
+	q, ok, err := s.runLoop(ctx, ch, conv, s.rules, s.allManifests, req.Content, copiedResources)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
