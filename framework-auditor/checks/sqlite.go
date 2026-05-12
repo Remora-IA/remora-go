@@ -152,17 +152,18 @@ func CheckSchemaContactCapability(d *Dataset, tableColumns map[string][]string) 
 			continue
 		}
 		findings = append(findings, Finding{
-			Rule:     RuleSchemaContactGap,
-			Severity: SeverityCritical,
-			Endpoint: endpoint,
-			Field:    "email",
-			Message:  fmt.Sprintf("La tabla %q no tiene columna de email/contacto. El flujo de cobranza requiere un destinatario para enviar mensajes, pero el schema no contempla este dato.", endpoint),
+			Rule:          RuleSchemaContactGap,
+			Severity:      SeverityCritical,
+			Endpoint:      endpoint,
+			Field:         "email",
+			Message:       fmt.Sprintf("La tabla %q no tiene columna de email/contacto. El flujo de cobranza requiere un destinatario para enviar mensajes, pero el schema no contempla este dato.", endpoint),
 			Evidence: map[string]interface{}{
 				"existing_columns": cols,
 				"checked_for":      emailLikeColumns,
 			},
-			Suggestion:  "Enriquecer la fuente de datos con emails de contacto o proveerlos vía Sabio (contact-store/contact-import-csv).",
-			AutoFixable: false,
+			Suggestion:    "Enriquecer la fuente de datos con emails de contacto o proveerlos via Sabio (contact-store/contact-import-csv).",
+			AutoFixable:   false,
+			Actionability: ActionabilityStructural,
 			FixHint: map[string]interface{}{
 				"strategy":          "external_enrichment",
 				"required_field":    "email",

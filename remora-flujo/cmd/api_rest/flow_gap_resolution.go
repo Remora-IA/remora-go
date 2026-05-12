@@ -24,7 +24,9 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 		// Filter out gaps for fields the current entity already has data for.
 		entityRef := entityRefFromArtifacts(result.Artifacts)
 		gaps = filterGapsByExistingEntityData(gaps, entityRef, entityTable)
-		// Generate prerequisites artifact on first pass for observability.
+		// Parse bulk-quality findings from the separate Auditor artifact.
+		bulkGaps := parseDataQualityBulk(result.Artifacts)
+		// Generate observability artifacts on first pass.
 		if pass == 0 {
 			prereqPayload := s.generateFlowPrerequisites(runID, req.Flow, entityRef, result.Artifacts, available, allGaps)
 			path := s.persistFlowArtifact(runID, auditorNode.ID+"_prerequisites", "flow.prerequisites.v1", prereqPayload)
@@ -37,15 +39,37 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 				CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 			}
 			available["flow.prerequisites.v1"] = true
+			if len(bulkGaps) > 0 {
+				bulkPayload := s.generateBulkMigrationArtifact(bulkGaps)
+				bulkPath := s.persistFlowArtifact(runID, auditorNode.ID+"_bulk", "flow.bulk_migration_needed.v1", bulkPayload)
+				result.Artifacts["flow.bulk_migration_needed.v1"] = flowRunArtifact{
+					Type:      "flow.bulk_migration_needed.v1",
+					Source:    "flow_engine.bulk_migration",
+					Node:      auditorNode.ID,
+					Path:      bulkPath,
+					Payload:   bulkPayload,
+					CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+				}
+				available["flow.bulk_migration_needed.v1"] = true
+			}
 		}
-		if len(gaps) == 0 {
+		// Separate user-completable/structural gaps from bulk-migration.
+		// Bulk gaps never go to Mecanico; they are observability-only.
+		var userCompletableGaps []dataGap
+		for _, g := range gaps {
+			if g.Actionability == "bulk_migration" {
+				continue
+			}
+			userCompletableGaps = append(userCompletableGaps, g)
+		}
+		if len(userCompletableGaps) == 0 {
 			break
 		}
 		anyResolved := false
 
 		// 1. Contact/email gaps: try Sabio contact-lookup once for all contact gaps
 		hasContactGap := false
-		for _, gap := range gaps {
+		for _, gap := range userCompletableGaps {
 			if strings.Contains(strings.ToLower(gap.Kind), "contact") || strings.Contains(strings.ToLower(gap.Kind), "email") {
 				hasContactGap = true
 				break
@@ -78,7 +102,7 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 			} else if s.flowRequiresArtifact(req.Flow, "contact.destination.v1") {
 				// Antes de poner needs_input directo, delegamos a Mecánico como
 				// resolvedor conversacional estándar de gaps.
-				if questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, gaps, result.Artifacts, available, result, emitStep, cycleIdx); hasQuestions {
+				if questions, hasQuestions := s.invokeMecanicoResolveGaps(ctx, runID, req, userCompletableGaps, result.Artifacts, available, result, emitStep, cycleIdx); hasQuestions {
 					questionProviderName := s.providerNameForCapabilityOrCommand("action.fix.resolve_gaps_conversational", "resolve-gaps")
 					for _, q := range questions {
 						qText := ""
@@ -123,7 +147,7 @@ func (s *server) resolveFlowGapsIteratively(ctx context.Context, runID string, r
 		var remediationStrategy gapResolution
 		var remediationProvider *manifest.Manifest
 		remediationProviderName := ""
-		for _, gap := range gaps {
+		for _, gap := range userCompletableGaps {
 			strategy, ok := findGapResolution(gap.Kind)
 			if !ok {
 				continue
@@ -372,6 +396,29 @@ func (s *server) invokeMecanicoResolveGaps(ctx context.Context, runID string, re
 	emitStep("step_complete", step)
 	result.Timeline = append(result.Timeline, step)
 	return questions, len(questions) > 0
+}
+
+// generateBulkMigrationArtifact creates the flow.bulk_migration_needed.v1
+// artifact for observability. It does NOT block the flow; it merely informs
+// the Staff that certain data-quality issues require mass migration.
+func (s *server) generateBulkMigrationArtifact(bulkGaps []dataGap) map[string]interface{} {
+	items := []map[string]interface{}{}
+	for _, g := range bulkGaps {
+		items = append(items, map[string]interface{}{
+			"endpoint":      g.Endpoint,
+			"field":         g.Field,
+			"kind":          g.Kind,
+			"description":   g.Description,
+			"actionability": g.Actionability,
+		})
+	}
+	return map[string]interface{}{
+		"artifact_type":    "flow.bulk_migration_needed.v1",
+		"bulk_items":       items,
+		"bulk_count":       len(items),
+		"human_summary":    fmt.Sprintf("Data quality bulk: %d campos requieren migracion masiva de datos.", len(items)),
+		"generated_at":     time.Now().UTC().Format(time.RFC3339Nano),
+	}
 }
 
 func (s *server) findProviderWithCommand(command string) (*manifest.Manifest, string, bool) {

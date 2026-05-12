@@ -249,37 +249,34 @@ func isContactRelatedGap(g dataGap) bool {
 // "clients.name is empty" but the entity ref already has name="Thiel-Effertz",
 // the gap is not relevant for this entity and should be skipped.
 //
-// This prevents Mecanico from asking for data that already exists in the DB
-// for the specific entity being processed.
+// Scope: ONLY filters gaps on the PRIMARY entity table where the entity
+// already has the data. It does NOT filter secondary tables -- that is the
+// job of filterGapsByFlowPurpose, which knows which tables the flow needs.
+// Filtering secondary tables here creates a conflict: filterGapsByFlowPurpose
+// may declare a secondary table necessary, and this filter would silently
+// drop its gaps.
 func filterGapsByExistingEntityData(gaps []dataGap, entityRef map[string]interface{}, entityTable string) []dataGap {
 	if entityRef == nil || len(gaps) == 0 {
 		return gaps
 	}
 	var filtered []dataGap
 	for _, g := range gaps {
-		// Only filter gaps on the entity's own table (e.g. clients)
-		if g.Endpoint != "" && g.Endpoint == entityTable {
-			fieldVal := entityRefFieldValue(entityRef, g.Field)
-			if fieldVal != "" {
-				// Entity already has a value for this field, skip gap
-				continue
-			}
-		}
-		// Schema-level gaps (like schema_contact_gap) are structural and
-		// should not be filtered -- they indicate missing columns.
+		// Schema-level gaps are structural (missing columns) and must
+		// always be kept -- no entity ref can satisfy them.
 		if g.Kind == "schema_contact_gap" || g.Kind == "missing_contact_destination" || g.Kind == "missing_contact" {
 			filtered = append(filtered, g)
 			continue
 		}
-		// Bulk data quality gaps on tables other than the entity table:
-		// filter them out if the gap type is empty_required/null_required
-		// and the table is not the entity table, since those are mass data
-		// quality issues not relevant to the current entity's action.
-		if g.Endpoint != "" && g.Endpoint != entityTable {
-			if g.Kind == "empty_required" || g.Kind == "null_required" {
+		// Only filter gaps on the entity's own primary table (e.g. clients).
+		// If the entity already has a value for this field, skip the gap.
+		if g.Endpoint != "" && g.Endpoint == entityTable {
+			fieldVal := entityRefFieldValue(entityRef, g.Field)
+			if fieldVal != "" {
 				continue
 			}
 		}
+		// For secondary tables: never filter here. filterGapsByFlowPurpose
+		// already decided whether the table is relevant to the flow.
 		filtered = append(filtered, g)
 	}
 	return filtered

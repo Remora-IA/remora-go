@@ -100,11 +100,12 @@ func (s *server) applyApprovedMecanicoProposals(ctx context.Context, runID strin
 
 // dataGap represents a parsed data gap from the data.gaps.v1 artifact.
 type dataGap struct {
-	Kind        string
-	Description string
-	Severity    string
-	Field       string
-	Endpoint    string
+	Kind          string
+	Description   string
+	Severity      string
+	Field         string
+	Endpoint      string
+	Actionability string
 }
 
 // parseDataGaps extracts structured gaps from the data.gaps.v1 artifact.
@@ -136,11 +137,56 @@ func parseDataGaps(artifacts map[string]flowRunArtifact) []dataGap {
 		sev := jsonFirstString(gmap, "severity", "level", "priority")
 		field := jsonFirstString(gmap, "field", "column", "property")
 		endpoint := jsonFirstString(gmap, "endpoint", "table")
+		actionability := jsonFirstString(gmap, "actionability")
 		if kind == "" && desc != "" {
 			kind = "unknown"
 		}
 		if kind != "" {
-			gaps = append(gaps, dataGap{Kind: kind, Description: desc, Severity: sev, Field: field, Endpoint: endpoint})
+			gaps = append(gaps, dataGap{Kind: kind, Description: desc, Severity: sev, Field: field, Endpoint: endpoint, Actionability: actionability})
+		}
+	}
+	return gaps
+}
+
+// parseDataQualityBulk extracts structured bulk-quality findings from the
+// data.quality.bulk.v1 artifact emitted by the Auditor.
+func parseDataQualityBulk(artifacts map[string]flowRunArtifact) []dataGap {
+	art, ok := artifacts["data.quality.bulk.v1"]
+	if !ok {
+		return nil
+	}
+	var raw []interface{}
+	if payload, ok := art.Payload.(map[string]interface{}); ok {
+		raw, _ = payload["data_quality_bulk"].([]interface{})
+		if len(raw) == 0 {
+			raw, _ = payload["gaps"].([]interface{})
+		}
+		if len(raw) == 0 {
+			raw, _ = payload["items"].([]interface{})
+		}
+	} else {
+		raw, _ = art.Payload.([]interface{})
+	}
+	if len(raw) == 0 {
+		return nil
+	}
+	var gaps []dataGap
+	for _, g := range raw {
+		gmap, ok := g.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		kind := jsonFirstString(gmap, "rule", "kind", "type", "category", "field", "check_id")
+		desc := jsonFirstString(gmap, "description", "message", "label", "gap")
+		sev := jsonFirstString(gmap, "severity", "level", "priority")
+		field := jsonFirstString(gmap, "field", "column", "property")
+		endpoint := jsonFirstString(gmap, "endpoint", "table")
+		actionability := jsonFirstString(gmap, "actionability")
+		if kind == "" && desc != "" {
+			kind = "unknown"
+		}
+		if kind != "" {
+			gaps = append(gaps, dataGap{Kind: kind, Description: desc, Severity: sev, Field: field, Endpoint: endpoint, Actionability: actionability})
 		}
 	}
 	return gaps

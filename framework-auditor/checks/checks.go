@@ -31,6 +31,13 @@ const (
 )
 
 // Reglas (rule_id estable, usadas por framework-mecanico para mapear fixers).
+// Actionability categories for findings.
+const (
+	ActionabilityUserCompletable = "user_completable"
+	ActionabilityBulkMigration   = "bulk_migration"
+	ActionabilityStructural      = "structural"
+)
+
 const (
 	RuleFKOrphan        = "fk_orphan"
 	RuleEmptyRequired   = "empty_required"
@@ -44,17 +51,21 @@ const (
 
 // Finding es un hallazgo del auditor.
 type Finding struct {
-	ID          string                 `json:"id"`
-	Rule        string                 `json:"rule"`
-	Severity    string                 `json:"severity"`
-	Endpoint    string                 `json:"endpoint"`
-	RecordID    string                 `json:"record_id"`
-	Field       string                 `json:"field,omitempty"`
-	Message     string                 `json:"message"`
-	Evidence    map[string]interface{} `json:"evidence,omitempty"`
-	Suggestion  string                 `json:"suggestion,omitempty"`
-	AutoFixable bool                   `json:"auto_fixable"`
-	FixHint     map[string]interface{} `json:"fix_hint,omitempty"`
+	ID            string                 `json:"id"`
+	Rule          string                 `json:"rule"`
+	Severity      string                 `json:"severity"`
+	Endpoint      string                 `json:"endpoint"`
+	RecordID      string                 `json:"record_id"`
+	Field         string                 `json:"field,omitempty"`
+	Message       string                 `json:"message"`
+	Evidence      map[string]interface{} `json:"evidence,omitempty"`
+	Suggestion    string                 `json:"suggestion,omitempty"`
+	AutoFixable   bool                   `json:"auto_fixable"`
+	FixHint       map[string]interface{} `json:"fix_hint,omitempty"`
+	Actionability string                 `json:"actionability"`
+	AffectedCount int                    `json:"affected_count"`
+	TotalCount    int                    `json:"total_count"`
+	AffectedPct   float64                `json:"affected_pct"`
 }
 
 // Dataset representa el dump JSON-API en memoria.
@@ -359,17 +370,18 @@ func CheckMissingContactDestination(d *Dataset) []Finding {
 			}
 			recID := pickID(rec)
 			findings = append(findings, Finding{
-				Rule:     RuleMissingContact,
-				Severity: SeverityWarning,
-				Endpoint: endpoint,
-				RecordID: recID,
-				Field:    "email",
-				Message:  fmt.Sprintf("Falta email/contacto operativo: %s[%s].email", endpoint, recID),
+				Rule:          RuleMissingContact,
+				Severity:      SeverityWarning,
+				Endpoint:      endpoint,
+				RecordID:      recID,
+				Field:         "email",
+				Message:       fmt.Sprintf("Falta email/contacto operativo: %s[%s].email", endpoint, recID),
 				Evidence: map[string]interface{}{
 					"checked_fields": []string{"email", "contact_email", "mail", "correo", "to", "destination"},
 				},
-				Suggestion:  "Solicitar o enriquecer el contacto antes de ejecutar mensajería saliente.",
-				AutoFixable: false,
+				Suggestion:    "Solicitar o enriquecer el contacto antes de ejecutar mensajeria saliente.",
+				AutoFixable:   false,
+				Actionability: ActionabilityUserCompletable,
 				FixHint: map[string]interface{}{
 					"strategy": "request_contact_destination",
 					"endpoint": endpoint,
@@ -439,10 +451,17 @@ func CheckFKOrphans(d *Dataset, fkRels []FKRelation) []Finding {
 }
 
 // CheckEmptyRequired detecta campos string requeridos que están vacíos "".
+// Categoriza findings por actionability basado en el porcentaje de registros
+// afectados en cada tabla.
 func CheckEmptyRequired(d *Dataset, rules []EndpointField) []Finding {
 	var findings []Finding
 	for _, rule := range rules {
-		for _, rec := range d.Endpoints[rule.Endpoint] {
+		records := d.Endpoints[rule.Endpoint]
+		if len(records) == 0 {
+			continue
+		}
+		var affectedRecs []map[string]interface{}
+		for _, rec := range records {
 			v, ok := rec[rule.Field]
 			if !ok {
 				continue
@@ -452,57 +471,98 @@ func CheckEmptyRequired(d *Dataset, rules []EndpointField) []Finding {
 				continue
 			}
 			if strings.TrimSpace(s) == "" {
-				recID := pickID(rec)
-				findings = append(findings, Finding{
-					Rule:     RuleEmptyRequired,
-					Severity: SeverityWarning,
-					Endpoint: rule.Endpoint,
-					RecordID: recID,
-					Field:    rule.Field,
-					Message: fmt.Sprintf("Campo requerido vacío: %s[%s].%s",
-						rule.Endpoint, recID, rule.Field),
-					Evidence: map[string]interface{}{
-						"current_value": s,
-					},
-					Suggestion:  "Completar el valor o derivarlo de campos relacionados.",
-					AutoFixable: true,
-					FixHint: map[string]interface{}{
-						"strategy": "derive_from_related",
-						"endpoint": rule.Endpoint,
-						"field":    rule.Field,
-					},
-				})
+				affectedRecs = append(affectedRecs, rec)
 			}
+		}
+		if len(affectedRecs) == 0 {
+			continue
+		}
+		total := len(records)
+		affected := len(affectedRecs)
+		pct := float64(affected) / float64(total)
+		actionability := ActionabilityUserCompletable
+		if pct > 0.30 {
+			actionability = ActionabilityBulkMigration
+		}
+		for _, rec := range affectedRecs {
+			recID := pickID(rec)
+			findings = append(findings, Finding{
+				Rule:     RuleEmptyRequired,
+				Severity: SeverityWarning,
+				Endpoint: rule.Endpoint,
+				RecordID: recID,
+				Field:    rule.Field,
+				Message: fmt.Sprintf("Campo requerido vacío: %s[%s].%s",
+					rule.Endpoint, recID, rule.Field),
+				Evidence: map[string]interface{}{
+					"current_value": "",
+				},
+				Suggestion:    "Completar el valor o derivarlo de campos relacionados.",
+				AutoFixable:   true,
+				Actionability: actionability,
+				AffectedCount: affected,
+				TotalCount:    total,
+				AffectedPct:   pct,
+				FixHint: map[string]interface{}{
+					"strategy": "derive_from_related",
+					"endpoint": rule.Endpoint,
+					"field":    rule.Field,
+				},
+			})
 		}
 	}
 	return findings
 }
 
 // CheckNullRequired detecta campos requeridos que son null.
+// Categoriza findings por actionability basado en el porcentaje de registros
+// afectados en cada tabla.
 func CheckNullRequired(d *Dataset, rules []EndpointField) []Finding {
 	var findings []Finding
 	for _, rule := range rules {
-		for _, rec := range d.Endpoints[rule.Endpoint] {
+		records := d.Endpoints[rule.Endpoint]
+		if len(records) == 0 {
+			continue
+		}
+		var affectedRecs []map[string]interface{}
+		for _, rec := range records {
 			v, ok := rec[rule.Field]
 			if !ok || v == nil {
-				recID := pickID(rec)
-				findings = append(findings, Finding{
-					Rule:     RuleNullRequired,
-					Severity: SeverityWarning,
-					Endpoint: rule.Endpoint,
-					RecordID: recID,
-					Field:    rule.Field,
-					Message: fmt.Sprintf("Campo requerido null: %s[%s].%s",
-						rule.Endpoint, recID, rule.Field),
-					Suggestion:  "Asignar valor derivado o solicitar al área dueña del dato.",
-					AutoFixable: true,
-					FixHint: map[string]interface{}{
-						"strategy": "derive_from_related",
-						"endpoint": rule.Endpoint,
-						"field":    rule.Field,
-					},
-				})
+				affectedRecs = append(affectedRecs, rec)
 			}
+		}
+		if len(affectedRecs) == 0 {
+			continue
+		}
+		total := len(records)
+		affected := len(affectedRecs)
+		pct := float64(affected) / float64(total)
+		actionability := ActionabilityUserCompletable
+		if pct > 0.30 {
+			actionability = ActionabilityBulkMigration
+		}
+		for _, rec := range affectedRecs {
+			recID := pickID(rec)
+			findings = append(findings, Finding{
+				Rule:     RuleNullRequired,
+				Severity: SeverityWarning,
+				Endpoint: rule.Endpoint,
+				RecordID: recID,
+				Field:    rule.Field,
+				Message: fmt.Sprintf("Campo requerido null: %s[%s].%s",
+					rule.Endpoint, recID, rule.Field),
+				Suggestion:    "Asignar valor derivado o solicitar al area duena del dato.",
+				AutoFixable:   true,
+				Actionability: actionability,
+				AffectedCount: affected,
+				TotalCount:    total,
+				AffectedPct:   pct,
+				FixHint: map[string]interface{}{
+					"strategy": "derive_from_related",
+					"endpoint": rule.Endpoint,
+					"field":    rule.Field,
+				},
+			})
 		}
 	}
 	return findings

@@ -209,21 +209,28 @@ func cmdScan(args []string) {
 	for _, f := range findings {
 		bySev[f.Severity]++
 	}
+	dataGaps, bulkGaps := dataGapsFromFindings(findings)
+	artifacts := []string{"auditor.findings.v1", "data.gaps.v1"}
+	if len(bulkGaps) > 0 {
+		artifacts = append(artifacts, "data.quality.bulk.v1")
+	}
 	if *asJSON {
 		emitJSON(map[string]interface{}{
-			"artifact_type": "auditor.findings.v1",
-			"artifacts":     []string{"auditor.findings.v1", "data.gaps.v1"},
-			"generated_at":  time.Now().UTC().Format(time.RFC3339),
-			"source":        sourceLabel,
-			"findings_path": fp,
-			"findings":      findings,
-			"data_gaps":     dataGapsFromFindings(findings),
+			"artifact_type":     "auditor.findings.v1",
+			"artifacts":         artifacts,
+			"generated_at":      time.Now().UTC().Format(time.RFC3339),
+			"source":            sourceLabel,
+			"findings_path":     fp,
+			"findings":          findings,
+			"data_gaps":         dataGaps,
+			"data_quality_bulk": bulkGaps,
 			"summary": map[string]interface{}{
 				"total_records": totalRecords,
 				"total":         len(findings),
 				"critical":      bySev[checks.SeverityCritical],
 				"warning":       bySev[checks.SeverityWarning],
 				"info":          bySev[checks.SeverityInfo],
+				"bulk_gaps":     len(bulkGaps),
 			},
 		})
 		return
@@ -234,20 +241,20 @@ func cmdScan(args []string) {
 	fmt.Printf("Findings persistidos en %s\n", fp)
 }
 
-// dataGapsFromFindings converts Auditor findings into data.gaps.v1 entries.
-// Bulk data-quality findings (including missing contact rows) are grouped by
-// (rule, endpoint, field) so we emit ONE gap entry per group with a count and
-// the list of affected record IDs, instead of one gap per record.
-// Schema gaps are emitted individually because they describe table structure.
-func dataGapsFromFindings(findings []checks.Finding) []map[string]interface{} {
-	gaps := []map[string]interface{}{}
-
+// dataGapsFromFindings converts Auditor findings into data.gaps.v1 entries
+// and data.quality.bulk.v1 entries. Bulk findings (actionability=bulk_migration)
+// are separated from user-completable/structural gaps.
+// Row-level findings are grouped by (rule, endpoint, field) to avoid flooding.
+func dataGapsFromFindings(findings []checks.Finding) (gaps []map[string]interface{}, bulk []map[string]interface{}) {
 	// Group noisy row-level rules by (rule, endpoint, field).
-	type groupKey struct{ rule, endpoint, field string }
+	type groupKey struct{ rule, endpoint, field, actionability string }
 	type groupData struct {
-		severity  string
-		fixHint   map[string]interface{}
-		recordIDs []string
+		severity      string
+		fixHint       map[string]interface{}
+		recordIDs     []string
+		affectedCount int
+		totalCount    int
+		affectedPct   float64
 	}
 	groups := map[groupKey]*groupData{}
 	var groupOrder []groupKey
@@ -256,22 +263,28 @@ func dataGapsFromFindings(findings []checks.Finding) []map[string]interface{} {
 		switch f.Rule {
 		case checks.RuleSchemaContactGap:
 			gaps = append(gaps, map[string]interface{}{
-				"artifact_type": "data.gap.v1",
-				"rule":          f.Rule,
-				"type":          "schema_contact_gap",
-				"severity":      f.Severity,
-				"endpoint":      f.Endpoint,
-				"record_id":     f.RecordID,
-				"field":         f.Field,
-				"message":       f.Message,
-				"fix_hint":      f.FixHint,
+				"artifact_type":  "data.gap.v1",
+				"rule":           f.Rule,
+				"type":           "schema_contact_gap",
+				"severity":       f.Severity,
+				"endpoint":       f.Endpoint,
+				"record_id":      f.RecordID,
+				"field":          f.Field,
+				"message":        f.Message,
+				"fix_hint":       f.FixHint,
+				"actionability":  f.Actionability,
 			})
 		case checks.RuleEmptyRequired, checks.RuleNullRequired, checks.RuleMissingContact:
-			// Bulk data-quality — group to avoid flooding.
-			key := groupKey{rule: f.Rule, endpoint: f.Endpoint, field: f.Field}
+			key := groupKey{rule: f.Rule, endpoint: f.Endpoint, field: f.Field, actionability: f.Actionability}
 			g, exists := groups[key]
 			if !exists {
-				g = &groupData{severity: f.Severity, fixHint: f.FixHint}
+				g = &groupData{
+					severity:      f.Severity,
+					fixHint:       f.FixHint,
+					affectedCount: f.AffectedCount,
+					totalCount:    f.TotalCount,
+					affectedPct:   f.AffectedPct,
+				}
 				groups[key] = g
 				groupOrder = append(groupOrder, key)
 			}
@@ -283,10 +296,10 @@ func dataGapsFromFindings(findings []checks.Finding) []map[string]interface{} {
 		}
 	}
 
-	// Emit grouped bulk gaps.
+	// Emit grouped gaps, separating bulk from user-completable/structural.
 	for _, key := range groupOrder {
 		g := groups[key]
-		label := "vacío"
+		label := "vacio"
 		gapType := key.rule
 		if key.rule == checks.RuleNullRequired {
 			label = "nulo"
@@ -298,8 +311,7 @@ func dataGapsFromFindings(findings []checks.Finding) []map[string]interface{} {
 		if len(g.recordIDs) == 1 {
 			msg = fmt.Sprintf("%s[%s].%s %s", key.endpoint, g.recordIDs[0], key.field, label)
 		}
-		gaps = append(gaps, map[string]interface{}{
-			"artifact_type": "data.gap.v1",
+		entry := map[string]interface{}{
 			"rule":          key.rule,
 			"type":          gapType,
 			"severity":      g.severity,
@@ -309,9 +321,22 @@ func dataGapsFromFindings(findings []checks.Finding) []map[string]interface{} {
 			"count":         len(g.recordIDs),
 			"record_ids":    g.recordIDs,
 			"fix_hint":      g.fixHint,
-		})
+			"actionability": key.actionability,
+		}
+		if g.totalCount > 0 {
+			entry["total_count"] = g.totalCount
+			entry["affected_pct"] = g.affectedPct
+		}
+		if key.actionability == checks.ActionabilityBulkMigration {
+			entry["artifact_type"] = "data.quality.bulk.v1"
+			entry["recommendation"] = "Ejecutar un script de migracion o importacion masiva para completar este campo en la fuente de datos."
+			bulk = append(bulk, entry)
+		} else {
+			entry["artifact_type"] = "data.gap.v1"
+			gaps = append(gaps, entry)
+		}
 	}
-	return gaps
+	return gaps, bulk
 }
 
 // ---------- list ----------

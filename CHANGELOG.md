@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.26] - 2026-05-12
+
+> **Release**: expandir flujo
+
+### Flujo
+
+- **api_rest/flow_prerequisites.go**: +15 / -18
+- **api_rest/flow_proposals.go**: funciones: parseDataQualityBulk
+- **api_rest/flow_gap_resolution.go**: funciones: (s *server) generateBulkMigrationArtifact
+
+### Repo
+
+- **main-multi-modo**: main.go soporta multiples modos (audit, explain, tree) (frameworkauditor/main.go)
+- **data/findings.json**: +18052 / -4324
+- **checks/checks.go**: +118 / -58
+- **checks/sqlite.go**: +8 / -7
+
 ## [0.1.25] - 2026-05-11
 
 > **Release**: expandir flujo
