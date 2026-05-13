@@ -56,6 +56,8 @@ type flowRunStep struct {
 	Command          string              `json:"command,omitempty"`
 	Role             string              `json:"role,omitempty"`
 	Visibility       string              `json:"visibility,omitempty"`
+	AnalysisPhase    string              `json:"analysis_phase,omitempty"`
+	Synthesized      bool                `json:"synthesized,omitempty"`
 	TriggeredBy      *flowStepTrigger    `json:"triggered_by,omitempty"`
 	ResolutionMode   string              `json:"resolution_mode,omitempty"`
 	CycleIndex       int                 `json:"cycle_index,omitempty"`

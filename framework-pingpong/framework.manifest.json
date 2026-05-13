@@ -25,6 +25,11 @@
       "args": ["next"],
       "params": []
     },
+    "review": {
+      "description": "Revisa el paso actual y lo auto-acepta si hay evidencia suficiente",
+      "args": ["review"],
+      "params": []
+    },
     "check": {
       "description": "Verifica el estado actual del código del usuario",
       "args": ["check"],
@@ -61,7 +66,7 @@
     "ask_via": "",
     "modes": ["short_answer"],
     "next_question_cmd": "next",
-    "ingest_answer_cmd": "check"
+    "ingest_answer_cmd": "review"
   },
   "capabilities_semantic": {
     "tags": ["tutor", "learning", "code", "exercises", "80-20"],

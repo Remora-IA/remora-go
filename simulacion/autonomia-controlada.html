@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Remora — Autonomia Controlada</title>
+<title>Asistente de cobranza — Simulación</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -19,21 +19,31 @@
     --accent-light: #ede9fe;
     --bar-fill: #d1d1d6;
     --bar-dark: #8e8e93;
-    --sidebar-w: 60px;
+    --sidebar-w: 320px;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;overflow:hidden;}
 
-  /* ── Icon sidebar ── */
-  .icon-sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:14px 0;flex-shrink:0;}
-  .icon-sidebar .logo{width:30px;height:30px;margin-bottom:24px;cursor:pointer;}
-  .sidebar-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:2px;cursor:pointer;color:var(--text-muted);transition:all .15s;position:relative;}
-  .sidebar-icon:hover{background:var(--surface);color:var(--text-secondary);}
-  .sidebar-icon.active{color:var(--accent);}
-  .sidebar-icon.active::before{content:'';position:absolute;left:-8px;width:3px;height:18px;background:var(--accent);border-radius:0 2px 2px 0;}
-  .sidebar-icon svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
-  .sidebar-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:2px;}
-  .sidebar-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;cursor:pointer;margin-top:6px;}
+  /* ── Context sidebar ── */
+  .context-sidebar{width:var(--sidebar-w);background:var(--white);border-right:1px solid var(--border);padding:18px 14px;overflow-y:auto;flex-shrink:0;}
+  .ctx-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .ctx-orb{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#c4b5fd,#7c3aed 50%,#5b21b6);}
+  .ctx-title{font-size:13px;font-weight:700;color:var(--text);}
+  .ctx-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
+  .ctx-section{margin-bottom:14px;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--white);}
+  .ctx-section h4{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--text-muted);margin-bottom:10px;}
+  .ctx-table{width:100%;border-collapse:collapse;font-size:12px;}
+  .ctx-table td{padding:6px 0;border-bottom:1px solid var(--border-light);color:var(--text-secondary);vertical-align:top;}
+  .ctx-table tr:last-child td{border-bottom:none;}
+  .ctx-table .val{font-weight:600;color:var(--text);text-align:right;padding-left:10px;}
+  .ctx-mini-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .ctx-mini-card{padding:10px;border-radius:10px;background:var(--surface);border:1px solid var(--border-light);}
+  .ctx-mini-card .n{font-size:18px;font-weight:800;color:var(--text);}
+  .ctx-mini-card .l{font-size:10px;color:var(--text-muted);margin-top:2px;}
+  .ctx-list{display:flex;flex-direction:column;gap:8px;}
+  .ctx-line{font-size:12px;color:var(--text-secondary);line-height:1.5;padding:8px 10px;background:var(--surface);border-radius:8px;border:1px solid var(--border-light);}
+  .ctx-line strong{color:var(--text);}
+  .ctx-foot{font-size:11px;color:var(--text-muted);line-height:1.5;}
 
   /* ── Main ── */
   .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
@@ -137,11 +147,6 @@
   .m-card .mv{font-size:20px;font-weight:800;color:var(--text);}
   .m-card .ml{font-size:10px;color:var(--text-muted);margin-top:2px;}
 
-  /* Delegation */
-  .dlg{margin-top:10px;padding:10px 14px;border-radius:8px;font-size:12px;border-left:3px solid var(--bar-dark);background:var(--surface);}
-  .dlg .dlg-l{font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;color:var(--text-secondary);}
-  .dlg .dlg-b{color:var(--text-secondary);line-height:1.5;}
-
   /* Sufficiency */
   .suf{margin-top:12px;font-size:11px;display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--surface);border-radius:6px;}
   .suf .suf-l{font-weight:600;white-space:nowrap;color:var(--text-secondary);}
@@ -168,35 +173,43 @@
   .ib-chip .chip-dot{width:6px;height:6px;border-radius:50%;background:#22c55e;}
 
   /* Right panel */
-  .right-panel{width:200px;border-left:1px solid var(--border);background:var(--white);padding:16px 12px;overflow-y:auto;flex-shrink:0;font-size:11px;}
+  .right-panel{width:220px;border-left:1px solid var(--border);background:var(--white);padding:16px 12px;overflow-y:auto;flex-shrink:0;font-size:11px;}
   .right-panel h4{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:8px;font-weight:700;}
   .rp-node{padding:6px 8px;border-radius:6px;margin-bottom:3px;border:1px solid transparent;color:var(--text-muted);font-size:11px;}
   .rp-node.active{border-color:var(--accent-light);background:var(--accent-light);color:var(--accent);font-weight:600;}
-  .rp-node.active.s0{border-color:#fde68a;background:#fffbeb;color:#92400e;}
   .rp-subs{padding-left:8px;border-left:2px solid var(--border-light);margin:3px 0 3px 6px;}
   .rp-subs .rp-sub{font-size:10px;padding:2px 0;color:var(--text-muted);}
   .rp-subs .rp-sub.active{color:var(--accent);font-weight:600;}
+  .rp-note{font-size:10px;color:var(--text-muted);line-height:1.45;margin-bottom:8px;}
+  .rp-question{border:1px solid var(--border);border-radius:8px;padding:8px 9px;margin-bottom:8px;background:#fff;}
+  .rp-question.active{border-color:var(--accent-light);background:var(--accent-light);}
+  .rp-question.done{border-color:#d5f3e3;background:#f3fcf7;}
+  .rp-q-title{font-size:11px;font-weight:700;color:var(--text-primary);line-height:1.35;margin-bottom:4px;}
+  .rp-question.active .rp-q-title{color:var(--accent);}
+  .rp-question.done .rp-q-title{color:#127a51;}
+  .rp-q-why{font-size:10px;color:var(--text-muted);line-height:1.4;margin-bottom:6px;}
+  .rp-q-list{padding-left:10px;border-left:2px solid var(--border-light);display:flex;flex-direction:column;gap:4px;}
+  .rp-q-item{font-size:10px;color:var(--text-muted);line-height:1.35;}
+  .rp-q-item.active{color:var(--accent);font-weight:600;}
+  .rp-q-item.done{color:#127a51;}
 
-  @media(max-width:1000px){.right-panel{display:none;}}
-  @media(max-width:700px){.icon-sidebar{display:none;}.chat-inner,.bottom-area{padding-left:14px;padding-right:14px;}}
+  @media(max-width:1200px){.right-panel{display:none;}}
+  @media(max-width:900px){.context-sidebar{display:none;}.chat-inner,.bottom-area{padding-left:14px;padding-right:14px;}}
   .mt-2{margin-top:6px;}.mt-3{margin-top:10px;}.hidden{display:none!important;}
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
-<div class="icon-sidebar">
-  <div class="logo"><svg viewBox="0 0 30 30" fill="none"><rect width="30" height="30" rx="7" fill="url(#g1)"/><defs><linearGradient id="g1" x1="0" y1="0" x2="30" y2="30"><stop stop-color="#a78bfa"/><stop offset="1" stop-color="#7c3aed"/></linearGradient></defs><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" font-family="Inter">R</text></svg></div>
-  <div class="sidebar-icon active"><svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H4a1 1 0 01-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg></div>
-  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
-  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
-  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg></div>
-  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg></div>
-  <div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98"/></svg></div>
-  <div class="sidebar-bottom">
-    <div class="sidebar-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
-    <div class="sidebar-avatar">TM</div>
+<!-- LEFT CONTEXT PANEL -->
+<div class="context-sidebar">
+  <div class="ctx-head">
+    <div class="ctx-orb"></div>
+    <div>
+      <div class="ctx-title" id="contextTitle">Contexto</div>
+      <div class="ctx-sub" id="contextSubtitle">Fuente delimitada: panalbit.sqlite</div>
+    </div>
   </div>
+  <div id="contextMount"></div>
 </div>
 
 <!-- MAIN -->
@@ -226,10 +239,10 @@
       </div>
     </div>
     <div class="welcome-examples">
-      <div class="we-card" onclick="startFromExample('Analiza la cartera morosa y prioriza')">Analizar cartera morosa<div class="we-icon">&#9634;</div></div>
-      <div class="we-card" onclick="startFromExample('Redacta cobranza para cliente critico')">Redactar cobranza<div class="we-icon">&#9993;</div></div>
-      <div class="we-card" onclick="startFromExample('Evalua riesgo de prescripcion')">Evaluar prescripcion<div class="we-icon">&#9201;</div></div>
-      <div class="we-card" onclick="startFromExample('Compara clientes similares')">Comparar clientes<div class="we-icon">&lt;/&gt;</div></div>
+      <div class="we-card" onclick="startFromExample('Muéstrame los 100 casos más urgentes de hoy')">Priorizar cartera<div class="we-icon">&#9634;</div></div>
+      <div class="we-card" onclick="startFromExample('Analiza al deudor más prioritario')">Diagnóstico 360<div class="we-icon">&#9993;</div></div>
+      <div class="we-card" onclick="startFromExample('Qué ejecutivos tienen más cartera atrasada')">Ejecutivos atrasados<div class="we-icon">&#9201;</div></div>
+      <div class="we-card" onclick="startFromExample('Qué casos tienen datos incompletos')">Datos incompletos<div class="we-icon">&lt;/&gt;</div></div>
     </div>
   </div>
 
@@ -244,10 +257,10 @@
     <div class="bottom-area">
       <div class="action-strip" id="actionStrip" style="display:none;"></div>
       <div class="input-box">
-        <textarea rows="1" placeholder="Escribe un mensaje..." disabled></textarea>
+        <textarea rows="1" placeholder="Escribe un mensaje..." id="chatInput"></textarea>
         <div class="input-box-f">
           <button class="ib-chip"><span class="chip-dot"></span> gammav1</button>
-          <button class="send-btn"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+          <button class="send-btn" id="chatSend"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
         </div>
       </div>
     </div>
@@ -256,247 +269,360 @@
 
 <!-- RIGHT PANEL -->
 <div class="right-panel" id="rightPanel">
-  <h4>Proceso</h4>
-  <div class="rp-node active s0" id="nodeS0">Deteccion</div>
-  <div class="rp-node" id="nodeS1">Analisis
-    <div class="rp-subs">
-      <div class="rp-sub" id="subExplore">Exploracion</div>
-      <div class="rp-sub" id="subSynth">Sintesis</div>
-      <div class="rp-sub" id="subDecision">Decision</div>
-    </div>
-  </div>
-  <div class="rp-node" id="nodeS2">Accion</div>
-  <div class="rp-node" id="nodeS3">Completado</div>
+  <h4 id="rightPanelTitle">Agenda de análisis</h4>
+  <div id="rightPanelMount"></div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
 const msgs=$('messages');
-let currentStep=0;
+
+const state={
+  sessionId:null,
+  context:null,
+  agenda:null,
+  phase:'exploring',
+  busy:false,
+};
 
 function scrollBottom(){setTimeout(()=>{$('chatScroll').scrollTop=$('chatScroll').scrollHeight;},50);}
+function enterChat(){$('welcomeScreen').style.display='none';$('chatView').classList.add('visible');$('globalBadge').style.display='';}
+function escapeAttr(s){return String(s).replace(/'/g,"\'");}
+function escapeHtml(s){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');}
+function makeBr(label,pct,val,accent){return `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill ${accent?'accent':'dark'}" style="width:${pct}%">${pct>25?(val||''):''}</div></div><div class="bar-value">${val||pct+'%'}</div></div>`;}
 
-function enterChat(){
-  $('welcomeScreen').style.display='none';
-  $('chatView').classList.add('visible');
-  $('globalBadge').style.display='';
+function setPhase(phase){
+  state.phase=phase||'exploring';
+  const ob=$('ownerBanner'),gl=$('globalBadge'),ol=$('ownerLabel');
+  const map={
+    exploring:  ()=>{gl.className='state-badge analyzing';gl.textContent='Analizando';ob.className='owner-banner active';ol.textContent='Analizando';},
+    synthesizing:()=>{gl.className='state-badge analyzing';gl.textContent='Sintetizando';ob.className='owner-banner active';ol.textContent='Sintetizando';},
+    deciding:   ()=>{gl.className='state-badge analyzing';gl.textContent='Decidiendo';ob.className='owner-banner active';ol.textContent='Decidiendo';},
+    acting:     ()=>{gl.className='state-badge idle';gl.textContent='Ejecutando';ob.className='owner-banner idle';ol.textContent='Ejecutando';},
+    done:       ()=>{gl.className='state-badge done';gl.textContent='Completado';ob.className='owner-banner idle';ol.textContent='Completado';}
+  };
+  (map[state.phase]||map.exploring)();
 }
-function startFromExample(text){enterChat();nextStep();}
-$('welcomeSend').onclick=()=>{enterChat();nextStep();};
-$('welcomeInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();enterChat();nextStep();}});
 
-function addMsg(sender,cls,html){
-  const map={radar:'R',foco:'F',user:'T'};
+function addMsg(cls,html){
   const div=document.createElement('div');
   if(cls==='user'){
     div.className='msg user-msg';
-    div.innerHTML=`<div class="msg-header"><span class="msg-name">Tu</span><div class="msg-avatar user">${map[cls]}</div></div><div class="msg-body"><div class="user-bubble">${html}</div></div>`;
+    div.innerHTML=`<div class="msg-header"><span class="msg-name">Tu</span><div class="msg-avatar user">T</div></div><div class="msg-body"><div class="user-bubble">${html}</div></div>`;
   } else {
     div.className='msg';
-    div.innerHTML=`<div class="msg-header"><div class="msg-avatar ${cls}">${map[cls]}</div><span class="msg-name">${sender}</span></div><div class="msg-body">${html}</div>`;
+    div.innerHTML=`<div class="msg-header"><div class="msg-avatar ai"></div></div><div class="msg-body">${html}</div>`;
   }
   msgs.appendChild(div);scrollBottom();
 }
 
-function dlg(label,body){return `<div class="dlg"><div class="dlg-l">${label}</div><div class="dlg-b">${body}</div></div>`;}
-function suf(pct){return `<div class="suf"><span class="suf-l">Suficiencia:</span><div class="suf-bar"><div class="suf-fill" style="width:${pct}%"></div></div><span class="suf-p">${pct}%</span></div>`;}
-function br(label,pct,valText,accent){return `<div class="bar-row"><div class="bar-label">${label}</div><div class="bar-track"><div class="bar-fill ${accent?'accent':'dark'}" style="width:${pct}%">${pct>25?valText||'':''}</div></div><div class="bar-value">${valText||pct+'%'}</div></div>`;}
-
-function setStateTo(state,sub){
-  ['nodeS0','nodeS1','nodeS2','nodeS3'].forEach(id=>{$(id).classList.remove('active','s0');});
-  ['subExplore','subSynth','subDecision'].forEach(id=>$(id).classList.remove('active'));
-  const ob=$('ownerBanner'),gl=$('globalBadge'),ol=$('ownerLabel');
-  if(state==='S0'){$('nodeS0').classList.add('active','s0');gl.className='state-badge foco';gl.textContent='S0 Foco';ob.className='owner-banner foco';ol.textContent='Foco conduce';}
-  else if(state==='S1'){$('nodeS1').classList.add('active');gl.className='state-badge radar';gl.textContent='S1 Radar';ob.className='owner-banner radar';ol.textContent='Radar conduce el analisis';if(sub)$(sub).classList.add('active');}
-  else if(state==='S2'){$('nodeS2').classList.add('active');gl.className='state-badge foco';gl.textContent='S2 Retorno';ob.className='owner-banner foco';ol.textContent='Foco retoma';}
-  else if(state==='S3'){$('nodeS3').classList.add('active');gl.className='state-badge closed';gl.textContent='S3 Cerrado';ob.className='owner-banner foco';ol.textContent='Cerrado';}
+function addTyping(){
+  const div=document.createElement('div');div.id='typingMsg';div.className='msg';
+  div.innerHTML=`<div class="msg-header"><div class="msg-avatar ai"></div></div><div class="msg-body"><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+  msgs.appendChild(div);scrollBottom();
 }
-function showActions(s){$('actionStrip').style.display=s?'flex':'none';}
-function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function removeTyping(){const t=$('typingMsg');if(t)t.remove();}
 
-const steps=[
-
-// STEP 0: Foco — conversational alert
-async function(){
-  setStateTo('S0');showActions(false);
-  addMsg('Foco','foco',
-    'Tengo un caso que necesita tu atencion. <strong>Acme Corp</strong> nos debe <strong>$45,200</strong> en 3 facturas y llevan <strong>62 dias de mora</strong>. No han respondido a ningun intento de contacto hasta ahora.'+
-    '<div class="m-grid mt-2">'+
-      '<div class="m-card"><div class="mv">$45.2k</div><div class="ml">Deuda</div></div>'+
-      '<div class="m-card"><div class="mv">62d</div><div class="ml">Mora</div></div>'+
-      '<div class="m-card"><div class="mv">3</div><div class="ml">Facturas</div></div>'+
-      '<div class="m-card"><div class="mv">0</div><div class="ml">Respuestas</div></div>'+
-    '</div>'
-  );
-  await delay(300);
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="nextStep()">Analizar caso</button><button class="action-btn" onclick="alert('Mockup')">Contactar directo</button><button class="action-btn muted" onclick="alert('Mockup')">Siguiente caso</button>`;
-  showActions(true);
-},
-
-// STEP 1: Radar — verbal analysis + score
-async function(){
-  showActions(false);
-  addMsg('Tu','user','Analizar caso');
-  await delay(600);
-  setStateTo('S1','subExplore');
-
-  addMsg('Radar','radar',
-    'Revise a Acme Corp en detalle. El caso tiene un score de urgencia de <strong>78/100</strong>, lo que lo coloca en <strong>Nivel 2</strong> — seguimiento intensivo. Esta cerca de ser critico.'+
-
-    '<div class="a-card mt-2"><div class="a-card-b">'+
-      '<div class="score-row"><div class="score-num">78<span class="sn-sub">/100</span></div><div class="score-meta"><div class="sm-title">Nivel 2 — Seguimiento Intensivo</div></div></div>'+
-      br('Materialidad',82,'33/40',true)+br('Comportamiento',70,'21/30')+br('Riesgo Legal',80,'24/30')+
-    '</div></div>'+
-
-    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'Lo que mas me preocupa es el peso financiero: Acme representa el <strong>18.2%</strong> de tu portafolio, que es una concentracion alta. Ademas, el comportamiento de pago cambio de forma abrupta — pagaban en promedio cada 28 dias, y a partir de junio dejaron de pagar completamente. No fue gradual.'+
-    '</div>'+
-    '<div class="mt-2" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'Le pedi a <strong>Sabio</strong> que revisara el patron y encontro que el quiebre coincide con un cambio de contacto financiero en junio del 2025. Eso sugiere que es un evento puntual — no evasion sistematica. Hay espacio para recuperar, pero necesito revisar el riesgo legal antes de recomendar algo.'+
-    '</div>'+
-    suf(40)
-  );
-  await delay(300);
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('profundiza')">Profundizar riesgo legal</button><button class="action-btn" onclick="runSubStep('actuar')">Actuar con lo disponible</button><button class="action-btn muted" onclick="runSubStep('salir')">Dejar</button>`;
-  showActions(true);
-},
-
-// STEP 2: Legal — verbal with minimal data
-async function(){
-  showActions(false);
-  addMsg('Tu','user','Profundizar riesgo legal');
-  await delay(800);
-  setStateTo('S1','subExplore');
-
-  addMsg('Radar','radar',
-    'Delegue dos tareas: le pedi a <strong>Sabio</strong> que revise la prescripcion aplicable y compare con clientes similares, y a <strong>Auditor</strong> que valide los titulos ejecutivos.'+
-
-    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'La buena noticia es que <strong>la prescripcion no es un riesgo</strong>. Aplica el plazo de 2 anos del Art. 2521, y solo han consumido 62 de 730 dias. Quedan 668 dias de margen — tiempo de sobra para actuar sin presion legal.'+
-    '</div>'+
-
-    '<div class="mt-2" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'Ahora, hay un detalle importante con los titulos: <strong>2 de las 3 facturas tienen merito ejecutivo</strong>, pero la factura #2847 por $12,300 no. Si llega a juicio, esa tendria que ir por via ordinaria, que es mas lenta. Auditor recomienda incluirla de todas formas en la gestion prejudicial.'+
-    '</div>'+
-
-    '<div class="a-card mt-2"><div class="a-card-b">'+
-      '<table class="d-table">'+
-        '<tr><td>Prescripcion</td><td class="val">668 dias restantes</td><td><span class="tag">Sin riesgo</span></td></tr>'+
-        '<tr><td>Titulos ejecutivos</td><td class="val">2 de 3 facturas</td></tr>'+
-        '<tr><td>Sin titulo</td><td class="val">#2847 ($12.3k)</td><td><span class="tag alert">Via ordinaria</span></td></tr>'+
-      '</table>'+
-    '</div></div>'+
-
-    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'Sabio tambien comparo con <strong>12 clientes similares</strong> en manufactura con montos entre $30k-$60k y mora mayor a 45 dias. La estrategia que mejor funciono fue <strong>escalar directamente a gerencia financiera — 72% de exito</strong>. Enviar correos estandar tuvo solo 33%. La diferencia es grande.'+
-    '</div>'+
-    '<div class="mt-2" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'Lo unico que me falta para darte una recomendacion firme es verificar que el contacto actual — <strong>Laura Mendez</strong> — siga activa como tesorera.'+
-    '</div>'+
-    suf(65)
-  );
-  await delay(300);
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('profundiza2')">Verificar contacto</button><button class="action-btn" onclick="runSubStep('actuar')">Actuar con lo disponible</button><button class="action-btn muted" onclick="runSubStep('salir')">Dejar</button>`;
-  showActions(true);
-},
-
-// STEP 3: Synthesis — verbal recommendation
-async function(){
-  showActions(false);
-  addMsg('Tu','user','Verificar contacto');
-  await delay(800);
-  setStateTo('S1','subSynth');
-
-  addMsg('Radar','radar',
-    'Sabio verifico el contacto. <strong>Laura Mendez sigue activa</strong> como Tesorera desde junio 2025, tiene firma autorizada y su correo (lmendez@acmecorp.cl) esta vigente.'+
-
-    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'Con esto ya tengo todo lo necesario. Mi recomendacion es clara:'+
-    '</div>'+
-
-    '<div class="a-card mt-2"><div class="a-card-h">Recomendacion</div><div class="a-card-b" style="line-height:1.7;">'+
-      '<div style="font-size:13px;color:var(--text-secondary);">'+
-        '<strong style="color:var(--text)">Escalar a Laura Mendez</strong> (Tesorera)<br>'+
-        'Probabilidad de recupero: <strong>72%</strong><br>'+
-        'Plan B: carta notarial a 15 dias (62%)'+
-      '</div>'+
-    '</div></div>'+
-
-    '<div class="mt-3" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">'+
-      'No creo que valga la pena seguir analizando. La evidencia es suficiente y el patron es claro: hubo un cambio de persona, no una decision de no pagar. Un escalamiento profesional directo a la tesorera tiene la mejor probabilidad de resultado. Si no responde en 15 dias, pasamos a carta notarial.'+
-    '</div>'+
-    suf(92)
-  );
-  await delay(300);
-  setStateTo('S1','subDecision');
-  $('actionStrip').innerHTML=`<button class="action-btn" onclick="runSubStep('profundiza3')">Seguir analizando</button><button class="action-btn primary" onclick="runSubStep('actuar')">Actuar — escalar</button><button class="action-btn muted" onclick="runSubStep('salir')">Dejar</button>`;
-  showActions(true);
-},
-
-// STEP 4: Handoff to Foco
-async function(){
-  showActions(false);
-  addMsg('Tu','user','Actuar.');
-  await delay(500);
-  addMsg('Radar','radar','Perfecto. Cierro el analisis y le transfiero el caso a Foco con toda la evidencia y la recomendacion de escalamiento a Laura Mendez.');
-  await delay(700);
-  setStateTo('S2');
-  addMsg('Foco','foco','Recibi el caso. Voy a preparar un borrador de correo a <strong>Laura Mendez</strong> con tono de escalamiento profesional — firme pero respetuoso, considerando que llevan 3.2 anos como cliente. Te lo muestro antes de enviarlo.');
-  await delay(300);
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('draft')">Si, redacta</button><button class="action-btn" onclick="alert('Mockup')">Ajustar tono</button><button class="action-btn muted" onclick="alert('Mockup')">Cancelar</button>`;
-  showActions(true);
-},
-
-// STEP 5: Draft
-async function(){
-  showActions(false);
-  addMsg('Tu','user','Si, redacta.');
-  await delay(600);
-  addMsg('Foco','foco',
-    'Listo. Redacte el borrador manteniendo un tono profesional. Menciono las 3 facturas con montos especificos para que no haya ambiguedad, y cierro con apertura a coordinar solucion:'+
-    '<div class="a-card mt-2"><div class="a-card-b" style="font-size:13px;line-height:1.8;">'+
-      '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;"><strong>Para:</strong> lmendez@acmecorp.cl &nbsp;&middot;&nbsp; <strong>Asunto:</strong> Facturas pendientes Acme Corp</div>'+
-      '<div style="padding:12px;background:var(--surface);border-radius:8px;border:1px solid var(--border-light);">'+
-        'Estimada Laura,<br><br>Nos comunicamos por <strong>3 facturas pendientes</strong> por $45,200 USD (62 dias mora):<br>'+
-        '- #2845 — $18,400<br>- #2846 — $14,500<br>- #2847 — $12,300<br><br>'+
-        'Valoramos la relacion con Acme Corp. Quisieramos coordinar una solucion a la brevedad.<br><br>Atentamente,<br><em>[Firma]</em>'+
-      '</div></div></div>'
-  );
-  await delay(300);
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="runSubStep('fin')">Enviar</button><button class="action-btn" onclick="alert('Mockup')">Editar</button>`;
-  showActions(true);
-},
-
-// STEP 6: Fin
-async function(){
-  showActions(false);
-  addMsg('Tu','user','Enviar.');
-  await delay(400);
-  addMsg('Foco','foco','Enviado. Programe una alerta automatica a 15 dias — si Laura no responde, te notifico para evaluar la carta notarial como Plan B.');
-  setStateTo('S0');
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="alert('Mockup')">Siguiente caso</button><button class="action-btn muted" onclick="location.reload()">Reiniciar</button>`;
-  showActions(true);
-}
-];
-
-async function exitBranch(){
-  showActions(false);
-  addMsg('Tu','user','Dejalo, pasemos al siguiente.');
-  await delay(400);
-  addMsg('Radar','radar','Entendido. Cierro analisis sin acciones. Contexto guardado.');
-  setStateTo('S3');await delay(500);setStateTo('S0');
-  addMsg('Foco','foco','Siguiente caso?');
-  $('actionStrip').innerHTML=`<button class="action-btn primary" onclick="alert('Mockup')">Siguiente caso</button><button class="action-btn muted" onclick="location.reload()">Reiniciar</button>`;
-  showActions(true);
+function renderResponse(r){
+  let html='';
+  if(r.text) html+=`<div style="font-size:14px;color:var(--text-secondary);line-height:1.7;">${r.text}</div>`;
+  if(r.bars&&r.bars.length) html+=`<div class="a-card mt-2"><div class="a-card-b">${r.bars.map(b=>makeBr(b.label,b.pct,b.val,b.accent)).join('')}</div></div>`;
+  if(r.metrics&&r.metrics.length) html+=`<div class="m-grid mt-2">${r.metrics.map(m=>`<div class="m-card"><div class="mv">${m.value}</div><div class="ml">${m.label}</div></div>`).join('')}</div>`;
+  if(r.table&&r.table.rows&&r.table.rows.length){
+    html+=`<div class="a-card mt-2">${r.table.header?`<div class="a-card-h">${r.table.header}</div>`:''}<div class="a-card-b"><table class="d-table">${r.table.rows.map(row=>`<tr>${row.map((c,i)=>`<td${i===0?' class="val"':''}>${c}</td>`).join('')}</tr>`).join('')}</table></div></div>`;
+  }
+  return html;
 }
 
-async function nextStep(){if(currentStep<steps.length)await steps[currentStep++]();}
-function runSubStep(t){
-  if(t==='salir'){exitBranch();return;}
-  if(t==='draft'||t==='fin'){nextStep();return;}
-  if(t.startsWith('profundiza')){nextStep();return;}
-  if(t==='actuar'){currentStep=4;nextStep();return;}
+function normalizeActions(actions){
+  let items=Array.isArray(actions)?actions.filter(a=>a&&a.label):[];
+  const hasSeguir=items.some(a=>a.label==='Seguir analizando');
+  if(!hasSeguir) items.unshift({label:'Seguir analizando'});
+  items=items.slice(0,3);
+  while(items.length<3){
+    const fallback=[
+      {label:'Actuar con la información disponible'},
+      {label:'Pausar este caso', muted:true}
+    ].find(f=>!items.some(a=>a.label===f.label));
+    if(fallback) items.push(fallback); else break;
+  }
+  let primaryIndex=items.findIndex(a=>a.primary);
+  if(primaryIndex===-1){
+    primaryIndex=items.findIndex(a=>a.label!=='Seguir analizando');
+    if(primaryIndex===-1) primaryIndex=0;
+  }
+  items=items.map((a,i)=>({...a, primary:i===primaryIndex, muted:i!==primaryIndex && !!a.muted}));
+  return items.slice(0,3);
 }
+
+function renderActions(actions){
+  const strip=$('actionStrip');
+  const normalized=normalizeActions(actions);
+  strip.innerHTML=normalized.map(a=>{
+    const cls=a.primary?'primary':(a.muted?'muted':'');
+    return `<button class="action-btn ${cls}" onclick="handleAction('${escapeAttr(a.label)}')">${a.label}</button>`;
+  }).join('');
+  strip.style.display='flex';
+}
+
+function fmtMoney(value){
+  const n=Number(value||0);
+  if(!Number.isFinite(n)) return '0';
+  return n.toLocaleString('es-CL',{maximumFractionDigits:0});
+}
+
+function renderContextSidebar(ctx){
+  const mount=$('contextMount');
+  if(!ctx){mount.innerHTML='';return;}
+  $('contextTitle').textContent=ctx.title||'Contexto';
+  $('contextSubtitle').textContent=ctx.subtitle||'Fuente delimitada: panalbit.sqlite';
+  if(ctx.view==='portfolio'&&ctx.portfolio){
+    const p=ctx.portfolio;
+    mount.innerHTML=`
+      <div class="ctx-section">
+        <h4>Universo</h4>
+        <div class="ctx-mini-grid">
+          <div class="ctx-mini-card"><div class="n">${p.summary.clients}</div><div class="l">Clientes</div></div>
+          <div class="ctx-mini-card"><div class="n">${p.summary.clients_with_pending}</div><div class="l">Con pendiente</div></div>
+          <div class="ctx-mini-card"><div class="n">${p.summary.open_charges}</div><div class="l">Abiertos</div></div>
+          <div class="ctx-mini-card"><div class="n">${p.summary.partial_charges}</div><div class="l">Pagos parciales</div></div>
+          <div class="ctx-mini-card"><div class="n">${p.summary.active_collectable_projects}</div><div class="l">Proyectos cobrables</div></div>
+          <div class="ctx-mini-card"><div class="n">${fmtMoney(p.summary.known_open_amount)}</div><div class="l">Monto conocido</div></div>
+        </div>
+      </div>
+      ${p.priority_schema?`<div class="ctx-section">
+        <h4>Esquema de priorización</h4>
+        <div class="ctx-list">
+          <div class="ctx-line"><strong>${p.priority_schema.schema_id}</strong></div>
+          <div class="ctx-line">${p.priority_schema.description||'Sin descripción'}</div>
+        </div>
+      </div>`:''}
+      <div class="ctx-section">
+        <h4>Top prioridades</h4>
+        <div class="ctx-list">${(p.top_priorities||[]).map(item=>`<div class="ctx-line"><strong>${item.rank}. ${item.debtor}</strong><br>${item.priority} · ${item.dominant_criterion?escapeHtml(item.dominant_criterion.replaceAll('_',' / '))+' · ':''}${item.motive}<br><strong>${item.suggested_action}</strong></div>`).join('')}</div>
+      </div>
+      <div class="ctx-section">
+        <h4>Ejecutivos</h4>
+        <div class="ctx-list">${(p.executive_load||[]).map(item=>`<div class="ctx-line"><strong>${item.executive}</strong>: ${item.open_charges} abiertos · ${item.clients} clientes</div>`).join('')}</div>
+      </div>
+      <div class="ctx-section">
+        <h4>Datos incompletos</h4>
+        <div class="ctx-list">${(p.data_quality||[]).map(item=>`<div class="ctx-line"><strong>${item.debtor}</strong><br>${(item.primary_issues||[]).join(' · ')}</div>`).join('')}</div>
+      </div>
+    `;
+    return;
+  }
+  const debtor=ctx.debtor||ctx;
+  const selected=ctx.selected_priority||null;
+  mount.innerHTML=`
+    <div class="ctx-section">
+      <h4>Cliente</h4>
+      <table class="ctx-table">
+        <tr><td>Nombre</td><td class="val">${debtor.profile.name}</td></tr>
+        <tr><td>Código</td><td class="val">${debtor.profile.code}</td></tr>
+        <tr><td>Activo</td><td class="val">${debtor.profile.active?'Sí':'No'}</td></tr>
+        <tr><td>Inicio acuerdo</td><td class="val">${debtor.profile.agreement_start_date||'Sin dato'}</td></tr>
+        <tr><td>Moneda</td><td class="val">${debtor.profile.currency||'Sin dato'}</td></tr>
+        <tr><td>Idioma</td><td class="val">${debtor.profile.language||'Sin dato'}</td></tr>
+      </table>
+    </div>
+    ${selected?`<div class="ctx-section">
+      <h4>Prioridad actual</h4>
+      <div class="ctx-list">
+        <div class="ctx-line"><strong>${selected.priority}</strong> · score ${selected.score}</div>
+        <div class="ctx-line">${selected.motive}</div>
+        <div class="ctx-line"><strong>Acción</strong>: ${selected.suggested_action}</div>
+      </div>
+    </div>`:''}
+    <div class="ctx-section">
+      <h4>Resumen</h4>
+      <div class="ctx-mini-grid">
+        <div class="ctx-mini-card"><div class="n">${debtor.counts.projects}</div><div class="l">Proyectos</div></div>
+        <div class="ctx-mini-card"><div class="n">${debtor.counts.agreements}</div><div class="l">Acuerdos</div></div>
+        <div class="ctx-mini-card"><div class="n">${debtor.counts.charges}</div><div class="l">Cargos</div></div>
+        <div class="ctx-mini-card"><div class="n">${debtor.counts.documents}</div><div class="l">Documentos</div></div>
+        <div class="ctx-mini-card"><div class="n">${debtor.counts.payments}</div><div class="l">Pagos</div></div>
+        <div class="ctx-mini-card"><div class="n">${debtor.counts.openCharges}</div><div class="l">Pendientes</div></div>
+      </div>
+    </div>
+    <div class="ctx-section">
+      <h4>MERE</h4>
+      <div class="ctx-list">${debtor.mere.map(r=>`<div class="ctx-line"><strong>${r.from}</strong> → <strong>${r.to}</strong> (${r.count})</div>`).join('')}</div>
+    </div>
+    <div class="ctx-section">
+      <h4>Mapa de relaciones</h4>
+      <div class="ctx-list">${debtor.relationMap.map(x=>`<div class="ctx-line">${x}</div>`).join('')}${debtor.highlights.map(x=>`<div class="ctx-line">${x}</div>`).join('')}</div>
+    </div>
+    <div class="ctx-section">
+      <h4>Ámbitos de conteo</h4>
+      <div class="ctx-list">
+        <div class="ctx-line"><strong>Cliente total</strong>: ${debtor.scopeMetrics.client.charges} cargos, ${debtor.scopeMetrics.client.documents} documentos, ${debtor.scopeMetrics.client.payments} pagos</div>
+        <div class="ctx-line"><strong>Proyectos activos</strong>: ${debtor.scopeMetrics.activeProjects.projects} proyectos, ${debtor.scopeMetrics.activeProjects.charges} cargos, ${debtor.scopeMetrics.activeProjects.pending} pendientes</div>
+        <div class="ctx-line"><strong>Activos y cobrables</strong>: ${debtor.scopeMetrics.activeCollectableProjects.projects} proyecto${debtor.scopeMetrics.activeCollectableProjects.projects===1?'':'s'}, ${debtor.scopeMetrics.activeCollectableProjects.charges} cargos, ${debtor.scopeMetrics.activeCollectableProjects.pending} pendiente${debtor.scopeMetrics.activeCollectableProjects.pending===1?'':'s'}</div>
+      </div>
+    </div>
+    <div class="ctx-section">
+      <h4>Vacíos detectados</h4>
+      <div class="ctx-list">${debtor.gaps.map(x=>`<div class="ctx-line">${x}</div>`).join('')}</div>
+    </div>
+  `;
+}
+
+function agendaGroupState(group){
+  if(!group||!Array.isArray(group.items)) return 'pending';
+  if(group.items.every(item=>item.status==='done')) return 'done';
+  if(group.items.some(item=>item.status==='active')) return 'active';
+  return 'pending';
+}
+
+function activeSubIndexForGroup(group){
+  return group?.items?.findIndex(item=>item.status==='active')??-1;
+}
+
+function renderRightPanelAgenda(){
+  const mount=$('rightPanelMount');
+  if(!mount) return;
+  $('rightPanelTitle').textContent=state.context?.view==='portfolio'?'Agenda gerencial':'Agenda de análisis';
+  if(!state.agenda||!state.agenda.length){
+    mount.innerHTML=`<div class="rp-note">La IA generará una agenda de preguntas al iniciar el análisis detallado. Luego, cada “Seguir analizando” profundizará una pregunta concreta.</div>`;
+    return;
+  }
+  mount.innerHTML=`<div class="rp-note">La agenda guía el análisis como lo haría alguien de cobranzas: primero foco, luego urgencia y finalmente acción.</div>`+state.agenda.map((group)=>{
+    const st=agendaGroupState(group);const activeSub=activeSubIndexForGroup(group);
+    return `<div class="rp-question ${st}"><div class="rp-q-title">${group.title}</div><div class="rp-q-why">${group.why}</div><div class="rp-q-list">${group.items.map((item,itemIdx)=>{const cls=item.status==='done'?'done':(itemIdx===activeSub&&st==='active'?'active':'');return `<div class="rp-q-item ${cls}">${item.text}</div>`;}).join('')}</div></div>`;
+  }).join('');
+}
+
+async function api(url, options={}){
+  const response=await fetch(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});
+  const data=await response.json().catch(()=>({error:'Respuesta inválida del servidor'}));
+  if(!response.ok) throw new Error(data.error||`HTTP ${response.status}`);
+  return data;
+}
+
+function applyEnvelope(payload){
+  if(payload.context){
+    state.context=payload.context;
+    renderContextSidebar(state.context);
+  }
+  if(payload.session_id) state.sessionId=payload.session_id;
+  if(payload.agenda) state.agenda=payload.agenda;
+  if(payload.phase) state.phase=payload.phase;
+  renderRightPanelAgenda();
+}
+
+async function bootstrap(){
+  try{
+    const payload=await api('/api/bootstrap');
+    applyEnvelope(payload);
+    setPhase(payload.phase||'exploring');
+  }catch(err){
+    $('contextMount').innerHTML=`<div class="ctx-section"><div class="ctx-foot">No pude cargar el contexto: ${escapeHtml(err.message)}</div></div>`;
+    $('rightPanelMount').innerHTML=`<div class="rp-note">No pude inicializar la sesión.</div>`;
+  }
+}
+
+async function sendChat(text){
+  const prompt=String(text||'').trim();
+  if(!prompt||state.busy||!state.sessionId)return;
+  state.busy=true;
+  $('actionStrip').style.display='none';
+  addMsg('user',escapeHtml(prompt));
+  addTyping();
+  try{
+    const payload=await api('/api/chat',{method:'POST',body:JSON.stringify({session_id:state.sessionId,text:prompt})});
+    removeTyping();
+    applyEnvelope(payload);
+    if(payload.response?.phase) setPhase(payload.response.phase);
+    const html=renderResponse(payload.response||{});
+    addMsg('ai',html);
+    if(payload.response?.actions?.length) renderActions(payload.response.actions);
+  }catch(err){
+    removeTyping();
+    addMsg('ai',`<div style="font-size:14px;color:var(--text-secondary);line-height:1.7;">${escapeHtml(err.message)}</div>`);
+  }finally{
+    state.busy=false;
+  }
+}
+
+async function submitInitialPrompt(text){
+  const prompt=String(text||'').trim();
+  if(!prompt||state.busy)return;
+  enterChat();
+  setPhase('exploring');
+  await sendChat(prompt);
+}
+
+async function submitChatPrompt(text){
+  const prompt=String(text||'').trim();
+  if(!prompt||state.busy)return;
+  await sendChat(prompt);
+}
+
+async function configureGroqKey(){
+  const entered=window.prompt('Ingresa tu Groq API key para guardarla en esta sesión:', '');
+  if(!entered) return null;
+  return api('/api/config/groq',{method:'POST',body:JSON.stringify({session_id:state.sessionId,api_key:String(entered).trim()})});
+}
+
+async function handleAction(label){
+  if(state.busy||!state.sessionId)return;
+  if(label==='Ingresar API key'){
+    state.busy=true;
+    $('actionStrip').style.display='none';
+    addMsg('user',escapeHtml(label));
+    addTyping();
+    try{
+      const payload=await configureGroqKey();
+      removeTyping();
+      if(!payload){
+        addMsg('ai','<div style="font-size:14px;color:var(--text-secondary);line-height:1.7;">No guardé ninguna key. Si quieres, puedes intentarlo otra vez.</div>');
+        renderActions([{label:'Seguir analizando',muted:true},{label:'Ingresar API key',primary:true},{label:'Pausar este caso'}]);
+      } else {
+        applyEnvelope(payload);
+        if(payload.response?.phase) setPhase(payload.response.phase);
+        addMsg('ai',renderResponse(payload.response||{}));
+        if(payload.response?.actions?.length) renderActions(payload.response.actions);
+      }
+    }catch(err){
+      removeTyping();
+      addMsg('ai',`<div style="font-size:14px;color:var(--text-secondary);line-height:1.7;">${escapeHtml(err.message)}</div>`);
+    }finally{
+      state.busy=false;
+    }
+    return;
+  }
+  state.busy=true;
+  $('actionStrip').style.display='none';
+  addMsg('user',escapeHtml(label));
+  addTyping();
+  try{
+    const payload=await api('/api/action',{method:'POST',body:JSON.stringify({session_id:state.sessionId,label})});
+    removeTyping();
+    applyEnvelope(payload);
+    if(payload.response?.phase) setPhase(payload.response.phase);
+    addMsg('ai',renderResponse(payload.response||{}));
+    if(payload.response?.actions?.length) renderActions(payload.response.actions);
+  }catch(err){
+    removeTyping();
+    addMsg('ai',`<div style="font-size:14px;color:var(--text-secondary);line-height:1.7;">${escapeHtml(err.message)}</div>`);
+  }finally{
+    state.busy=false;
+  }
+}
+
+function startFromExample(text){$('welcomeInput').value=text||'';submitInitialPrompt(text);}
+$('welcomeSend').onclick=()=>{const v=$('welcomeInput').value;$('welcomeInput').value='';submitInitialPrompt(v);};
+$('welcomeInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=$('welcomeInput').value;$('welcomeInput').value='';submitInitialPrompt(v);}});
+$('chatSend').onclick=()=>{const v=$('chatInput').value;$('chatInput').value='';submitChatPrompt(v);};
+$('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();const v=$('chatInput').value;$('chatInput').value='';submitChatPrompt(v);}});
+
+window.handleAction=handleAction;
+window.startFromExample=startFromExample;
+
+renderRightPanelAgenda();
+bootstrap();
 </script>
+<style>.typing-dots span{display:inline-block;animation:blink 1.4s infinite both;font-size:24px;line-height:1;color:var(--text-muted);}.typing-dots span:nth-child(2){animation-delay:.2s;}.typing-dots span:nth-child(3){animation-delay:.4s;}@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}</style>
 </body>
 </html>

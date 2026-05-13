@@ -47,3 +47,7 @@ remora-flujo/cmd/flujo_api/
 
 # Trazas, capturas y logs de Paladin que se regeneran
 trace_pal_*.json
+
+# Sessions (generados en runtime, no versionables)
+sessions/
+simulacion/

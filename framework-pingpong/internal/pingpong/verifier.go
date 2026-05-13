@@ -77,7 +77,8 @@ func CompileCheck(filePath string, lang LangConfig) *VerifyReport {
 	}
 
 	// Run check command
-	cmdStr := commandWithFile(lang.CheckCmd, abs)
+	cmdStr, cleanup := checkCommandForFile(lang, abs)
+	defer cleanup()
 	if strings.TrimSpace(cmdStr) == "" {
 		// No check command configured — assume OK
 		rep.CompileOK = true
@@ -180,6 +181,42 @@ func commandWithFile(cmd string, filePath string) string {
 		return strings.ReplaceAll(cmd, "{file}", shellQuote(filePath))
 	}
 	return cmd
+}
+
+func checkCommandForFile(lang LangConfig, filePath string) (string, func()) {
+	if lang.Name != "go" {
+		return commandWithFile(lang.CheckCmd, filePath), func() {}
+	}
+	dir := filepath.Dir(filePath)
+	if hasGoModInTree(dir) {
+		return commandWithFile(lang.CheckCmd, filePath), func() {}
+	}
+	out := filepath.Join(os.TempDir(), fmt.Sprintf("pingpong-verify-%d", time.Now().UnixNano()))
+	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
+	if err != nil || len(files) == 0 {
+		files = []string{filePath}
+	}
+	var quoted []string
+	for _, file := range files {
+		quoted = append(quoted, shellQuote(file))
+	}
+	return fmt.Sprintf("go build -o %s %s", shellQuote(out), strings.Join(quoted, " ")), func() {
+		_ = os.Remove(out)
+	}
+}
+
+func hasGoModInTree(dir string) bool {
+	current := dir
+	for {
+		if _, err := os.Stat(filepath.Join(current, "go.mod")); err == nil {
+			return true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return false
+		}
+		current = parent
+	}
 }
 
 func shellQuote(s string) string {

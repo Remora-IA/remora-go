@@ -141,6 +141,8 @@
         "{params.priority_list_json}",
         "--turn-count",
         "{params.turn_count}",
+        "--llm-followup-path",
+        "{params.llm_followup_path}",
         "--llm-followup-json",
         "{params.llm_followup_json}",
         "--context-b64",
@@ -159,6 +161,7 @@
         "priority_list_path",
         "priority_list_json",
         "turn_count",
+        "llm_followup_path",
         "llm_followup_json",
         "context_b64"
       ],
@@ -175,6 +178,7 @@
         "priority_list_path": "",
         "priority_list_json": "",
         "turn_count": "0",
+        "llm_followup_path": "",
         "llm_followup_json": "",
         "context_b64": ""
       }

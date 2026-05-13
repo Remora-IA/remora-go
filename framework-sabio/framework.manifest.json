@@ -78,20 +78,44 @@
         "--context-b64",
         "{params.context_b64}",
         "--capability",
-        "{params.capability}"
+        "{params.capability}",
+        "--semantic-capability",
+        "{params.semantic_capability}",
+        "--entity-ref",
+        "{params.entity_ref}",
+        "--entity-type",
+        "{params.entity_type}",
+        "--analysis-intent",
+        "{params.analysis_intent}",
+        "--metrics",
+        "{params.metrics}",
+        "--peer-strategy",
+        "{params.peer_strategy}"
       ],
       "params": [
         "question",
         "db",
         "business_id",
         "context_b64",
-        "capability"
+        "capability",
+        "semantic_capability",
+        "entity_ref",
+        "entity_type",
+        "analysis_intent",
+        "metrics",
+        "peer_strategy"
       ],
       "defaults": {
         "business_id": "",
         "db": "",
         "context_b64": "",
-        "capability": ""
+        "capability": "",
+        "semantic_capability": "",
+        "entity_ref": "",
+        "entity_type": "",
+        "analysis_intent": "",
+        "metrics": "",
+        "peer_strategy": ""
       }
     },
     "explain-capabilities": {

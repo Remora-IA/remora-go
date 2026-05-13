@@ -5312,7 +5312,7 @@ function renderFlowBranchThread(branch, idx) {
   const statusColor = branch.status === 'completed' ? '#22c55e' : branch.status === 'needs_input' ? '#f59e0b' : branch.status === 'failed' ? '#ef4444' : '#6b7280';
   const statusIcon = branch.status === 'completed' ? '&#10003;' : branch.status === 'needs_input' ? '&#9888;' : branch.status === 'failed' ? '&#10007;' : '&#8226;';
   const needs = (branch.needs_input || []).map(n => escapeHtml(n.title || n.artifact)).join(', ');
-  const steps = visibleBranchSteps(branch.timeline || []);
+  const steps = visibleBranchSteps(branch.timeline || [], action);
   const chatHtml = steps.map(step => renderBranchStepMessage(step)).join('');
   return `<div class="flow-branch-card">
     <div class="flow-branch-card-header">
@@ -5331,7 +5331,7 @@ function renderFlowBranchThread(branch, idx) {
   </div>`;
 }
 
-function visibleBranchSteps(steps) {
+function visibleBranchSteps(steps, action) {
   const setupCaps = new Set([
     'analysis.configure',
     'dataset.export',
@@ -5340,6 +5340,8 @@ function visibleBranchSteps(steps) {
   ]);
   let visible = steps.filter(step => !setupCaps.has(step.capability || '') && !shouldHideAnalyticalSkippedStep(step));
   if (!visible.length) visible = steps.slice(-3);
+  const actionID = String((action || {}).id || '').toLowerCase();
+  if (actionID === 'deep_analysis') return visible.slice(0, 60);
   return visible.slice(0, 6);
 }
 

@@ -23,8 +23,8 @@ func TestNextReturnsAuthoritativeSay(t *testing.T) {
 	if state.Say != "Paso 1/3 [main.go]: Crear Args" {
 		t.Fatalf("unexpected say: %q", state.Say)
 	}
-	if strings.Join(state.AllowedCommands, ",") != "check" {
-		t.Fatalf("expected only check, got %v", state.AllowedCommands)
+	if strings.Join(state.AllowedCommands, ",") != "review,check" {
+		t.Fatalf("expected review,check, got %v", state.AllowedCommands)
 	}
 }
 

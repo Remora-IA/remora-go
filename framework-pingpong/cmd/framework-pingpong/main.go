@@ -33,6 +33,8 @@ func main() {
 		cmdConfigure(os.Args[2:])
 	case "next":
 		cmdNext(os.Args[2:])
+	case "review":
+		cmdReview(os.Args[2:])
 	case "check":
 		cmdCheck(os.Args[2:])
 	case "accept":
@@ -88,6 +90,8 @@ USO:
   ./pingpong configure --root path --files a.go,b.go
                                           Fijar scope de archivos del ejercicio
   ./pingpong next                         Mostrar el próximo mensaje autoritativo para el usuario
+  ./pingpong review [--file path.go] [--lang go|python|javascript]
+                                          Revisar el paso actual y auto-aceptarlo si hay evidencia suficiente
   ./pingpong check [--lang go|python|javascript]
                                           Revisar el paso actual sin elegir IDs
   ./pingpong accept                       Aceptar el paso actual y avanzar sin elegir IDs
@@ -117,8 +121,8 @@ USO:
 FLUJO 80-20:
   1. start --goal "objetivo" → set-steps → pasos declarativos
   2. next → decir data.say literal
-  3. check → la IA juzga solo el paso actual
-  4. accept si corresponde; si no, feedback conceptual
+  3. review → intentar revisión + avance con un solo comando
+  4. check/accept quedan como fallback cuando review no alcanza
   5. Al completar todos los pasos, run con casos de prueba
   6. Solo declarar completado si run pasa con output correcto
 `)
@@ -184,6 +188,20 @@ func cmdConfigure(args []string) {
 func cmdNext(args []string) {
 	client := newClient(args)
 	result, err := client.Next()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	data, _ := json.MarshalIndent(result, "", "  ")
+	fmt.Println(string(data))
+}
+
+func cmdReview(args []string) {
+	file := extractFlag(args, "--file")
+
+	client := newClient(args)
+	result, err := client.Review(file)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)

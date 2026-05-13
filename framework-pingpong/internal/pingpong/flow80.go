@@ -63,6 +63,56 @@ func (c *Client) Check(fileOverride string) (*Result, error) {
 	}, nil
 }
 
+func (c *Client) Review(fileOverride string) (*Result, error) {
+	verify, err := c.Verify(fileOverride)
+	if err != nil {
+		return nil, err
+	}
+	p, err := c.loadOrCreate()
+	if err != nil {
+		return nil, err
+	}
+	current, err := currentStepForProgress(p)
+	if err != nil {
+		return nil, err
+	}
+	filePath, err := resolveFile(current, fileOverride)
+	if err != nil {
+		return nil, err
+	}
+	if ok, reason := autoAcceptStep(filePath, current, c.Lang); ok {
+		accepted, err := c.Accept()
+		if err != nil {
+			return nil, err
+		}
+		return &Result{
+			Success: true,
+			Message: accepted.Message,
+			Data: map[string]interface{}{
+				"accepted": true,
+				"reason":   reason,
+				"verify":   verify,
+				"accept":   accepted,
+			},
+		}, nil
+	}
+	state, stateErr := tutorState(p)
+	if stateErr == nil {
+		state.Awaiting = "user_code_change"
+		state.AllowedCommands = []string{"review", "check"}
+	}
+	return &Result{
+		Success: true,
+		Message: "Review completo. El paso actual sigue pendiente; no hace falta pegar resultados, pero todavía no hay evidencia automática suficiente para aceptarlo.",
+		Data: map[string]interface{}{
+			"accepted":        false,
+			"verify":          verify,
+			"state":           state,
+			"action_required": "user_code_change",
+		},
+	}, nil
+}
+
 func (c *Client) Accept() (*Result, error) {
 	p, err := c.loadOrCreate()
 	if err != nil {
@@ -136,7 +186,7 @@ func tutorState(p *Progress) (TutorState, error) {
 		Mode:            mode,
 		Say:             say,
 		Awaiting:        "user_code_change",
-		AllowedCommands: []string{"check"},
+		AllowedCommands: []string{"review", "check"},
 		Current: ViewStep{
 			Batch:       fmt.Sprintf("%d/%d", batchInfo.Index, batchInfo.TotalBatches),
 			Step:        stepLabel,

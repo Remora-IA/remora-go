@@ -88,39 +88,49 @@ func (s *server) businessArtifacts(businessID string) businessArtifactsResponse 
 	}
 }
 
-func (s *server) businessSQLitePath(businessID string) string {
+func resolveBusinessSQLitePath(rootDir, businessID string, auth *authStore) string {
 	if businessID == "" {
 		return ""
 	}
-	path := businessDataDBPath(s.rootDir, businessID)
+	path := businessDataDBPath(rootDir, businessID)
 	if nonEmptyFileExists(path) {
 		return path
 	}
-	packPath := s.businessSemanticPackPath(businessID)
+	packPath := resolveBusinessSemanticPackPath(rootDir, businessID, auth)
 	if packPath == "" {
 		return ""
 	}
-	if dataPath := dataSourcePathFromSemanticPack(s.rootDir, packPath); dataPath != "" {
+	if dataPath := dataSourcePathFromSemanticPack(rootDir, packPath); dataPath != "" {
 		return dataPath
 	}
 	return ""
 }
 
-func (s *server) businessSemanticPackPath(businessID string) string {
+func resolveRuntimeBusinessDBPath(rootDir, businessID string, auth *authStore) string {
+	if businessID == "" {
+		return ""
+	}
+	if path := resolveBusinessSQLitePath(rootDir, businessID, auth); path != "" {
+		return path
+	}
+	return businessDataDBPath(rootDir, businessID)
+}
+
+func resolveBusinessSemanticPackPath(rootDir, businessID string, auth *authStore) string {
 	if businessID == "" {
 		return ""
 	}
 	candidates := []string{
-		filepath.Join(s.rootDir, "framework-sabio", "businesses", businessID, "sabio.business.json"),
-		filepath.Join(s.rootDir, "profiles", businessID, "sabio.business.json"),
+		filepath.Join(rootDir, "framework-sabio", "businesses", businessID, "sabio.business.json"),
+		filepath.Join(rootDir, "profiles", businessID, "sabio.business.json"),
 	}
-	if s != nil && s.auth != nil {
-		if business, err := s.auth.business(businessID); err == nil && business != nil {
+	if auth != nil {
+		if business, err := auth.business(businessID); err == nil && business != nil {
 			slug := flowSafeIDStr(business.Name)
 			if slug != "" {
 				candidates = append(candidates,
-					filepath.Join(s.rootDir, "framework-sabio", "businesses", slug, "sabio.business.json"),
-					filepath.Join(s.rootDir, "profiles", slug, "sabio.business.json"),
+					filepath.Join(rootDir, "framework-sabio", "businesses", slug, "sabio.business.json"),
+					filepath.Join(rootDir, "profiles", slug, "sabio.business.json"),
 				)
 			}
 		}
@@ -131,6 +141,18 @@ func (s *server) businessSemanticPackPath(businessID string) string {
 		}
 	}
 	return ""
+}
+
+func (s *server) businessSQLitePath(businessID string) string {
+	return resolveBusinessSQLitePath(s.rootDir, businessID, s.auth)
+}
+
+func (s *server) runtimeBusinessDBPath(businessID string) string {
+	return resolveRuntimeBusinessDBPath(s.rootDir, businessID, s.auth)
+}
+
+func (s *server) businessSemanticPackPath(businessID string) string {
+	return resolveBusinessSemanticPackPath(s.rootDir, businessID, s.auth)
 }
 
 func (s *server) businessHasTasksLedger(businessID string) bool {

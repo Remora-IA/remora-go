@@ -92,12 +92,7 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 	if session == nil {
 		return
 	}
-	conv := &Conversation{
-		ID:         result.RunID + "_simulated_conversation",
-		Title:      "Prueba simulada deep_analysis",
-		Frameworks: activeFrameworkNames(req.Flow, s.allManifests),
-		BusinessID: req.Flow.BusinessID,
-	}
+	conv := deepAnalysisSimulatedConversation(req, result, s.allManifests)
 	if conv.BusinessID == "" {
 		conv.BusinessID = result.BusinessID
 	}
@@ -107,7 +102,7 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 	}
 	queue := handoff.NewQuestionsQueue(conv.Frameworks...)
 
-	for _, input := range simulatedDeepAnalysisContinuePrompts() {
+	for _, input := range simulatedDeepAnalysisContinuePrompts(deepAnalysisStressTurnLimit()) {
 		started := time.Now().UTC().Format(time.RFC3339Nano)
 		result.Timeline = append(result.Timeline, flowRunStep{
 			Node:         "deep_analysis_simulated_user",
@@ -127,14 +122,24 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 		if intent != segmentIntentContinue {
 			continue
 		}
-		q, ok, err := s.executeSessionFollowup(ctx, s.channel, conv, s.allManifests, queue, session, input)
-		if err != nil || !ok {
+		execution, err := s.executeSessionFollowupDetailed(ctx, s.channel, conv, s.allManifests, queue, session, input)
+		if err != nil || !execution.OK {
 			result.Timeline = append(result.Timeline, failedSimulatedConversationStep(session, input, err))
 			continue
+		}
+		if len(execution.DelegationRequests) > 0 {
+			result.Timeline = append(result.Timeline, simulatedDelegationPlanStep(session, input, execution.DelegationRequests))
+		}
+		for _, entry := range delegationResultEntries(execution.DelegationResults) {
+			result.Timeline = append(result.Timeline, simulatedDelegationResultStep(session, entry))
 		}
 		turn := segmentSessionTurnCountFromPath(session.Path)
 		if turn > 0 {
 			session.TurnCount = turn
+		}
+		followupStatus := "completed"
+		if execution.SynthesisAttempted && !execution.Synthesized {
+			followupStatus = "failed"
 		}
 		result.Timeline = append(result.Timeline, flowRunStep{
 			Node:          "radar_deep_analysis_followup",
@@ -142,8 +147,11 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 			Capability:    session.Capability,
 			Command:       session.FollowupCmd,
 			Role:          "owner",
-			Status:        "completed",
-			HumanSummary:  q.Text,
+			Status:        followupStatus,
+			AnalysisPhase: execution.AnalysisPhase,
+			Synthesized:   execution.Synthesized,
+			Error:         execution.SynthesisError,
+			HumanSummary:  execution.Question.Text,
 			ArtifactTypes: []string{"analysis.followup.v1", "answer.grounded.v1"},
 			StartedAt:     started,
 			FinishedAt:    time.Now().UTC().Format(time.RFC3339Nano),
@@ -192,11 +200,60 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 	}
 }
 
-func simulatedDeepAnalysisContinuePrompts() []string {
-	return []string{
-		"Ok, explícame mejor por qué este caso quedó primero y qué evidencia pesa más.",
-		"¿Qué contradicciones, riesgos residuales o gaps ves en la data antes de actuar?",
+func deepAnalysisSimulatedConversation(req flowRunRequest, result *flowRunResult, manifests map[string]*manifest.Manifest) *Conversation {
+	conv := &Conversation{
+		ID:         result.RunID + "_simulated_conversation",
+		Title:      "Prueba simulada deep_analysis",
+		Frameworks: activeFrameworkNames(req.Flow, manifests),
+		BusinessID: req.Flow.BusinessID,
 	}
+	if result == nil {
+		return conv
+	}
+	if entityArt, ok := result.Artifacts["entity.ref.v1"]; ok {
+		if payload, ok := entityArt.Payload.(map[string]interface{}); ok {
+			conv.RuntimeContext = map[string]any{
+				"active_entity": map[string]any{
+					"id":   jsonFirstString(payload, "id", "entity_ref", "ref"),
+					"type": canonicalDelegationEntityType(jsonFirstString(payload, "type", "entity_type")),
+					"name": jsonFirstString(payload, "name", "display_name"),
+				},
+			}
+		}
+	}
+	if conv.BusinessID == "" {
+		conv.BusinessID = result.BusinessID
+	}
+	return conv
+}
+
+func simulatedDeepAnalysisContinuePrompts(limit int) []string {
+	prompts := []string{
+		"Ok, explícame mejor por qué este caso quedó primero y qué evidencia pesa más.",
+		"Compáralo contra clientes similares de la cartera: mora, saldo y comportamiento relativo.",
+		"¿Qué contradicciones, riesgos residuales o gaps ves en la data antes de actuar?",
+		"Profundiza la mora y la antigüedad: qué pesa más y qué evidencia falta.",
+		"Haz un análisis de sensibilidad del score: qué variable cambiaría más la prioridad.",
+		"Plantea hipótesis alternativas que expliquen este caso sin asumir que la deuda es totalmente cobrable.",
+		"Evalúa un escenario contrafactual: si el saldo fuese menor o la mora más reciente, ¿seguiría primero?",
+		"Con toda la evidencia, dame recomendación final, confianza y límites antes de operar.",
+	}
+	if limit <= 0 || limit > len(prompts) {
+		limit = len(prompts)
+	}
+	return prompts[:limit]
+}
+
+func deepAnalysisStressTurnLimit() int {
+	raw := strings.TrimSpace(os.Getenv("REMORA_DEEP_ANALYSIS_STRESS_TURNS"))
+	if raw == "" {
+		return 2
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n <= 0 {
+		return 2
+	}
+	return n
 }
 
 func activeFrameworkNames(flow flowManifest, manifests map[string]*manifest.Manifest) []string {
@@ -243,6 +300,65 @@ func failedSimulatedConversationStep(session *activeSessionInfo, input string, e
 		SegmentMode:  segmentModeAnalytical,
 		SegmentOwner: session.Framework,
 		SegmentRole:  "owner",
+	}
+}
+
+func simulatedDelegationPlanStep(session *activeSessionInfo, input string, requests []map[string]interface{}) flowRunStep {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	var caps []string
+	for _, req := range requests {
+		if capName, _ := req["capability"].(string); capName != "" {
+			caps = append(caps, capName)
+		}
+	}
+	summary := fmt.Sprintf("Radar interpreta la pregunta y solicita evidencia auxiliar (%s) antes de sintetizar: %s", strings.Join(caps, ", "), input)
+	if len(caps) == 0 {
+		summary = "Radar evaluó pedir evidencia auxiliar, pero no produjo delegaciones ejecutables: " + input
+	}
+	return flowRunStep{
+		Node:         "radar_deep_analysis_delegation_plan",
+		Framework:    session.Framework,
+		Capability:   session.Capability,
+		Command:      session.FollowupCmd,
+		Role:         "owner",
+		Status:       "completed",
+		HumanSummary: summary,
+		StartedAt:    now,
+		FinishedAt:   now,
+		SegmentID:    session.SegmentID,
+		SegmentMode:  segmentModeAnalytical,
+		SegmentOwner: session.Framework,
+		SegmentRole:  "owner",
+	}
+}
+
+func simulatedDelegationResultStep(session *activeSessionInfo, payload map[string]interface{}) flowRunStep {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	capName := firstNonEmptyPipelineString(jsonFirstString(payload, "capability"), jsonFirstString(payload, "resolved_capability"))
+	framework := firstNonEmptyPipelineString(jsonFirstString(payload, "framework"), "auxiliar")
+	if strings.Contains(capName, "quality") || strings.Contains(capName, "audit") {
+		framework = "auditor"
+	} else if strings.Contains(capName, "data.") {
+		framework = "sabio"
+	}
+	summary := fmt.Sprintf("%s devuelve evidencia para %s.", framework, capName)
+	if raw, err := json.Marshal(payload); err == nil && len(raw) > 0 {
+		summary = summary + " " + truncate(string(raw), 240)
+	}
+	return flowRunStep{
+		Node:          "deep_analysis_delegate_" + safeFilePart(capName),
+		Framework:     framework,
+		Capability:    capName,
+		Role:          "delegate",
+		Status:        "completed",
+		HumanSummary:  summary,
+		ArtifactTypes: []string{capName},
+		StartedAt:     now,
+		FinishedAt:    now,
+		SegmentID:     session.SegmentID,
+		SegmentMode:   segmentModeAnalytical,
+		SegmentOwner:  session.Framework,
+		SegmentRole:   "delegate",
 	}
 }
 

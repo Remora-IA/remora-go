@@ -254,6 +254,8 @@ func main() {
 	r.HandleFunc(apiBase+"/businesses/{business_id}/api-connections", srv.handleAPIConnectionCreate).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/businesses/{business_id}/api-connections/plan", srv.handleAPIConnectionPlan).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/businesses/{business_id}/api-connections/{connection_id}/sync", srv.handleAPIConnectionSync).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/simulations/autonomia-controlada/bootstrap", srv.handleAutonomiaBootstrap).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/simulations/autonomia-controlada/message", srv.handleAutonomiaMessage).Methods("POST", "OPTIONS")
 
 	// Task ledger — lista, próxima, crear, eventos.
 	r.HandleFunc(apiBase+"/tasks", srv.handleTasksList).Methods("GET", "OPTIONS")
@@ -1462,10 +1464,7 @@ func (s *server) runFrameworkCommand(w http.ResponseWriter, r *http.Request) {
 		req.Params["business_id"] = businessID
 	}
 	if commandHasParam(cmd, "db") {
-		req.Params["db"] = s.businessSQLitePath(businessID)
-		if req.Params["db"] == "" {
-			req.Params["db"] = businessDataDBPath(s.rootDir, businessID)
-		}
+		req.Params["db"] = s.runtimeBusinessDBPath(businessID)
 	}
 	if commandHasParam(cmd, "context_b64") {
 		raw, _ := json.Marshal(runtimeContext)

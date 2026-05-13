@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -78,5 +79,129 @@ func TestBusinessConfigValidates(t *testing.T) {
 	result := validateBusinessConfig("panalbit", "../../../framework-indexa/data/panalbit.db")
 	if ok, _ := result["ok"].(bool); !ok {
 		t.Fatalf("expected panalbit business config to validate: %#v", result)
+	}
+}
+
+func TestRunEntity360ArtifactBuildsStructuredCustomerView(t *testing.T) {
+	dbPath := filepath.Clean("../../../framework-indexa/data/panalbit.db")
+	artifact := runEntity360Artifact(dbPath, runtimeContext{BusinessID: "panalbit", Audience: "collector"}, "Construye vista 360 del cliente activo", "customer", "184", "case_baseline")
+	if artifact["artifact_type"] != "entity_360.v1" {
+		t.Fatalf("expected entity_360.v1, got %#v", artifact)
+	}
+	if verified, _ := artifact["verified"].(bool); !verified {
+		t.Fatalf("expected verified artifact, got %#v", artifact)
+	}
+	entity, _ := artifact["entity"].(map[string]any)
+	if entity["name"] != "Thiel-Effertz" {
+		t.Fatalf("expected Thiel-Effertz entity, got %#v", entity)
+	}
+	financial, _ := artifact["financial_position"].(map[string]any)
+	if financial["open_amount"] != 7500.0 {
+		t.Fatalf("expected open_amount 7500, got %#v", financial)
+	}
+	aging, _ := artifact["aging"].(map[string]any)
+	if aging["oldest_open_debt_days"] == 0 {
+		t.Fatalf("expected oldest_open_debt_days, got %#v", aging)
+	}
+	structured, _ := artifact["structured"].(map[string]any)
+	if structured["invoice_number"] == "" {
+		t.Fatalf("expected structured invoice_number, got %#v", structured)
+	}
+	if text, _ := artifact["text"].(string); !strings.Contains(text, "saldo abierto 7500.00") {
+		t.Fatalf("expected explanatory text with open amount, got %q", text)
+	}
+}
+
+func TestSabioQueryArtifactExposesPlainTextAndTrace(t *testing.T) {
+	answer := "Texto verificable.\n\nEvidencia:\n```json\n{\"capability\":\"data.query.sql\",\"source\":\"sqlite\",\"fallback_used\":false}\n```"
+	artifact := sabioQueryArtifact("pregunta", answer, runtimeContext{BusinessID: "panalbit"}, "data.query.sql")
+	if artifact["text"] != "Texto verificable." {
+		t.Fatalf("expected plain text extracted, got %#v", artifact["text"])
+	}
+	trace, _ := artifact["trace"].(map[string]any)
+	if trace["capability"] != "data.query.sql" {
+		t.Fatalf("expected parsed trace, got %#v", trace)
+	}
+}
+
+func TestRunAnalyticalQueryArtifactPortfolioComparison(t *testing.T) {
+	dbPath := filepath.Clean("../../../framework-indexa/data/panalbit.db")
+	artifact := runAnalyticalQueryArtifact(dbPath, runtimeContext{BusinessID: "panalbit", Audience: "collector", ActiveEntity: map[string]any{"id": "184", "type": "client"}}, "Compara este caso con la cartera", "portfolio_comparison", "evidence.portfolio_comparison", "client", "184", []string{"open_amount", "days_past_due"}, "similar_clients")
+	if artifact == nil {
+		t.Fatal("expected analytical artifact")
+	}
+	if verified, _ := artifact["verified"].(bool); !verified {
+		t.Fatalf("expected verified analytical artifact, got %#v", artifact)
+	}
+	if text, _ := artifact["text"].(string); !strings.Contains(text, "materialidad") {
+		t.Fatalf("expected portfolio comparison insight, got %q", text)
+	}
+	structured, _ := artifact["structured"].(map[string]any)
+	if structured["peer_strategy"] != "similar_clients" {
+		t.Fatalf("expected peer_strategy, got %#v", structured)
+	}
+}
+
+func TestRunAnalyticalQueryArtifactPortfolioComparisonFromFreeTextIntentAndSemanticCapability(t *testing.T) {
+	dbPath := filepath.Clean("../../../framework-indexa/data/panalbit.db")
+	artifact := runAnalyticalQueryArtifact(
+		dbPath,
+		runtimeContext{BusinessID: "panalbit", Audience: "collector", ActiveEntity: map[string]any{"id": "184", "type": "client"}},
+		"Compáralo contra clientes similares de la cartera: mora, saldo y comportamiento relativo",
+		"comparar cliente con clientes similares de la cartera en mora, saldo y comportamiento relativo",
+		"evidence.portfolio_comparison",
+		"client",
+		"184",
+		[]string{"open_amount", "days_past_due", "payment_behavior"},
+		"similar_clients",
+	)
+	if artifact == nil {
+		t.Fatal("expected analytical artifact")
+	}
+	if verified, _ := artifact["verified"].(bool); !verified {
+		t.Fatalf("expected verified artifact, got %#v", artifact)
+	}
+	structured, _ := artifact["structured"].(map[string]any)
+	if structured["open_amount_percentile"] == nil || structured["days_past_due_percentile"] == nil {
+		t.Fatalf("expected percentile-rich structured output, got %#v", structured)
+	}
+	if peers, _ := structured["peers"].([]map[string]any); peers == nil {
+		if _, ok := structured["peers"].([]any); !ok {
+			t.Fatalf("expected peers in structured output, got %#v", structured)
+		}
+	}
+	if text, _ := artifact["text"].(string); !strings.Contains(text, "percentil") {
+		t.Fatalf("expected comparative text with percentiles, got %q", text)
+	}
+}
+
+func TestRunAnalyticalQueryArtifactPaymentBehaviorFromFreeTextIntentAndSemanticCapability(t *testing.T) {
+	dbPath := filepath.Clean("../../../framework-indexa/data/panalbit.db")
+	artifact := runAnalyticalQueryArtifact(
+		dbPath,
+		runtimeContext{BusinessID: "panalbit", Audience: "collector", ActiveEntity: map[string]any{"id": "184", "type": "client"}},
+		"Explica la priorización del caso usando comportamiento de pago",
+		"explicar priorización de caso de cobranza",
+		"evidence.payment_behavior_summary",
+		"client",
+		"184",
+		[]string{"payment_behavior"},
+		"",
+	)
+	if artifact == nil {
+		t.Fatal("expected analytical artifact")
+	}
+	if verified, _ := artifact["verified"].(bool); !verified {
+		t.Fatalf("expected verified artifact, got %#v", artifact)
+	}
+	if intent, _ := artifact["analysis_intent"].(string); intent != "payment_behavior_summary" {
+		t.Fatalf("expected canonical payment_behavior_summary intent, got %#v", artifact)
+	}
+	structured, _ := artifact["structured"].(map[string]any)
+	if structured["payments_count"] == nil || structured["payments_total"] == nil {
+		t.Fatalf("expected payment history summary, got %#v", structured)
+	}
+	if text, _ := artifact["text"].(string); !strings.Contains(strings.ToLower(text), "pagos históricos") {
+		t.Fatalf("expected payment behavior summary text, got %q", text)
 	}
 }

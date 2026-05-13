@@ -50,11 +50,7 @@ func (s *server) executeFlowNode(ctx context.Context, runID string, req flowRunR
 	}
 	setParamIfDeclared(cmd, params, "dry_run", fmt.Sprintf("%t", req.DryRun))
 	if contractNeedsBusinessSQLitePath(cmd, contract) {
-		dbPath := s.businessSQLitePath(req.Flow.BusinessID)
-		if dbPath == "" {
-			dbPath = businessDataDBPath(s.rootDir, req.Flow.BusinessID)
-		}
-		params["db"] = dbPath
+		params["db"] = s.runtimeBusinessDBPath(req.Flow.BusinessID)
 	}
 	if commandHasParam(cmd, "semantic_pack") {
 		params["semantic_pack"] = s.businessSemanticPackPath(req.Flow.BusinessID)
@@ -111,6 +107,19 @@ func (s *server) materializePortableArtifactParams(runID, nodeID string, cmd man
 		}
 		params[key] = ""
 	}
+}
+
+func (s *server) materializePortableArtifactParam(runID, nodeID string, cmd manifest.Command, params map[string]string, jsonParam string) string {
+	if strings.TrimSpace(jsonParam) == "" {
+		return ""
+	}
+	base := strings.TrimSuffix(jsonParam, "_json")
+	target := firstDeclaredParam(cmd, base+"_path", base+"_artifact")
+	if target == "" {
+		return ""
+	}
+	s.materializePortableArtifactParams(runID, nodeID, cmd, params)
+	return strings.TrimSpace(params[target])
 }
 
 func (s *server) resolvePortableCommandArgs(runID, nodeID string, cmd manifest.Command, params, inputs, outputs map[string]string) ([]string, error) {

@@ -99,6 +99,17 @@ func TestBusinessSQLitePathUsesSemanticPackDataSourceForAnyBusiness(t *testing.T
 	}
 }
 
+func TestRuntimeBusinessDBPathFallsBackToLegacyLocationWhenNoResolvedSQLiteExists(t *testing.T) {
+	root := t.TempDir()
+	s := &server{rootDir: root}
+	businessID := "cliente_x"
+
+	want := businessDataDBPath(root, businessID)
+	if got := s.runtimeBusinessDBPath(businessID); got != want {
+		t.Fatalf("runtimeBusinessDBPath(%q) = %q, want %q", businessID, got, want)
+	}
+}
+
 func TestBusinessSQLitePathDoesNotUseClientSpecificLegacyFallback(t *testing.T) {
 	root := t.TempDir()
 	s := &server{rootDir: root}

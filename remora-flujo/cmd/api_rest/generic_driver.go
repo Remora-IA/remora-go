@@ -29,11 +29,12 @@ import (
 type genericDriver struct {
 	manifest *manifest.Manifest
 	rootDir  string // raíz absoluta donde viven los framework-* directorios
+	auth     *authStore
 }
 
 // newGenericDriver construye un driver genérico a partir de un manifest.
 // rootDir es la carpeta que contiene framework-<name>/.
-func newGenericDriver(m *manifest.Manifest, rootDir string) (*genericDriver, error) {
+func newGenericDriver(m *manifest.Manifest, rootDir string, auth *authStore) (*genericDriver, error) {
 	if m == nil {
 		return nil, fmt.Errorf("manifest nil")
 	}
@@ -44,6 +45,7 @@ func newGenericDriver(m *manifest.Manifest, rootDir string) (*genericDriver, err
 	return &genericDriver{
 		manifest: m,
 		rootDir:  rootDir,
+		auth:     auth,
 	}, nil
 }
 
@@ -105,7 +107,7 @@ func (g *genericDriver) IngestAnswer(ctx context.Context, ch *adapter.Client, co
 	if commandHasParam(cmd, "db") {
 		businessID := conversationBusinessID(conv)
 		if businessID != "" {
-			params["db"] = businessDataDBPath(g.rootDir, businessID)
+			params["db"] = resolveRuntimeBusinessDBPath(g.rootDir, businessID, g.auth)
 		}
 	}
 	if commandHasParam(cmd, "context_b64") {

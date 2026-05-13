@@ -197,6 +197,12 @@ func (c *Client) get(path string) (map[string]interface{}, error) {
 }
 
 var sessionID string
+var sessionKind string
+
+const (
+	sessionFile     = ".remora_session"
+	sessionKindFile = ".remora_session_kind"
+)
 
 func main() {
 	// Auto-levantar backend si estamos en local y no está corriendo.
@@ -321,16 +327,24 @@ func handleSession() {
 		fmt.Fprintln(os.Stderr, "usage: session start --name <name> --frameworks <f1,f2,...>")
 		os.Exit(1)
 	}
-	frameworks := strings.Split(fwRaw, ",")
-	for i := range frameworks {
-		frameworks[i] = strings.TrimSpace(frameworks[i])
-	}
+	frameworks := parseFrameworks(fwRaw)
 
 	c := newClient()
-	out, err := c.post("/conversations", map[string]interface{}{
+	path := "/conversations"
+	body := map[string]interface{}{
 		"title":      name,
 		"frameworks": frameworks,
-	})
+	}
+	kind := "multi"
+	if len(frameworks) == 1 {
+		path = "/conversations-single"
+		body = map[string]interface{}{
+			"title":     name,
+			"framework": frameworks[0],
+		}
+		kind = "single"
+	}
+	out, err := c.post(path, body)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
@@ -338,7 +352,7 @@ func handleSession() {
 	data, _ := out["data"].(map[string]interface{})
 	conv, _ := data["conversation"].(map[string]interface{})
 	sessionID = conv["id"].(string)
-	os.WriteFile(".remora_session", []byte(sessionID), 0644)
+	saveSessionState(sessionID, kind)
 	fmt.Printf("Sesion creada: %s\n", sessionID)
 	fmt.Printf("Frameworks: %v\n", conv["frameworks"])
 }
@@ -351,7 +365,11 @@ func handleSend() {
 		os.Exit(1)
 	}
 	c := newClient()
-	out, err := c.post("/conversations/"+sid+"/messages", map[string]interface{}{
+	path := "/conversations/" + sid + "/messages"
+	if currentSessionKind(c, sid) == "single" {
+		path = "/conversations-single/" + sid + "/messages"
+	}
+	out, err := c.post(path, map[string]interface{}{
 		"content": msg,
 		"role":    "user",
 	})
@@ -459,27 +477,39 @@ func handleChat() {
 
 	if sessionFlag != "" {
 		sessionID = sessionFlag
-		os.WriteFile(".remora_session", []byte(sessionID), 0644)
+		sessionKind = currentSessionKind(c, sessionID)
+		saveSessionState(sessionID, sessionKind)
 	} else if fwRaw != "" {
 		sessionID = ""
+		sessionKind = ""
 	} else {
-		data, err := os.ReadFile(".remora_session")
+		data, err := os.ReadFile(sessionFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, red+"  ✖ sin sesión. Usa --frameworks"+reset+"\n")
 			os.Exit(1)
 		}
 		sessionID = strings.TrimSpace(string(data))
+		sessionKind = currentSessionKind(c, sessionID)
 	}
 
 	if sessionID == "" && fwRaw != "" {
-		frameworks := strings.Split(fwRaw, ",")
-		for i := range frameworks {
-			frameworks[i] = strings.TrimSpace(frameworks[i])
-		}
+		frameworks := parseFrameworks(fwRaw)
 		fmt.Print(gray + "  Creando sesión..." + reset)
-		out, err := c.post("/conversations", map[string]interface{}{
-			"title": "terminal-chat", "frameworks": frameworks,
-		})
+		path := "/conversations"
+		body := map[string]interface{}{
+			"title":      "terminal-chat",
+			"frameworks": frameworks,
+		}
+		sessionKind = "multi"
+		if len(frameworks) == 1 {
+			path = "/conversations-single"
+			body = map[string]interface{}{
+				"title":     "terminal-chat",
+				"framework": frameworks[0],
+			}
+			sessionKind = "single"
+		}
+		out, err := c.post(path, body)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "\n"+red+"  ✖ %v"+reset+"\n", err)
 			os.Exit(1)
@@ -487,7 +517,7 @@ func handleChat() {
 		data, _ := out["data"].(map[string]interface{})
 		conv, _ := data["conversation"].(map[string]interface{})
 		sessionID = conv["id"].(string)
-		os.WriteFile(".remora_session", []byte(sessionID), 0644)
+		saveSessionState(sessionID, sessionKind)
 
 		fmt.Print("\r" + green + "  ✓ sesión " + reset + dim + sessionID[:20] + "..." + reset + "\n")
 		fmt.Print(gray + "  frameworks: " + reset)
@@ -543,10 +573,91 @@ func handleChat() {
 			continue
 		}
 
+		if currentSessionKind(c, sessionID) == "single" {
+			if err := runSingleTurn(c, sessionID, input); err != nil {
+				fmt.Println(red + "  ✖ " + err.Error() + reset)
+			}
+			continue
+		}
 		if err := runStreamingTurn(c, sessionID, input); err != nil {
 			fmt.Println(red + "  ✖ " + err.Error() + reset)
 		}
 	}
+}
+
+func runSingleTurn(c *Client, sessionID, input string) error {
+	fmt.Println()
+	out, err := c.post("/conversations-single/"+sessionID+"/messages", map[string]interface{}{
+		"content": input, "role": "user",
+	})
+	if err != nil {
+		return err
+	}
+	data, _ := out["data"].(map[string]interface{})
+	if frameworkMsg, ok := data["framework_message"].(map[string]interface{}); ok && frameworkMsg != nil {
+		fw, _ := frameworkMsg["framework"].(string)
+		content, _ := frameworkMsg["content"].(string)
+		renderMessage(fw, content, frameworkMsg)
+		return nil
+	}
+	if idle, _ := data["idle"].(bool); idle {
+		fmt.Println(gray + "  ⏼  sin más preguntas. Propone un cambio o !exit." + reset)
+		fmt.Println()
+	}
+	return nil
+}
+
+func parseFrameworks(raw string) []string {
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+func saveSessionState(id, kind string) {
+	sessionID = strings.TrimSpace(id)
+	sessionKind = strings.TrimSpace(kind)
+	if sessionID != "" {
+		_ = os.WriteFile(sessionFile, []byte(sessionID), 0644)
+	}
+	if sessionKind != "" {
+		_ = os.WriteFile(sessionKindFile, []byte(sessionKind), 0644)
+	}
+}
+
+func currentSessionKind(c *Client, sid string) string {
+	if strings.TrimSpace(sessionKind) != "" && sid == sessionID {
+		return sessionKind
+	}
+	if currentID, err := os.ReadFile(sessionFile); err == nil && strings.TrimSpace(string(currentID)) == strings.TrimSpace(sid) {
+		if data, err := os.ReadFile(sessionKindFile); err == nil {
+			if kind := strings.TrimSpace(string(data)); kind != "" {
+				sessionKind = kind
+				return kind
+			}
+		}
+	}
+	if c != nil && strings.TrimSpace(sid) != "" {
+		if out, err := c.get("/conversations/" + sid); err == nil {
+			if data, ok := out["data"].(map[string]interface{}); ok {
+				if conv, ok := data["conversation"].(map[string]interface{}); ok {
+					if frameworks, ok := conv["frameworks"].([]interface{}); ok && len(frameworks) == 1 {
+						sessionKind = "single"
+						return sessionKind
+					}
+				}
+			}
+		}
+	}
+	if sid == sessionID && sessionKind != "" {
+		return sessionKind
+	}
+	return "multi"
 }
 
 // runStreamingTurn envía el mensaje del usuario con SSE y va renderizando
@@ -945,12 +1056,13 @@ func requireSession() string {
 	if sessionID != "" {
 		return sessionID
 	}
-	data, err := os.ReadFile(".remora_session")
+	data, err := os.ReadFile(sessionFile)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "No hay sesion activa. Corre: remora session start --name ... --frameworks ...")
 		os.Exit(1)
 	}
-	return strings.TrimSpace(string(data))
+	sessionID = strings.TrimSpace(string(data))
+	return sessionID
 }
 
 func flagValue(name string) string {

@@ -116,6 +116,27 @@ type entityRef struct {
 	Name         string `json:"name,omitempty"`
 }
 
+type followupSynthesis struct {
+	Text             string
+	Findings         []string
+	Evidence         []string
+	Confidence       string
+	DataGaps         []string
+	ResidualRisks    []string
+	NextBestQuestion string
+	Recommendation   string
+}
+
+type portfolioEvidenceSummary struct {
+	Text           string
+	Findings       []string
+	Evidence       []string
+	Confidence     string
+	DataGaps       []string
+	ResidualRisks  []string
+	Recommendation string
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fail("uso: frameworkradar prioritize --business-id <id> --dataset-json <json> --semantic-pack <path>")
@@ -358,6 +379,7 @@ func runAnalyzeFollowup(args []string) error {
 	priorityListPath := fs.String("priority-list-path", "", "path a collection.priority_list.v1")
 	priorityListJSON := fs.String("priority-list-json", "", "collection.priority_list.v1 como JSON")
 	turnCountStr := fs.String("turn-count", "0", "numero de turno actual")
+	llmFollowupPath := fs.String("llm-followup-path", "", "path a la respuesta analitica generada por LLM del owner")
 	llmFollowupJSON := fs.String("llm-followup-json", "", "respuesta analitica generada por LLM del owner")
 	contextB64 := fs.String("context-b64", "", "contexto runtime codificado")
 	_ = contextB64
@@ -391,15 +413,32 @@ func runAnalyzeFollowup(args []string) error {
 	priorityItem := radarDeepDivePriorityItem(loadJSONPayload(*priorityListPath, *priorityListJSON), jsonStringFromMap(target, "id"))
 	name := firstNonEmpty(jsonStringFromMap(target, "name", "entity_name"), strings.TrimSpace(*entityRef), "el caso seleccionado")
 
-	// Build the follow-up response. Prefer an LLM-generated analytical draft
-	// when the orchestrator provides one; otherwise use deterministic fallback.
-	responseText := followupTextFromLLM(*llmFollowupJSON)
+	llmFollowupRaw := loadJSONPayload(*llmFollowupPath, *llmFollowupJSON)
+	llmPayload := parseJSONObject(llmFollowupRaw)
+	evidenceSynthesis := buildEvidenceCentricFollowupSynthesis(userInput, name, delegationResults)
+	responseText := evidenceSynthesis.Text
+	if responseText == "" {
+		responseText = followupTextFromLLM(llmFollowupRaw)
+	}
 	if responseText == "" {
 		responseText = buildFollowupResponse(userInput, name, previousAnalysis, delegationResults, priorityItem, target)
 	}
 
-	// Determine if delegation is needed based on user question
-	delegationRequests := inferDelegationNeeds(userInput, delegationResults)
+	// Phase A (plan): if no delegated evidence yet, Radar can request allowed
+	// analytical evidence contracts. Prefer LLM plan output; fallback is deterministic.
+	var delegationRequests []map[string]interface{}
+	intent := firstNonEmpty(jsonStringFromMap(llmPayload, "analysis_intent"), inferAnalyticalIntent(userInput))
+	planAudit := map[string]interface{}{
+		"intent":                   intent,
+		"llm_delegation_requests":  delegationRequestsFromPayload(llmPayload),
+		"required_capabilities":    requiredDelegationCapabilitiesForIntent(intent),
+		"completion_applied":       false,
+		"added_capabilities":       []string{},
+		"fallback_delegation_plan": []map[string]interface{}{},
+	}
+	if len(delegationResults) == 0 {
+		delegationRequests, planAudit = reconcileDelegationPlan(userInput, target, llmPayload)
+	}
 
 	output := map[string]interface{}{
 		"artifact_type": "analysis.followup.v1",
@@ -420,7 +459,22 @@ func runAnalyzeFollowup(args []string) error {
 		},
 	}
 	if len(delegationRequests) > 0 {
+		output["analysis_phase"] = "plan"
+		output["analysis_intent"] = intent
+		output["needs_delegation"] = true
+		output["evidence_needed"] = stringSliceFromPayload(llmPayload, "evidence_needed")
+		output["reason"] = jsonStringFromMap(llmPayload, "reason")
 		output["delegation_requests"] = delegationRequests
+		output["plan_audit"] = planAudit
+	} else {
+		output["analysis_phase"] = "synthesis"
+		output["findings"] = uniqueNonEmptyStrings(append(evidenceSynthesis.Findings, stringSliceFromPayload(llmPayload, "findings")...))
+		output["evidence"] = uniqueNonEmptyStrings(append(evidenceSynthesis.Evidence, stringSliceFromPayload(llmPayload, "evidence")...))
+		output["confidence"] = firstNonEmpty(evidenceSynthesis.Confidence, jsonStringFromMap(llmPayload, "confidence"), "partial")
+		output["data_gaps"] = uniqueNonEmptyStrings(append(evidenceSynthesis.DataGaps, stringSliceFromPayload(llmPayload, "data_gaps")...))
+		output["residual_risks"] = uniqueNonEmptyStrings(append(evidenceSynthesis.ResidualRisks, stringSliceFromPayload(llmPayload, "residual_risks")...))
+		output["next_best_question"] = firstNonEmpty(evidenceSynthesis.NextBestQuestion, jsonStringFromMap(llmPayload, "next_best_question"))
+		output["recommendation"] = firstNonEmpty(evidenceSynthesis.Recommendation, jsonStringFromMap(llmPayload, "recommendation"))
 	}
 	printJSON(output)
 	return nil
@@ -506,13 +560,9 @@ var followupSections = []analyticalSection{
 func buildFollowupResponse(userInput, entityName string, previousAnalysis, delegationResults, priorityItem, target map[string]interface{}) string {
 	var sb strings.Builder
 
-	// If delegation results are available, integrate them directly.
 	if len(delegationResults) > 0 {
-		if text := jsonStringFromMap(delegationResults, "text", "answer"); text != "" {
-			sb.WriteString(fmt.Sprintf("Sobre %s, integrando datos adicionales:\n\n", entityName))
-			sb.WriteString(text)
-			sb.WriteString("\n\n---\nRadar mantiene el tramo analitico. Podes seguir preguntando o decir 'avanza' para pasar a accion.")
-			return sb.String()
+		if integrated := buildEvidenceCentricFollowupResponse(userInput, entityName, delegationResults); integrated != "" {
+			return integrated + "\n\n---\nRadar mantiene el tramo analitico. Podes seguir preguntando o decir 'avanza' para pasar a accion."
 		}
 	}
 
@@ -567,6 +617,403 @@ func buildFollowupResponse(userInput, entityName string, previousAnalysis, deleg
 	return sb.String()
 }
 
+func buildEvidenceCentricFollowupResponse(userInput, entityName string, delegationResults map[string]interface{}) string {
+	return buildEvidenceCentricFollowupSynthesis(userInput, entityName, delegationResults).Text
+}
+
+func buildEvidenceCentricFollowupSynthesis(userInput, entityName string, delegationResults map[string]interface{}) followupSynthesis {
+	results := delegationEvidenceResults(delegationResults)
+	if len(results) == 0 {
+		if text := jsonStringFromMap(delegationResults, "text", "answer"); text != "" {
+			return followupSynthesis{
+				Text:       fmt.Sprintf("Sobre %s, integrando datos adicionales:\n\n%s", entityName, text),
+				Confidence: "partial",
+			}
+		}
+		return followupSynthesis{}
+	}
+	intent := inferAnalyticalIntent(userInput)
+	var (
+		case360Verified        map[string]interface{}
+		portfolioVerified      map[string]interface{}
+		sensitivityVerified    map[string]interface{}
+		counterfactualVerified map[string]interface{}
+		behaviorVerified       map[string]interface{}
+		failures               []string
+	)
+	for _, entry := range results {
+		capability := firstNonEmpty(jsonStringFromMap(entry, "capability"), jsonStringFromMap(entry, "resolved_capability"))
+		verified, _ := entry["verified"].(bool)
+		if !verified {
+			failures = append(failures, summarizeDelegationFailure(entry))
+			continue
+		}
+		switch capability {
+		case "evidence.case_360", "data.entity_360":
+			case360Verified = entry
+		case "evidence.portfolio_comparison":
+			portfolioVerified = entry
+		case "evidence.score_sensitivity":
+			sensitivityVerified = entry
+		case "evidence.counterfactual":
+			counterfactualVerified = entry
+		case "evidence.payment_behavior_summary":
+			behaviorVerified = entry
+		}
+	}
+	var (
+		parts            []string
+		findings         []string
+		evidence         []string
+		dataGaps         []string
+		residualRisks    []string
+		recommendation   string
+		nextBestQuestion string
+		confidence       = "partial"
+		verifiedCount    int
+	)
+	switch intent {
+	case "portfolio_comparison":
+		if case360Verified != nil {
+			summary := summarizeCase360Evidence(case360Verified)
+			parts = append(parts, summary)
+			findings = append(findings, "La línea base del caso quedó verificada con evidencia directa del entity_360.")
+			evidence = append(evidence, summary)
+			verifiedCount++
+		}
+		if portfolioVerified != nil {
+			portfolio := summarizePortfolioEvidenceDetails(portfolioVerified)
+			parts = append(parts, portfolio.Text)
+			findings = append(findings, portfolio.Findings...)
+			evidence = append(evidence, portfolio.Evidence...)
+			dataGaps = append(dataGaps, portfolio.DataGaps...)
+			residualRisks = append(residualRisks, portfolio.ResidualRisks...)
+			recommendation = firstNonEmpty(recommendation, portfolio.Recommendation)
+			confidence = firstNonEmpty(portfolio.Confidence, confidence)
+			verifiedCount++
+		} else {
+			parts = append(parts, "No pude verificar todavía la comparación contra la cartera, así que no voy a afirmar percentiles ni clientes similares como hecho.")
+			dataGaps = append(dataGaps, "Falta comparación de cartera verificada; no corresponde afirmar percentiles ni peers como hecho.")
+		}
+		nextBestQuestion = "¿Quieres que profundice por qué el caso pesa más por materialidad que por mora relativa, o que baje al detalle de los peers comparables?"
+	case "score_sensitivity":
+		if case360Verified != nil {
+			summary := summarizeCase360Evidence(case360Verified)
+			parts = append(parts, summary)
+			evidence = append(evidence, summary)
+			verifiedCount++
+		}
+		if sensitivityVerified != nil {
+			summary := summarizeGenericEvidence(sensitivityVerified)
+			parts = append(parts, summary)
+			findings = append(findings, "Hay evidencia cuantitativa para sensibilidad del score.")
+			evidence = append(evidence, summary)
+			confidence = "moderate"
+			verifiedCount++
+		} else {
+			parts = append(parts, "No pude verificar todavía la sensibilidad del score con evidencia cuantitativa.")
+			dataGaps = append(dataGaps, "Falta una simulación verificada de sensibilidad del score.")
+		}
+	case "counterfactual_scenario":
+		if case360Verified != nil {
+			summary := summarizeCase360Evidence(case360Verified)
+			parts = append(parts, summary)
+			evidence = append(evidence, summary)
+			verifiedCount++
+		}
+		if counterfactualVerified != nil {
+			summary := summarizeGenericEvidence(counterfactualVerified)
+			parts = append(parts, summary)
+			findings = append(findings, "El escenario contrafactual quedó soportado por evidencia verificada.")
+			evidence = append(evidence, summary)
+			confidence = "moderate"
+			verifiedCount++
+		} else {
+			parts = append(parts, "No pude verificar todavía el escenario contrafactual pedido.")
+			dataGaps = append(dataGaps, "Falta una simulación contrafactual verificada.")
+		}
+	default:
+		if case360Verified != nil {
+			summary := summarizeCase360Evidence(case360Verified)
+			parts = append(parts, summary)
+			evidence = append(evidence, summary)
+			verifiedCount++
+		}
+		if behaviorVerified != nil {
+			summary := summarizeGenericEvidence(behaviorVerified)
+			parts = append(parts, summary)
+			findings = append(findings, "El comportamiento de pago quedó resumido con evidencia verificada.")
+			evidence = append(evidence, summary)
+			confidence = "moderate"
+			verifiedCount++
+		}
+	}
+	if len(failures) > 0 {
+		parts = append(parts, "Delegaciones no verificadas: "+strings.Join(failures, " "))
+		dataGaps = append(dataGaps, "Persisten delegaciones no verificadas para parte del análisis.")
+		residualRisks = append(residualRisks, "La respuesta combina evidencia verificada con componentes aún no verificados.")
+	}
+	if len(parts) == 0 {
+		return followupSynthesis{}
+	}
+	if verifiedCount >= 2 && confidence == "partial" {
+		confidence = "moderate"
+	}
+	return followupSynthesis{
+		Text:             fmt.Sprintf("Sobre %s, integrando evidencia delegada:\n\n- %s", entityName, strings.Join(parts, "\n- ")),
+		Findings:         uniqueNonEmptyStrings(findings),
+		Evidence:         uniqueNonEmptyStrings(evidence),
+		Confidence:       confidence,
+		DataGaps:         uniqueNonEmptyStrings(dataGaps),
+		ResidualRisks:    uniqueNonEmptyStrings(residualRisks),
+		NextBestQuestion: nextBestQuestion,
+		Recommendation:   recommendation,
+	}
+}
+
+func delegationEvidenceResults(payload map[string]interface{}) []map[string]interface{} {
+	raw, ok := payload["results"].([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]map[string]interface{}, 0, len(raw))
+	for _, item := range raw {
+		if m, ok := item.(map[string]interface{}); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func summarizeDelegationFailure(entry map[string]interface{}) string {
+	capability := firstNonEmpty(jsonStringFromMap(entry, "capability"), jsonStringFromMap(entry, "resolved_capability"))
+	msg := firstNonEmpty(jsonStringFromMap(entry, "error", "text"), "falló sin detalle")
+	return fmt.Sprintf("%s: %s", capability, msg)
+}
+
+func summarizeCase360Evidence(entry map[string]interface{}) string {
+	payload, _ := entry["payload"].(map[string]interface{})
+	if payload == nil {
+		return summarizeGenericEvidence(entry)
+	}
+	entity, _ := payload["entity"].(map[string]interface{})
+	financial, _ := payload["financial_position"].(map[string]interface{})
+	aging, _ := payload["aging"].(map[string]interface{})
+	history, _ := payload["history"].(map[string]interface{})
+	states := stringifyMap(payload["charges_by_state"])
+	name := firstNonEmpty(jsonStringFromMap(entity, "name"), "el caso")
+	return fmt.Sprintf("%s quedó soportado así: saldo abierto %s, mora abierta aproximada %s días, %s pagos históricos por %s, con estados de cargos %s.",
+		name,
+		formatValue(financial["open_amount"]),
+		formatValue(aging["oldest_open_debt_days"]),
+		formatValue(history["payments_count"]),
+		formatValue(history["payments_total"]),
+		firstNonEmpty(states, "sin detalle de estados"),
+	)
+}
+
+func summarizePortfolioEvidence(entry map[string]interface{}) string {
+	return summarizePortfolioEvidenceDetails(entry).Text
+}
+
+func summarizePortfolioEvidenceDetails(entry map[string]interface{}) portfolioEvidenceSummary {
+	payload, _ := entry["payload"].(map[string]interface{})
+	if payload == nil {
+		text := summarizeGenericEvidence(entry)
+		return portfolioEvidenceSummary{Text: text, Evidence: []string{text}, Confidence: "partial"}
+	}
+	structured, _ := payload["structured"].(map[string]interface{})
+	if structured == nil {
+		text := summarizeGenericEvidence(entry)
+		return portfolioEvidenceSummary{Text: text, Evidence: []string{text}, Confidence: "partial"}
+	}
+	entityName := firstNonEmpty(jsonStringFromMap(structured, "entity_name"), jsonStringFromMap(payload, "entity_name"), "el caso")
+	openAmount := jsonFloatFromAny(structured["open_amount"])
+	daysPastDue := jsonIntFromAny(structured["days_past_due"])
+	paymentCount := jsonIntFromAny(structured["payment_count"])
+	paymentTotal := jsonFloatFromAny(structured["payment_total"])
+	openPercentile := jsonIntFromAny(structured["open_amount_percentile"])
+	moraPercentile := jsonIntFromAny(structured["days_past_due_percentile"])
+	peers := portfolioPeersFromEvidence(structured["peers"])
+	driver := portfolioPriorityDriver(openPercentile, moraPercentile)
+	driverInsight := portfolioPriorityDriverInsight(driver)
+	peerSummary := portfolioPeersNarrative(peers)
+	cohortGap := ""
+	if len(peers) < 3 {
+		cohortGap = "La cohorte comparable es chica, así que la lectura contra peers conviene tomarla como orientativa."
+	}
+	paymentClause := ""
+	if paymentCount > 0 || paymentTotal > 0 {
+		paymentClause = fmt.Sprintf(" En comportamiento de pago aparecen %d pagos históricos por %s.", paymentCount, formatCurrencyCompact(paymentTotal))
+	}
+	textParts := []string{
+		fmt.Sprintf("%s muestra una comparación de cartera soportada: saldo abierto %s (percentil %d) frente a mora %d días (percentil %d).", entityName, formatCurrencyCompact(openAmount), openPercentile, daysPastDue, moraPercentile),
+		driverInsight,
+	}
+	if paymentClause != "" {
+		textParts = append(textParts, strings.TrimSpace(paymentClause))
+	}
+	if peerSummary != "" {
+		textParts = append(textParts, "Peers comparables: "+peerSummary+".")
+	}
+	if cohortGap != "" {
+		textParts = append(textParts, cohortGap)
+	}
+	return portfolioEvidenceSummary{
+		Text: strings.Join(textParts, " "),
+		Findings: uniqueNonEmptyStrings([]string{
+			fmt.Sprintf("El saldo abierto del caso está en percentil %d dentro de la cartera comparable.", openPercentile),
+			fmt.Sprintf("La mora del caso está en percentil %d dentro de la cartera comparable.", moraPercentile),
+			driverInsight,
+		}),
+		Evidence: uniqueNonEmptyStrings([]string{
+			fmt.Sprintf("Saldo abierto %s con percentil %d.", formatCurrencyCompact(openAmount), openPercentile),
+			fmt.Sprintf("Mora %d días con percentil %d.", daysPastDue, moraPercentile),
+			firstNonEmpty(peerSummary, ""),
+		}),
+		Confidence: firstNonEmpty(portfolioEvidenceConfidence(peers), "moderate"),
+		DataGaps: uniqueNonEmptyStrings([]string{
+			cohortGap,
+		}),
+		ResidualRisks: uniqueNonEmptyStrings([]string{
+			portfolioResidualRisk(driver, len(peers)),
+		}),
+		Recommendation: portfolioRecommendation(driver),
+	}
+}
+
+func summarizeGenericEvidence(entry map[string]interface{}) string {
+	if text := jsonStringFromMap(entry, "text"); text != "" {
+		return text
+	}
+	if payload, ok := entry["payload"].(map[string]interface{}); ok {
+		if text := jsonStringFromMap(payload, "text", "summary", "answer"); text != "" {
+			return text
+		}
+	}
+	return "La delegación devolvió evidencia estructurada, pero sin texto resumido."
+}
+
+func portfolioPeersFromEvidence(raw interface{}) []map[string]interface{} {
+	items, ok := raw.([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]map[string]interface{}, 0, len(items))
+	for _, item := range items {
+		if m, ok := item.(map[string]interface{}); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func portfolioPeersNarrative(peers []map[string]interface{}) string {
+	if len(peers) == 0 {
+		return ""
+	}
+	limit := len(peers)
+	if limit > 4 {
+		limit = 4
+	}
+	parts := make([]string, 0, limit)
+	for _, peer := range peers[:limit] {
+		name := firstNonEmpty(jsonStringFromMap(peer, "name"), jsonStringFromMap(peer, "id"), "peer")
+		parts = append(parts, fmt.Sprintf("%s (saldo %s, mora %d días)", name, formatCurrencyCompact(jsonFloatFromAny(peer["open_amount"])), jsonIntFromAny(peer["days_past_due"])))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func portfolioPriorityDriver(openPercentile, moraPercentile int) string {
+	diff := openPercentile - moraPercentile
+	switch {
+	case diff >= 15:
+		return "materialidad"
+	case diff <= -15:
+		return "mora"
+	default:
+		return "balanceado"
+	}
+}
+
+func portfolioPriorityDriverInsight(driver string) string {
+	switch driver {
+	case "materialidad":
+		return "La prioridad parece venir más por materialidad que por mora relativa."
+	case "mora":
+		return "La prioridad parece venir más por envejecimiento/mora que por materialidad pura."
+	default:
+		return "La prioridad parece combinar materialidad y mora sin que una domine claramente."
+	}
+}
+
+func portfolioRecommendation(driver string) string {
+	switch driver {
+	case "materialidad":
+		return "Tratar este caso como prioritario por materialidad/exposición económica; conviene validar contactabilidad antes de ejecutar acción."
+	case "mora":
+		return "Tratar este caso como prioritario por envejecimiento relativo; conviene confirmar recuperabilidad y contacto antes de operar."
+	default:
+		return "Mantener el caso en prioridad alta, pero validando contacto y recuperabilidad porque la señal combina materialidad y mora."
+	}
+}
+
+func portfolioResidualRisk(driver string, peerCount int) string {
+	if peerCount < 3 {
+		return "La cohorte comparable es reducida, así que la inferencia sobre peers puede estar sesgada."
+	}
+	switch driver {
+	case "materialidad":
+		return "La prioridad por materialidad no garantiza urgencia operativa si la recuperabilidad o el contacto son débiles."
+	case "mora":
+		return "La prioridad por mora no garantiza el mayor impacto económico si la exposición es menor que otros casos."
+	default:
+		return "La combinación de señales puede cambiar si aparecen nuevos peers o datos de recuperabilidad."
+	}
+}
+
+func portfolioEvidenceConfidence(peers []map[string]interface{}) string {
+	if len(peers) >= 3 {
+		return "moderate"
+	}
+	return "partial"
+}
+
+func formatValue(v interface{}) string {
+	switch n := v.(type) {
+	case float64:
+		if n == float64(int64(n)) {
+			return fmt.Sprintf("%d", int64(n))
+		}
+		return fmt.Sprintf("%.2f", n)
+	case int:
+		return fmt.Sprintf("%d", n)
+	case int64:
+		return fmt.Sprintf("%d", n)
+	case string:
+		return n
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func stringifyMap(v interface{}) string {
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%s", k, formatValue(m[k])))
+	}
+	return strings.Join(parts, ", ")
+}
+
 // --- Delegation inference ---
 //
 // Instead of keyword-driven hardcodes, delegation needs are inferred from
@@ -574,66 +1021,126 @@ func buildFollowupResponse(userInput, entityName string, previousAnalysis, deleg
 // which domains the user is asking about and maps them to the appropriate
 // delegate capability.
 
-// delegationDomain maps a set of user-intent keywords to a delegate
-// capability and a default query.
-type delegationDomain struct {
-	Keywords   []string
-	Framework  string
-	Capability string
-	Query      string
-	Reason     string
-}
-
-var delegationDomains = []delegationDomain{
-	{
-		Keywords:   []string{"compara", "otro", "cartera", "portfolio", "benchmark"},
-		Framework:  "sabio",
-		Capability: "data.query.sql",
-		Query:      "resumen de cartera completa para comparar con el caso actual",
-		Reason:     "el usuario quiere comparar con otros clientes de la cartera",
-	},
-	{
-		Keywords:   []string{"histor", "pago", "comportam", "patron", "patrón", "tendencia"},
-		Framework:  "sabio",
-		Capability: "data.entity_360",
-		Query:      "historial de pagos y comportamiento del deudor",
-		Reason:     "el usuario quiere profundizar el comportamiento historico de pagos",
-	},
-	{
-		Keywords:   []string{"valid", "audit", "verific", "calidad", "confiab"},
-		Framework:  "auditor",
-		Capability: "data.quality.audit",
-		Query:      "",
-		Reason:     "el usuario quiere validar la calidad de los datos del caso",
-	},
-}
-
-// inferDelegationNeeds determines if the follow-up requires data from
-// auxiliary frameworks based on declarative domain mappings.
-func inferDelegationNeeds(userInput string, existingDelegationResults map[string]interface{}) []map[string]interface{} {
+// inferDelegationNeeds determines if the follow-up requires analytical
+// evidence contracts instead of raw technical capabilities.
+func inferDelegationNeeds(userInput string, existingDelegationResults, target map[string]interface{}) []map[string]interface{} {
 	if len(existingDelegationResults) > 0 {
 		return nil
 	}
-	inputLower := strings.ToLower(userInput)
-	var requests []map[string]interface{}
-	for _, domain := range delegationDomains {
-		for _, kw := range domain.Keywords {
-			if strings.Contains(inputLower, kw) {
-				params := map[string]string{}
-				if domain.Query != "" {
-					params["question"] = domain.Query
-				}
-				requests = append(requests, map[string]interface{}{
-					"framework":  domain.Framework,
-					"capability": domain.Capability,
-					"params":     params,
-					"reason":     domain.Reason,
-				})
-				break // one match per domain is enough
-			}
+	intent := inferAnalyticalIntent(userInput)
+	entityRef := jsonStringFromMap(target, "id", "entity_id")
+	entityType := firstNonEmpty(jsonStringFromMap(target, "type", "entity_type"), "client")
+	case360 := func(reason string) map[string]interface{} {
+		return map[string]interface{}{
+			"framework":  "sabio",
+			"capability": "evidence.case_360",
+			"params": map[string]interface{}{
+				"entity_ref":      entityRef,
+				"entity_type":     entityType,
+				"analysis_intent": "case_baseline",
+				"question":        fmt.Sprintf("Construye una vista 360 verificable del cliente %s.", firstNonEmpty(entityRef, "activo")),
+			},
+			"reason": reason,
 		}
 	}
-	return requests
+	switch intent {
+	case "portfolio_comparison":
+		return []map[string]interface{}{
+			case360("establecer la línea base verificable del caso"),
+			{
+				"framework":  "sabio",
+				"capability": "evidence.portfolio_comparison",
+				"params": map[string]interface{}{
+					"entity_ref":      entityRef,
+					"entity_type":     entityType,
+					"analysis_intent": intent,
+					"metrics":         []interface{}{"open_amount", "days_past_due", "payment_behavior"},
+					"peer_strategy":   "similar_clients",
+					"question":        fmt.Sprintf("Compara el cliente %s contra la cartera por saldo abierto, mora y comportamiento relativo.", firstNonEmpty(entityRef, "activo")),
+				},
+				"reason": "comparar el caso contra la cartera requiere percentiles y clientes comparables",
+			},
+		}
+	case "data_reconciliation":
+		return []map[string]interface{}{
+			case360("obtener la línea base del caso antes de auditar contradicciones"),
+			{
+				"framework":  "auditor",
+				"capability": "evidence.data_reconciliation",
+				"params": map[string]interface{}{
+					"entity_ref":      entityRef,
+					"entity_type":     entityType,
+					"analysis_intent": intent,
+					"question":        fmt.Sprintf("Audita contradicciones, gaps y límites de inferencia del cliente %s.", firstNonEmpty(entityRef, "activo")),
+				},
+				"reason": "validar calidad y contradicciones relevantes para la conclusión analítica",
+			},
+		}
+	case "score_sensitivity":
+		return []map[string]interface{}{
+			case360("necesito la línea base del caso antes de medir sensibilidad"),
+			{
+				"framework":  "sabio",
+				"capability": "evidence.score_sensitivity",
+				"params": map[string]interface{}{
+					"entity_ref":      entityRef,
+					"entity_type":     entityType,
+					"analysis_intent": intent,
+					"metrics":         []interface{}{"materiality", "payment_behavior", "legal_risk"},
+					"question":        fmt.Sprintf("Calcula sensibilidad del score para el cliente %s.", firstNonEmpty(entityRef, "activo")),
+				},
+				"reason": "medir qué variable cambiaría más la prioridad requiere evidencia contrafactual",
+			},
+		}
+	case "counterfactual_scenario":
+		return []map[string]interface{}{
+			case360("necesito la línea base del caso antes de simular contrafactuales"),
+			{
+				"framework":  "sabio",
+				"capability": "evidence.counterfactual",
+				"params": map[string]interface{}{
+					"entity_ref":      entityRef,
+					"entity_type":     entityType,
+					"analysis_intent": intent,
+					"question":        fmt.Sprintf("Evalúa escenarios contrafactuales para el cliente %s.", firstNonEmpty(entityRef, "activo")),
+				},
+				"reason": "la pregunta pide escenarios contrafactuales verificables",
+			},
+		}
+	case "alternative_hypothesis":
+		return []map[string]interface{}{
+			case360("necesito la línea base del caso para contrastar hipótesis"),
+			{
+				"framework":  "auditor",
+				"capability": "evidence.claim_audit",
+				"params": map[string]interface{}{
+					"entity_ref":      entityRef,
+					"entity_type":     entityType,
+					"analysis_intent": intent,
+					"question":        fmt.Sprintf("Audita qué claims sobre el cliente %s son débiles o no verificables.", firstNonEmpty(entityRef, "activo")),
+				},
+				"reason": "las hipótesis alternativas requieren validar claims y límites de inferencia",
+			},
+		}
+	default:
+		if strings.Contains(strings.ToLower(userInput), "pago") || strings.Contains(strings.ToLower(userInput), "comportam") {
+			return []map[string]interface{}{
+				{
+					"framework":  "sabio",
+					"capability": "evidence.payment_behavior_summary",
+					"params": map[string]interface{}{
+						"entity_ref":      entityRef,
+						"entity_type":     entityType,
+						"analysis_intent": "payment_behavior_summary",
+						"metrics":         []interface{}{"payment_count", "payment_total", "payment_residue_total"},
+						"question":        fmt.Sprintf("Resume el comportamiento de pago del cliente %s.", firstNonEmpty(entityRef, "activo")),
+					},
+					"reason": "el usuario pide evidencia del comportamiento de pagos",
+				},
+			}
+		}
+		return nil
+	}
 }
 
 func followupTextFromLLM(raw string) string {
@@ -650,6 +1157,108 @@ func followupTextFromLLM(raw string) string {
 		return ""
 	}
 	return strings.TrimSpace(text) + "\n\n---\nRadar mantiene el tramo analitico. Podes seguir preguntando o decir 'avanza' para pasar a accion."
+}
+
+func delegationRequestsFromPayload(payload map[string]interface{}) []map[string]interface{} {
+	raw, ok := payload["delegation_requests"].([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]map[string]interface{}, 0, len(raw))
+	for _, item := range raw {
+		if m, ok := item.(map[string]interface{}); ok {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+func reconcileDelegationPlan(userInput string, target, llmPayload map[string]interface{}) ([]map[string]interface{}, map[string]interface{}) {
+	intent := firstNonEmpty(jsonStringFromMap(llmPayload, "analysis_intent"), inferAnalyticalIntent(userInput))
+	llmRequests := delegationRequestsFromPayload(llmPayload)
+	fallback := inferDelegationNeeds(userInput, nil, target)
+	required := requiredDelegationCapabilitiesForIntent(intent)
+	added := []string{}
+	merged := append([]map[string]interface{}{}, llmRequests...)
+	existing := map[string]bool{}
+	for _, req := range llmRequests {
+		existing[jsonStringFromMap(req, "capability")] = true
+	}
+	for _, req := range fallback {
+		capability := jsonStringFromMap(req, "capability")
+		if capability == "" || existing[capability] {
+			continue
+		}
+		if !stringSliceContains(required, capability) && len(llmRequests) > 0 {
+			continue
+		}
+		merged = append(merged, req)
+		existing[capability] = true
+		added = append(added, capability)
+	}
+	if len(merged) == 0 {
+		merged = fallback
+	}
+	return merged, map[string]interface{}{
+		"intent":                   intent,
+		"llm_delegation_requests":  llmRequests,
+		"fallback_delegation_plan": fallback,
+		"required_capabilities":    required,
+		"completion_applied":       len(added) > 0,
+		"added_capabilities":       added,
+	}
+}
+
+func requiredDelegationCapabilitiesForIntent(intent string) []string {
+	switch strings.TrimSpace(strings.ToLower(intent)) {
+	case "portfolio_comparison":
+		return []string{"evidence.portfolio_comparison"}
+	default:
+		return nil
+	}
+}
+
+func stringSliceContains(items []string, want string) bool {
+	for _, item := range items {
+		if strings.TrimSpace(item) == strings.TrimSpace(want) {
+			return true
+		}
+	}
+	return false
+}
+
+func stringSliceFromPayload(payload map[string]interface{}, key string) []string {
+	raw, ok := payload[key].([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, item := range raw {
+		if s, ok := item.(string); ok && strings.TrimSpace(s) != "" {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+func inferAnalyticalIntent(input string) string {
+	lower := strings.ToLower(input)
+	switch {
+	case strings.Contains(lower, "compara") || strings.Contains(lower, "cartera"):
+		return "portfolio_comparison"
+	case strings.Contains(lower, "contradic") || strings.Contains(lower, "calidad") || strings.Contains(lower, "gap"):
+		return "data_reconciliation"
+	case strings.Contains(lower, "sensibilidad") || strings.Contains(lower, "score"):
+		return "score_sensitivity"
+	case strings.Contains(lower, "hipótesis") || strings.Contains(lower, "hipotesis"):
+		return "alternative_hypothesis"
+	case strings.Contains(lower, "contrafactual") || strings.Contains(lower, "qué pasaría"):
+		return "counterfactual_scenario"
+	case strings.Contains(lower, "recom"):
+		return "recommendation_readiness"
+	default:
+		return "general_deep_analysis"
+	}
 }
 
 func loadSemanticPack(path string) (semanticPack, error) {

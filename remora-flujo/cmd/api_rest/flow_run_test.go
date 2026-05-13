@@ -2672,6 +2672,7 @@ func TestCollectionFlowDeepAnalysisStaysInAnalyticalSegment(t *testing.T) {
 func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T) {
 	s, closeFn := newCollectionSmokeServer(t)
 	defer closeFn()
+	t.Setenv("REMORA_DEEP_ANALYSIS_STRESS_TURNS", "6")
 
 	req := collectionSmokeRequest(false, false)
 	artifacts := map[string]flowRunArtifact{
@@ -2716,6 +2717,12 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 	countFollowup := 0
 	countOperational := 0
 	countHandoff := 0
+	countDelegationPlan := 0
+	countSabioDelegate := 0
+	countAuditorDelegate := 0
+	integratedDelegatedEvidence := false
+	synthesizedDelegatedFollowup := false
+	sawCompletedComparativePlan := false
 	for _, step := range branch.Timeline {
 		if step.Node == "deep_analysis_simulated_user" {
 			countUser++
@@ -2729,12 +2736,48 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 				countOperational++
 			}
 		}
+		if step.Node == "radar_deep_analysis_delegation_plan" {
+			countDelegationPlan++
+			if strings.Contains(step.HumanSummary, "evidence.case_360") && strings.Contains(step.HumanSummary, "evidence.portfolio_comparison") {
+				sawCompletedComparativePlan = true
+			}
+		}
+		if strings.Contains(step.Node, "deep_analysis_delegate_data.query.sql") || step.Framework == "sabio" && step.Role == "delegate" {
+			countSabioDelegate++
+		}
+		if strings.Contains(step.Node, "deep_analysis_delegate_data.quality.audit") || step.Framework == "auditor" && step.Role == "delegate" {
+			countAuditorDelegate++
+		}
+		if strings.Contains(step.HumanSummary, "delegation_results_json") || strings.Contains(step.HumanSummary, "percentil") {
+			integratedDelegatedEvidence = true
+		}
+		if step.Node == "radar_deep_analysis_followup" && step.Synthesized && step.AnalysisPhase == "synthesis" && (strings.Contains(step.HumanSummary, "delegation_results_path") || strings.Contains(step.HumanSummary, "percentil") || strings.Contains(step.HumanSummary, "auditoría") || strings.Contains(step.HumanSummary, "detalle del caso")) {
+			synthesizedDelegatedFollowup = true
+		}
 	}
 	if countUser < 3 {
 		t.Fatalf("expected at least 3 simulated user turns, got %d timeline=%#v", countUser, branch.Timeline)
 	}
-	if countFollowup < 2 {
-		t.Fatalf("expected at least 2 real Radar followups, got %d timeline=%#v", countFollowup, branch.Timeline)
+	if countFollowup < 6 {
+		t.Fatalf("expected stress mode to run at least 6 real Radar followups, got %d timeline=%#v", countFollowup, branch.Timeline)
+	}
+	if countDelegationPlan < 2 {
+		t.Fatalf("expected Radar delegation plans for stress questions, got %d timeline=%#v", countDelegationPlan, branch.Timeline)
+	}
+	if !sawCompletedComparativePlan {
+		t.Fatalf("expected comparative planning turn to be completed with both case baseline and portfolio evidence, timeline=%#v", branch.Timeline)
+	}
+	if countSabioDelegate == 0 {
+		t.Fatalf("expected portfolio comparison to delegate to Sabio, timeline=%#v", branch.Timeline)
+	}
+	if countAuditorDelegate == 0 {
+		t.Fatalf("expected contradiction/gap question to delegate to Auditor, timeline=%#v", branch.Timeline)
+	}
+	if !integratedDelegatedEvidence {
+		t.Fatalf("expected final Radar response to integrate delegated evidence, timeline=%#v", branch.Timeline)
+	}
+	if !synthesizedDelegatedFollowup {
+		t.Fatalf("expected at least one delegated followup to finish with synthesized=true and analysis_phase=synthesis, timeline=%#v", branch.Timeline)
 	}
 	if countOperational != 1 || countHandoff != 1 {
 		t.Fatalf("expected one operational handoff to Foco, operational=%d handoff=%d timeline=%#v", countOperational, countHandoff, branch.Timeline)
@@ -2747,6 +2790,51 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 	}
 	if containsString(branch.Artifacts, "message.sent.v1") {
 		t.Fatalf("deep analysis dimension must not send before handoff, artifacts=%#v", branch.Artifacts)
+	}
+	handoffPath := s.latestFlowArtifactPath(req.Flow.BusinessID, "analysis.handoff.v1")
+	if handoffPath == "" {
+		t.Fatalf("expected persisted analysis.handoff.v1")
+	}
+	rawHandoff, err := os.ReadFile(handoffPath)
+	if err != nil {
+		t.Fatalf("read handoff: %v", err)
+	}
+	var handoff map[string]interface{}
+	if err := json.Unmarshal(rawHandoff, &handoff); err != nil {
+		t.Fatalf("parse handoff: %v", err)
+	}
+	if strings.TrimSpace(fmt.Sprint(handoff["analytical_summary"])) == "" {
+		t.Fatalf("expected handoff to preserve non-empty analytical summary, got %#v", handoff)
+	}
+	if !strings.Contains(fmt.Sprint(handoff["accepted_gaps"]), "contactabilidad") && !strings.Contains(fmt.Sprint(handoff["accepted_gaps"]), "inconsistencias") {
+		t.Fatalf("expected handoff to preserve analytical gaps/findings, got %#v", handoff)
+	}
+	sawSynthesizedArtifact := false
+	for _, path := range s.allFlowArtifactPaths(req.Flow.BusinessID, "analysis.followup.v1") {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read followup artifact %s: %v", path, err)
+		}
+		var payload map[string]interface{}
+		if err := json.Unmarshal(raw, &payload); err != nil {
+			t.Fatalf("parse followup artifact %s: %v", path, err)
+		}
+		caps := fmt.Sprint(payload["delegated_capabilities"])
+		if !strings.Contains(caps, "evidence.portfolio_comparison") {
+			continue
+		}
+		if payload["analysis_phase"] == "synthesis" {
+			if synthesized, _ := payload["synthesized"].(bool); synthesized {
+				if strings.TrimSpace(fmt.Sprint(payload["delegation_results_path"])) == "" {
+					t.Fatalf("expected delegated followup artifact to persist delegation_results_path, got %+v", payload)
+				}
+				sawSynthesizedArtifact = true
+				break
+			}
+		}
+	}
+	if !sawSynthesizedArtifact {
+		t.Fatalf("expected a persisted delegated followup artifact with analysis_phase=synthesis and synthesized=true")
 	}
 }
 
@@ -2780,9 +2868,32 @@ func collectionSmokeRequest(withContact, withSMTP bool) flowRunRequest {
 	return req
 }
 
+func interfaceSliceToStrings(items []interface{}) []string {
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		out = append(out, fmt.Sprint(item))
+	}
+	return out
+}
+
 func newCollectionSmokeServer(t *testing.T) (*server, func()) {
 	t.Helper()
 	root := t.TempDir()
+	expectedDB := filepath.Join(root, "framework-indexa", "data", "test_business.db")
+	if err := os.MkdirAll(filepath.Dir(expectedDB), 0755); err != nil {
+		t.Fatalf("mkdir smoke db dir: %v", err)
+	}
+	if err := os.WriteFile(expectedDB, []byte("sqlite fixture"), 0644); err != nil {
+		t.Fatalf("write smoke db fixture: %v", err)
+	}
+	expectedPack := filepath.Join(root, "framework-sabio", "businesses", "test_business", "sabio.business.json")
+	if err := os.MkdirAll(filepath.Dir(expectedPack), 0755); err != nil {
+		t.Fatalf("mkdir smoke pack dir: %v", err)
+	}
+	pack := `{"business_id":"test_business","data_source":{"default_path":"../framework-indexa/data/test_business.db"}}`
+	if err := os.WriteFile(expectedPack, []byte(pack), 0644); err != nil {
+		t.Fatalf("write smoke semantic pack: %v", err)
+	}
 	smtpConfigured := false
 	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var body map[string]interface{}
@@ -2798,6 +2909,7 @@ func newCollectionSmokeServer(t *testing.T) (*server, func()) {
 				break
 			}
 		}
+		joinedArgs := fmt.Sprint(args)
 		stdout := `{"artifact_type":"noop.v1"}`
 		switch marker {
 		case "smoke-sabio-dataset":
@@ -2807,11 +2919,46 @@ func newCollectionSmokeServer(t *testing.T) (*server, func()) {
 		case "smoke-radar-deep":
 			stdout = `{"artifact_type":"analysis.case_review.v1","artifacts":["analysis.case_review.v1","answer.grounded.v1"],"summary":"Radar toma control del análisis profundo de Cliente Uno antes de cualquier acción operativa.","selected":{"artifact_type":"entity.ref.v1","type":"client","id":"cust_1","name":"Cliente Uno"},"owner":{"framework":"radar","capability":"analysis.deep_dive","transfer_control":true}}`
 		case "smoke-radar-followup":
-			stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"text":"Radar analiza el follow-up usando el contexto real recibido y mantiene el tramo analítico sin ejecutar operación.","grounded_answer":{"artifact_type":"answer.grounded.v1","text":"Radar analiza el follow-up usando el contexto real recibido y mantiene el tramo analítico sin ejecutar operación."}}`
+			delegationPath := testArgValue(interfaceSliceToStrings(args), "--delegation-results-path")
+			delegationInline := testArgValue(interfaceSliceToStrings(args), "--delegation-results-json")
+			delegationPayload := delegationInline
+			if delegationPath != "" {
+				raw, err := os.ReadFile(delegationPath)
+				if err != nil {
+					t.Fatalf("read materialized delegation results: %v", err)
+				}
+				delegationPayload = string(raw)
+			}
+			switch {
+			case delegationInline != "" && delegationPath == "":
+				t.Fatalf("expected delegated synthesis to use delegation_results_path, args=%s", joinedArgs)
+			case delegationPath != "" && strings.Contains(strings.ToLower(delegationPayload), "quality"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"synthesis","text":"Radar integra delegation_results_path: la auditoría confirmó gaps de calidad y mantiene cautela por inconsistencias.","findings":["auditoría integrada"],"evidence":["delegation_results_path"],"confidence":"partial","data_gaps":["inconsistencias pendientes"]}`
+			case delegationPath != "" && strings.Contains(strings.ToLower(delegationPayload), "entity_360.v1"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"synthesis","text":"Radar integra delegation_results_path: el detalle del caso aporta open_amount y payments_count para evaluar hipótesis.","findings":["detalle de caso integrado"],"evidence":["delegation_results_path"],"confidence":"moderate"}`
+			case strings.Contains(delegationPayload, "percentil"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"synthesis","text":"Radar integra delegation_results_path: comparación de cartera con percentiles recibidos. Confianza: moderada. Gap: falta contactabilidad.","findings":["comparación integrada"],"evidence":["delegation_results_path"],"confidence":"moderate","data_gaps":["contactabilidad"],"recommendation":"avanzar con cautela tras handoff"}`
+			case strings.Contains(strings.ToLower(joinedArgs), "compara") || strings.Contains(strings.ToLower(joinedArgs), "cartera"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"plan","analysis_intent":"portfolio_comparison","needs_delegation":true,"evidence_needed":["percentiles de cartera"],"reason":"comparar requiere datos de cartera","text":"Radar necesita comparar el caso contra la cartera antes de sintetizar.","delegation_requests":[{"framework":"sabio","capability":"evidence.case_360","params":{"entity_ref":"cust_1","entity_type":"client","analysis_intent":"case_baseline","question":"Construye baseline verificable del cliente cust_1"},"reason":"baseline del caso"}]}`
+			case strings.Contains(strings.ToLower(joinedArgs), "contradic") || strings.Contains(strings.ToLower(joinedArgs), "gap"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"plan","analysis_intent":"data_reconciliation","needs_delegation":true,"evidence_needed":["auditoría de consistencia"],"reason":"reconciliar contradicciones requiere validar calidad","text":"Radar pide validación de calidad antes de concluir contradicciones.","delegation_requests":[{"type":"gaps_calidad","task":"validar contradicciones del caso"}]}`
+			case strings.Contains(strings.ToLower(joinedArgs), "sensibilidad") || strings.Contains(strings.ToLower(joinedArgs), "contrafactual"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"plan","analysis_intent":"score_sensitivity","needs_delegation":true,"evidence_needed":["ranking contrafactual"],"reason":"sensibilidad requiere simulación con datos de cartera","text":"Radar necesita evidencia para medir sensibilidad del score.","delegation_requests":[{"type":"simulation","task":"analisis_de_sensibilidad","deudor_id":"cust_1"}]}`
+			case strings.Contains(strings.ToLower(joinedArgs), "hipótesis") || strings.Contains(strings.ToLower(joinedArgs), "hipotesis"):
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"plan","analysis_intent":"alternative_hypothesis","needs_delegation":true,"evidence_needed":["detalle de documentos y pagos"],"reason":"las hipótesis alternativas requieren contexto del caso","text":"Radar quiere revisar detalle del caso antes de proponer hipótesis.","delegation_requests":[{"delegation_type":"obtener_detalles_de_caso","deudor_id":"cust_1","fields":["open_amount","payments_count","billing_documents"]}]}`
+			default:
+				stdout = `{"artifact_type":"analysis.followup.v1","artifacts":["analysis.followup.v1","answer.grounded.v1"],"analysis_phase":"synthesis","text":"Radar analiza el follow-up usando el contexto real recibido y mantiene el tramo analítico sin ejecutar operación.","grounded_answer":{"artifact_type":"answer.grounded.v1","text":"Radar analiza el follow-up usando el contexto real recibido y mantiene el tramo analítico sin ejecutar operación."},"confidence":"partial","data_gaps":["datos insuficientes para afirmar sin delegación"]}`
+			}
 		case "smoke-foco":
 			stdout = `{"artifact_type":"focus.next_task.v1","artifacts":["focus.next_task.v1","task.next","entity.ref.v1","action.options.v1"],"task_id":"task_1","selected":{"artifact_type":"entity.ref.v1","type":"client","id":"cust_1","name":"Cliente Uno"},"action_options":[{"id":"send_email","label":"Enviar email","description":"Cobrar por email"},{"id":"skip","label":"Saltar","description":"Pasar al siguiente"}]}`
 		case "smoke-sabio-query":
-			stdout = `{"artifact_type":"entity_360.v1","artifacts":["entity_360.v1","answer.grounded.v1"],"summary":"Cliente Uno tiene deuda vencida","email":""}`
+			if !strings.Contains(joinedArgs, expectedDB) {
+				t.Fatalf("expected sabio query to receive canonical db path %q, args=%s", expectedDB, joinedArgs)
+			}
+			if !strings.Contains(joinedArgs, expectedPack) {
+				t.Fatalf("expected sabio query to receive semantic pack %q, args=%s", expectedPack, joinedArgs)
+			}
+			stdout = `{"artifact_type":"entity_360.v1","artifacts":["entity_360.v1","answer.grounded.v1"],"summary":"Cliente Uno tiene deuda vencida","percentil_mora":90,"percentil_saldo":70,"text":"Cartera: percentil mora 90, percentil saldo 70, clientes similares con mora menor."}`
 		case "smoke-auditor":
 			stdout = `{"artifact_type":"auditor.findings.v1","artifacts":["auditor.findings.v1","data.gaps.v1"],"findings":[{"rule":"missing_contact_destination","severity":"high","description":"Falta email de contacto"}],"data_gaps":[{"type":"missing_contact_destination","field":"email","description":"Falta email de contacto"}]}`
 		case "smoke-mecanico-resolve":
@@ -2845,11 +2992,12 @@ func collectionSmokeManifests() map[string]*manifest.Manifest {
 			Name: "sabio", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"},
 			Commands: map[string]manifest.Command{
 				"dataset-export": {Args: []string{"-c", "smoke-sabio-dataset"}},
-				"query":          {Args: []string{"-c", "smoke-sabio-query"}},
+				"query":          {Args: []string{"-c", "smoke-sabio-query", "--business-id", "{params.business_id}", "--db", "{params.db}", "--semantic-pack", "{params.semantic_pack}", "--entity-ref", "{params.entity_ref}", "--entity-type", "{params.entity_type}"}, Params: []string{"business_id", "db", "semantic_pack", "entity_ref", "entity_type"}},
 				"contact-lookup": {Args: []string{"-c", "smoke-contact-lookup"}, Params: []string{"entity_type", "entity_ref", "channel", "profile"}},
 			},
 			Capabilities: []manifest.CapabilitySpec{
 				{ID: "dataset.export", Command: "dataset-export", Requires: []string{"data.sqlite_db.v1"}, Produces: []string{"dataset.raw.v1", "external.api.dump.v1"}},
+				{ID: "data.query.sql", Command: "query", Requires: []string{"data.sqlite_db.v1", "business.semantic_pack.v1"}, Produces: []string{"query.result.v1", "answer.grounded.v1"}},
 				{ID: "data.entity_360", Command: "query", Requires: []string{"entity.ref.v1", "data.sqlite_db.v1", "business.semantic_pack.v1"}, Produces: []string{"entity_360.v1", "answer.grounded.v1"}},
 				{ID: "contact.lookup", Command: "contact-lookup", Requires: []string{"entity.ref.v1"}, Produces: []string{"contact.lookup.v1", "contact.destination.v1"}},
 			},
@@ -2859,11 +3007,11 @@ func collectionSmokeManifests() map[string]*manifest.Manifest {
 			Commands: map[string]manifest.Command{
 				"prioritize":       {Args: []string{"-c", "smoke-radar"}},
 				"deep-dive":        {Args: []string{"-c", "smoke-radar-deep", "--entity-ref", "{params.entity_ref}", "--entity-type", "{params.entity_type}", "--priority-list-path", "{params.priority_list_path}", "--priority-list-json", "{params.priority_list_json}", "--strategy-path", "{params.strategy_path}", "--strategy-json", "{params.strategy_json}", "--context-b64", "{params.context_b64}"}, Params: []string{"entity_ref", "entity_type", "priority_list_path", "priority_list_json", "strategy_path", "strategy_json", "context_b64"}, Defaults: map[string]string{"entity_ref": "", "entity_type": "", "priority_list_path": "", "priority_list_json": "", "strategy_path": "", "strategy_json": "", "context_b64": ""}},
-				"analyze-followup": {Args: []string{"-c", "smoke-radar-followup", "--input", "{params.input}", "--turn-count", "{params.turn_count}", "--delegation-results-json", "{params.delegation_results_json}"}, Params: []string{"input", "turn_count", "delegation_results_json"}, Defaults: map[string]string{"input": "", "turn_count": "0", "delegation_results_json": ""}},
+				"analyze-followup": {Args: []string{"-c", "smoke-radar-followup", "--input", "{params.input}", "--turn-count", "{params.turn_count}", "--delegation-results-path", "{params.delegation_results_path}", "--delegation-results-json", "{params.delegation_results_json}", "--llm-followup-path", "{params.llm_followup_path}", "--llm-followup-json", "{params.llm_followup_json}"}, Params: []string{"input", "turn_count", "delegation_results_path", "delegation_results_json", "llm_followup_path", "llm_followup_json"}, Defaults: map[string]string{"input": "", "turn_count": "0", "delegation_results_path": "", "delegation_results_json": "", "llm_followup_path": "", "llm_followup_json": ""}},
 			},
 			Capabilities: []manifest.CapabilitySpec{
 				{ID: "collection.priority_list", Command: "prioritize", Requires: []string{"dataset.raw.v1", "business.semantic_pack.v1"}, Produces: []string{"collection.priority_list.v1", "collection.priority_item.v1", "entity.ref.v1", "strategy.recommendation.v1"}},
-				{ID: "analysis.deep_dive", Command: "deep-dive", Requires: []string{"collection.priority_list.v1", "entity.ref.v1"}, Produces: []string{"analysis.case_review.v1", "answer.grounded.v1"}, Session: &manifest.CapabilitySession{Conversational: true, FollowupCommand: "analyze-followup", ContinueSignals: []string{"explica", "por qué", "evidencia", "contradicciones", "gaps"}, OperationalSignals: []string{"con eso basta", "avanza"}, ExitSignals: []string{"siguiente caso"}, AllowedDelegates: []string{"data.entity_360", "data.quality.audit"}, MaxTurns: 10}},
+				{ID: "analysis.deep_dive", Command: "deep-dive", Requires: []string{"collection.priority_list.v1", "entity.ref.v1"}, Produces: []string{"analysis.case_review.v1", "answer.grounded.v1"}, Session: &manifest.CapabilitySession{Conversational: true, FollowupCommand: "analyze-followup", ContinueSignals: []string{"explica", "por qué", "evidencia", "contradicciones", "gaps"}, OperationalSignals: []string{"con eso basta", "avanza"}, ExitSignals: []string{"siguiente caso"}, AllowedDelegates: []string{"data.entity_360", "data.query.sql", "data.quality.audit"}, MaxTurns: 10}},
 			},
 		},
 		"foco":     {Name: "foco", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"}, Commands: map[string]manifest.Command{"next-task": {Args: []string{"-c", "smoke-foco"}}}, Capabilities: []manifest.CapabilitySpec{{ID: "focus.next_collection_task", Command: "next-task", Requires: []string{"collection.priority_list.v1"}, Produces: []string{"focus.next_task.v1", "task.next", "entity.ref.v1", "action.options.v1"}}}},

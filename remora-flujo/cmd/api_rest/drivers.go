@@ -141,7 +141,7 @@ func initDriverRegistry(rootDir string, logger *log.Logger) (loaded map[string]*
 			logger.Printf("manifest %s descubierto (execution_mode=%s, fuera del chain)", name, m.EffectiveExecutionMode())
 			continue
 		}
-		drv, err := newGenericDriver(m, rootDir)
+		drv, err := newGenericDriver(m, rootDir, nil)
 		if err != nil {
 			skipped[name] = err
 			logger.Printf("manifest %s skip (driver build): %v", name, err)

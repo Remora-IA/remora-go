@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -230,6 +232,292 @@ func TestRadarDeepDiveNarrativeIncludesUsefulSections(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("expected narrative to contain %q, got:\n%s", want, text)
 		}
+	}
+}
+
+func TestBuildFollowupResponseIntegratesStructuredEvidenceAndFailure(t *testing.T) {
+	delegationResults := map[string]interface{}{
+		"results": []interface{}{
+			map[string]interface{}{
+				"capability": "evidence.case_360",
+				"verified":   true,
+				"payload": map[string]interface{}{
+					"entity":             map[string]interface{}{"name": "Thiel-Effertz"},
+					"financial_position": map[string]interface{}{"open_amount": 7500.0},
+					"aging":              map[string]interface{}{"oldest_open_debt_days": 2704},
+					"history":            map[string]interface{}{"payments_count": 7, "payments_total": 22611.6},
+					"charges_by_state":   map[string]interface{}{"FACTURADO": 1, "PAGADO": 7},
+				},
+			},
+			map[string]interface{}{
+				"capability": "evidence.portfolio_comparison",
+				"verified":   false,
+				"error":      "No pude responder con SQLite de forma verificable.",
+			},
+		},
+	}
+	got := buildFollowupResponse("Compáralo contra clientes similares de la cartera.", "Thiel-Effertz", nil, delegationResults, nil, nil)
+	for _, want := range []string{"saldo abierto 7500", "No pude verificar todavía la comparación contra la cartera", "Delegaciones no verificadas"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected followup response to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
+func TestSummarizePortfolioEvidenceUsesStructuredMetricsAndPeers(t *testing.T) {
+	entry := map[string]interface{}{
+		"payload": map[string]interface{}{
+			"structured": map[string]interface{}{
+				"entity_name":              "Thiel-Effertz",
+				"open_amount":              7500.0,
+				"days_past_due":            2704,
+				"payment_count":            7,
+				"payment_total":            22611.6,
+				"open_amount_percentile":   100,
+				"days_past_due_percentile": 0,
+				"peers": []interface{}{
+					map[string]interface{}{"name": "Peer A", "open_amount": 7200.0, "days_past_due": 1800},
+					map[string]interface{}{"name": "Peer B", "open_amount": 7000.0, "days_past_due": 1600},
+					map[string]interface{}{"name": "Peer C", "open_amount": 6800.0, "days_past_due": 1500},
+				},
+			},
+		},
+	}
+	got := summarizePortfolioEvidence(entry)
+	for _, want := range []string{
+		"saldo abierto 7500",
+		"percentil 100",
+		"mora 2704 días",
+		"percentil 0",
+		"materialidad",
+		"Peer A",
+		"Peer B",
+		"Peer C",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected portfolio summary to contain %q, got:\n%s", want, got)
+		}
+	}
+}
+
+func TestBuildEvidenceCentricFollowupSynthesisUsesVerifiedPortfolioEvidenceFirst(t *testing.T) {
+	delegationResults := map[string]interface{}{
+		"results": []interface{}{
+			map[string]interface{}{
+				"capability": "evidence.case_360",
+				"verified":   true,
+				"payload": map[string]interface{}{
+					"entity":             map[string]interface{}{"name": "Thiel-Effertz"},
+					"financial_position": map[string]interface{}{"open_amount": 7500.0},
+					"aging":              map[string]interface{}{"oldest_open_debt_days": 2704},
+					"history":            map[string]interface{}{"payments_count": 7, "payments_total": 22611.6},
+					"charges_by_state":   map[string]interface{}{"FACTURADO": 1, "PAGADO": 7},
+				},
+			},
+			map[string]interface{}{
+				"capability": "evidence.portfolio_comparison",
+				"verified":   true,
+				"payload": map[string]interface{}{
+					"structured": map[string]interface{}{
+						"entity_name":              "Thiel-Effertz",
+						"open_amount":              7500.0,
+						"days_past_due":            2704,
+						"payment_count":            7,
+						"payment_total":            22611.6,
+						"open_amount_percentile":   100,
+						"days_past_due_percentile": 0,
+						"peers": []interface{}{
+							map[string]interface{}{"name": "Peer A", "open_amount": 7200.0, "days_past_due": 1800},
+							map[string]interface{}{"name": "Peer B", "open_amount": 7000.0, "days_past_due": 1600},
+							map[string]interface{}{"name": "Peer C", "open_amount": 6800.0, "days_past_due": 1500},
+						},
+					},
+				},
+			},
+		},
+	}
+	got := buildEvidenceCentricFollowupSynthesis("Compáralo contra clientes similares de la cartera: mora, saldo y comportamiento relativo", "Thiel-Effertz", delegationResults)
+	for _, want := range []string{"percentil 100", "Peer A", "materialidad"} {
+		if !strings.Contains(got.Text, want) {
+			t.Fatalf("expected evidence-first synthesis text to contain %q, got:\n%s", want, got.Text)
+		}
+	}
+	if got.Confidence != "moderate" {
+		t.Fatalf("expected moderate confidence, got %#v", got)
+	}
+	if got.Recommendation == "" || !strings.Contains(strings.ToLower(got.Recommendation), "materialidad") {
+		t.Fatalf("expected evidence-first recommendation, got %#v", got)
+	}
+	if len(got.Findings) == 0 || len(got.Evidence) == 0 {
+		t.Fatalf("expected structured findings/evidence, got %#v", got)
+	}
+}
+
+func TestRunAnalyzeFollowupPrefersEvidenceFirstSynthesisOverGenericLLMDraft(t *testing.T) {
+	delegationResults := `{
+		"results": [
+			{
+				"capability": "evidence.case_360",
+				"verified": true,
+				"payload": {
+					"entity": {"name": "Thiel-Effertz"},
+					"financial_position": {"open_amount": 7500},
+					"aging": {"oldest_open_debt_days": 2704},
+					"history": {"payments_count": 7, "payments_total": 22611.6},
+					"charges_by_state": {"FACTURADO": 1, "PAGADO": 7}
+				}
+			},
+			{
+				"capability": "evidence.portfolio_comparison",
+				"verified": true,
+				"payload": {
+					"structured": {
+						"entity_name": "Thiel-Effertz",
+						"open_amount": 7500,
+						"days_past_due": 2704,
+						"payment_count": 7,
+						"payment_total": 22611.6,
+						"open_amount_percentile": 100,
+						"days_past_due_percentile": 0,
+						"peers": [
+							{"name": "Peer A", "open_amount": 7200, "days_past_due": 1800},
+							{"name": "Peer B", "open_amount": 7000, "days_past_due": 1600},
+							{"name": "Peer C", "open_amount": 6800, "days_past_due": 1500}
+						]
+					}
+				}
+			}
+		]
+	}`
+	llmDraft := `{"text":"Mora/Antigüedad...","confidence":"partial"}`
+	out := captureStdout(t, func() {
+		if err := runAnalyzeFollowup([]string{
+			"--business-id", "panalbit",
+			"--input", "Compáralo contra clientes similares de la cartera: mora, saldo y comportamiento relativo",
+			"--entity-ref", "184",
+			"--entity-type", "client",
+			"--delegation-results-json", delegationResults,
+			"--llm-followup-json", llmDraft,
+		}); err != nil {
+			t.Fatalf("runAnalyzeFollowup: %v", err)
+		}
+	})
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &payload); err != nil {
+		t.Fatalf("parse followup output: %v\nraw=%s", err, out)
+	}
+	text, _ := payload["text"].(string)
+	for _, want := range []string{"percentil 100", "Peer A", "materialidad"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("expected synthesis text to contain %q, got:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "Mora/Antigüedad...") {
+		t.Fatalf("expected evidence-first synthesis to override generic llm draft, got:\n%s", text)
+	}
+	if payload["confidence"] != "moderate" {
+		t.Fatalf("expected moderate confidence, got %#v", payload["confidence"])
+	}
+	findings, _ := payload["findings"].([]interface{})
+	if len(findings) == 0 {
+		t.Fatalf("expected grounded findings, got %#v", payload)
+	}
+}
+
+func TestRunAnalyzeFollowupCompletesInsufficientPortfolioPlanFromLLM(t *testing.T) {
+	llmDraft := `{
+		"analysis_intent": "portfolio_comparison",
+		"needs_delegation": true,
+		"reason": "quiero comparar el caso",
+		"delegation_requests": [
+			{
+				"framework": "sabio",
+				"capability": "evidence.case_360",
+				"params": {
+					"entity_ref": "184",
+					"entity_type": "client",
+					"analysis_intent": "case_baseline",
+					"question": "Construye baseline del caso"
+				},
+				"reason": "baseline"
+			}
+		]
+	}`
+	out := captureStdout(t, func() {
+		if err := runAnalyzeFollowup([]string{
+			"--business-id", "panalbit",
+			"--input", "Compáralo contra clientes similares de la cartera: mora, saldo y comportamiento relativo",
+			"--entity-ref", "184",
+			"--entity-type", "client",
+			"--llm-followup-json", llmDraft,
+		}); err != nil {
+			t.Fatalf("runAnalyzeFollowup: %v", err)
+		}
+	})
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(out), &payload); err != nil {
+		t.Fatalf("parse followup output: %v\nraw=%s", err, out)
+	}
+	if payload["analysis_phase"] != "plan" {
+		t.Fatalf("expected plan phase, got %#v", payload)
+	}
+	rawDelegations, _ := payload["delegation_requests"].([]interface{})
+	if len(rawDelegations) < 2 {
+		t.Fatalf("expected completed plan with at least two delegations, got %#v", payload["delegation_requests"])
+	}
+	var capabilities []string
+	for _, item := range rawDelegations {
+		if req, ok := item.(map[string]interface{}); ok {
+			capabilities = append(capabilities, jsonStringFromMap(req, "capability"))
+		}
+	}
+	for _, want := range []string{"evidence.case_360", "evidence.portfolio_comparison"} {
+		if !stringSliceContains(capabilities, want) {
+			t.Fatalf("expected completed plan to contain %s, got %#v", want, capabilities)
+		}
+	}
+	planAudit, _ := payload["plan_audit"].(map[string]interface{})
+	if applied, _ := planAudit["completion_applied"].(bool); !applied {
+		t.Fatalf("expected plan completion audit to be applied, got %#v", planAudit)
+	}
+	if !strings.Contains(fmt.Sprint(planAudit["added_capabilities"]), "evidence.portfolio_comparison") {
+		t.Fatalf("expected plan audit to record added portfolio comparison capability, got %#v", planAudit)
+	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe stdout: %v", err)
+	}
+	os.Stdout = w
+	defer func() { os.Stdout = old }()
+	fn()
+	_ = w.Close()
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	return strings.TrimSpace(string(raw))
+}
+
+func TestInferDelegationNeedsUsesEvidenceContracts(t *testing.T) {
+	target := map[string]interface{}{"id": "184", "type": "client"}
+	got := inferDelegationNeeds("Haz un análisis de sensibilidad del score.", nil, target)
+	if len(got) == 0 {
+		t.Fatal("expected evidence requests")
+	}
+	foundEvidence := false
+	for _, req := range got {
+		if strings.HasPrefix(jsonStringFromMap(req, "capability"), "evidence.") {
+			foundEvidence = true
+			break
+		}
+	}
+	if !foundEvidence {
+		t.Fatalf("expected evidence.* capabilities, got %#v", got)
 	}
 }
 

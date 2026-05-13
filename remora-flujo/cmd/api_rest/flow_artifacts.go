@@ -1,14 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"channel/manifest"
-
-	"encoding/json"
-	"path/filepath"
 )
 
 func recordDynamicFlowNode(result *flowRunResult, node flowNode) {
@@ -417,4 +417,55 @@ func (s *server) latestFlowArtifactPath(businessID, typ string) string {
 		return nil
 	})
 	return latestPath
+}
+
+func (s *server) allFlowArtifactPaths(businessID, typ string) []string {
+	businessID = strings.TrimSpace(businessID)
+	typ = strings.TrimSpace(typ)
+	if businessID == "" || typ == "" {
+		return nil
+	}
+	root := filepath.Join(s.rootDir, "temp", "flow_runs")
+	type artifactPath struct {
+		path string
+		mod  time.Time
+	}
+	var matches []artifactPath
+	typeFileSuffix := "__" + safeFilePart(typ) + ".json"
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info == nil || info.IsDir() || !strings.HasSuffix(info.Name(), typeFileSuffix) {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		var payload map[string]interface{}
+		if json.Unmarshal(raw, &payload) != nil {
+			return nil
+		}
+		if jsonFirstString(payload, "artifact_type", "type") != typ {
+			return nil
+		}
+		if payloadBusiness := jsonFirstString(payload, "business_id"); payloadBusiness != "" && payloadBusiness != businessID {
+			return nil
+		}
+		matches = append(matches, artifactPath{path: path, mod: info.ModTime()})
+		return nil
+	})
+	slices.SortFunc(matches, func(a, b artifactPath) int {
+		switch {
+		case a.mod.Before(b.mod):
+			return -1
+		case a.mod.After(b.mod):
+			return 1
+		default:
+			return 0
+		}
+	})
+	out := make([]string, 0, len(matches))
+	for _, item := range matches {
+		out = append(out, item.path)
+	}
+	return out
 }

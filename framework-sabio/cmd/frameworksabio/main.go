@@ -717,6 +717,12 @@ func cmdQuery(args []string) {
 	businessID := fs.String("business-id", "", "negocio activo")
 	contextB64 := fs.String("context-b64", "", "contexto runtime de sesión (base64-url-safe JSON)")
 	capability := fs.String("capability", "", "capability/artifact esperado")
+	semanticCapability := fs.String("semantic-capability", "", "capability semántica original pedida por el owner")
+	entityRef := fs.String("entity-ref", "", "entidad activa")
+	entityType := fs.String("entity-type", "", "tipo de entidad activa")
+	analysisIntent := fs.String("analysis-intent", "", "intención analítica solicitada por Radar")
+	metricsCSV := fs.String("metrics", "", "métricas solicitadas por Radar, separadas por coma")
+	peerStrategy := fs.String("peer-strategy", "", "estrategia de cohorte/pares")
 	fs.Parse(args)
 	if *question == "" {
 		fail("query: --question requerido")
@@ -726,6 +732,20 @@ func cmdQuery(args []string) {
 		_ = os.Setenv("SABIO_DB", *dbPath)
 	}
 	rt := loadRuntimeContext(*businessID, *contextB64)
+	if strings.TrimSpace(*entityRef) != "" {
+		rt.ActiveEntity = map[string]any{
+			"id":   strings.TrimSpace(*entityRef),
+			"type": canonicalEntityType(*entityType),
+		}
+	}
+	if strings.TrimSpace(*capability) == "data.entity_360" {
+		emitJSON(runEntity360Artifact(resolvePath(*dbPath, "SABIO_DB", defaultDBPath), rt, *question, *entityType, *entityRef, *analysisIntent))
+		return
+	}
+	if analytical := runAnalyticalQueryArtifact(resolvePath(*dbPath, "SABIO_DB", defaultDBPath), rt, *question, *analysisIntent, *semanticCapability, *entityType, *entityRef, splitCSV(*metricsCSV), *peerStrategy); analytical != nil {
+		emitJSON(analytical)
+		return
+	}
 	resp, err := answerQuestionWithRuntime(*question, stp, nil, rt)
 	if err != nil {
 		fail("query: %v", err)
@@ -1068,13 +1088,13 @@ func cmdDatasetExport(args []string) {
 	}
 
 	result := map[string]interface{}{
-		"artifact_type":    "dataset.raw.v1",
-		"artifacts":        []string{"dataset.raw.v1", "external.api.dump.v1"},
-		"source_db":        resolvedDB,
-		"generated_at":     time.Now().UTC().Format(time.RFC3339),
-		"tables":           tables,
-		"table_count":      len(tables),
-		"total_row_count":  0,
+		"artifact_type":   "dataset.raw.v1",
+		"artifacts":       []string{"dataset.raw.v1", "external.api.dump.v1"},
+		"source_db":       resolvedDB,
+		"generated_at":    time.Now().UTC().Format(time.RFC3339),
+		"tables":          tables,
+		"table_count":     len(tables),
+		"total_row_count": 0,
 	}
 
 	totalRows := 0
@@ -1577,6 +1597,818 @@ func controlledSQLiteError(capability string, err error) sabioAnswer {
 	}
 }
 
+func runEntity360Artifact(dbPath string, rt runtimeContext, question, entityType, entityRef, analysisIntent string) map[string]any {
+	entityType = canonicalEntityType(entityType)
+	entityRef = strings.TrimSpace(entityRef)
+	if entityRef == "" {
+		entityRef = activeClientID(rt)
+	}
+	if entityType != "client" || entityRef == "" {
+		return map[string]any{
+			"artifact_type": "entity_360.v1",
+			"artifacts":     []string{"entity_360.v1", "answer.grounded.v1"},
+			"business_id":   rt.BusinessID,
+			"audience":      rt.Audience,
+			"question":      question,
+			"text":          "No pude construir la vista 360 de forma verificable porque falta una entidad cliente activa.",
+			"summary":       "Falta entity_ref/entity_type para construir entity_360.",
+			"verified":      false,
+			"trace": map[string]any{
+				"capability":    "data.entity_360",
+				"source":        "sqlite",
+				"fallback_used": false,
+				"error":         "entity_ref ausente o entity_type no soportado",
+			},
+			"generated_at": time.Now().UTC().Format(time.RFC3339),
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	dsn := dbPath + "?_pragma=query_only(true)&mode=ro"
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return entity360ErrorArtifact(rt, question, err)
+	}
+	defer db.Close()
+	if err := db.PingContext(ctx); err != nil {
+		return entity360ErrorArtifact(rt, question, err)
+	}
+
+	baseSQL := `SELECT
+		c.id,
+		c.code,
+		c.name,
+		c.active,
+		COUNT(DISTINCT ch.id) AS charges_count,
+		COUNT(DISTINCT CASE WHEN ch.state != 'PAGADO' THEN ch.id END) AS open_charges_count,
+		COUNT(DISTINCT bd.id) AS documents_count,
+		COUNT(DISTINCT CASE WHEN ch.state != 'PAGADO' THEN bd.id END) AS open_documents_count,
+		COALESCE(SUM(CASE WHEN ch.state != 'PAGADO' THEN CAST(m.amount AS REAL) ELSE 0 END), 0) AS open_amount,
+		COALESCE(SUM(CAST(m.amount AS REAL)), 0) AS total_historical_milestones,
+		MIN(CASE WHEN ch.state != 'PAGADO' THEN m.date END) AS oldest_open_milestone_date,
+		MIN(m.date) AS oldest_any_milestone_date,
+		CAST(julianday('now') - julianday(MIN(CASE WHEN ch.state != 'PAGADO' THEN m.date END)) AS INT) AS oldest_open_debt_days,
+		CAST(julianday('now') - julianday(MIN(m.date)) AS INT) AS oldest_any_milestone_days,
+		COALESCE((SELECT COUNT(*) FROM payments p WHERE p.client_id = c.id), 0) AS payments_count,
+		COALESCE((SELECT SUM(CAST(p.amount AS REAL)) FROM payments p WHERE p.client_id = c.id), 0) AS payments_total,
+		COALESCE((SELECT SUM(CAST(p.residue AS REAL)) FROM payments p WHERE p.client_id = c.id), 0) AS payment_residue_total
+	FROM clients c
+	LEFT JOIN charges ch ON ch.client_id = c.id
+	LEFT JOIN milestones m ON m.charge_id = ch.id
+	LEFT JOIN billing_documents bd ON bd.charge_id = ch.id
+	WHERE c.id = ?
+	GROUP BY c.id, c.code, c.name, c.active`
+	var (
+		clientID                  string
+		clientCode                sql.NullString
+		clientName                sql.NullString
+		active                    sql.NullString
+		chargesCount              sql.NullInt64
+		openChargesCount          sql.NullInt64
+		documentsCount            sql.NullInt64
+		openDocumentsCount        sql.NullInt64
+		openAmount                sql.NullFloat64
+		totalHistoricalMilestones sql.NullFloat64
+		oldestOpenMilestoneDate   sql.NullString
+		oldestAnyMilestoneDate    sql.NullString
+		oldestOpenDebtDays        sql.NullInt64
+		oldestAnyMilestoneDays    sql.NullInt64
+		paymentsCount             sql.NullInt64
+		paymentsTotal             sql.NullFloat64
+		paymentResidueTotal       sql.NullFloat64
+	)
+	if err := db.QueryRowContext(ctx, baseSQL, entityRef).Scan(
+		&clientID,
+		&clientCode,
+		&clientName,
+		&active,
+		&chargesCount,
+		&openChargesCount,
+		&documentsCount,
+		&openDocumentsCount,
+		&openAmount,
+		&totalHistoricalMilestones,
+		&oldestOpenMilestoneDate,
+		&oldestAnyMilestoneDate,
+		&oldestOpenDebtDays,
+		&oldestAnyMilestoneDays,
+		&paymentsCount,
+		&paymentsTotal,
+		&paymentResidueTotal,
+	); err != nil {
+		return entity360ErrorArtifact(rt, question, err)
+	}
+
+	statesSQL := `SELECT state, COUNT(*) AS count FROM charges WHERE client_id = ? GROUP BY state ORDER BY state`
+	stateRows, err := db.QueryContext(ctx, statesSQL, entityRef)
+	if err != nil {
+		return entity360ErrorArtifact(rt, question, err)
+	}
+	defer stateRows.Close()
+	chargeStates := map[string]int{}
+	for stateRows.Next() {
+		var state sql.NullString
+		var count sql.NullInt64
+		if err := stateRows.Scan(&state, &count); err != nil {
+			return entity360ErrorArtifact(rt, question, err)
+		}
+		chargeStates[state.String] = int(count.Int64)
+	}
+
+	openDocSQL := `SELECT bd.id, bd.number, bd.date, ch.state
+		FROM billing_documents bd
+		JOIN charges ch ON ch.id = bd.charge_id
+		WHERE ch.client_id = ? AND ch.state != 'PAGADO'
+		ORDER BY bd.date`
+	openDocRows, err := db.QueryContext(ctx, openDocSQL, entityRef)
+	if err != nil {
+		return entity360ErrorArtifact(rt, question, err)
+	}
+	defer openDocRows.Close()
+	var openDocuments []map[string]any
+	openInvoiceNumber := ""
+	for openDocRows.Next() {
+		var docID, number, date, state sql.NullString
+		if err := openDocRows.Scan(&docID, &number, &date, &state); err != nil {
+			return entity360ErrorArtifact(rt, question, err)
+		}
+		row := map[string]any{
+			"id":     docID.String,
+			"number": number.String,
+			"date":   date.String,
+			"state":  state.String,
+		}
+		openDocuments = append(openDocuments, row)
+		if openInvoiceNumber == "" {
+			openInvoiceNumber = number.String
+		}
+	}
+
+	activeBool := active.String == "1"
+	dataGaps := []string{"contact email missing"}
+	if chargeStates["PAGADO"] > 0 {
+		dataGaps = append(dataGaps, "mixed charge states require active-debt filtering")
+		dataGaps = append(dataGaps, "historical paid milestones should not be treated as open debt")
+	}
+	if openDocumentsCount.Int64 == 0 {
+		dataGaps = append(dataGaps, "no open billing document found for non-PAGADO charges")
+	}
+
+	text := fmt.Sprintf(
+		"%s (%s) tiene saldo abierto %.2f, mora abierta aproximada de %d días, %d pagos históricos por %.2f, %d cargos totales (%d abiertos) y %d documentos (%d abiertos). El cliente está %s. Hay estados mezclados %s, por lo que conviene separar deuda abierta de histórico pagado.",
+		clientName.String,
+		clientCode.String,
+		nullFloat(openAmount),
+		nullInt(oldestOpenDebtDays),
+		nullInt(paymentsCount),
+		nullFloat(paymentsTotal),
+		nullInt(chargesCount),
+		nullInt(openChargesCount),
+		nullInt(documentsCount),
+		nullInt(openDocumentsCount),
+		map[bool]string{true: "activo", false: "inactivo"}[activeBool],
+		joinChargeStates(chargeStates),
+	)
+
+	structured := map[string]any{
+		"name":               clientName.String,
+		"code":               clientCode.String,
+		"active":             activeBool,
+		"amount":             nullFloat(openAmount),
+		"saldo_total":        nullFloat(openAmount),
+		"days_past_due":      nullInt(oldestOpenDebtDays),
+		"invoice_number":     openInvoiceNumber,
+		"document_number":    openInvoiceNumber,
+		"payment_count":      nullInt(paymentsCount),
+		"payment_total":      nullFloat(paymentsTotal),
+		"charge_states":      chargeStates,
+		"open_documents":     openDocuments,
+		"missing_fields":     []string{"contact.destination.v1"},
+		"analysis_intent":    analysisIntent,
+		"entity_type":        entityType,
+		"entity_ref":         entityRef,
+		"has_financial_data": true,
+		"has_mora_data":      oldestOpenDebtDays.Valid,
+		"has_documents":      documentsCount.Int64 > 0,
+		"has_email":          false,
+	}
+
+	return map[string]any{
+		"artifact_type": "entity_360.v1",
+		"artifacts":     []string{"entity_360.v1", "answer.grounded.v1"},
+		"business_id":   rt.BusinessID,
+		"audience":      rt.Audience,
+		"question":      question,
+		"text":          text,
+		"answer":        text,
+		"summary":       text,
+		"verified":      true,
+		"entity": map[string]any{
+			"id":     clientID,
+			"code":   clientCode.String,
+			"name":   clientName.String,
+			"active": activeBool,
+			"type":   entityType,
+		},
+		"financial_position": map[string]any{
+			"open_amount":                 nullFloat(openAmount),
+			"total_historical_milestones": nullFloat(totalHistoricalMilestones),
+			"payments_total":              nullFloat(paymentsTotal),
+			"payment_residue_total":       nullFloat(paymentResidueTotal),
+		},
+		"aging": map[string]any{
+			"oldest_open_milestone_date": oldestOpenMilestoneDate.String,
+			"oldest_open_debt_days":      nullInt(oldestOpenDebtDays),
+			"oldest_any_milestone_date":  oldestAnyMilestoneDate.String,
+			"oldest_any_milestone_days":  nullInt(oldestAnyMilestoneDays),
+		},
+		"history": map[string]any{
+			"payments_count":        nullInt(paymentsCount),
+			"payments_total":        nullFloat(paymentsTotal),
+			"payment_residue_total": nullFloat(paymentResidueTotal),
+		},
+		"documents": map[string]any{
+			"count":               nullInt(documentsCount),
+			"open_count":          nullInt(openDocumentsCount),
+			"open_documents":      openDocuments,
+			"open_invoice_number": openInvoiceNumber,
+		},
+		"charges_count":      nullInt(chargesCount),
+		"open_charges_count": nullInt(openChargesCount),
+		"charges_by_state":   chargeStates,
+		"data_gaps":          dataGaps,
+		"structured":         structured,
+		"evidence": map[string]any{
+			"source": "sqlite",
+			"sql": []string{
+				baseSQL,
+				statesSQL,
+				openDocSQL,
+			},
+		},
+		"trace": map[string]any{
+			"capability":    "data.entity_360",
+			"source":        "sqlite",
+			"tables":        []string{"clients", "charges", "milestones", "billing_documents", "payments"},
+			"fallback_used": false,
+		},
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func entity360ErrorArtifact(rt runtimeContext, question string, err error) map[string]any {
+	return map[string]any{
+		"artifact_type": "entity_360.v1",
+		"artifacts":     []string{"entity_360.v1", "answer.grounded.v1"},
+		"business_id":   rt.BusinessID,
+		"audience":      rt.Audience,
+		"question":      question,
+		"text":          "No pude construir la vista 360 con SQLite de forma verificable.",
+		"summary":       "No pude construir la vista 360 con SQLite de forma verificable.",
+		"verified":      false,
+		"trace": map[string]any{
+			"capability":    "data.entity_360",
+			"source":        "sqlite",
+			"fallback_used": false,
+			"error":         err.Error(),
+		},
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func runAnalyticalQueryArtifact(dbPath string, rt runtimeContext, question, analysisIntent, semanticCapability, entityType, entityRef string, metrics []string, peerStrategy string) map[string]any {
+	switch canonicalAnalyticalIntent(question, analysisIntent, semanticCapability, metrics, peerStrategy) {
+	case "portfolio_comparison":
+		return runPortfolioComparisonArtifact(dbPath, rt, question, entityType, entityRef, metrics, peerStrategy)
+	case "score_sensitivity":
+		return runScoreSensitivityArtifact(dbPath, rt, question, entityType, entityRef, metrics)
+	case "counterfactual_scenario":
+		return runCounterfactualArtifact(dbPath, rt, question, entityType, entityRef)
+	case "payment_behavior_summary":
+		return runPaymentBehaviorSummaryArtifact(dbPath, rt, question, entityType, entityRef)
+	default:
+		return nil
+	}
+}
+
+func canonicalAnalyticalIntent(question, analysisIntent, semanticCapability string, metrics []string, peerStrategy string) string {
+	switch strings.TrimSpace(strings.ToLower(semanticCapability)) {
+	case "evidence.portfolio_comparison":
+		return "portfolio_comparison"
+	case "evidence.payment_behavior_summary":
+		return "payment_behavior_summary"
+	case "evidence.score_sensitivity":
+		return "score_sensitivity"
+	case "evidence.counterfactual":
+		return "counterfactual_scenario"
+	}
+	intent := strings.TrimSpace(strings.ToLower(analysisIntent))
+	switch intent {
+	case "portfolio_comparison", "payment_behavior_summary", "score_sensitivity", "counterfactual_scenario":
+		return intent
+	}
+	if strings.Contains(intent, "compar") || strings.Contains(intent, "cartera") || strings.Contains(intent, "similar") || strings.TrimSpace(peerStrategy) != "" {
+		return "portfolio_comparison"
+	}
+	questionLower := strings.ToLower(strings.TrimSpace(question))
+	if strings.Contains(questionLower, "compar") || strings.Contains(questionLower, "cartera") || strings.Contains(questionLower, "similar") {
+		return "portfolio_comparison"
+	}
+	if strings.Contains(intent, "payment_behavior") || strings.Contains(intent, "comportamiento de pago") {
+		return "payment_behavior_summary"
+	}
+	if strings.Contains(questionLower, "comportamiento de pago") || strings.Contains(questionLower, "historial de pago") {
+		return "payment_behavior_summary"
+	}
+	for _, metric := range metrics {
+		if strings.EqualFold(strings.TrimSpace(metric), "payment_behavior") {
+			return "payment_behavior_summary"
+		}
+	}
+	if strings.Contains(intent, "sensibilidad") || strings.Contains(intent, "score_sensitivity") {
+		return "score_sensitivity"
+	}
+	if strings.Contains(intent, "contrafactual") || strings.Contains(questionLower, "contrafactual") {
+		return "counterfactual_scenario"
+	}
+	return ""
+}
+
+type portfolioRow struct {
+	ID            string
+	Name          string
+	OpenAmount    float64
+	DaysPastDue   int
+	PaymentCount  int
+	PaymentsTotal float64
+}
+
+func runPortfolioComparisonArtifact(dbPath string, rt runtimeContext, question, entityType, entityRef string, metrics []string, peerStrategy string) map[string]any {
+	base := runEntity360Artifact(dbPath, rt, question, entityType, entityRef, "case_baseline")
+	if verified, _ := base["verified"].(bool); !verified {
+		return analyticalErrorArtifact(rt, question, "portfolio_comparison", "No pude verificar la línea base del caso antes de comparar cartera.", delegationTraceFromArtifact(base))
+	}
+	rows, err := loadPortfolioRows(dbPath)
+	if err != nil {
+		return analyticalErrorArtifact(rt, question, "portfolio_comparison", "No pude calcular la comparación de cartera con SQLite de forma verificable.", map[string]any{"error": err.Error()})
+	}
+	targetID := firstNonEmpty(entityRef, activeClientID(rt))
+	var target portfolioRow
+	found := false
+	for _, row := range rows {
+		if row.ID == targetID {
+			target = row
+			found = true
+			break
+		}
+	}
+	if !found {
+		return analyticalErrorArtifact(rt, question, "portfolio_comparison", "No pude ubicar el caso dentro de la cartera comparable.", nil)
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].OpenAmount == rows[j].OpenAmount {
+			return rows[i].DaysPastDue > rows[j].DaysPastDue
+		}
+		return rows[i].OpenAmount > rows[j].OpenAmount
+	})
+	rankByAmount := 0
+	rankByMora := 1
+	for i, row := range rows {
+		if row.ID == targetID {
+			rankByAmount = i + 1
+			break
+		}
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		if rows[i].DaysPastDue == rows[j].DaysPastDue {
+			return rows[i].OpenAmount > rows[j].OpenAmount
+		}
+		return rows[i].DaysPastDue > rows[j].DaysPastDue
+	})
+	for i, row := range rows {
+		if row.ID == targetID {
+			rankByMora = i + 1
+			break
+		}
+	}
+	peers := closestPeers(rows, targetID, 4)
+	openPct := percentileFromRank(rankByAmount, len(rows))
+	moraPct := percentileFromRank(rankByMora, len(rows))
+	text := fmt.Sprintf("%s no destaca por mora pura sino por materialidad: tiene saldo abierto %.2f, mora %d días, %d pagos históricos y queda percentil %d por saldo contra percentil %d por mora. Clientes comparables: %s.",
+		target.Name,
+		target.OpenAmount,
+		target.DaysPastDue,
+		target.PaymentCount,
+		openPct,
+		moraPct,
+		describePeers(peers),
+	)
+	return map[string]any{
+		"artifact_type":   "answer.grounded.v1",
+		"artifacts":       []string{"answer.grounded.v1"},
+		"business_id":     rt.BusinessID,
+		"audience":        rt.Audience,
+		"question":        question,
+		"text":            text,
+		"answer":          text,
+		"summary":         text,
+		"verified":        true,
+		"analysis_intent": "portfolio_comparison",
+		"structured": map[string]any{
+			"entity_ref":               target.ID,
+			"entity_name":              target.Name,
+			"metrics":                  metrics,
+			"peer_strategy":            firstNonEmpty(peerStrategy, "similar_clients"),
+			"open_amount":              target.OpenAmount,
+			"days_past_due":            target.DaysPastDue,
+			"payment_count":            target.PaymentCount,
+			"payment_total":            target.PaymentsTotal,
+			"open_amount_percentile":   openPct,
+			"days_past_due_percentile": moraPct,
+			"peers":                    peers,
+		},
+		"trace": map[string]any{
+			"capability":    "data.query.sql",
+			"source":        "sqlite",
+			"tables":        []string{"clients", "charges", "milestones", "payments"},
+			"fallback_used": false,
+		},
+		"evidence": map[string]any{
+			"source":  "sqlite",
+			"metrics": metrics,
+		},
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func runScoreSensitivityArtifact(dbPath string, rt runtimeContext, question, entityType, entityRef string, metrics []string) map[string]any {
+	rows, err := loadPortfolioRows(dbPath)
+	if err != nil {
+		return analyticalErrorArtifact(rt, question, "score_sensitivity", "No pude calcular sensibilidad del score con SQLite de forma verificable.", map[string]any{"error": err.Error()})
+	}
+	targetID := firstNonEmpty(strings.TrimSpace(entityRef), activeClientID(rt))
+	target, others, ok := locatePortfolioTarget(rows, targetID)
+	if !ok {
+		return analyticalErrorArtifact(rt, question, "score_sensitivity", "No pude ubicar el caso objetivo para el análisis de sensibilidad.", nil)
+	}
+	maxOpen, maxDays := portfolioMaxima(rows)
+	currentScore := weightedPortfolioScore(target, maxOpen, maxDays)
+	secondByAmount := highestOpenAmount(others)
+	reducedMateriality := target
+	reducedMateriality.OpenAmount = secondByAmount
+	materialityScore := weightedPortfolioScore(reducedMateriality, maxOpen, maxDays)
+	reducedMora := target
+	reducedMora.DaysPastDue = target.DaysPastDue / 2
+	moraScore := weightedPortfolioScore(reducedMora, maxOpen, maxDays)
+	driver := "materialidad"
+	if absFloat(float64(currentScore-moraScore)) > absFloat(float64(currentScore-materialityScore)) {
+		driver = "mora/riesgo"
+	}
+	text := fmt.Sprintf("La variable más sensible del score de %s es %s. Score base aproximado %.0f/100; si el saldo bajara hacia %.2f caería a %.0f, mientras que si la mora se redujera a %d días caería a %.0f.",
+		target.Name,
+		driver,
+		currentScore,
+		secondByAmount,
+		materialityScore,
+		reducedMora.DaysPastDue,
+		moraScore,
+	)
+	return analyticalSuccessArtifact(rt, question, "score_sensitivity", text, map[string]any{
+		"entity_ref":                   target.ID,
+		"entity_name":                  target.Name,
+		"metrics":                      metrics,
+		"current_score":                currentScore,
+		"score_if_materiality_reduced": materialityScore,
+		"score_if_mora_reduced":        moraScore,
+		"primary_driver":               driver,
+	})
+}
+
+func runCounterfactualArtifact(dbPath string, rt runtimeContext, question, entityType, entityRef string) map[string]any {
+	rows, err := loadPortfolioRows(dbPath)
+	if err != nil {
+		return analyticalErrorArtifact(rt, question, "counterfactual", "No pude calcular el contrafactual con SQLite de forma verificable.", map[string]any{"error": err.Error()})
+	}
+	targetID := firstNonEmpty(strings.TrimSpace(entityRef), activeClientID(rt))
+	target, others, ok := locatePortfolioTarget(rows, targetID)
+	if !ok {
+		return analyticalErrorArtifact(rt, question, "counterfactual", "No pude ubicar el caso objetivo para el contrafactual.", nil)
+	}
+	maxOpen, maxDays := portfolioMaxima(rows)
+	baseScore := weightedPortfolioScore(target, maxOpen, maxDays)
+	otherTopScore := 0.0
+	for _, row := range others {
+		if score := weightedPortfolioScore(row, maxOpen, maxDays); score > otherTopScore {
+			otherTopScore = score
+		}
+	}
+	cf := target
+	cf.OpenAmount = highestOpenAmount(others)
+	cf.DaysPastDue = target.DaysPastDue / 2
+	cfScore := weightedPortfolioScore(cf, maxOpen, maxDays)
+	stillFirst := cfScore >= otherTopScore
+	text := fmt.Sprintf("En un contrafactual simple, si %s bajara su saldo hacia %.2f y además la mora fuera más reciente (%d días), su score aproximado quedaría en %.0f y %sseguiría primero frente al resto.",
+		target.Name,
+		cf.OpenAmount,
+		cf.DaysPastDue,
+		cfScore,
+		map[bool]string{true: "", false: "no "}[stillFirst],
+	)
+	return analyticalSuccessArtifact(rt, question, "counterfactual", text, map[string]any{
+		"entity_ref":           target.ID,
+		"entity_name":          target.Name,
+		"base_score":           baseScore,
+		"counterfactual_score": cfScore,
+		"still_first":          stillFirst,
+	})
+}
+
+func runPaymentBehaviorSummaryArtifact(dbPath string, rt runtimeContext, question, entityType, entityRef string) map[string]any {
+	base := runEntity360Artifact(dbPath, rt, question, entityType, entityRef, "payment_behavior_summary")
+	if verified, _ := base["verified"].(bool); !verified {
+		return analyticalErrorArtifact(rt, question, "payment_behavior_summary", "No pude verificar el comportamiento de pagos del caso.", delegationTraceFromArtifact(base))
+	}
+	history, _ := base["history"].(map[string]any)
+	entity, _ := base["entity"].(map[string]any)
+	text := fmt.Sprintf("%s registra %s pagos históricos por %s y residuo total %s. Eso sugiere historial de pago registrado, aunque no alcanza por sí solo para concluir recuperabilidad.",
+		firstNonEmpty(fmt.Sprintf("%v", entity["name"]), "El caso"),
+		formatAny(history["payments_count"]),
+		formatAny(history["payments_total"]),
+		formatAny(history["payment_residue_total"]),
+	)
+	return analyticalSuccessArtifact(rt, question, "payment_behavior_summary", text, history)
+}
+
+func analyticalSuccessArtifact(rt runtimeContext, question, analysisIntent, text string, structured map[string]any) map[string]any {
+	return map[string]any{
+		"artifact_type":   "answer.grounded.v1",
+		"artifacts":       []string{"answer.grounded.v1"},
+		"business_id":     rt.BusinessID,
+		"audience":        rt.Audience,
+		"question":        question,
+		"text":            text,
+		"answer":          text,
+		"summary":         text,
+		"verified":        true,
+		"analysis_intent": analysisIntent,
+		"structured":      structured,
+		"trace": map[string]any{
+			"capability":    "data.query.sql",
+			"source":        "sqlite",
+			"fallback_used": false,
+		},
+		"generated_at": time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func analyticalErrorArtifact(rt runtimeContext, question, analysisIntent, text string, trace map[string]any) map[string]any {
+	if trace == nil {
+		trace = map[string]any{}
+	}
+	trace["capability"] = "data.query.sql"
+	trace["source"] = "sqlite"
+	trace["fallback_used"] = false
+	return map[string]any{
+		"artifact_type":   "answer.grounded.v1",
+		"artifacts":       []string{"answer.grounded.v1"},
+		"business_id":     rt.BusinessID,
+		"audience":        rt.Audience,
+		"question":        question,
+		"text":            text,
+		"answer":          text,
+		"summary":         text,
+		"verified":        false,
+		"analysis_intent": analysisIntent,
+		"trace":           trace,
+		"generated_at":    time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func loadPortfolioRows(dbPath string) ([]portfolioRow, error) {
+	dsn := dbPath + "?_pragma=query_only(true)&mode=ro"
+	db, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+	sqlText := `SELECT
+		c.id,
+		c.name,
+		COALESCE(SUM(CASE WHEN ch.state != 'PAGADO' THEN CAST(m.amount AS REAL) ELSE 0 END), 0) AS open_amount,
+		CAST(julianday('now') - julianday(MIN(CASE WHEN ch.state != 'PAGADO' THEN m.date END)) AS INT) AS days_past_due,
+		COALESCE((SELECT COUNT(*) FROM payments p WHERE p.client_id = c.id), 0) AS payment_count,
+		COALESCE((SELECT SUM(CAST(p.amount AS REAL)) FROM payments p WHERE p.client_id = c.id), 0) AS payments_total
+	FROM clients c
+	LEFT JOIN charges ch ON ch.client_id = c.id
+	LEFT JOIN milestones m ON m.charge_id = ch.id
+	GROUP BY c.id, c.name
+	HAVING COALESCE(SUM(CASE WHEN ch.state != 'PAGADO' THEN CAST(m.amount AS REAL) ELSE 0 END), 0) > 0`
+	rows, err := db.Query(sqlText)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []portfolioRow
+	for rows.Next() {
+		var row portfolioRow
+		if err := rows.Scan(&row.ID, &row.Name, &row.OpenAmount, &row.DaysPastDue, &row.PaymentCount, &row.PaymentsTotal); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}
+
+func locatePortfolioTarget(rows []portfolioRow, targetID string) (portfolioRow, []portfolioRow, bool) {
+	var target portfolioRow
+	var others []portfolioRow
+	found := false
+	for _, row := range rows {
+		if row.ID == targetID {
+			target = row
+			found = true
+			continue
+		}
+		others = append(others, row)
+	}
+	return target, others, found
+}
+
+func portfolioMaxima(rows []portfolioRow) (float64, int) {
+	maxOpen := 0.0
+	maxDays := 0
+	for _, row := range rows {
+		if row.OpenAmount > maxOpen {
+			maxOpen = row.OpenAmount
+		}
+		if row.DaysPastDue > maxDays {
+			maxDays = row.DaysPastDue
+		}
+	}
+	if maxOpen == 0 {
+		maxOpen = 1
+	}
+	if maxDays == 0 {
+		maxDays = 1
+	}
+	return maxOpen, maxDays
+}
+
+func weightedPortfolioScore(row portfolioRow, maxOpen float64, maxDays int) float64 {
+	materiality := (row.OpenAmount / maxOpen) * 40
+	risk := (float64(row.DaysPastDue) / float64(maxDays)) * 30
+	behavior := 0.0
+	if row.PaymentCount > 0 {
+		behavior = 30
+	}
+	return materiality + risk + behavior
+}
+
+func highestOpenAmount(rows []portfolioRow) float64 {
+	best := 0.0
+	for _, row := range rows {
+		if row.OpenAmount > best {
+			best = row.OpenAmount
+		}
+	}
+	return best
+}
+
+func percentileFromRank(rank, total int) int {
+	if total <= 1 {
+		return 100
+	}
+	return int(100 - float64(rank-1)*100/float64(total-1))
+}
+
+func closestPeers(rows []portfolioRow, targetID string, limit int) []map[string]any {
+	var target portfolioRow
+	found := false
+	for _, row := range rows {
+		if row.ID == targetID {
+			target = row
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil
+	}
+	sort.SliceStable(rows, func(i, j int) bool {
+		return absFloat(rows[i].OpenAmount-target.OpenAmount) < absFloat(rows[j].OpenAmount-target.OpenAmount)
+	})
+	out := []map[string]any{}
+	for _, row := range rows {
+		if row.ID == targetID {
+			continue
+		}
+		out = append(out, map[string]any{
+			"id":            row.ID,
+			"name":          row.Name,
+			"open_amount":   row.OpenAmount,
+			"days_past_due": row.DaysPastDue,
+			"payment_count": row.PaymentCount,
+		})
+		if len(out) >= limit {
+			break
+		}
+	}
+	return out
+}
+
+func describePeers(peers []map[string]any) string {
+	if len(peers) == 0 {
+		return "sin cohorte comparable verificable"
+	}
+	parts := make([]string, 0, len(peers))
+	for _, peer := range peers {
+		parts = append(parts, fmt.Sprintf("%v (saldo %s, mora %s días)", peer["name"], formatAny(peer["open_amount"]), formatAny(peer["days_past_due"])))
+	}
+	return strings.Join(parts, "; ")
+}
+
+func delegationTraceFromArtifact(artifact map[string]any) map[string]any {
+	if trace, ok := artifact["trace"].(map[string]any); ok {
+		return trace
+	}
+	if trace, ok := artifact["trace"].(map[string]interface{}); ok {
+		out := map[string]any{}
+		for k, v := range trace {
+			out[k] = v
+		}
+		return out
+	}
+	return nil
+}
+
+func formatAny(v interface{}) string {
+	switch n := v.(type) {
+	case float64:
+		if n == float64(int64(n)) {
+			return fmt.Sprintf("%d", int64(n))
+		}
+		return fmt.Sprintf("%.2f", n)
+	case int:
+		return fmt.Sprintf("%d", n)
+	case int64:
+		return fmt.Sprintf("%d", n)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func splitCSV(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if item := strings.TrimSpace(part); item != "" {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func absFloat(v float64) float64 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+func nullInt(v sql.NullInt64) int {
+	if !v.Valid {
+		return 0
+	}
+	return int(v.Int64)
+}
+
+func nullFloat(v sql.NullFloat64) float64 {
+	if !v.Valid {
+		return 0
+	}
+	return v.Float64
+}
+
+func joinChargeStates(states map[string]int) string {
+	if len(states) == 0 {
+		return "sin estados"
+	}
+	keys := make([]string, 0, len(states))
+	for k := range states {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%d", k, states[k]))
+	}
+	return strings.Join(parts, ", ")
+}
+
 func actionNotSupportedAnswer() sabioAnswer {
 	return sabioAnswer{
 		Text: "No puedo ejecutar esa acción desde Sabio. Puedo consultar datos en SQLite, pero para redactar, enviar mensajes o registrar eventos falta delegar a capabilities específicas.",
@@ -1606,14 +2438,22 @@ func sabioQueryArtifact(question, answer string, rt runtimeContext, capability s
 	if capability == "data.entity_360" {
 		artifactType = "entity_360.v1"
 	}
+	text, trace := splitFormattedSabioAnswer(answer)
+	verified := true
+	if errText, ok := trace["error"].(string); ok && strings.TrimSpace(errText) != "" {
+		verified = false
+	}
 	result := map[string]any{
 		"artifact_type": artifactType,
 		"artifacts":     []string{artifactType, "answer.grounded.v1"},
 		"business_id":   rt.BusinessID,
 		"audience":      rt.Audience,
 		"question":      question,
-		"answer":        answer,
-		"summary":       answer,
+		"text":          text,
+		"answer":        text,
+		"summary":       text,
+		"verified":      verified,
+		"trace":         trace,
 		"evidence": map[string]any{
 			"source": "sqlite",
 		},
@@ -1631,6 +2471,22 @@ func sabioQueryArtifact(question, answer string, rt runtimeContext, capability s
 		}
 	}
 	return result
+}
+
+func splitFormattedSabioAnswer(answer string) (string, map[string]any) {
+	text := strings.TrimSpace(answer)
+	trace := map[string]any{}
+	marker := "\n\nEvidencia:\n```json\n"
+	idx := strings.Index(answer, marker)
+	if idx < 0 {
+		return text, trace
+	}
+	text = strings.TrimSpace(answer[:idx])
+	rawTrace := strings.TrimSpace(strings.TrimSuffix(answer[idx+len(marker):], "\n```"))
+	if rawTrace != "" {
+		_ = json.Unmarshal([]byte(rawTrace), &trace)
+	}
+	return text, trace
 }
 
 // extractStructuredEntityFields parses the entity_360 answer to pull out
@@ -1805,6 +2661,24 @@ func activeClientID(rt runtimeContext) string {
 	}
 	if v, ok := rt.ActiveEntity["id"]; ok {
 		return fmt.Sprintf("%v", v)
+	}
+	return ""
+}
+
+func canonicalEntityType(value string) string {
+	switch normalizeQuestion(value) {
+	case "", "client", "cliente", "customer", "deudor", "debtor", "portfolio_client":
+		return "client"
+	default:
+		return strings.TrimSpace(value)
+	}
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
 	}
 	return ""
 }
