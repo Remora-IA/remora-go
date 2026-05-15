@@ -15,6 +15,37 @@ import (
 	"framework-quine/internal/types"
 )
 
+func detectRepoRoot() string {
+	if root := os.Getenv("REMORA_ROOT"); root != "" {
+		return root
+	}
+	if wd, err := os.Getwd(); err == nil {
+		if root, ok := findRepoRoot(wd); ok {
+			return root
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if root, ok := findRepoRoot(filepath.Dir(exe)); ok {
+			return root
+		}
+	}
+	return "/Users/alcless_a1234_cursor/remora-go"
+}
+
+func findRepoRoot(start string) (string, bool) {
+	dir := start
+	for {
+		if info, err := os.Stat(filepath.Join(dir, "framework-quine")); err == nil && info.IsDir() {
+			return dir, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
+	}
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -675,7 +706,8 @@ func cmdUse(args []string) {
 		frameworkName = "framework-" + frameworkName
 	}
 
-	frameworkPath := fmt.Sprintf("/Users/alcless_a1234_cursor/remora-go/%s", frameworkName)
+	repoRoot := detectRepoRoot()
+	frameworkPath := filepath.Join(repoRoot, frameworkName)
 	if _, err := os.Stat(frameworkPath); os.IsNotExist(err) {
 		fmt.Printf("❌ Framework no encontrado: %s\n", frameworkName)
 		fmt.Println("   Usa 'quine list' para ver frameworks existentes")
@@ -696,6 +728,7 @@ func cmdUse(args []string) {
 	trace := paladin.NewTrace("use")
 	ctx := trace.Start()
 	ctx.Var("framework", frameworkName)
+	ctx.Var("repoRoot", repoRoot)
 	ctx.Var("promptFile", initialPromptPath)
 
 	// Pasar el archivo de prompt con @ como argumento a pi

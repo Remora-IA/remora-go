@@ -24,9 +24,6 @@ const (
 	TypeCI       ChangeType = "ci"
 )
 
-const RepoRoot = "/Users/alcless_a1234_cursor/remora-go-lite"
-const BackupRoot = "/Users/alcless_a1234_cursor/remora-go-lite-charlie-backups"
-
 type Change struct {
 	FilePath    string
 	Type        ChangeType
@@ -318,12 +315,12 @@ func BackupWorkingTree() (string, error) {
 	}
 
 	stamp := time.Now().Format("20060102-150405")
-	dest := filepath.Join(BackupRoot, "remora-go-"+stamp)
+	dest := filepath.Join(BackupRoot, repoName(RepoRoot)+"-"+stamp)
 	for suffix := 2; ; suffix++ {
 		if _, err := os.Stat(dest); os.IsNotExist(err) {
 			break
 		}
-		dest = filepath.Join(BackupRoot, fmt.Sprintf("remora-go-%s-%d", stamp, suffix))
+		dest = filepath.Join(BackupRoot, fmt.Sprintf("%s-%s-%d", repoName(RepoRoot), stamp, suffix))
 	}
 
 	if err := copyTree(RepoRoot, dest); err != nil {

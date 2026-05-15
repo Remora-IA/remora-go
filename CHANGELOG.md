@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.30] - 2026-05-15
+
+> **Release**: expandir charlie, flujo, paladin, quine
+
+### Charlie
+
+- **framework-charlie/framework.manifest.json**: +43 / -13
+- **framework-charlie/INITIAL_PROMPT.md**: +26 / -17
+- **framework-charlie/README.md**: +21 / -10
+- **charlie/charlie.go**: +2 / -5
+- **charlie/ignore.go**: funciones: resetCharlieIgnoreCache
+- **charlie/runtime.go**: archivo nuevo
+- **charlie/main.go**: funciones: stripGlobalRoot
+- **charlie/audit.go**: +3 / -3
+
+### Paladin
+
+- **paladin/trace.go**: funciones: traceLoggingDisabled
+
+### Quine
+
+- **quine/main.go**: funciones: detectRepoRoot, findRepoRoot
+
+### Flujo
+
+- **api_rest/orchestrator.go**: funciones: operationalCaseManagerDriver, consumePendingQuestionsForFramework, (s *server) persistFollowupArtifact, (s *server) concludeAnalysisTransition | tipos: sessionFollowupMode, analysisReadinessDecision, analysisClosureResult
+- **api_rest/flow_dimensions.go**: funciones: shouldSimulateDeepAnalysisBranch, attachLatestArtifact
+- **api_rest/deep_analysis_branch_test.go**: archivo nuevo
+- **api_rest/flow_run_test.go**: funciones: TestDeepAnalysisDimensionSimulateHumanRunsConversationalFollowupsWithoutAuthoritativeHandoff
+- **api_rest/orchestrator_test.go**: archivo nuevo
+- **api_rest/session_engine_test.go**: funciones: TestConcludeAnalysisTransitionPersistsReviewPendingWithoutExplicitReadiness, TestConcludeAnalysisTransitionCreatesHandoffWithExplicitReadiness
+
+### Repo
+
+- **.charlieignore**: archivo nuevo
+- **go.mod**: archivo nuevo
+
 ## [0.1.29] - 2026-05-13
 
 > **Release**: expandir flujo, paladin

@@ -57,7 +57,7 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 			}
 			branchReq.Flow.ID = req.Flow.ID + "_dim_" + safeFilePart(optionIDForBranch(option, i))
 			branchResult := s.runFlowManifest(ctx, branchReq, nil)
-			if isDeepAnalysisOption(option) {
+			if isDeepAnalysisOption(option) && shouldSimulateDeepAnalysisBranch(branchReq) {
 				s.simulateDeepAnalysisConversation(ctx, branchReq, &branchResult)
 			}
 			branches[i] = flowBranchRun{
@@ -78,6 +78,10 @@ func (s *server) runFlowActionBranches(ctx context.Context, req flowRunRequest, 
 func isDeepAnalysisOption(option map[string]string) bool {
 	id := strings.TrimSpace(option["id"])
 	return strings.EqualFold(id, "deep_analysis")
+}
+
+func shouldSimulateDeepAnalysisBranch(req flowRunRequest) bool {
+	return req.SimulateHuman
 }
 
 func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowRunRequest, result *flowRunResult) {
@@ -122,7 +126,7 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 		if intent != segmentIntentContinue {
 			continue
 		}
-		execution, err := s.executeSessionFollowupDetailed(ctx, s.channel, conv, s.allManifests, queue, session, input)
+		execution, err := s.executeSessionFollowupDetailed(ctx, s.channel, conv, s.allManifests, queue, session, input, sessionFollowupModeSimulation)
 		if err != nil || !execution.OK {
 			result.Timeline = append(result.Timeline, failedSimulatedConversationStep(session, input, err))
 			continue
@@ -162,39 +166,23 @@ func (s *server) simulateDeepAnalysisConversation(ctx context.Context, req flowR
 		})
 	}
 
-	operationalInput := "Con eso basta, avanza con la recomendación."
-	started := time.Now().UTC().Format(time.RFC3339Nano)
-	result.Timeline = append(result.Timeline, flowRunStep{
-		Node:         "deep_analysis_simulated_user",
-		Framework:    "simulacion",
-		Capability:   "analysis.followup.user",
-		Role:         "human",
-		Status:       "completed",
-		HumanSummary: "Usuario simulado: " + operationalInput,
-		StartedAt:    started,
-		FinishedAt:   time.Now().UTC().Format(time.RFC3339Nano),
-		SegmentID:    session.SegmentID,
-		SegmentMode:  segmentModeAnalytical,
-		SegmentOwner: session.Framework,
-		SegmentRole:  "user",
-	})
-	if classifySegmentIntent(operationalInput, session) == segmentIntentOperational {
-		s.concludeSessionOnDisk(session.Path, "simulated_operational: "+operationalInput)
-		s.persistAnalysisHandoff(ctx, s.channel, conv, s.allManifests, session, operationalInput)
-		attachLatestArtifact(result, s.latestFlowArtifactPath(conv.BusinessID, "analysis.handoff.v1"), "analysis.handoff.v1")
+	closure := s.concludeAnalysisTransition(ctx, s.channel, conv, s.allManifests, session, "simulation_complete", true)
+	attachLatestArtifact(result, closure.ArtifactPath, closure.ArtifactType, "analysis_review_pending", "flow_engine.dimension_conversation")
+	if closure.ArtifactType != "" {
+		now := time.Now().UTC().Format(time.RFC3339Nano)
 		result.Timeline = append(result.Timeline, flowRunStep{
-			Node:          "analysis_handoff_to_foco",
+			Node:          "analysis_review_pending",
 			Framework:     "flow_engine",
-			Capability:    "analysis.handoff",
+			Capability:    "analysis.review_pending",
 			Role:          "handoff",
 			Status:        "completed",
-			HumanSummary:  "Radar cerró el tramo analítico y entregó analysis.handoff.v1 para que Foco retome la operación.",
-			ArtifactTypes: []string{"analysis.handoff.v1"},
-			StartedAt:     started,
-			FinishedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+			HumanSummary:  "La simulación cierra el análisis con preview para Foco, pero sin emitir handoff operativo autoritativo.",
+			ArtifactTypes: []string{closure.ArtifactType},
+			StartedAt:     now,
+			FinishedAt:    now,
 			SegmentID:     session.SegmentID,
-			SegmentMode:   segmentModeOperational,
-			SegmentOwner:  "foco",
+			SegmentMode:   segmentModeAnalytical,
+			SegmentOwner:  session.Framework,
 			SegmentRole:   "owner",
 		})
 	}
@@ -377,7 +365,7 @@ func segmentSessionTurnCountFromPath(path string) int {
 	return jsonFirstInt(payload, "turn_count")
 }
 
-func attachLatestArtifact(result *flowRunResult, path, typ string) {
+func attachLatestArtifact(result *flowRunResult, path, typ, node, source string) {
 	if result == nil || strings.TrimSpace(path) == "" {
 		return
 	}
@@ -394,8 +382,8 @@ func attachLatestArtifact(result *flowRunResult, path, typ string) {
 	}
 	result.Artifacts[typ] = flowRunArtifact{
 		Type:      typ,
-		Source:    "flow_engine.dimension_conversation",
-		Node:      "analysis_handoff_to_foco",
+		Source:    source,
+		Node:      node,
 		Path:      path,
 		Payload:   payload,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),

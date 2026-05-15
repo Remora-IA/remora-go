@@ -563,7 +563,7 @@ func TestExecuteSessionFollowupDetailedMaterializesDelegationResultsPathAndSynth
 		MaxTurns:         10,
 	}
 
-	execution, err := s.executeSessionFollowupDetailed(context.Background(), adapter.New(chServer.URL, "test-key"), conv, manifests, queue, session, "Compáralo contra la cartera.")
+	execution, err := s.executeSessionFollowupDetailed(context.Background(), adapter.New(chServer.URL, "test-key"), conv, manifests, queue, session, "Compáralo contra la cartera.", sessionFollowupModeRuntime)
 	if err != nil {
 		t.Fatalf("executeSessionFollowupDetailed: %v", err)
 	}
@@ -701,5 +701,93 @@ func TestPersistAnalysisHandoffCreatesStructuredArtifact(t *testing.T) {
 	}
 	if payload["analytical_summary"] == "" || payload["recommendation"] == "" || payload["confidence"] == "" {
 		t.Fatalf("handoff missing operational context: %+v", payload)
+	}
+}
+
+func TestConcludeAnalysisTransitionPersistsReviewPendingWithoutExplicitReadiness(t *testing.T) {
+	root := t.TempDir()
+	s := &server{rootDir: root}
+	sessionPath := filepath.Join(root, "session.json")
+	if err := os.WriteFile(sessionPath, []byte(`{"artifact_type":"segment.session.v1","business_id":"biz-1","status":"active","owner_framework":"radar","owner_capability":"analysis.deep_dive","followup_command":"analyze-followup","turn_count":2}`), 0644); err != nil {
+		t.Fatalf("write session fixture: %v", err)
+	}
+	s.persistFlowArtifact("review", "radar", "analysis.case_review.v1", map[string]interface{}{
+		"artifact_type":  "analysis.case_review.v1",
+		"business_id":    "biz-1",
+		"text":           "Radar cerró el análisis, pero todavía faltan definiciones para operar.",
+		"recommendation": "Mantener stewardship en Foco hasta decisión humana.",
+		"data_gaps":      []string{"falta aprobación humana"},
+		"confidence":     "moderate",
+	})
+	session := &activeSessionInfo{
+		Framework:      "radar",
+		Capability:     "analysis.deep_dive",
+		ConversationID: "conv-a",
+		TurnCount:      2,
+		Path:           sessionPath,
+	}
+	conv := &Conversation{ID: "conv-a", BusinessID: "biz-1"}
+
+	result := s.concludeAnalysisTransition(context.Background(), nil, conv, nil, session, "ok, avanza", false)
+	if result.State != "review_pending" || result.ReadyForOperation {
+		t.Fatalf("expected review_pending without readiness, got %+v", result)
+	}
+	if result.ArtifactType != "analysis.review_pending.v1" || result.ArtifactPath == "" {
+		t.Fatalf("expected review_pending artifact, got %+v", result)
+	}
+	if path := s.latestFlowArtifactPath("biz-1", "analysis.handoff.v1"); path != "" {
+		t.Fatalf("did not expect handoff artifact, got %s", path)
+	}
+	raw, err := os.ReadFile(result.ArtifactPath)
+	if err != nil {
+		t.Fatalf("read review_pending artifact: %v", err)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("parse review_pending artifact: %v", err)
+	}
+	if payload["state"] != "review_pending" || payload["ready_for_operation"] != false {
+		t.Fatalf("unexpected review_pending payload: %+v", payload)
+	}
+	to, _ := payload["to"].(map[string]interface{})
+	if to["framework"] != "foco" || to["role"] != "case_manager" {
+		t.Fatalf("expected Foco case manager reentry, got %+v", payload)
+	}
+}
+
+func TestConcludeAnalysisTransitionCreatesHandoffWithExplicitReadiness(t *testing.T) {
+	root := t.TempDir()
+	s := &server{rootDir: root}
+	sessionPath := filepath.Join(root, "session.json")
+	if err := os.WriteFile(sessionPath, []byte(`{"artifact_type":"segment.session.v1","business_id":"biz-1","status":"active","owner_framework":"radar","owner_capability":"analysis.deep_dive","followup_command":"analyze-followup","turn_count":3}`), 0644); err != nil {
+		t.Fatalf("write session fixture: %v", err)
+	}
+	session := &activeSessionInfo{
+		Framework:      "radar",
+		Capability:     "analysis.deep_dive",
+		ConversationID: "conv-a",
+		TurnCount:      3,
+		Path:           sessionPath,
+	}
+	s.persistAnalysisReadinessArtifact("biz-1", "conv-a", session, `{"artifact_type":"analysis.followup.v1","text":"Radar considera suficiente la evidencia para operar.","recommendation":"Contactar al cliente hoy.","confidence":"high","ready_for_operation":true,"data_gaps":[]}`)
+	conv := &Conversation{ID: "conv-a", BusinessID: "biz-1"}
+
+	result := s.concludeAnalysisTransition(context.Background(), nil, conv, nil, session, "ok, avanza", false)
+	if !result.ReadyForOperation || result.ArtifactType != "analysis.handoff.v1" || result.ArtifactPath == "" {
+		t.Fatalf("expected operational handoff, got %+v", result)
+	}
+	if path := s.latestFlowArtifactPath("biz-1", "analysis.review_pending.v1"); path != "" {
+		t.Fatalf("did not expect review_pending artifact, got %s", path)
+	}
+	raw, err := os.ReadFile(result.ArtifactPath)
+	if err != nil {
+		t.Fatalf("read handoff artifact: %v", err)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("parse handoff artifact: %v", err)
+	}
+	if payload["artifact_type"] != "analysis.handoff.v1" || payload["conversation_id"] != "conv-a" {
+		t.Fatalf("unexpected handoff payload: %+v", payload)
 	}
 }

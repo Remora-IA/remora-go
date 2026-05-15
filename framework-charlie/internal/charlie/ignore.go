@@ -15,21 +15,50 @@ import (
 // The file lives at framework-charlie/.charlieignore and is loaded once.
 
 var (
-	charlieIgnoreOnce     sync.Once
+	charlieIgnoreMu       sync.Mutex
+	charlieIgnoreLoaded   string
 	charlieIgnorePatterns []string
 )
 
+func resetCharlieIgnoreCache() {
+	charlieIgnoreMu.Lock()
+	defer charlieIgnoreMu.Unlock()
+	charlieIgnoreLoaded = ""
+	charlieIgnorePatterns = nil
+}
+
 func loadCharlieIgnore() {
-	data, err := os.ReadFile(filepath.Join(RepoRoot, "framework-charlie", ".charlieignore"))
-	if err != nil {
+	charlieIgnoreMu.Lock()
+	defer charlieIgnoreMu.Unlock()
+
+	loadedKey := RepoRoot + "|" + frameworkDataRoot()
+	if charlieIgnoreLoaded == loadedKey {
 		return
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
+	charlieIgnoreLoaded = loadedKey
+	charlieIgnorePatterns = nil
+
+	candidates := []string{
+		filepath.Join(frameworkDataRoot(), ".charlieignore"),
+		filepath.Join(RepoRoot, ".charlieignore"),
+	}
+	seen := map[string]bool{}
+	for _, candidate := range candidates {
+		if candidate == "" || seen[candidate] {
 			continue
 		}
-		charlieIgnorePatterns = append(charlieIgnorePatterns, line)
+		seen[candidate] = true
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			charlieIgnorePatterns = append(charlieIgnorePatterns, line)
+		}
 	}
 }
 
@@ -37,13 +66,16 @@ func loadCharlieIgnore() {
 // given repo-relative, forward-slash path. It supports simple prefix/suffix
 // and "*" globs via filepath.Match applied to each path segment.
 func matchesCharlieIgnore(path string) bool {
-	charlieIgnoreOnce.Do(loadCharlieIgnore)
-	if len(charlieIgnorePatterns) == 0 {
+	loadCharlieIgnore()
+	charlieIgnoreMu.Lock()
+	patterns := append([]string(nil), charlieIgnorePatterns...)
+	charlieIgnoreMu.Unlock()
+	if len(patterns) == 0 {
 		return false
 	}
 	clean := filepath.ToSlash(path)
 	base := filepath.Base(clean)
-	for _, pat := range charlieIgnorePatterns {
+	for _, pat := range patterns {
 		// Exact path match.
 		if pat == clean {
 			return true

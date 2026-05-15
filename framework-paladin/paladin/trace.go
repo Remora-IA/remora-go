@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -57,11 +58,13 @@ func NewTrace(appName string) *Trace {
 		Vars:    make(map[string]any),
 	}
 
-	fmt.Printf("\n========================================\n")
-	fmt.Printf(" Paladin Trace\n")
-	fmt.Printf(" Trace: %s\n", id)
-	fmt.Printf(" App:   %s\n", appName)
-	fmt.Printf("========================================\n\n")
+	if !traceLoggingDisabled() {
+		fmt.Printf("\n========================================\n")
+		fmt.Printf(" Paladin Trace\n")
+		fmt.Printf(" Trace: %s\n", id)
+		fmt.Printf(" App:   %s\n", appName)
+		fmt.Printf("========================================\n\n")
+	}
 
 	return &Trace{
 		id:        id,
@@ -91,7 +94,9 @@ func (t *Trace) Start() *Context {
 	_ = t.persistLocked("running", "trace started", false)
 	t.mu.Unlock()
 
-	fmt.Printf("[PALADIN] START %s (%s:%d)\n", t.ctx.name, file, line)
+	if !traceLoggingDisabled() {
+		fmt.Printf("[PALADIN] START %s (%s:%d)\n", t.ctx.name, file, line)
+	}
 	return t.ctx
 }
 
@@ -135,7 +140,9 @@ func (t *Trace) ensureRuntimeLocked() {
 		baseDir, _ := os.Getwd()
 		tempDir := filepath.Join(baseDir, "temp", "paladin")
 		if err := os.MkdirAll(tempDir, 0755); err != nil {
-			fmt.Printf("[PALADIN] Error creando temp: %v\n", err)
+			if !traceLoggingDisabled() {
+				fmt.Printf("[PALADIN] Error creando temp: %v\n", err)
+			}
 		} else {
 			t.filePath = filepath.Join(tempDir, fmt.Sprintf("trace_%s.json", t.id))
 		}
@@ -171,10 +178,14 @@ func (t *Trace) persistLocked(status, reason string, announce bool) error {
 	if err := os.WriteFile(t.filePath, data, 0644); err != nil {
 		return err
 	}
-	if announce {
+	if announce && !traceLoggingDisabled() {
 		fmt.Printf("\n[PALADIN] Trace %s -> %s\n", status, t.filePath)
 	}
 	return nil
+}
+
+func traceLoggingDisabled() bool {
+	return strings.TrimSpace(os.Getenv("PALADIN_SILENT")) != ""
 }
 
 func (t *Trace) recordMutation(reason string) {

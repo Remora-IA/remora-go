@@ -1,6 +1,7 @@
 # Framework Charlie
 
-Sistema de versionado para el proyecto Remora.
+Sistema de versionado para repos Git. Charlie puede operar el repo actual o uno
+externo via `--root`.
 
 ## ⚠️ REGLA DE ORO
 
@@ -41,33 +42,43 @@ chore: commit vVERSION - descripción grupal
 - **`charlie plan --intent "..."`** — router de intenciones. La IA
   operadora describe el objetivo en lenguaje natural y Charlie devuelve
   la secuencia de comandos a ejecutar.
+- **`charlie --root /ruta/al/repo ...`** — selecciona explicitamente el repo
+  objetivo. Si no pasas `--root`, Charlie intenta usar el repo git actual y,
+  si no existe, el repo que contiene `framework-charlie`.
 - **`.charlieignore`** — archivo en `framework-charlie/` con globs que
   filtran binarios compilados, bases de datos y trazas. Evita commits
   monstruo como el de v0.1.7 (125 files / 817k lineas).
-- **Audit log** en `framework-charlie/temp/applied.jsonl` — cada `--apply`
-  deja una linea JSON. Sobrevive a una corrupcion de reflog.
+- **Audit log** en `temp/applied.jsonl` dentro del `framework-charlie`
+  ejecutado — cada `--apply` deja una linea JSON. Sobrevive a una corrupcion
+  de reflog.
 - **Preflight ahora llama a Doctor** — si hay corrupcion, preflight la
   reporta como bloqueo con prefijo `[doctor]` antes de continuar.
 
 ## Flujo de trabajo
 
 ```bash
-# 0. (opcional) Si el humano pide algo ambiguo, traduce a comandos
-go run ./cmd/charlie plan --intent "commitear todo y pushear"
-
-# 1. Chequeo de salud (v0.1.8+)
-go run ./cmd/charlie doctor
-# Si reporta CRITICAL/BLOCKER:
-go run ./cmd/charlie doctor --apply
-
-# 2. Crear backup y verificar que estas en draft
-go run ./cmd/charlie preflight
-
-# 2. Verificar estado
+# Operar el repo actual
 go run ./cmd/charlie status
 
+# Operar un repo externo
+go run ./cmd/charlie --root /ruta/al/repo status
+
+# 0. (opcional) Si el humano pide algo ambiguo, traduce a comandos
+go run ./cmd/charlie --root /ruta/al/repo plan --intent "commitear todo y pushear"
+
+# 1. Chequeo de salud (v0.1.8+)
+go run ./cmd/charlie --root /ruta/al/repo doctor
+# Si reporta CRITICAL/BLOCKER:
+go run ./cmd/charlie --root /ruta/al/repo doctor --apply
+
+# 2. Crear backup y verificar que estas en draft
+go run ./cmd/charlie --root /ruta/al/repo preflight
+
+# 2. Verificar estado
+go run ./cmd/charlie --root /ruta/al/repo status
+
 # 3. Si hay cambios → generar changelog/propuesta para nueva version
-go run ./cmd/charlie propose
+go run ./cmd/charlie --root /ruta/al/repo propose
 
 # 4. Si los cambios deben entrar en una version existente
 go run ./cmd/charlie amend-plan v0.1.4
@@ -115,7 +126,7 @@ Los backups son livianos: no copian `.git`, `temp/`, `bin/`, binarios generados
 ni `.DS_Store`. Viven fuera del repo:
 
 ```text
-/Users/alcless_a1234_cursor/remora-go-charlie-backups/
+<directorio-padre-del-repo>/<nombre-del-repo>-charlie-backups/
 ```
 
 ## Release existente

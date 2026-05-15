@@ -71,6 +71,7 @@ func (s *server) runLoop(ctx context.Context, ch *adapter.Client, conv *Conversa
 	rootCtx.Var("drivers_initial", driverNames(drivers))
 
 	sessionOperationalContext := ""
+	sessionReentryDriver := ""
 
 	// 0. Sesión conversacional activa: si existe un segment.session.v1
 	//    activo para este negocio, Radar (u otro owner) mantiene el tramo
@@ -98,6 +99,8 @@ func (s *server) runLoop(ctx context.Context, ch *adapter.Client, conv *Conversa
 			switch intent {
 			case segmentIntentExit:
 				// User wants to leave/skip without acting.
+				consumed := consumePendingQuestionsForFramework(queue, session.Framework, userAnswer)
+				sessionSpan.Var("session_question_consumed", consumed)
 				sessionSpan.Decision("session_exit",
 					fmt.Sprintf("usuario abandona tramo analítico: %q", truncate(userAnswer, 80)))
 				s.concludeSessionOnDisk(session.Path, "user_exit: "+truncate(userAnswer, 120))
@@ -106,16 +109,31 @@ func (s *server) runLoop(ctx context.Context, ch *adapter.Client, conv *Conversa
 				// Fall through: el runLoop normal retoma sin handoff especial.
 
 			case segmentIntentOperational:
-				// User wants to act with available data → structured handoff to Foco.
-				sessionSpan.Decision("session_operational",
-					fmt.Sprintf("usuario decide actuar: %q → handoff estructurado a Foco", truncate(userAnswer, 80)))
-				s.concludeSessionOnDisk(session.Path, "user_operational: "+truncate(userAnswer, 120))
-				s.persistAnalysisHandoff(ctx, ch, conv, manifests, session, userAnswer)
-				sessionOperationalContext = fmt.Sprintf(
-					"[handoff_analitico] Radar cerró el tramo analítico de %s y creó analysis.handoff.v1 para Foco; intención operativa del usuario: %s. ",
-					session.Capability,
-					userAnswer,
-				)
+				consumed := consumePendingQuestionsForFramework(queue, session.Framework, userAnswer)
+				sessionSpan.Var("session_question_consumed", consumed)
+				transition := s.concludeAnalysisTransition(ctx, ch, conv, manifests, session, userAnswer, false)
+				sessionReentryDriver = operationalCaseManagerDriver(manifests, conv)
+				if sessionReentryDriver != "" {
+					sessionSpan.Var("session_reentry_driver", sessionReentryDriver)
+				}
+				if transition.ReadyForOperation {
+					sessionSpan.Decision("session_operational",
+						fmt.Sprintf("usuario decide actuar: %q → handoff estructurado a Foco", truncate(userAnswer, 80)))
+					sessionOperationalContext = fmt.Sprintf(
+						"[handoff_analitico] Radar cerró el tramo analítico de %s y creó analysis.handoff.v1 para Foco; intención operativa del usuario: %s. ",
+						session.Capability,
+						userAnswer,
+					)
+				} else {
+					sessionSpan.Decision("session_review_pending",
+						fmt.Sprintf("usuario quiere operar, pero Radar cierra sin handoff operativo: %s", transition.Reason))
+					sessionOperationalContext = fmt.Sprintf(
+						"[analysis_review_pending] Radar cerró el tramo analítico de %s sin handoff operativo; Foco retoma el stewardship del caso. Motivo: %s. Intención del usuario: %s. ",
+						session.Capability,
+						transition.Reason,
+						userAnswer,
+					)
+				}
 				sessionSpan.End()
 				// Fall through: el runLoop normal retoma con handoff artifact disponible.
 
@@ -187,6 +205,11 @@ func (s *server) runLoop(ctx context.Context, ch *adapter.Client, conv *Conversa
 				wantPreprocess = action.Preprocess
 			}
 		}
+	}
+	if sessionReentryDriver != "" {
+		drivers = reorderDrivers(drivers, sessionReentryDriver)
+		rootCtx.Decision("session_case_manager_reentry",
+			fmt.Sprintf("%s retoma el caso tras cerrar el tramo analítico", sessionReentryDriver))
 	}
 
 	rootCtx.Var("drivers_final", driverNames(drivers))
@@ -353,6 +376,39 @@ func driverNames(ds []FrameworkDriver) []string {
 	return out
 }
 
+func operationalCaseManagerDriver(manifests map[string]*manifest.Manifest, conv *Conversation) string {
+	if conv == nil {
+		return ""
+	}
+	if name := providerOfProducedCapability("task.next", manifests, conv.Frameworks); name != "" {
+		return name
+	}
+	if name := providerOfProducedCapability("focus.next_task.v1", manifests, conv.Frameworks); name != "" {
+		return name
+	}
+	if slices.Contains(conv.Frameworks, "foco") {
+		return "foco"
+	}
+	return ""
+}
+
+func consumePendingQuestionsForFramework(queue *handoff.QuestionsQueue, framework, answer string) bool {
+	if queue == nil || strings.TrimSpace(framework) == "" {
+		return false
+	}
+	consumed := false
+	for i := range queue.Questions {
+		if queue.Questions[i].Framework != framework || queue.Questions[i].Status != handoff.QuestionPending {
+			continue
+		}
+		queue.Questions[i].Status = handoff.QuestionAnswered
+		queue.Questions[i].Answer = answer
+		queue.Questions[i].AnsweredAt = time.Now()
+		consumed = true
+	}
+	return consumed
+}
+
 // truncate corta un string en n runas y agrega "..." si era más largo.
 func truncate(s string, n int) string {
 	r := []rune(s)
@@ -400,7 +456,7 @@ func (s *server) executeSessionFollowup(
 	session *activeSessionInfo,
 	userAnswer string,
 ) (handoff.QueuedQuestion, bool, error) {
-	result, err := s.executeSessionFollowupDetailed(ctx, ch, conv, manifests, queue, session, userAnswer)
+	result, err := s.executeSessionFollowupDetailed(ctx, ch, conv, manifests, queue, session, userAnswer, sessionFollowupModeRuntime)
 	if err != nil || !result.OK {
 		return handoff.QueuedQuestion{}, false, err
 	}
@@ -420,6 +476,35 @@ type sessionFollowupExecution struct {
 	DelegationResultsPath string
 }
 
+type sessionFollowupMode string
+
+const (
+	sessionFollowupModeRuntime    sessionFollowupMode = "runtime"
+	sessionFollowupModeSimulation sessionFollowupMode = "simulation"
+)
+
+type analysisReadinessDecision struct {
+	State             string
+	Reason            string
+	ReadyForOperation bool
+	Confidence        string
+	SourceArtifact    string
+	SourcePath        string
+	Summary           string
+	Recommendation    string
+	DataGaps          []string
+	ResidualRisks     []string
+	Simulation        bool
+}
+
+type analysisClosureResult struct {
+	State             string
+	Reason            string
+	ReadyForOperation bool
+	ArtifactType      string
+	ArtifactPath      string
+}
+
 func (s *server) executeSessionFollowupDetailed(
 	ctx context.Context,
 	ch *adapter.Client,
@@ -428,6 +513,7 @@ func (s *server) executeSessionFollowupDetailed(
 	queue *handoff.QuestionsQueue,
 	session *activeSessionInfo,
 	userAnswer string,
+	mode sessionFollowupMode,
 ) (sessionFollowupExecution, error) {
 	m, ok := manifests[session.Framework]
 	if !ok || m == nil {
@@ -563,7 +649,10 @@ func (s *server) executeSessionFollowupDetailed(
 	if text == "" {
 		return sessionFollowupExecution{}, nil
 	}
-	s.persistFollowupArtifact(businessID, turnCount, finalStdout, execution)
+	s.persistFollowupArtifact(businessID, conv.ID, turnCount, finalStdout, execution, mode)
+	if mode == sessionFollowupModeRuntime {
+		s.persistAnalysisReadinessArtifact(businessID, conv.ID, session, finalStdout)
+	}
 
 	// Build chips from session signals so the user sees quick-action buttons.
 	var chips []string
@@ -597,7 +686,7 @@ func (s *server) executeSessionFollowupDetailed(
 	return sessionFollowupExecution{}, nil
 }
 
-func (s *server) persistFollowupArtifact(businessID string, turnCount int, stdout string, execution sessionFollowupExecution) {
+func (s *server) persistFollowupArtifact(businessID, conversationID string, turnCount int, stdout string, execution sessionFollowupExecution, mode sessionFollowupMode) {
 	if strings.TrimSpace(businessID) == "" || strings.TrimSpace(stdout) == "" {
 		return
 	}
@@ -611,9 +700,14 @@ func (s *server) persistFollowupArtifact(businessID string, turnCount int, stdou
 	if jsonFirstString(payload, "business_id") == "" {
 		payload["business_id"] = businessID
 	}
+	if strings.TrimSpace(conversationID) != "" && jsonFirstString(payload, "conversation_id") == "" {
+		payload["conversation_id"] = conversationID
+	}
 	if _, ok := payload["turn_count"]; !ok {
 		payload["turn_count"] = turnCount
 	}
+	payload["mode"] = string(mode)
+	payload["simulation"] = mode == sessionFollowupModeSimulation
 	if strings.TrimSpace(jsonFirstString(payload, "analysis_phase")) == "" && strings.TrimSpace(execution.AnalysisPhase) != "" {
 		payload["analysis_phase"] = execution.AnalysisPhase
 	}
@@ -1040,6 +1134,307 @@ func (s *server) persistSessionSummary(businessID string, session *activeSession
 	_ = s.persistFlowArtifact(runID, "session_summary", "analysis.session_summary.v1", summary)
 }
 
+func (s *server) concludeAnalysisTransition(
+	ctx context.Context,
+	ch *adapter.Client,
+	conv *Conversation,
+	manifests map[string]*manifest.Manifest,
+	session *activeSessionInfo,
+	userTrigger string,
+	simulated bool,
+) analysisClosureResult {
+	businessID := conversationBusinessID(conv)
+	if businessID == "" || session == nil {
+		return analysisClosureResult{}
+	}
+	decision := s.evaluateAnalysisReadiness(businessID, conv.ID, simulated)
+	if simulated {
+		s.concludeSessionOnDisk(session.Path, "simulation_complete: "+truncate(userTrigger, 120))
+		path := s.persistAnalysisSimulationPreview(businessID, conv.ID, session, decision, userTrigger)
+		return analysisClosureResult{
+			State:        "review_pending",
+			Reason:       decision.Reason,
+			ArtifactType: "analysis.simulation.preview.v1",
+			ArtifactPath: path,
+		}
+	}
+	if decision.ReadyForOperation {
+		s.concludeSessionOnDisk(session.Path, "user_operational: "+truncate(userTrigger, 120))
+		s.persistAnalysisHandoff(ctx, ch, conv, manifests, session, userTrigger)
+		return analysisClosureResult{
+			State:             "handoff_operational",
+			Reason:            decision.Reason,
+			ReadyForOperation: true,
+			ArtifactType:      "analysis.handoff.v1",
+			ArtifactPath:      s.latestFlowArtifactPath(businessID, "analysis.handoff.v1"),
+		}
+	}
+	s.concludeSessionOnDisk(session.Path, "review_pending: "+truncate(userTrigger, 120))
+	path := s.persistAnalysisReviewPending(businessID, conv.ID, session, decision, userTrigger)
+	return analysisClosureResult{
+		State:        "review_pending",
+		Reason:       decision.Reason,
+		ArtifactType: "analysis.review_pending.v1",
+		ArtifactPath: path,
+	}
+}
+
+func (s *server) persistAnalysisReadinessArtifact(businessID, conversationID string, session *activeSessionInfo, stdout string) string {
+	if strings.TrimSpace(businessID) == "" || session == nil {
+		return ""
+	}
+	var payload map[string]interface{}
+	if json.Unmarshal([]byte(strings.TrimSpace(stdout)), &payload) != nil {
+		return ""
+	}
+	decision := analysisReadinessDecisionFromPayload("analysis.followup.v1", "", payload)
+	readiness := map[string]interface{}{
+		"artifact_type":       "analysis.readiness.v1",
+		"business_id":         businessID,
+		"conversation_id":     conversationID,
+		"state":               decision.State,
+		"ready_for_operation": decision.ReadyForOperation,
+		"reason":              decision.Reason,
+		"confidence":          decision.Confidence,
+		"source_artifact":     decision.SourceArtifact,
+		"source_path":         decision.SourcePath,
+		"analytical_summary":  decision.Summary,
+		"recommendation":      decision.Recommendation,
+		"data_gaps":           decision.DataGaps,
+		"residual_risks":      decision.ResidualRisks,
+		"owner_framework":     session.Framework,
+		"owner_capability":    session.Capability,
+		"turns_completed":     session.TurnCount + 1,
+		"simulation":          false,
+		"evaluated_at":        time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	runID := "readiness_" + businessID
+	return s.persistFlowArtifact(runID, "analysis_readiness", "analysis.readiness.v1", readiness)
+}
+
+func (s *server) evaluateAnalysisReadiness(businessID, conversationID string, allowSimulation bool) analysisReadinessDecision {
+	if decision := s.latestAnalysisReadinessDecision(businessID, conversationID, allowSimulation); decision.SourceArtifact != "" {
+		return s.enrichAnalysisDecisionFromHistory(businessID, conversationID, allowSimulation, decision)
+	}
+	if sourceType, sourcePath, payload := s.latestAnalysisSourcePayload(businessID, conversationID, allowSimulation); len(payload) > 0 {
+		return s.enrichAnalysisDecisionFromHistory(businessID, conversationID, allowSimulation, analysisReadinessDecisionFromPayload(sourceType, sourcePath, payload))
+	}
+	return analysisReadinessDecision{
+		State:      "review_pending",
+		Reason:     "no hay artefacto analítico elegible para autorizar transición operacional",
+		Confidence: "partial",
+	}
+}
+
+func (s *server) enrichAnalysisDecisionFromHistory(businessID, conversationID string, allowSimulation bool, decision analysisReadinessDecision) analysisReadinessDecision {
+	for _, path := range s.allFlowArtifactPaths(businessID, "analysis.followup.v1") {
+		payload, ok := flowArtifactPayloadFromPath(path)
+		if !ok {
+			continue
+		}
+		if payloadConversation := jsonFirstString(payload, "conversation_id"); payloadConversation != "" && conversationID != "" && payloadConversation != conversationID {
+			continue
+		}
+		if !allowSimulation && jsonFirstBool(payload, "simulation") {
+			continue
+		}
+		if summary := jsonFirst(payload, "text", "summary", "analysis"); summary != "" {
+			decision.Summary = summary
+		}
+		if recommendation := jsonFirst(payload, "recommendation", "next_action", "suggested_action"); recommendation != "" {
+			decision.Recommendation = recommendation
+		}
+		if confidence := jsonFirst(payload, "confidence"); confidence != "" {
+			decision.Confidence = confidence
+		}
+		for _, gap := range jsonStringSlice(payload, "data_gaps", "gaps", "blocking_gaps", "accepted_gaps") {
+			if !containsString(decision.DataGaps, gap) {
+				decision.DataGaps = append(decision.DataGaps, gap)
+			}
+		}
+		for _, risk := range jsonStringSlice(payload, "residual_risks", "risks", "risk_factors") {
+			if !containsString(decision.ResidualRisks, risk) {
+				decision.ResidualRisks = append(decision.ResidualRisks, risk)
+			}
+		}
+	}
+	if path := s.latestFlowArtifactPath(businessID, "analysis.case_review.v1"); path != "" {
+		if payload, ok := flowArtifactPayloadFromPath(path); ok {
+			if decision.Summary == "" {
+				decision.Summary = jsonFirst(payload, "text", "summary", "analysis")
+			}
+			if decision.Recommendation == "" {
+				decision.Recommendation = jsonFirst(payload, "recommendation", "next_action", "suggested_action")
+			}
+			for _, gap := range jsonStringSlice(payload, "data_gaps", "gaps", "blocking_gaps", "accepted_gaps") {
+				if !containsString(decision.DataGaps, gap) {
+					decision.DataGaps = append(decision.DataGaps, gap)
+				}
+			}
+			for _, risk := range jsonStringSlice(payload, "residual_risks", "risks", "risk_factors") {
+				if !containsString(decision.ResidualRisks, risk) {
+					decision.ResidualRisks = append(decision.ResidualRisks, risk)
+				}
+			}
+		}
+	}
+	return decision
+}
+
+func (s *server) latestAnalysisReadinessDecision(businessID, conversationID string, allowSimulation bool) analysisReadinessDecision {
+	paths := s.allFlowArtifactPaths(businessID, "analysis.readiness.v1")
+	for i := len(paths) - 1; i >= 0; i-- {
+		payload, ok := flowArtifactPayloadFromPath(paths[i])
+		if !ok {
+			continue
+		}
+		if payloadConversation := jsonFirstString(payload, "conversation_id"); payloadConversation != "" && conversationID != "" && payloadConversation != conversationID {
+			continue
+		}
+		if !allowSimulation && jsonFirstBool(payload, "simulation") {
+			continue
+		}
+		decision := analysisReadinessDecisionFromPayload("analysis.readiness.v1", paths[i], payload)
+		if decision.SourceArtifact != "" {
+			return decision
+		}
+	}
+	return analysisReadinessDecision{}
+}
+
+func (s *server) latestAnalysisSourcePayload(businessID, conversationID string, allowSimulation bool) (string, string, map[string]interface{}) {
+	paths := s.allFlowArtifactPaths(businessID, "analysis.followup.v1")
+	for i := len(paths) - 1; i >= 0; i-- {
+		payload, ok := flowArtifactPayloadFromPath(paths[i])
+		if !ok {
+			continue
+		}
+		if payloadConversation := jsonFirstString(payload, "conversation_id"); payloadConversation != "" && conversationID != "" && payloadConversation != conversationID {
+			continue
+		}
+		if !allowSimulation && jsonFirstBool(payload, "simulation") {
+			continue
+		}
+		return "analysis.followup.v1", paths[i], payload
+	}
+	if path := s.latestFlowArtifactPath(businessID, "analysis.case_review.v1"); path != "" {
+		if payload, ok := flowArtifactPayloadFromPath(path); ok {
+			return "analysis.case_review.v1", path, payload
+		}
+	}
+	return "", "", nil
+}
+
+func analysisReadinessDecisionFromPayload(sourceType, sourcePath string, payload map[string]interface{}) analysisReadinessDecision {
+	decision := analysisReadinessDecision{
+		State:          "review_pending",
+		Reason:         "falta señal explícita ready_for_operation=true",
+		Confidence:     firstNonEmptyPipelineString(jsonFirst(payload, "confidence"), "partial"),
+		SourceArtifact: sourceType,
+		SourcePath:     sourcePath,
+		Summary:        firstNonEmptyPipelineString(jsonFirst(payload, "text", "summary", "analysis"), jsonFirst(payload, "analytical_summary")),
+		Recommendation: jsonFirst(payload, "recommendation", "next_action", "suggested_action"),
+		DataGaps:       jsonStringSlice(payload, "data_gaps", "gaps", "blocking_gaps", "accepted_gaps"),
+		ResidualRisks:  jsonStringSlice(payload, "residual_risks", "risks", "risk_factors"),
+		Simulation:     jsonFirstBool(payload, "simulation"),
+	}
+	if jsonFirstBool(payload, "ready_for_operation", "analysis_sufficient", "operational_ready") {
+		decision.State = "ready_for_operation"
+		decision.Reason = "señal explícita ready_for_operation=true"
+		decision.ReadyForOperation = true
+		return decision
+	}
+	switch sourceType {
+	case "analysis.readiness.v1":
+		decision.State = firstNonEmptyPipelineString(jsonFirst(payload, "state"), decision.State)
+		decision.Reason = firstNonEmptyPipelineString(jsonFirst(payload, "reason"), decision.Reason)
+		decision.ReadyForOperation = jsonFirstBool(payload, "ready_for_operation")
+		decision.Summary = firstNonEmptyPipelineString(jsonFirst(payload, "analytical_summary"), decision.Summary)
+		decision.Recommendation = firstNonEmptyPipelineString(jsonFirst(payload, "recommendation"), decision.Recommendation)
+	case "analysis.case_review.v1":
+		decision.Reason = "hay case review, pero no existe gate explícito de suficiencia para operar"
+	case "analysis.followup.v1":
+		decision.Reason = "el followup más reciente no declaró ready_for_operation=true"
+	}
+	return decision
+}
+
+func flowArtifactPayloadFromPath(path string) (map[string]interface{}, bool) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, false
+	}
+	var payload map[string]interface{}
+	if json.Unmarshal(raw, &payload) != nil {
+		return nil, false
+	}
+	return payload, true
+}
+
+func (s *server) persistAnalysisReviewPending(businessID, conversationID string, session *activeSessionInfo, decision analysisReadinessDecision, userTrigger string) string {
+	payload := map[string]interface{}{
+		"artifact_type":       "analysis.review_pending.v1",
+		"business_id":         businessID,
+		"conversation_id":     conversationID,
+		"state":               "review_pending",
+		"ready_for_operation": false,
+		"reason":              decision.Reason,
+		"user_trigger":        userTrigger,
+		"turns_completed":     session.TurnCount,
+		"analytical_summary":  decision.Summary,
+		"recommendation":      decision.Recommendation,
+		"data_gaps":           decision.DataGaps,
+		"residual_risks":      decision.ResidualRisks,
+		"confidence":          decision.Confidence,
+		"source_artifact":     decision.SourceArtifact,
+		"source_path":         decision.SourcePath,
+		"from": map[string]string{
+			"framework":  session.Framework,
+			"capability": session.Capability,
+		},
+		"to": map[string]string{
+			"framework": "foco",
+			"role":      "case_manager",
+		},
+		"created_at": time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	runID := "review_pending_" + businessID
+	return s.persistFlowArtifact(runID, "analysis_review_pending", "analysis.review_pending.v1", payload)
+}
+
+func (s *server) persistAnalysisSimulationPreview(businessID, conversationID string, session *activeSessionInfo, decision analysisReadinessDecision, userTrigger string) string {
+	payload := map[string]interface{}{
+		"artifact_type":       "analysis.simulation.preview.v1",
+		"business_id":         businessID,
+		"conversation_id":     conversationID,
+		"state":               "review_pending",
+		"ready_for_operation": false,
+		"authoritative":       false,
+		"preview_only":        true,
+		"reason":              firstNonEmptyPipelineString(decision.Reason, "la simulación no autoriza handoff operativo"),
+		"user_trigger":        userTrigger,
+		"turns_completed":     session.TurnCount,
+		"analytical_summary":  decision.Summary,
+		"recommendation":      decision.Recommendation,
+		"data_gaps":           decision.DataGaps,
+		"residual_risks":      decision.ResidualRisks,
+		"confidence":          decision.Confidence,
+		"source_artifact":     decision.SourceArtifact,
+		"source_path":         decision.SourcePath,
+		"from": map[string]string{
+			"framework":  session.Framework,
+			"capability": session.Capability,
+		},
+		"to": map[string]string{
+			"framework": "foco",
+			"role":      "case_manager",
+		},
+		"created_at": time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	runID := "simulation_preview_" + businessID
+	return s.persistFlowArtifact(runID, "analysis_simulation_preview", "analysis.simulation.preview.v1", payload)
+}
+
 // persistAnalysisHandoff creates a structured analysis.handoff.v1 artifact
 // when the user decides to act with available data (operational intent).
 // This gives Foco rich context for the operational phase:
@@ -1201,6 +1596,15 @@ func jsonFirst(m map[string]interface{}, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func jsonFirstBool(m map[string]interface{}, keys ...string) bool {
+	for _, k := range keys {
+		if v, ok := m[k].(bool); ok {
+			return v
+		}
+	}
+	return false
 }
 
 // jsonStringSlice tries multiple keys and returns the first non-empty string

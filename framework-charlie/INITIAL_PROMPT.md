@@ -8,7 +8,16 @@ clasificaciones ni changelog manualmente: usa el CLI.
 ## Ruta
 
 ```bash
-cd /Users/alcless_a1234_cursor/remora-go/framework-charlie
+cd /ruta/al/framework-charlie
+```
+
+Si Charlie vive dentro del repo objetivo, no necesitas `--root`: detecta el repo
+git desde el directorio actual o desde el repo que contiene `framework-charlie`.
+
+Si Charlie debe operar sobre **otro repo**, pasa `--root` en el comando:
+
+```bash
+go run ./cmd/charlie --root /ruta/al/repo status
 ```
 
 ## Comandos
@@ -33,22 +42,22 @@ manual de git**. Corre `doctor --apply`. Si el estado queda resuelto, seguis
 normalmente con preflight/propose. Si no, reporta el codigo (ej. `REPO_CORRUPT_MISSING_OBJECT`)
 y espera al humano.
 
-### `go run ./cmd/charlie preflight`
+### `go run ./cmd/charlie [--root PATH] preflight`
 
 Usar antes de cualquier operacion de versionado o limpieza. Este comando crea
 un backup liviano del filesystem y bloquea si el branch actual no es `draft`.
 Si falla, no ejecutes comandos manuales de git para "arreglar" el estado.
 
-### `go run ./cmd/charlie backup`
+### `go run ./cmd/charlie [--root PATH] backup`
 
 Usar si el humano pide resguardar el estado antes de investigar. El backup se
-guarda fuera del repo, en:
+guarda fuera del repo objetivo, en:
 
 ```text
-/Users/alcless_a1234_cursor/remora-go-charlie-backups/
+<directorio-padre-del-repo>/<nombre-del-repo>-charlie-backups/
 ```
 
-### `go run ./cmd/charlie status`
+### `go run ./cmd/charlie [--root PATH] status`
 
 Usar al inicio. Si responde repo limpio, responde exactamente:
 
@@ -56,17 +65,17 @@ Usar al inicio. Si responde repo limpio, responde exactamente:
 ✅ Repo limpio, no hay cambios pendientes
 ```
 
-### `go run ./cmd/charlie changelog`
+### `go run ./cmd/charlie [--root PATH] changelog`
 
 Usar cuando hay cambios. Genera el changelog obligatorio por archivo desde
 `git diff`.
 
-### `go run ./cmd/charlie propose`
+### `go run ./cmd/charlie [--root PATH] propose`
 
 Usar para entregar la propuesta final (dry-run). Este comando incluye primero
 el changelog obligatorio y después el único commit permitido.
 
-### `go run ./cmd/charlie apply-propose [--apply] [--push]` (v0.1.8+)
+### `go run ./cmd/charlie [--root PATH] apply-propose [--apply] [--push]` (v0.1.8+)
 
 Cierra el happy path. Sin `--apply` muestra el plan completo: version,
 archivos a stagear (filtrados por `.charlieignore`), y bloqueos detectados por
@@ -74,9 +83,9 @@ archivos a stagear (filtrados por `.charlieignore`), y bloqueos detectados por
 Con `--apply --push` ademas pushea draft (con `--force-with-lease` si hace
 falta) y el tag. **Esto reemplaza la necesidad de pedirle al humano que haga
 `git commit/tag/push` a mano.** Todas las acciones se auditan en
-`framework-charlie/temp/applied.jsonl`.
+`temp/applied.jsonl` dentro del `framework-charlie` que estas ejecutando.
 
-### `go run ./cmd/charlie amend-plan vVERSION`
+### `go run ./cmd/charlie [--root PATH] amend-plan vVERSION`
 
 Usar cuando el humano diga que una version ya existe y que los cambios locales
 deben agregarse a esa misma release. Este comando diagnostica si es seguro
@@ -85,7 +94,7 @@ amendar el commit/tag existente.
 Si `amend-plan` responde `BLOQUEADO`, no ejecutes `stash`, `reset`, `clean`,
 `pull`, `commit --amend` ni `tag -f` manualmente. Reporta el bloqueo.
 
-### `go run ./cmd/charlie reconcile-draft`
+### `go run ./cmd/charlie [--root PATH] reconcile-draft`
 
 Usar cuando `preflight` o `amend-plan` bloqueen por divergencia con upstream.
 Este comando decide la politica segura para `draft` y evita preguntarle al
@@ -95,7 +104,7 @@ Si `reconcile-draft` responde `DIVERGENCIA_RELEASE`, no propongas force push,
 merge manual, rebase, stash, reset ni checkout. Si entrega `SIGUIENTE COMANDO
 CHARLIE`, ejecutalo.
 
-### `go run ./cmd/charlie repair-release vVERSION --apply`
+### `go run ./cmd/charlie [--root PATH] repair-release vVERSION --apply`
 
 Usar cuando el humano quiera un unico commit de una version ya deployada que
 incluya los cambios locales olvidados. Este comando hace la reparacion desde Go:
@@ -104,19 +113,19 @@ backup liviano, base canonica, restauracion de cambios, CHANGELOG, amend y tag.
 No le pidas al humano que ejecute `git reset`, `git stash pop`, `git commit` ni
 `git tag`. Si el plan no tiene bloqueos, aplica `repair-release ... --apply`.
 
-### `go run ./cmd/charlie publish-draft --apply`
+### `go run ./cmd/charlie [--root PATH] publish-draft --apply`
 
 Usar despues de `repair-release ... --apply` si el objetivo del humano incluye
 dejar `draft` publicado. Este comando publica con estrategia segura; si hay
 reescritura de la misma version usa `--force-with-lease` desde Go.
 
-### `go run ./cmd/charlie publish-tag vVERSION --apply`
+### `go run ./cmd/charlie [--root PATH] publish-tag vVERSION --apply`
 
 Usar si `publish-draft` detecta que el branch ya fue publicado pero el tag
 remoto quedo atrasado. Este comando actualiza el tag remoto con
 `--force-with-lease` especifico para ese tag.
 
-### `go run ./cmd/charlie publish-main --apply`
+### `go run ./cmd/charlie [--root PATH] publish-main --apply`
 
 Usar cuando el humano diga "actualiza main". En Charlie eso significa:
 `main` debe quedar como copia exacta de `draft`, despues de que `draft` ya fue
@@ -138,7 +147,7 @@ go run ./cmd/deployer --apply
 Esto NO genera commits. Charlie y deployer son ortogonales: podes deployar
 muchas veces el mismo commit, o no deployar nunca un commit.
 
-### `go run ./cmd/charlie clean-traces [--apply] [--root PATH]` (v0.1.11+)
+### `go run ./cmd/charlie [--root PATH] clean-traces [--apply]` (v0.1.11+)
 
 Usar cuando el humano pida "limpiar logs", "borrar traces", "limpiar basura
 de paladin" o similar. Sin `--apply` lista los archivos que matchean. Con

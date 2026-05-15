@@ -8,9 +8,9 @@ import (
 )
 
 // AuditLogPath is where every --apply operation leaves a trail. We keep it
-// under framework-charlie/temp/ (gitignored) so the history survives reflog
+// under temp/ relative to the framework root so the history survives reflog
 // corruption like the one seen in v0.1.6.
-const AuditLogPath = "framework-charlie/temp/applied.jsonl"
+const AuditLogPath = "temp/applied.jsonl"
 
 // appendAudit records one line in the audit log. Best-effort; we never block
 // an operation because audit failed, but we still surface the error path for
@@ -25,7 +25,7 @@ func appendAudit(op string, fields map[string]string) {
 	if err != nil {
 		return
 	}
-	full := filepath.Join(RepoRoot, AuditLogPath)
+	full := filepath.Join(frameworkDataRoot(), AuditLogPath)
 	_ = os.MkdirAll(filepath.Dir(full), 0o755)
 	f, err := os.OpenFile(full, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {

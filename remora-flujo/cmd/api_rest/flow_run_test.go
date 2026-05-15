@@ -2669,12 +2669,13 @@ func TestCollectionFlowDeepAnalysisStaysInAnalyticalSegment(t *testing.T) {
 	}
 }
 
-func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T) {
+func TestDeepAnalysisDimensionSimulateHumanRunsConversationalFollowupsWithoutAuthoritativeHandoff(t *testing.T) {
 	s, closeFn := newCollectionSmokeServer(t)
 	defer closeFn()
 	t.Setenv("REMORA_DEEP_ANALYSIS_STRESS_TURNS", "6")
 
 	req := collectionSmokeRequest(false, false)
+	req.SimulateHuman = true
 	artifacts := map[string]flowRunArtifact{
 		"data.sqlite_db.v1":         {Type: "data.sqlite_db.v1", Source: "test"},
 		"business.semantic_pack.v1": {Type: "business.semantic_pack.v1", Source: "test"},
@@ -2715,11 +2716,11 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 	}
 	countUser := 0
 	countFollowup := 0
-	countOperational := 0
 	countHandoff := 0
 	countDelegationPlan := 0
 	countSabioDelegate := 0
 	countAuditorDelegate := 0
+	countReviewPending := 0
 	integratedDelegatedEvidence := false
 	synthesizedDelegatedFollowup := false
 	sawCompletedComparativePlan := false
@@ -2732,9 +2733,9 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 		}
 		if step.Node == "analysis_handoff_to_foco" && step.Status == "completed" {
 			countHandoff++
-			if step.SegmentMode == segmentModeOperational && step.SegmentOwner == "foco" {
-				countOperational++
-			}
+		}
+		if step.Node == "analysis_review_pending" && step.Status == "completed" {
+			countReviewPending++
 		}
 		if step.Node == "radar_deep_analysis_delegation_plan" {
 			countDelegationPlan++
@@ -2779,35 +2780,51 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 	if !synthesizedDelegatedFollowup {
 		t.Fatalf("expected at least one delegated followup to finish with synthesized=true and analysis_phase=synthesis, timeline=%#v", branch.Timeline)
 	}
-	if countOperational != 1 || countHandoff != 1 {
-		t.Fatalf("expected one operational handoff to Foco, operational=%d handoff=%d timeline=%#v", countOperational, countHandoff, branch.Timeline)
+	if countHandoff != 0 {
+		t.Fatalf("simulation must not emit authoritative handoff, handoff=%d timeline=%#v", countHandoff, branch.Timeline)
+	}
+	if countReviewPending != 1 {
+		t.Fatalf("expected one review_pending closure, got %d timeline=%#v", countReviewPending, branch.Timeline)
 	}
 	if !containsString(branch.Artifacts, "segment.session.v1") {
 		t.Fatalf("expected branch artifacts to include segment.session.v1, got %#v", branch.Artifacts)
 	}
-	if !containsString(branch.Artifacts, "analysis.handoff.v1") {
-		t.Fatalf("expected branch artifacts to include analysis.handoff.v1, got %#v", branch.Artifacts)
+	if !containsString(branch.Artifacts, "analysis.simulation.preview.v1") {
+		t.Fatalf("expected branch artifacts to include analysis.simulation.preview.v1, got %#v", branch.Artifacts)
+	}
+	if containsString(branch.Artifacts, "analysis.handoff.v1") {
+		t.Fatalf("simulation must not include analysis.handoff.v1, got %#v", branch.Artifacts)
 	}
 	if containsString(branch.Artifacts, "message.sent.v1") {
 		t.Fatalf("deep analysis dimension must not send before handoff, artifacts=%#v", branch.Artifacts)
 	}
 	handoffPath := s.latestFlowArtifactPath(req.Flow.BusinessID, "analysis.handoff.v1")
-	if handoffPath == "" {
-		t.Fatalf("expected persisted analysis.handoff.v1")
+	if handoffPath != "" {
+		t.Fatalf("simulation must not persist analysis.handoff.v1, got %s", handoffPath)
 	}
-	rawHandoff, err := os.ReadFile(handoffPath)
+	previewPath := s.latestFlowArtifactPath(req.Flow.BusinessID, "analysis.simulation.preview.v1")
+	if previewPath == "" {
+		t.Fatalf("expected persisted analysis.simulation.preview.v1")
+	}
+	rawPreview, err := os.ReadFile(previewPath)
 	if err != nil {
-		t.Fatalf("read handoff: %v", err)
+		t.Fatalf("read preview: %v", err)
 	}
-	var handoff map[string]interface{}
-	if err := json.Unmarshal(rawHandoff, &handoff); err != nil {
-		t.Fatalf("parse handoff: %v", err)
+	var preview map[string]interface{}
+	if err := json.Unmarshal(rawPreview, &preview); err != nil {
+		t.Fatalf("parse preview: %v", err)
 	}
-	if strings.TrimSpace(fmt.Sprint(handoff["analytical_summary"])) == "" {
-		t.Fatalf("expected handoff to preserve non-empty analytical summary, got %#v", handoff)
+	if preview["authoritative"] != false || preview["preview_only"] != true {
+		t.Fatalf("expected non-authoritative preview artifact, got %#v", preview)
 	}
-	if !strings.Contains(fmt.Sprint(handoff["accepted_gaps"]), "contactabilidad") && !strings.Contains(fmt.Sprint(handoff["accepted_gaps"]), "inconsistencias") {
-		t.Fatalf("expected handoff to preserve analytical gaps/findings, got %#v", handoff)
+	if preview["state"] != "review_pending" {
+		t.Fatalf("expected preview state review_pending, got %#v", preview)
+	}
+	if strings.TrimSpace(fmt.Sprint(preview["analytical_summary"])) == "" {
+		t.Fatalf("expected preview to preserve non-empty analytical summary, got %#v", preview)
+	}
+	if !strings.Contains(fmt.Sprint(preview["data_gaps"]), "contactabilidad") && !strings.Contains(fmt.Sprint(preview["data_gaps"]), "inconsistencias") {
+		t.Fatalf("expected preview to preserve analytical gaps/findings, got %#v", preview)
 	}
 	sawSynthesizedArtifact := false
 	for _, path := range s.allFlowArtifactPaths(req.Flow.BusinessID, "analysis.followup.v1") {
@@ -2822,6 +2839,9 @@ func TestDeepAnalysisDimensionRunsConversationalFollowupsAndHandoff(t *testing.T
 		caps := fmt.Sprint(payload["delegated_capabilities"])
 		if !strings.Contains(caps, "evidence.portfolio_comparison") {
 			continue
+		}
+		if payload["simulation"] != true {
+			t.Fatalf("expected branch followup to be marked simulation=true, got %+v", payload)
 		}
 		if payload["analysis_phase"] == "synthesis" {
 			if synthesized, _ := payload["synthesized"].(bool); synthesized {

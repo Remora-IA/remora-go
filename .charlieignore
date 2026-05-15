@@ -1,0 +1,5 @@
+# Ruido operacional local del repo que no debe entrar en releases
+.claude/worktrees/
+simulacion/
+workspace/
+sessions/

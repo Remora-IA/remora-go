@@ -8,23 +8,37 @@ import (
 )
 
 func main() {
+	args, root, err := stripGlobalRoot(os.Args[1:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
+		os.Exit(2)
+	}
+	if err := charlie.SetRepoRoot(root); err != nil {
+		fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
+		os.Exit(1)
+	}
+
 	command := "status"
-	if len(os.Args) > 1 {
-		command = os.Args[1]
+	if len(args) > 0 {
+		command = args[0]
+	}
+	rest := []string{}
+	if len(args) > 1 {
+		rest = args[1:]
 	}
 
 	switch command {
 	case "doctor":
-		apply := len(os.Args) > 2 && os.Args[2] == "--apply"
+		apply := len(rest) > 0 && rest[0] == "--apply"
 		var report *charlie.DoctorReport
-		var err error
+		var reportErr error
 		if apply {
-			report, err = charlie.ApplyDoctor()
+			report, reportErr = charlie.ApplyDoctor()
 		} else {
-			report, err = charlie.RunDoctor()
+			report, reportErr = charlie.RunDoctor()
 		}
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
+		if reportErr != nil {
+			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", reportErr)
 			os.Exit(1)
 		}
 		fmt.Println(charlie.FormatDoctorReport(report))
@@ -35,7 +49,7 @@ func main() {
 	case "apply-propose":
 		apply := false
 		push := false
-		for _, a := range os.Args[2:] {
+		for _, a := range rest {
 			if a == "--apply" {
 				apply = true
 			}
@@ -61,9 +75,9 @@ func main() {
 		return
 	case "plan":
 		intent := ""
-		for i := 2; i < len(os.Args); i++ {
-			if os.Args[i] == "--intent" && i+1 < len(os.Args) {
-				intent = os.Args[i+1]
+		for i := 0; i < len(rest); i++ {
+			if rest[i] == "--intent" && i+1 < len(rest) {
+				intent = rest[i+1]
 				break
 			}
 		}
@@ -94,11 +108,11 @@ func main() {
 		}
 		return
 	case "amend-plan":
-		if len(os.Args) < 3 {
+		if len(rest) < 1 {
 			fmt.Fprintln(os.Stderr, "uso: charlie amend-plan vVERSION")
 			os.Exit(2)
 		}
-		plan, err := charlie.BuildAmendPlan(os.Args[2])
+		plan, err := charlie.BuildAmendPlan(rest[0])
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
 			os.Exit(1)
@@ -120,17 +134,17 @@ func main() {
 		}
 		return
 	case "repair-release":
-		if len(os.Args) < 3 {
+		if len(rest) < 1 {
 			fmt.Fprintln(os.Stderr, "uso: charlie repair-release vVERSION [--apply]")
 			os.Exit(2)
 		}
-		apply := len(os.Args) > 3 && os.Args[3] == "--apply"
+		apply := len(rest) > 1 && rest[1] == "--apply"
 		var plan *charlie.RepairReleasePlan
 		var err error
 		if apply {
-			plan, err = charlie.ApplyRepairRelease(os.Args[2])
+			plan, err = charlie.ApplyRepairRelease(rest[0])
 		} else {
-			plan, err = charlie.BuildRepairReleasePlan(os.Args[2])
+			plan, err = charlie.BuildRepairReleasePlan(rest[0])
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
@@ -142,7 +156,7 @@ func main() {
 		}
 		return
 	case "publish-draft":
-		apply := len(os.Args) > 2 && os.Args[2] == "--apply"
+		apply := len(rest) > 0 && rest[0] == "--apply"
 		var plan *charlie.PublishDraftPlan
 		var err error
 		if apply {
@@ -160,17 +174,17 @@ func main() {
 		}
 		return
 	case "publish-tag":
-		if len(os.Args) < 3 {
+		if len(rest) < 1 {
 			fmt.Fprintln(os.Stderr, "uso: charlie publish-tag vVERSION [--apply]")
 			os.Exit(2)
 		}
-		apply := len(os.Args) > 3 && os.Args[3] == "--apply"
+		apply := len(rest) > 1 && rest[1] == "--apply"
 		var plan *charlie.PublishTagPlan
 		var err error
 		if apply {
-			plan, err = charlie.ApplyPublishTag(os.Args[2])
+			plan, err = charlie.ApplyPublishTag(rest[0])
 		} else {
-			plan, err = charlie.BuildPublishTagPlan(os.Args[2])
+			plan, err = charlie.BuildPublishTagPlan(rest[0])
 		}
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "=== CHARLIE (ERROR) ===\n\n%v\n", err)
@@ -183,15 +197,10 @@ func main() {
 		return
 	case "clean-traces":
 		apply := false
-		root := ".."
-		for i := 2; i < len(os.Args); i++ {
-			if os.Args[i] == "--apply" {
+		root := charlie.CurrentRepoRoot()
+		for i := 0; i < len(rest); i++ {
+			if rest[i] == "--apply" {
 				apply = true
-				continue
-			}
-			if os.Args[i] == "--root" && i+1 < len(os.Args) {
-				root = os.Args[i+1]
-				continue
 			}
 		}
 		res, err := charlie.CleanTraces(root, apply)
@@ -202,7 +211,7 @@ func main() {
 		fmt.Println(charlie.FormatCleanTraces(res))
 		return
 	case "publish-main":
-		apply := len(os.Args) > 2 && os.Args[2] == "--apply"
+		apply := len(rest) > 0 && rest[0] == "--apply"
 		var plan *charlie.PublishMainPlan
 		var err error
 		if apply {
@@ -256,6 +265,7 @@ func usage() {
 	fmt.Println(`Charlie CLI
 
 USO:
+  charlie [--root PATH] <comando>
   charlie status          Muestra estado, tag actual y siguiente version lineal
   charlie doctor [--apply] (v0.1.8) diagnostica integridad del repo; --apply
                   ejecuta recetas seguras (fetch-missing-objects, disable-gc-auto, etc.)
@@ -286,9 +296,29 @@ USO:
                   Lista (o borra con --apply) archivos regenerables seguros:
                   trace_pal_*.json, trace_gf_*.json, .DS_Store. NUNCA toca
                   state, secrets, applied.jsonl, sessions ni databases.
+  Si no pasas --root, Charlie opera sobre el repo git actual. Si el cwd no
+                  esta dentro de un repo, intenta usar el repo que contiene
+                  framework-charlie.
 
 CONTRATO:
   Charlie no ejecuta git manual. Los comandos del framework pueden aplicar
   operaciones Git controladas con backup y validaciones.
   El commit siempre usa: chore: commit vVERSION - descripcion principal`)
+}
+
+func stripGlobalRoot(args []string) ([]string, string, error) {
+	filtered := make([]string, 0, len(args))
+	root := ""
+	for i := 0; i < len(args); i++ {
+		if args[i] != "--root" {
+			filtered = append(filtered, args[i])
+			continue
+		}
+		if i+1 >= len(args) {
+			return nil, "", fmt.Errorf("uso: --root PATH")
+		}
+		root = args[i+1]
+		i++
+	}
+	return filtered, root, nil
 }

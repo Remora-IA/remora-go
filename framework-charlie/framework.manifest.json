@@ -1,10 +1,16 @@
 {
   "name": "charlie",
   "version": "0.1.0",
-  "description": "Gestión del ciclo de vida de código: doctor, plan, backup, preflight, publish, release. Automatiza la preparación y publicación de cambios.",
+  "description": "Gestión del ciclo de vida de repos Git: doctor, plan, backup, preflight, publish y release. Opera el repo actual o uno externo con --root.",
   "build": {
     "command": "go",
-    "args": ["build", "-buildvcs=false", "-o", "charlie", "./cmd/charlie"]
+    "args": [
+      "build",
+      "-buildvcs=false",
+      "-o",
+      "charlie",
+      "./cmd/charlie"
+    ]
   },
   "binary": {
     "command": "./charlie",
@@ -17,37 +23,52 @@
     "provider": "groq",
     "name": "meta-llama/llama-4-scout-17b-16e-instruct",
     "env_key": "GROQ_API_KEY",
-    "capabilities": ["text", "conversation"]
+    "capabilities": [
+      "text",
+      "conversation"
+    ]
   },
   "commands": {
     "doctor": {
       "description": "Diagnóstico de salud del repo",
-      "args": ["doctor"],
+      "args": [
+        "doctor"
+      ],
       "params": []
     },
     "plan": {
       "description": "Genera plan de release",
-      "args": ["plan"],
+      "args": [
+        "plan"
+      ],
       "params": []
     },
     "preflight": {
       "description": "Checks previos a publicar",
-      "args": ["preflight"],
+      "args": [
+        "preflight"
+      ],
       "params": []
     },
     "status": {
       "description": "Estado actual del repo",
-      "args": ["status"],
+      "args": [
+        "status"
+      ],
       "params": []
     },
     "changelog": {
       "description": "Genera changelog",
-      "args": ["changelog"],
+      "args": [
+        "changelog"
+      ],
       "params": []
     },
     "backup": {
       "description": "Backup del estado actual",
-      "args": ["backup"],
+      "args": [
+        "backup"
+      ],
       "params": []
     }
   },
@@ -55,13 +76,22 @@
     "supported": false
   },
   "capabilities_semantic": {
-    "tags": ["release", "git", "lifecycle", "publish"],
+    "tags": [
+      "release",
+      "git",
+      "lifecycle",
+      "publish"
+    ],
     "intent_examples": [
       "preparar release",
       "verificar estado del repo",
-      "generar changelog"
+      "generar changelog",
+      "versionar otro repo git con --root"
     ],
-    "produces": ["release_plan", "changelog"],
-    "requires": ["repo:remora-go"]
+    "produces": [
+      "release_plan",
+      "changelog"
+    ],
+    "requires": []
   }
 }
