@@ -282,8 +282,10 @@ func writeConnectionArtifact(s *internal.State) {
 func cmdTestEndpoint() {
 	fs := flag.NewFlagSet("test-endpoint", flag.ExitOnError)
 	url := fs.String("url", "", "URL a testear")
-	token := fs.String("token", "", "Token de autenticación")
+	token := fs.String("token", "", "Token o API key")
 	header := fs.String("header", "Authorization", "Nombre del header de auth")
+	user := fs.String("user", "", "Usuario para Basic Auth")
+	pass := fs.String("pass", "", "Contraseña para Basic Auth")
 	fs.Parse(os.Args[2:])
 
 	if *url == "" {
@@ -291,7 +293,13 @@ func cmdTestEndpoint() {
 		os.Exit(1)
 	}
 
-	result := internal.TestEndpoint(*url, *token, *header)
+	tok, hdr := *token, *header
+	if *user != "" && *pass != "" {
+		tok = internal.BasicAuthToken(*user, *pass)
+		hdr = "Authorization"
+	}
+
+	result := internal.TestEndpoint(*url, tok, hdr)
 	outputJSON(result)
 }
 

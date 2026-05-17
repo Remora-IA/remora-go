@@ -2,6 +2,7 @@ package internal
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -9,6 +10,11 @@ import (
 	"strings"
 	"time"
 )
+
+// BasicAuthToken returns a "Basic <base64(user:pass)>" header value.
+func BasicAuthToken(user, pass string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass))
+}
 
 // TestEndpoint hace un GET al URL con las credenciales dadas e inspecciona la respuesta completa.
 func TestEndpoint(rawURL, token, authHeader string) *TestResult {

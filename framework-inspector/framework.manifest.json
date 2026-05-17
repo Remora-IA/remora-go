@@ -33,8 +33,8 @@
     "test-endpoint": {
       "description": "Testea un endpoint HTTP con inspección completa de headers, status y body",
       "args": ["test-endpoint", "--url", "{params.url}", "--token", "{params.token}", "--header", "{params.header}"],
-      "params": ["url", "token", "header"],
-      "defaults": { "token": "", "header": "Authorization" }
+      "params": ["url", "token", "header", "user", "pass"],
+      "defaults": { "token": "", "header": "Authorization", "user": "", "pass": "" }
     },
     "search-docs": {
       "description": "Busca documentación de una API usando Exa AI",
