@@ -2738,6 +2738,17 @@
     .fw-team-body { flex:1; min-width:0; }
     .fw-team-name { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
     .fw-team-role { font-size:12px; color:var(--text-muted); line-height:1.45; }
+    /* ── Builder two-column layout ───────────────────────── */
+    .builder-two-col { display:grid; grid-template-columns:1fr 1fr; gap:0; min-height:380px; }
+    .builder-left-col { display:flex; flex-direction:column; padding-right:20px; border-right:1px solid var(--border); overflow:hidden; min-height:0; }
+    .builder-right-col { padding-left:20px; overflow-y:auto; min-height:0; }
+    .builder-right-placeholder { color:var(--text-muted); font-size:13px; text-align:center; padding:48px 16px; opacity:0.6; }
+    .inspector-event-msg { font-size:11px; color:var(--text-muted); font-style:italic; padding:4px 8px; border-left:2px solid rgba(139,92,246,0.3); margin:4px 0; }
+    @media (max-width:700px) {
+      .builder-two-col { grid-template-columns:1fr; }
+      .builder-left-col { border-right:none; border-bottom:1px solid var(--border); padding-right:0; padding-bottom:16px; margin-bottom:16px; }
+      .builder-right-col { padding-left:0; }
+    }
     .fw-team-status { font-size:11px; margin-top:5px; font-weight:600; }
     .fw-status-ok { color:#16a34a; }
     .fw-status-warn { color:#d97706; }
@@ -3151,92 +3162,114 @@
 
     <!-- VIEW: Builder -->
     <div class="flows-body" id="flows-builder-view" style="display:none;">
-      <!-- STEP 0: DATOS (inline) -->
+      <!-- STEP 0: DATOS + INSPECTOR CHAT -->
       <div id="flows-builder-step0" style="display:none;">
-        <div class="flows-step-label">Tus datos</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
-          Lo que tenés conectado actualmente. Si necesitás conectar más datos, Echo y el Inspector te lo pedirán durante la conversación.
-        </div>
-        <div id="flows-datasources-list">
-          <div class="composer-muted" style="text-align:center;padding:16px;">Cargando fuentes de datos…</div>
+        <div class="builder-two-col">
+          <!-- Izquierda: chat con Inspector -->
+          <div class="builder-left-col">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+              <span class="echo-speaker-badge echo-speaker-echo" style="font-size:11px;padding:2px 9px;"><span class="echo-speaker-dot"></span> Inspector</span>
+              <span class="flows-step-label" style="margin:0;">Conectá tu data</span>
+            </div>
+            <div id="inspector-chat-box" class="echo-chat-box" style="flex:1;overflow-y:auto;max-height:300px;min-height:120px;"></div>
+            <div class="echo-input-row" style="margin-top:8px;">
+              <input id="inspector-chat-input" type="text" class="echo-input" placeholder="Ej: quiero conectar Salesforce, o no tengo datos por ahora…">
+              <button class="modal-btn confirm echo-send-btn" id="inspector-chat-send" type="button">→</button>
+            </div>
+          </div>
+          <!-- Derecha: fuentes de datos activas -->
+          <div class="builder-right-col">
+            <div class="flows-step-label" style="margin-bottom:10px;">Fuentes activas</div>
+            <div id="flows-datasources-list" style="overflow-y:auto;max-height:340px;">
+              <div class="composer-muted" style="text-align:center;padding:16px;">Cargando…</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- STEP 1: ECHO CONVERSACIÓN -->
+      <!-- STEP 1: ECHO CHAT (izq) + PROPUESTA VIVA (der) -->
       <div id="flows-builder-step1">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;">
-          <div class="flows-step-label" style="margin:0;">¿Qué querés automatizar?</div>
-          <div class="echo-mode-toggle">
-            <button id="echo-mode-quick-btn" class="echo-mode-pill active" type="button">Rápido</button>
-            <button id="echo-mode-discovery-btn" class="echo-mode-pill" type="button">Descubrimiento</button>
-          </div>
-        </div>
+        <div class="builder-two-col">
+          <!-- Izquierda: Echo conversación -->
+          <div class="builder-left-col">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="echo-speaker-badge echo-speaker-echo" style="font-size:11px;padding:2px 9px;"><span class="echo-speaker-dot"></span> Echo</span>
+                <span class="flows-step-label" style="margin:0;">¿Qué automatizás?</span>
+              </div>
+              <div class="echo-mode-toggle">
+                <button id="echo-mode-quick-btn" class="echo-mode-pill active" type="button">Rápido</button>
+                <button id="echo-mode-discovery-btn" class="echo-mode-pill" type="button">Descubrimiento</button>
+              </div>
+            </div>
 
-        <!-- Modo rápido -->
-        <div id="echo-mode-quick">
-          <div id="echo-quick-messages" class="echo-chat-box">
-            <div class="echo-msg echo-msg-ai">Hola. ¿Qué tarea querés automatizar?</div>
-          </div>
-          <div class="echo-input-row">
-            <input id="echo-quick-input" type="text" class="echo-input" placeholder="Ej: cobrar clientes morosos, enviar reportes semanales…">
-            <button class="modal-btn confirm echo-send-btn" id="echo-quick-send" type="button">→</button>
-          </div>
-        </div>
+            <!-- Modo rápido -->
+            <div id="echo-mode-quick" style="display:flex;flex-direction:column;flex:1;min-height:0;">
+              <div id="echo-quick-messages" class="echo-chat-box" style="flex:1;overflow-y:auto;max-height:240px;"></div>
+              <div class="echo-input-row" style="margin-top:8px;">
+                <input id="echo-quick-input" type="text" class="echo-input" placeholder="Ej: cobrar clientes morosos, enviar reportes…">
+                <button class="modal-btn confirm echo-send-btn" id="echo-quick-send" type="button">→</button>
+              </div>
+            </div>
 
-        <!-- Modo descubrimiento -->
-        <div id="echo-mode-discovery" style="display:none;">
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;padding:8px 12px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:8px;">
-            Echo va a hacerte algunas preguntas para entender bien el problema antes de diseñar el flujo.
-          </div>
-          <div id="echo-discovery-messages" class="echo-chat-box" style="max-height:260px;overflow-y:auto;"></div>
-          <div id="echo-discovery-input-row" class="echo-input-row">
-            <input id="echo-discovery-input" type="text" class="echo-input" placeholder="Escribí tu respuesta…">
-            <button class="modal-btn confirm echo-send-btn" id="echo-discovery-send" type="button">→</button>
-          </div>
-          <button class="modal-btn confirm" id="echo-discovery-finish-btn" type="button" style="display:none;width:100%;margin-top:12px;">Ver mi flujo propuesto →</button>
-        </div>
+            <!-- Modo descubrimiento -->
+            <div id="echo-mode-discovery" style="display:none;flex-direction:column;flex:1;min-height:0;">
+              <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;padding:7px 10px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:8px;">
+                Echo te hará algunas preguntas para entender el problema real.
+              </div>
+              <div id="echo-discovery-messages" class="echo-chat-box" style="flex:1;overflow-y:auto;max-height:220px;"></div>
+              <div id="echo-discovery-input-row" class="echo-input-row" style="margin-top:8px;">
+                <input id="echo-discovery-input" type="text" class="echo-input" placeholder="Escribí tu respuesta…">
+                <button class="modal-btn confirm echo-send-btn" id="echo-discovery-send" type="button">→</button>
+              </div>
+              <button class="modal-btn confirm" id="echo-discovery-finish-btn" type="button" style="display:none;width:100%;margin-top:8px;font-size:13px;">Ver flujo →</button>
+            </div>
 
-        <!-- Campos hidden — auto-poblados por Echo, usados por saveBuilderStep -->
-        <input id="flows-builder-name" type="hidden" value="">
-        <input id="flows-builder-desc" type="hidden" value="">
-        <input id="flows-builder-capability-hint" type="hidden" value="">
-        <input id="flows-builder-success" type="hidden" value="">
-        <input id="flows-builder-entry-framework" type="hidden" value="">
-        <input id="flows-builder-entry-capability" type="hidden" value="">
-        <input id="flows-builder-tutela-framework" type="hidden" value="">
-        <input id="flows-builder-tutela-capability" type="hidden" value="">
+            <!-- Autonomía -->
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+              <select id="flows-builder-autonomy" style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:12px;">
+                <option value="approval">Preparar acciones — yo las apruebo antes de ejecutar</option>
+                <option value="advisory">Solo diagnóstico y propuestas, sin ejecutar nada</option>
+                <option value="approved">Puede ejecutar acciones directamente</option>
+              </select>
+            </div>
 
-        <!-- Autonomía -->
-        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
-          <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">¿Qué tanto puede actuar solo?</div>
-          <select id="flows-builder-autonomy" style="width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:13px;">
-            <option value="approval">Preparar acciones — yo las apruebo antes de ejecutar</option>
-            <option value="advisory">Solo diagnóstico y propuestas, sin ejecutar nada</option>
-            <option value="approved">Puede ejecutar acciones directamente</option>
-          </select>
+            <!-- Campos hidden — auto-poblados por Echo -->
+            <input id="flows-builder-name" type="hidden" value="">
+            <input id="flows-builder-desc" type="hidden" value="">
+            <input id="flows-builder-capability-hint" type="hidden" value="">
+            <input id="flows-builder-success" type="hidden" value="">
+            <input id="flows-builder-entry-framework" type="hidden" value="">
+            <input id="flows-builder-entry-capability" type="hidden" value="">
+            <input id="flows-builder-tutela-framework" type="hidden" value="">
+            <input id="flows-builder-tutela-capability" type="hidden" value="">
+          </div>
+
+          <!-- Derecha: propuesta viva (auto-actualiza) -->
+          <div class="builder-right-col" id="flows-builder-right-panel">
+            <div class="flows-step-label" style="margin-bottom:10px;">Flujo propuesto</div>
+            <div id="flows-right-placeholder" class="builder-right-placeholder">
+              El flujo aparece aquí mientras conversás con Echo.
+            </div>
+            <div id="flows-builder-discovery" class="flows-summary" style="margin-bottom:12px;"></div>
+            <div id="flows-suggestion-status" class="composer-muted" style="margin-bottom:10px;"></div>
+            <div id="flows-proposal-card" class="flows-summary" style="margin-bottom:12px;"></div>
+            <div id="flows-mere-card"></div>
+            <div id="flows-suggestions-list" class="flows-suggestions-list"></div>
+            <details id="flows-manual-section" style="margin-top:8px;">
+              <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--text-muted);padding:8px 0;user-select:none;">Ajustar capacidades manualmente</summary>
+              <div style="margin-top:8px;">
+                <input id="flows-cap-search" type="text" placeholder="Buscar: correo, datos, cobranza…" style="width:100%;padding:9px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:12px;margin-bottom:10px;">
+                <div id="flows-cap-list" class="flows-cap-grid"></div>
+              </div>
+            </details>
+            <div id="flows-selected-nodes" class="flows-chain-preview" style="margin-top:8px;"></div>
+          </div>
         </div>
       </div>
 
-      <!-- STEP 2: PROPUESTA + MERE + EQUIPO -->
+      <!-- STEP 2: REVISAR Y GUARDAR (antes Step 3) -->
       <div id="flows-builder-step2" style="display:none;">
-        <div id="flows-builder-discovery" class="flows-summary" style="margin-bottom:12px;"></div>
-        <div id="flows-suggestion-status" class="composer-muted" style="margin-bottom:10px;"></div>
-        <div id="flows-proposal-card" class="flows-summary" style="margin-bottom:12px;"></div>
-        <div id="flows-mere-card"></div>
-        <div id="flows-suggestions-list" class="flows-suggestions-list"></div>
-        <details id="flows-manual-section" style="margin-top:8px;">
-          <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);padding:10px 0;user-select:none;">Agregar o quitar capacidades manualmente</summary>
-          <div style="margin-top:10px;">
-            <input id="flows-cap-search" type="text" placeholder="Buscar por ejemplo: correo, datos, cobranza, contactos…" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:13px;margin-bottom:12px;">
-            <div id="flows-cap-list" class="flows-cap-grid"></div>
-          </div>
-        </details>
-        <div class="flows-step-label" style="margin-top:16px;">Flujo actual</div>
-        <div id="flows-selected-nodes" class="flows-chain-preview"></div>
-      </div>
-
-      <!-- STEP 3: REVISAR Y GUARDAR -->
-      <div id="flows-builder-step3" style="display:none;">
         <div class="flows-step-label">Revisá y guardá</div>
         <div id="flows-builder-summary" class="flows-summary"></div>
       </div>
@@ -3966,6 +3999,7 @@ flowsNewBtn.addEventListener('click', () => startFlowBuilder());
 async function startFlowBuilder(editFlow) {
   clearBuilderCompileTimer();
   flowsState.builder = newFlowBuilderState(editFlow);
+  inspectorConvId = null; inspectorWaiting = false; inspectorStarted = false;
   showFlowsView('builder');
   flowsFooter.innerHTML = `
     <button class="modal-btn cancel" id="flows-builder-cancel">Cancelar</button>
@@ -3996,7 +4030,8 @@ async function startFlowBuilder(editFlow) {
     renderBuilderDiscovery();
     renderFlowProposal();
     void loadBuilderBusinessArtifacts();
-    showBuilderStep(2);
+    showBuilderStep(1);  // Re-entering: show chat+proposal two-column
+    document.getElementById('flows-right-placeholder').style.display = 'none';
     if (flowsState.builder.nodes.length) scheduleBuilderCompilation({ immediate: true });
     return;
   }
@@ -4033,25 +4068,24 @@ function showBuilderStep(step) {
   document.getElementById('flows-builder-step0').style.display = step === 0 ? '' : 'none';
   document.getElementById('flows-builder-step1').style.display = step === 1 ? '' : 'none';
   document.getElementById('flows-builder-step2').style.display = step === 2 ? '' : 'none';
-  document.getElementById('flows-builder-step3').style.display = step === 3 ? '' : 'none';
+
+  // Widen modal for two-column layout (steps 0 and 1)
+  const flowContent = document.querySelector('#flows-modal .flows-content');
+  if (flowContent) flowContent.classList.toggle('wide-dimensions', step <= 1);
+
   const prev = document.getElementById('flows-builder-prev');
   const next = document.getElementById('flows-builder-next');
   if (prev) prev.style.display = step > 0 ? '' : 'none';
   if (next) {
-    if (step === 3) {
-      next.textContent = 'Guardar flujo';
-      next.className = 'modal-btn confirm';
-    } else if (step === 1) {
-      next.textContent = 'Ver propuesta →';
-      next.className = 'modal-btn confirm';
-    } else {
-      next.textContent = 'Siguiente →';
-      next.className = 'modal-btn confirm';
-    }
+    next.textContent = step === 2 ? 'Guardar flujo' : 'Siguiente →';
+    next.className = 'modal-btn confirm';
   }
-  const stepLabels = { 0: 'Datos', 1: 'Automatización', 2: 'Propuesta', 3: 'Guardar' };
+  const stepLabels = { 0: 'Datos', 1: 'Automatización', 2: 'Guardar' };
   const title = document.getElementById('flows-modal-title');
   if (title) title.textContent = `Nuevo flujo · ${stepLabels[step] || ''}`;
+
+  // Start inspector chat when entering step 0
+  if (step === 0) startInspectorChat();
 }
 
 function builderPrev() {
@@ -4065,33 +4099,34 @@ function builderPrev() {
 async function builderNext() {
   const current = getCurrentBuilderStep();
   saveBuilderStep(current);
-  if (current === 3) {
+  if (current === 2) {
     saveFlow();
   } else if (current === 1) {
+    // Step 1→2: go to save only if there's a proposal ready
     const name = document.getElementById('flows-builder-name').value.trim();
     const desc = document.getElementById('flows-builder-desc').value.trim();
     if (!name && !desc) {
       const qi = document.getElementById('echo-quick-input');
-      if (qi && qi.value.trim()) await echoQuickSubmit();
-      else { alert('Contanos primero qué querés automatizar.'); return; }
-    }
-    showBuilderStep(2);
-    if (!flowsState.builder.suggestions.length) await suggestCapabilitiesForFlow();
-    await loadAndRenderMERE();
-  } else {
-    showBuilderStep(current + 1);
-    if (current + 1 === 3) {
+      if (qi && qi.value.trim()) {
+        await echoQuickSubmit();
+      } else {
+        alert('Contanos primero qué querés automatizar.');
+        return;
+      }
+    } else {
+      showBuilderStep(2);
       renderBuilderSummary();
       scheduleBuilderCompilation({ immediate: true });
     }
+  } else {
+    showBuilderStep(current + 1);
   }
 }
 
 function getCurrentBuilderStep() {
   if (document.getElementById('flows-builder-step0').style.display !== 'none') return 0;
   if (document.getElementById('flows-builder-step1').style.display !== 'none') return 1;
-  if (document.getElementById('flows-builder-step2').style.display !== 'none') return 2;
-  return 3;
+  return 2;
 }
 
 function saveBuilderStep(step) {
@@ -4501,7 +4536,7 @@ async function compileCurrentBuilderManifest({ force = false } = {}) {
   const manifest = buildAuthorialManifestFromBuilder();
   if (!manifest.nodes.length) {
     flowsState.builder.compilation = emptyBuilderCompilationState();
-    if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+    if (getCurrentBuilderStep() === 2) renderBuilderSummary();
     return null;
   }
   const manifestKey = builderManifestKey(manifest);
@@ -4520,7 +4555,7 @@ async function compileCurrentBuilderManifest({ force = false } = {}) {
     response: current.manifestKey === manifestKey ? current.response : null,
     error: ''
   };
-  if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+  if (getCurrentBuilderStep() === 2) renderBuilderSummary();
   try {
     const res = await apiFetch(`${API_BASE}/flows/workbench/compile`, {
       method: 'POST',
@@ -4535,11 +4570,11 @@ async function compileCurrentBuilderManifest({ force = false } = {}) {
         response: null,
         error: res.error || 'No pude recompilar la derivación actual.'
       };
-      if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+      if (getCurrentBuilderStep() === 2) renderBuilderSummary();
       return null;
     }
     setBuilderCompilationResponse(res.data, manifest);
-    if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+    if (getCurrentBuilderStep() === 2) renderBuilderSummary();
     return res.data;
   } catch (err) {
     if (!flowsState.builder || requestID !== flowsState.builder.compileSeq) return null;
@@ -4549,7 +4584,7 @@ async function compileCurrentBuilderManifest({ force = false } = {}) {
       response: null,
       error: err.message || String(err)
     };
-    if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+    if (getCurrentBuilderStep() === 2) renderBuilderSummary();
     return null;
   }
 }
@@ -4571,8 +4606,120 @@ function scheduleBuilderCompilation({ immediate = false, force = false } = {}) {
 // DATA SOURCES (Step 0)
 // ============================================================
 function initDataSourcePanels() {
-  // Los paneles de conectar API / subir archivo fueron eliminados.
-  // La conexión de datos ocurre durante la conversación con Echo/Inspector.
+  // Panels removed — data connection happens through Inspector conversation in Step 0.
+}
+
+// ─── Inspector chat (Step 0) ───────────────────────────────────────────────
+
+let inspectorConvId = null;
+let inspectorWaiting = false;
+let inspectorStarted = false;
+
+function inspectorAddMsg(speaker, text, isEvent = false) {
+  const box = document.getElementById('inspector-chat-box');
+  if (!box) return;
+  if (isEvent) {
+    const ev = document.createElement('div');
+    ev.className = 'inspector-event-msg';
+    ev.textContent = text;
+    box.appendChild(ev);
+  } else {
+    const isAI = speaker !== 'user';
+    const cls = isAI ? 'echo-msg echo-msg-ai' : 'echo-msg echo-msg-user';
+    const badgeCls = isAI ? 'echo-speaker-badge echo-speaker-echo' : 'echo-speaker-badge';
+    const badgeStyle = isAI ? '' : 'background:rgba(37,99,235,0.12);color:#2563eb;';
+    const dot = isAI ? '<span class="echo-speaker-dot"></span> ' : '';
+    const label = isAI ? 'Inspector' : 'Tú';
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom = '8px';
+    wrap.innerHTML = `<div style="margin-bottom:3px;"><span class="${badgeCls}" style="${badgeStyle}font-size:10px;">${dot}${escapeHtml(label)}</span></div><div class="${cls}">${escapeHtml(text)}</div>`;
+    box.appendChild(wrap);
+  }
+  box.scrollTop = box.scrollHeight;
+}
+
+async function startInspectorChat() {
+  if (inspectorStarted) return;
+  inspectorStarted = true;
+  const box = document.getElementById('inspector-chat-box');
+  if (box) box.innerHTML = '';
+
+  // Wire send button and enter key
+  const sendBtn = document.getElementById('inspector-chat-send');
+  const inp = document.getElementById('inspector-chat-input');
+  if (sendBtn) sendBtn.onclick = inspectorSend;
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); inspectorSend(); } });
+
+  inspectorAddMsg('inspector', 'Iniciando…');
+  try {
+    const bid = flowsBusinessID();
+    const res = await apiFetch(`${API_BASE}/conversations-single`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Inspector', framework: 'inspector', business_id: bid })
+    }).then(r => r.json());
+    if (!res.success) throw new Error(res.error || 'sin respuesta');
+    inspectorConvId = res.data.conversation.id;
+    if (box) box.innerHTML = '';
+    const fq = res.data.first_question;
+    inspectorAddMsg('inspector', fq ? (fq.content || fq.text || '') : '¿Qué datos querés conectar?');
+    if (inp) inp.focus();
+  } catch (e) {
+    if (box) box.innerHTML = '';
+    inspectorAddMsg('inspector', `No pude iniciar: ${e.message}`);
+  }
+}
+
+async function inspectorSend() {
+  if (inspectorWaiting || !inspectorConvId) return;
+  const inp = document.getElementById('inspector-chat-input');
+  const text = (inp?.value || '').trim();
+  if (!text) return;
+  inp.value = '';
+  inspectorAddMsg('user', text);
+  inspectorWaiting = true;
+  const sendBtn = document.getElementById('inspector-chat-send');
+  if (sendBtn) sendBtn.disabled = true;
+
+  // Typing indicator
+  const typingId = 'inspector-typing-' + Date.now();
+  const box = document.getElementById('inspector-chat-box');
+  if (box) { const t = document.createElement('div'); t.id = typingId; t.className = 'inspector-event-msg'; t.textContent = '…'; box.appendChild(t); box.scrollTop = box.scrollHeight; }
+
+  try {
+    const res = await apiFetch(`${API_BASE}/conversations-single/${inspectorConvId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    }).then(r => r.json());
+
+    document.getElementById(typingId)?.remove();
+
+    if (res.success) {
+      const msg = res.data?.framework_message;
+      if (msg) {
+        // Show tool execution events
+        (msg.events || []).forEach(ev => {
+          if (ev.type === 'tool_execution_start') inspectorAddMsg('', `🔍 ${ev.message || ev.type}`, true);
+          else if (ev.type === 'tool_execution_end') inspectorAddMsg('', `✓ ${(ev.message || '').split(':')[0]}`, true);
+        });
+        const content = msg.content || msg.text || '';
+        if (content) inspectorAddMsg('inspector', content);
+        // Refresh data sources after each inspector turn (connection may have been saved)
+        void loadDataSources();
+      } else if (res.data?.idle) {
+        inspectorAddMsg('inspector', '¿Hay algo más que necesites conectar antes de continuar?');
+      }
+    } else {
+      inspectorAddMsg('inspector', `Error: ${res.error || 'respuesta inesperada'}`);
+    }
+  } catch (e) {
+    document.getElementById(typingId)?.remove();
+    inspectorAddMsg('inspector', `Error: ${e.message}`);
+  }
+  inspectorWaiting = false;
+  if (sendBtn) sendBtn.disabled = false;
+  if (inp) inp.focus();
 }
 
 // Inspector se usa desde la conversación principal (main chat), no desde el builder.
@@ -4747,9 +4894,10 @@ async function echoQuickSubmit() {
   if (sendBtn) sendBtn.disabled = true;
   setBuilderTextFields(text, '', text, '');
   saveBuilderStep(1);
-  showBuilderStep(2);
-  await suggestCapabilitiesForFlow();
-  await loadAndRenderMERE();
+  // Update the right panel live — don't leave the chat
+  await updateBuilderRightPanel();
+  if (input) input.disabled = false;
+  if (sendBtn) sendBtn.disabled = false;
 }
 
 async function echoDiscoverySubmit() {
@@ -4785,12 +4933,20 @@ async function echoDiscoveryFinish() {
   const success = answers[3] || '';
   setBuilderTextFields(name, desc, name, success);
   saveBuilderStep(1);
-  showBuilderStep(2);
+  // Update right panel without leaving the chat view
+  await updateBuilderRightPanel();
+}
+
+async function updateBuilderRightPanel() {
+  const placeholder = document.getElementById('flows-right-placeholder');
+  if (placeholder) placeholder.style.display = 'none';
   const status = document.getElementById('flows-suggestion-status');
   if (status) status.innerHTML = echoMsgHtml('alfa', 'Revisando los datos disponibles para este flujo…', true);
   await suggestCapabilitiesForFlow();
   await loadAndRenderMERE();
   if (status) status.innerHTML = '';
+  renderBuilderDiscovery();
+  renderFlowSuggestions();
 }
 
 function setBuilderTextFields(name, desc, hint, success) {
@@ -5065,7 +5221,7 @@ function useSuggestedProposal() {
   renderCapGrid();
   renderFlowSuggestions();
   renderFlowProposal();
-  if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+  if (getCurrentBuilderStep() === 2) renderBuilderSummary();
 }
 
 const GAP_LABELS = {
@@ -5174,7 +5330,7 @@ function toggleCapNode(framework, capability) {
   renderFlowSuggestions();
   renderFlowProposal();
   scheduleBuilderCompilation();
-  if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+  if (getCurrentBuilderStep() === 2) renderBuilderSummary();
 }
 
 function renderSelectedNodes() {
@@ -5205,7 +5361,7 @@ function renderSelectedNodes() {
       renderFlowSuggestions();
       renderFlowProposal();
       scheduleBuilderCompilation();
-      if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+      if (getCurrentBuilderStep() === 2) renderBuilderSummary();
     });
   });
 }
