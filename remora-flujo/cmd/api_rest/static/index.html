@@ -2699,6 +2699,14 @@
     .echo-input { flex:1; padding:11px 14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-primary); font-size:13px; outline:none; }
     .echo-input:focus { border-color:var(--accent); }
     .echo-send-btn { padding:11px 18px !important; min-width:44px; }
+    .echo-speaker { display:flex; align-items:center; gap:6px; margin-bottom:3px; }
+    .echo-speaker-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; padding:2px 8px; border-radius:10px; }
+    .echo-speaker-echo { background:rgba(139,92,246,0.12); color:#7c3aed; }
+    .echo-speaker-alfa { background:rgba(37,99,235,0.12); color:#2563eb; }
+    .echo-speaker-dot { width:7px; height:7px; border-radius:50%; animation:luz-pulse 1.4s ease-in-out infinite; }
+    .echo-speaker-echo .echo-speaker-dot { background:#7c3aed; }
+    .echo-speaker-alfa .echo-speaker-dot { background:#2563eb; }
+    @keyframes luz-pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
 
     /* ─── Data sources cards ─── */
     .ds-empty { text-align:center; padding:24px; color:var(--text-muted); font-size:13px; border:2px dashed var(--border); border-radius:12px; }
@@ -3143,18 +3151,42 @@
 
     <!-- VIEW: Builder -->
     <div class="flows-body" id="flows-builder-view" style="display:none;">
-      <!-- STEP 0: DATOS -->
+      <!-- STEP 0: DATOS (inline) -->
       <div id="flows-builder-step0" style="display:none;">
         <div class="flows-step-label">Tus datos</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
-          Remora necesita conocer tu data para armar automatizaciones que funcionen de verdad. Podés continuar sin datos y conectarlos después.
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+          Remora necesita conocer tu data para armar automatizaciones reales. Podés continuar sin datos y conectarlos después.
         </div>
         <div id="flows-datasources-list">
           <div class="composer-muted" style="text-align:center;padding:16px;">Cargando fuentes de datos…</div>
         </div>
-        <div style="margin-top:14px;display:flex;gap:8px;">
-          <button class="modal-btn cancel" id="flows-ds-api-btn" type="button" style="flex:1;font-size:13px;">🔗 Conectar API</button>
-          <button class="modal-btn cancel" id="flows-ds-file-btn" type="button" style="flex:1;font-size:13px;">📁 Subir archivo</button>
+        <!-- Botones para agregar -->
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="modal-btn cancel" id="flows-ds-api-toggle" type="button" style="flex:1;font-size:13px;">🔗 Conectar API</button>
+          <button class="modal-btn cancel" id="flows-ds-file-toggle" type="button" style="flex:1;font-size:13px;">📁 Subir archivo</button>
+        </div>
+        <!-- Panel inline: conectar API -->
+        <div id="flows-ds-api-panel" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Conectar una API</div>
+          <input id="ds-api-name" type="text" placeholder="Nombre (ej: Sistema de gestión)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text-primary);font-size:13px;margin-bottom:8px;">
+          <input id="ds-api-url" type="text" placeholder="URL base (ej: https://mi-sistema.com/api/v2)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text-primary);font-size:13px;margin-bottom:8px;">
+          <input id="ds-api-token" type="password" placeholder="Token de autenticación (opcional)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text-primary);font-size:13px;margin-bottom:10px;">
+          <div style="display:flex;gap:8px;">
+            <button class="modal-btn confirm" id="ds-api-connect-btn" type="button" style="flex:1;">Conectar</button>
+            <button class="modal-btn cancel" id="ds-api-cancel-btn" type="button">Cancelar</button>
+          </div>
+          <div id="ds-api-status" style="font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
+        </div>
+        <!-- Panel inline: subir archivo -->
+        <div id="flows-ds-file-panel" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);">
+          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;">Subir archivo de datos</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">Formatos admitidos: CSV, Excel (.xlsx), TSV</div>
+          <input id="ds-file-input" type="file" accept=".csv,.xlsx,.xls,.tsv,.ods" style="width:100%;font-size:13px;margin-bottom:10px;">
+          <div style="display:flex;gap:8px;">
+            <button class="modal-btn confirm" id="ds-file-upload-btn" type="button" style="flex:1;">Subir</button>
+            <button class="modal-btn cancel" id="ds-file-cancel-btn" type="button">Cancelar</button>
+          </div>
+          <div id="ds-file-status" style="font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
         </div>
       </div>
 
@@ -4002,11 +4034,8 @@ async function startFlowBuilder(editFlow) {
   void loadDataSources();
   if (!flowsState.caps.length) loadCapabilities();
 
-  // Botones del Step 0
-  const apiBtn = document.getElementById('flows-ds-api-btn');
-  const fileBtn = document.getElementById('flows-ds-file-btn');
-  if (apiBtn) apiBtn.onclick = () => window.open('/data.html', '_blank');
-  if (fileBtn) fileBtn.onclick = () => window.open('/data.html', '_blank');
+  // Botones del Step 0 — inline
+  initDataSourcePanels();
 
   // Wiring Step 2 search
   const capSearch = document.getElementById('flows-cap-search');
@@ -4569,6 +4598,90 @@ function scheduleBuilderCompilation({ immediate = false, force = false } = {}) {
 // ============================================================
 // DATA SOURCES (Step 0)
 // ============================================================
+function initDataSourcePanels() {
+  const toggle = (panelId, otherPanelId) => {
+    const panel = document.getElementById(panelId);
+    const other = document.getElementById(otherPanelId);
+    if (!panel) return;
+    const isOpen = panel.style.display !== 'none';
+    if (other) other.style.display = 'none';
+    panel.style.display = isOpen ? 'none' : '';
+  };
+
+  const apiToggle = document.getElementById('flows-ds-api-toggle');
+  const fileToggle = document.getElementById('flows-ds-file-toggle');
+  const apiCancel = document.getElementById('ds-api-cancel-btn');
+  const fileCancel = document.getElementById('ds-file-cancel-btn');
+  const apiConnect = document.getElementById('ds-api-connect-btn');
+  const fileUpload = document.getElementById('ds-file-upload-btn');
+
+  if (apiToggle) apiToggle.onclick = () => toggle('flows-ds-api-panel', 'flows-ds-file-panel');
+  if (fileToggle) fileToggle.onclick = () => toggle('flows-ds-file-panel', 'flows-ds-api-panel');
+  if (apiCancel) apiCancel.onclick = () => { document.getElementById('flows-ds-api-panel').style.display = 'none'; };
+  if (fileCancel) fileCancel.onclick = () => { document.getElementById('flows-ds-file-panel').style.display = 'none'; };
+  if (apiConnect) apiConnect.onclick = dsConnectAPI;
+  if (fileUpload) fileUpload.onclick = dsUploadFile;
+}
+
+async function dsConnectAPI() {
+  const bid = flowsBusinessID();
+  const name = (document.getElementById('ds-api-name')?.value || '').trim();
+  const url = (document.getElementById('ds-api-url')?.value || '').trim();
+  const token = (document.getElementById('ds-api-token')?.value || '').trim();
+  const status = document.getElementById('ds-api-status');
+  if (!url) { if (status) status.textContent = 'Ingresá la URL de la API.'; return; }
+  if (status) status.textContent = 'Conectando…';
+  const btn = document.getElementById('ds-api-connect-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const body = { name: name || url, base_url: url, auth_type: token ? 'bearer' : 'none', auth_token: token || '' };
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    }).then(r => r.json());
+    if (res.success) {
+      if (status) status.textContent = '✓ Conexión guardada. Sincronizando…';
+      if (res.data?.id) {
+        await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections/${res.data.id}/sync`, { method: 'POST' });
+      }
+      document.getElementById('flows-ds-api-panel').style.display = 'none';
+      await loadDataSources();
+    } else {
+      if (status) status.textContent = `Error: ${res.error || 'No pude conectar'}`;
+    }
+  } catch (e) {
+    if (status) status.textContent = `Error: ${e.message}`;
+  }
+  if (btn) btn.disabled = false;
+}
+
+async function dsUploadFile() {
+  const bid = flowsBusinessID();
+  const fileInput = document.getElementById('ds-file-input');
+  const status = document.getElementById('ds-file-status');
+  const file = fileInput?.files?.[0];
+  if (!file) { if (status) status.textContent = 'Seleccioná un archivo primero.'; return; }
+  if (status) status.textContent = 'Subiendo…';
+  const btn = document.getElementById('ds-file-upload-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/data/upload`, {
+      method: 'POST', body: form
+    }).then(r => r.json());
+    if (res.success) {
+      if (status) status.textContent = `✓ ${file.name} subido correctamente.`;
+      document.getElementById('flows-ds-file-panel').style.display = 'none';
+      await loadDataSources();
+    } else {
+      if (status) status.textContent = `Error: ${res.error || 'No pude subir el archivo'}`;
+    }
+  } catch (e) {
+    if (status) status.textContent = `Error: ${e.message}`;
+  }
+  if (btn) btn.disabled = false;
+}
+
 async function loadDataSources() {
   const bid = flowsBusinessID();
   if (!bid) { renderDataSources([]); return; }
@@ -4663,6 +4776,21 @@ const FRAMEWORK_ROLES = {
   gmail:     { icon: '📧', role: 'Integra con Gmail para emails y borradores' },
 };
 
+function echoMsgHtml(speaker, text, isThinking = false) {
+  const cls = speaker === 'user' ? 'echo-msg-user' : (isThinking ? 'echo-msg-thinking' : 'echo-msg-ai');
+  if (speaker === 'user') {
+    return `<div class="echo-msg ${cls}">${escapeHtml(text)}</div>`;
+  }
+  const badgeCls = `echo-speaker-${speaker}`;
+  const label = speaker === 'echo' ? 'Echo' : speaker === 'alfa' ? 'Alfa' : speaker;
+  return `<div>
+    <div class="echo-speaker ${badgeCls}">
+      <span class="echo-speaker-badge ${badgeCls}"><span class="echo-speaker-dot"></span> ${escapeHtml(label)}</span>
+    </div>
+    <div class="echo-msg ${cls}">${escapeHtml(text)}</div>
+  </div>`;
+}
+
 function initEchoMode() {
   const qBtn = document.getElementById('echo-mode-quick-btn');
   const dBtn = document.getElementById('echo-mode-discovery-btn');
@@ -4683,17 +4811,18 @@ function initEchoMode() {
   // Reset discovery state
   echoState.discoveryStep = 0;
   echoState.discoveryAnswers = [];
-  const dMessages = document.getElementById('echo-discovery-messages');
-  if (dMessages) {
-    dMessages.innerHTML = `<div class="echo-msg echo-msg-ai">${escapeHtml(ECHO_DISCOVERY_QUESTIONS[0])}</div>`;
-  }
 
-  // Personalize greeting with business name
+  // Personalizar saludo con nombre del negocio
   const bizName = flowsBusinessName();
-  const greetingEl = document.querySelector('#echo-quick-messages .echo-msg-ai');
-  if (greetingEl && bizName && bizName !== 'Sin negocio') {
-    greetingEl.textContent = `Hola. ¿Qué tarea querés automatizar en ${bizName}?`;
-  }
+  const greeting = bizName && bizName !== 'Sin negocio'
+    ? `Hola. ¿Qué tarea querés automatizar en ${bizName}?`
+    : 'Hola. ¿Qué tarea querés automatizar?';
+
+  const qMessages = document.getElementById('echo-quick-messages');
+  if (qMessages) qMessages.innerHTML = echoMsgHtml('echo', greeting);
+
+  const dMessages = document.getElementById('echo-discovery-messages');
+  if (dMessages) dMessages.innerHTML = echoMsgHtml('echo', ECHO_DISCOVERY_QUESTIONS[0]);
 }
 
 function setEchoMode(mode) {
@@ -4714,19 +4843,17 @@ async function echoQuickSubmit() {
   if (!text) return;
   const messages = document.getElementById('echo-quick-messages');
   if (messages) {
-    messages.innerHTML += `<div class="echo-msg echo-msg-user">${escapeHtml(text)}</div>`;
-    messages.innerHTML += `<div class="echo-msg echo-msg-thinking" id="echo-quick-thinking">Entendido. Estoy armando el flujo…</div>`;
+    messages.innerHTML += echoMsgHtml('user', text);
+    messages.innerHTML += echoMsgHtml('echo', 'Entendido. Estoy armando el flujo…', true);
   }
-  if (input) input.value = '';
-  // Populate hidden fields
+  if (input) { input.value = ''; input.disabled = true; }
+  const sendBtn = document.getElementById('echo-quick-send');
+  if (sendBtn) sendBtn.disabled = true;
   setBuilderTextFields(text, '', text, '');
-  // Auto-advance to step 2
   saveBuilderStep(1);
   showBuilderStep(2);
   await suggestCapabilitiesForFlow();
   await loadAndRenderMERE();
-  const thinking = document.getElementById('echo-quick-thinking');
-  if (thinking) thinking.remove();
 }
 
 async function echoDiscoverySubmit() {
@@ -4734,23 +4861,22 @@ async function echoDiscoverySubmit() {
   const text = (input?.value || '').trim();
   if (!text) return;
   const messages = document.getElementById('echo-discovery-messages');
-  if (messages) messages.innerHTML += `<div class="echo-msg echo-msg-user">${escapeHtml(text)}</div>`;
+  if (messages) messages.innerHTML += echoMsgHtml('user', text);
   if (input) input.value = '';
   echoState.discoveryAnswers.push(text);
   echoState.discoveryStep++;
   if (echoState.discoveryStep < ECHO_DISCOVERY_QUESTIONS.length) {
     if (messages) {
-      messages.innerHTML += `<div class="echo-msg echo-msg-ai">${escapeHtml(ECHO_DISCOVERY_QUESTIONS[echoState.discoveryStep])}</div>`;
+      messages.innerHTML += echoMsgHtml('echo', ECHO_DISCOVERY_QUESTIONS[echoState.discoveryStep]);
       messages.scrollTop = messages.scrollHeight;
     }
   } else {
-    // All questions answered — show finish button
     const inputRow = document.getElementById('echo-discovery-input-row');
     const finishBtn = document.getElementById('echo-discovery-finish-btn');
     if (inputRow) inputRow.style.display = 'none';
     if (finishBtn) finishBtn.style.display = '';
     if (messages) {
-      messages.innerHTML += `<div class="echo-msg echo-msg-ai">Perfecto. Ya tengo todo lo que necesito para diseñar tu flujo.</div>`;
+      messages.innerHTML += echoMsgHtml('echo', 'Perfecto, ya entiendo el problema. Ahora le paso el contexto a Alfa para validar que tengamos la data necesaria.');
       messages.scrollTop = messages.scrollHeight;
     }
   }
@@ -4764,8 +4890,11 @@ async function echoDiscoveryFinish() {
   setBuilderTextFields(name, desc, name, success);
   saveBuilderStep(1);
   showBuilderStep(2);
+  const status = document.getElementById('flows-suggestion-status');
+  if (status) status.innerHTML = echoMsgHtml('alfa', 'Revisando los datos disponibles para este flujo…', true);
   await suggestCapabilitiesForFlow();
   await loadAndRenderMERE();
+  if (status) status.innerHTML = '';
 }
 
 function setBuilderTextFields(name, desc, hint, success) {
