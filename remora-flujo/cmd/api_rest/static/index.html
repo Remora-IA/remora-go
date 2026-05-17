@@ -2685,6 +2685,58 @@
       .flows-content { width: calc(100vw - 16px); }
       .flow-branches-grid { grid-template-columns: 1fr; }
     }
+
+    /* ─── Echo conversation UI ─── */
+    .echo-mode-toggle { display:flex; background:var(--surface2); border-radius:20px; padding:3px; gap:2px; }
+    .echo-mode-pill { border:none; background:none; padding:5px 14px; border-radius:16px; font-size:12px; font-weight:600; color:var(--text-muted); cursor:pointer; transition:all 0.15s; white-space:nowrap; }
+    .echo-mode-pill.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,0.12); }
+    .echo-chat-box { display:flex; flex-direction:column; gap:8px; margin-bottom:12px; padding:4px 0; min-height:70px; }
+    .echo-msg { max-width:88%; padding:10px 14px; border-radius:14px; font-size:13px; line-height:1.5; }
+    .echo-msg-ai { background:var(--surface2); color:var(--text); border-bottom-left-radius:4px; align-self:flex-start; }
+    .echo-msg-user { background:rgba(37,99,235,0.1); color:var(--text); border-bottom-right-radius:4px; align-self:flex-end; border:1px solid rgba(37,99,235,0.18); }
+    .echo-msg-thinking { background:var(--surface2); color:var(--text-muted); border-bottom-left-radius:4px; align-self:flex-start; font-style:italic; }
+    .echo-input-row { display:flex; gap:8px; }
+    .echo-input { flex:1; padding:11px 14px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text-primary); font-size:13px; outline:none; }
+    .echo-input:focus { border-color:var(--accent); }
+    .echo-send-btn { padding:11px 18px !important; min-width:44px; }
+
+    /* ─── Data sources cards ─── */
+    .ds-empty { text-align:center; padding:24px; color:var(--text-muted); font-size:13px; border:2px dashed var(--border); border-radius:12px; }
+    .ds-card { border:1px solid var(--border); border-radius:12px; padding:14px 16px; background:var(--surface); margin-bottom:8px; }
+    .ds-card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; }
+    .ds-card-name { font-size:14px; font-weight:600; color:var(--text); }
+    .ds-badge { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; padding:2px 8px; border-radius:10px; }
+    .ds-badge-api { background:rgba(37,99,235,0.1); color:#2563eb; }
+    .ds-badge-file { background:rgba(22,163,74,0.1); color:#16a34a; }
+    .ds-badge-ok { background:rgba(22,163,74,0.1); color:#16a34a; }
+    .ds-badge-warn { background:rgba(245,158,11,0.1); color:#d97706; }
+    .ds-card-meta { font-size:12px; color:var(--text-muted); line-height:1.6; }
+    .ds-sync-btn { font-size:11px; padding:4px 10px; border:1px solid var(--border); border-radius:8px; background:var(--surface2); color:var(--text-muted); cursor:pointer; transition:all 0.15s; }
+    .ds-sync-btn:hover { background:var(--surface); color:var(--text); border-color:var(--accent); }
+
+    /* ─── MERE visualization ─── */
+    .mere-wrap { background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:14px; margin-top:14px; }
+    .mere-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--text-muted); margin-bottom:10px; }
+    .mere-entities { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .mere-entity { padding:7px 12px; background:var(--surface); border:1px solid var(--border); border-radius:8px; font-size:12px; font-weight:600; color:var(--text); }
+    .mere-entity-fields { font-size:11px; color:var(--text-dim); font-weight:400; margin-top:2px; }
+    .mere-arrow { color:var(--text-dim); font-size:16px; padding:0 2px; }
+    .mere-relation-label { font-size:10px; color:var(--text-dim); }
+
+    /* ─── Framework team cards ─── */
+    .fw-team-grid { display:grid; gap:8px; margin:12px 0; }
+    .fw-team-card { border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:var(--surface); display:flex; align-items:flex-start; gap:12px; }
+    .fw-team-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; font-size:18px; }
+    .fw-team-body { flex:1; min-width:0; }
+    .fw-team-name { font-size:13px; font-weight:700; color:var(--text); margin-bottom:2px; }
+    .fw-team-role { font-size:12px; color:var(--text-muted); line-height:1.45; }
+    .fw-team-status { font-size:11px; margin-top:5px; font-weight:600; }
+    .fw-status-ok { color:#16a34a; }
+    .fw-status-warn { color:#d97706; }
+    .fw-status-gap { color:#dc2626; }
+    .fw-gap-card { border:1px solid rgba(245,158,11,0.3); border-radius:12px; padding:12px 14px; background:rgba(245,158,11,0.05); margin-top:4px; }
+    .fw-gap-title { font-size:12px; font-weight:700; color:#d97706; margin-bottom:4px; }
+    .fw-gap-item { font-size:12px; color:var(--text-muted); padding:2px 0; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
 </head>
@@ -3091,30 +3143,97 @@
 
     <!-- VIEW: Builder -->
     <div class="flows-body" id="flows-builder-view" style="display:none;">
-      <div id="flows-builder-step1">
-        <div class="flows-step-label">Paso 1 &middot; Describe la automatización</div>
-        <div class="flows-help-card">
-          Escribe esto como se lo explicarías a una persona. Remora va a sugerir las capacidades técnicas necesarias en el siguiente paso.
+      <!-- STEP 0: DATOS -->
+      <div id="flows-builder-step0" style="display:none;">
+        <div class="flows-step-label">Tus datos</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+          Remora necesita conocer tu data para armar automatizaciones que funcionen de verdad. Podés continuar sin datos y conectarlos después.
         </div>
-        <input id="flows-builder-name" type="text" placeholder="Ej: Cobrar clientes morosos automáticamente" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:14px;margin-bottom:12px;">
-        <textarea id="flows-builder-desc" placeholder="Ej: Revisar la cartera, priorizar deudores, buscar el contacto y preparar un correo de cobranza personalizado." style="width:100%;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:13px;resize:vertical;min-height:92px;"></textarea>
+        <div id="flows-datasources-list">
+          <div class="composer-muted" style="text-align:center;padding:16px;">Cargando fuentes de datos…</div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;">
+          <button class="modal-btn cancel" id="flows-ds-api-btn" type="button" style="flex:1;font-size:13px;">🔗 Conectar API</button>
+          <button class="modal-btn cancel" id="flows-ds-file-btn" type="button" style="flex:1;font-size:13px;">📁 Subir archivo</button>
+        </div>
       </div>
-      <div id="flows-builder-step2" style="display:none;">
-        <div class="flows-step-label">Paso 2 &middot; Elige qué debe saber hacer</div>
-        <div class="flows-help-card">
-          Puedes aceptar las sugerencias de Remora o elegir capacidades manualmente. Cada capacidad se agregará al flujo en el orden en que la selecciones.
+
+      <!-- STEP 1: ECHO CONVERSACIÓN -->
+      <div id="flows-builder-step1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:8px;">
+          <div class="flows-step-label" style="margin:0;">¿Qué querés automatizar?</div>
+          <div class="echo-mode-toggle">
+            <button id="echo-mode-quick-btn" class="echo-mode-pill active" type="button">Rápido</button>
+            <button id="echo-mode-discovery-btn" class="echo-mode-pill" type="button">Descubrimiento</button>
+          </div>
         </div>
-        <button class="modal-btn confirm" id="flows-suggest-btn" type="button" style="width:100%;margin-bottom:12px;">Sugerir capacidades con IA</button>
+
+        <!-- Modo rápido -->
+        <div id="echo-mode-quick">
+          <div id="echo-quick-messages" class="echo-chat-box">
+            <div class="echo-msg echo-msg-ai">Hola. ¿Qué tarea querés automatizar?</div>
+          </div>
+          <div class="echo-input-row">
+            <input id="echo-quick-input" type="text" class="echo-input" placeholder="Ej: cobrar clientes morosos, enviar reportes semanales…">
+            <button class="modal-btn confirm echo-send-btn" id="echo-quick-send" type="button">→</button>
+          </div>
+        </div>
+
+        <!-- Modo descubrimiento -->
+        <div id="echo-mode-discovery" style="display:none;">
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px;padding:8px 12px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15);border-radius:8px;">
+            Echo va a hacerte algunas preguntas para entender bien el problema antes de diseñar el flujo.
+          </div>
+          <div id="echo-discovery-messages" class="echo-chat-box" style="max-height:260px;overflow-y:auto;"></div>
+          <div id="echo-discovery-input-row" class="echo-input-row">
+            <input id="echo-discovery-input" type="text" class="echo-input" placeholder="Escribí tu respuesta…">
+            <button class="modal-btn confirm echo-send-btn" id="echo-discovery-send" type="button">→</button>
+          </div>
+          <button class="modal-btn confirm" id="echo-discovery-finish-btn" type="button" style="display:none;width:100%;margin-top:12px;">Ver mi flujo propuesto →</button>
+        </div>
+
+        <!-- Campos hidden — auto-poblados por Echo, usados por saveBuilderStep -->
+        <input id="flows-builder-name" type="hidden" value="">
+        <input id="flows-builder-desc" type="hidden" value="">
+        <input id="flows-builder-capability-hint" type="hidden" value="">
+        <input id="flows-builder-success" type="hidden" value="">
+        <input id="flows-builder-entry-framework" type="hidden" value="">
+        <input id="flows-builder-entry-capability" type="hidden" value="">
+        <input id="flows-builder-tutela-framework" type="hidden" value="">
+        <input id="flows-builder-tutela-capability" type="hidden" value="">
+
+        <!-- Autonomía -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+          <div style="font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:8px;">¿Qué tanto puede actuar solo?</div>
+          <select id="flows-builder-autonomy" style="width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:13px;">
+            <option value="approval">Preparar acciones — yo las apruebo antes de ejecutar</option>
+            <option value="advisory">Solo diagnóstico y propuestas, sin ejecutar nada</option>
+            <option value="approved">Puede ejecutar acciones directamente</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- STEP 2: PROPUESTA + MERE + EQUIPO -->
+      <div id="flows-builder-step2" style="display:none;">
+        <div id="flows-builder-discovery" class="flows-summary" style="margin-bottom:12px;"></div>
         <div id="flows-suggestion-status" class="composer-muted" style="margin-bottom:10px;"></div>
+        <div id="flows-proposal-card" class="flows-summary" style="margin-bottom:12px;"></div>
+        <div id="flows-mere-card"></div>
         <div id="flows-suggestions-list" class="flows-suggestions-list"></div>
-        <div class="flows-step-label" style="margin-top:18px;">También puedes explorar todas</div>
-        <input id="flows-cap-search" type="text" placeholder="Buscar por ejemplo: correo, datos, cobranza, contactos..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:13px;margin-bottom:12px;">
-        <div id="flows-cap-list" class="flows-cap-grid"></div>
+        <details id="flows-manual-section" style="margin-top:8px;">
+          <summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text-muted);padding:10px 0;user-select:none;">Agregar o quitar capacidades manualmente</summary>
+          <div style="margin-top:10px;">
+            <input id="flows-cap-search" type="text" placeholder="Buscar por ejemplo: correo, datos, cobranza, contactos…" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-primary);font-size:13px;margin-bottom:12px;">
+            <div id="flows-cap-list" class="flows-cap-grid"></div>
+          </div>
+        </details>
         <div class="flows-step-label" style="margin-top:16px;">Flujo actual</div>
         <div id="flows-selected-nodes" class="flows-chain-preview"></div>
       </div>
+
+      <!-- STEP 3: REVISAR Y GUARDAR -->
       <div id="flows-builder-step3" style="display:none;">
-        <div class="flows-step-label">Paso 3 &middot; Revisar y guardar</div>
+        <div class="flows-step-label">Revisá y guardá</div>
         <div id="flows-builder-summary" class="flows-summary"></div>
       </div>
     </div>
@@ -3575,9 +3694,83 @@ let flowsState = {
   caps: [],
   flows: [],
   selectedFlow: null,
-  builder: { name: '', desc: '', nodes: [], suggestions: [] },
+  builder: null,
   detail: { validation: null, simulation: null, runResult: null }
 };
+
+function emptyBuilderCompilationState() {
+  return { status: 'idle', manifestKey: '', response: null, error: '' };
+}
+
+const builderAutonomyProfiles = {
+  advisory: {
+    label: 'Solo diagnóstico',
+    summary: 'No quiero efectos externos automáticos; solo análisis, propuestas y siguientes pasos.',
+    constraints: ['solo_diagnostico', 'no_external_side_effect'],
+    approvalText: 'No ejecutar efectos externos automáticos.'
+  },
+  approval: {
+    label: 'Preparar con aprobación',
+    summary: 'Puede preparar acciones, pero cualquier cambio externo debe quedar sujeto a aprobación humana.',
+    constraints: ['approval_required', 'human_review_before_apply'],
+    approvalText: 'Requiere aprobación humana antes de aplicar cambios.'
+  },
+  approved: {
+    label: 'Operación aprobable',
+    summary: 'Puede dejar el flujo listo para operar en vivo una vez instalado y aprobado.',
+    constraints: ['approved_runtime_execution'],
+    approvalText: 'Puede operar en vivo tras instalación y aprobación.'
+  }
+};
+
+function normalizeBuilderNodes(nodes) {
+  return (nodes || []).map((n, idx) => {
+    const node = {
+      id: n.id || `node_${idx + 1}`,
+      framework: n.framework,
+      capability: n.capability
+    };
+    if (n.role) node.role = n.role;
+    return node;
+  }).filter(n => n.framework && n.capability);
+}
+
+function newFlowBuilderState(editFlow) {
+  const intent = editFlow?.manifest?.intent || {};
+  const lifecycle = editFlow?.manifest?.lifecycle || {};
+  return {
+    name: editFlow?.name || '',
+    desc: editFlow?.description || '',
+    capabilityHint: intent.goal || '',
+    successCriteria: intent.success_criteria || '',
+    autonomyMode: inferBuilderAutonomyMode(editFlow?.manifest),
+    entryFramework: (lifecycle.entry || {}).framework || '',
+    entryCapability: (lifecycle.entry || {}).capability || '',
+    tutelaFramework: (lifecycle.tutela || {}).framework || '',
+    tutelaCapability: (lifecycle.tutela || {}).capability || '',
+    nodes: normalizeBuilderNodes(editFlow?.manifest?.nodes || []),
+    suggestions: [],
+    proposal: null,
+    businessArtifacts: { loading: false, response: null, error: '' },
+    compilation: emptyBuilderCompilationState(),
+    compileSeq: 0,
+    compileTimer: null
+  };
+}
+
+function inferBuilderAutonomyMode(manifest) {
+  const constraints = ((manifest || {}).intent || {}).constraints || [];
+  if (constraints.includes('solo_diagnostico') || constraints.includes('no_external_side_effect')) return 'advisory';
+  if (constraints.includes('approved_runtime_execution')) return 'approved';
+  return 'approval';
+}
+
+function clearBuilderCompileTimer(builder = flowsState.builder) {
+  if (builder && builder.compileTimer) {
+    clearTimeout(builder.compileTimer);
+    builder.compileTimer = null;
+  }
+}
 
 function flowsBusinessID() {
   return activeMembership()?.business_id || authState.activeBusinessId || '';
@@ -3593,7 +3786,8 @@ async function showFlowsModal() {
   if (!bid) { alert('Selecciona un negocio primero.'); return; }
   flowsModalTitle.textContent = `Flujos de ${flowsBusinessName()}`;
   flowsModalSubtitle.textContent = 'Diseña automatizaciones y pruébalas completas de forma segura. La operación real se ejecuta desde la vista de nodos.';
-  flowsState = { caps: [], flows: [], selectedFlow: null, builder: { name: '', desc: '', nodes: [], suggestions: [] }, detail: { validation: null, simulation: null, runResult: null } };
+  clearBuilderCompileTimer();
+  flowsState = { caps: [], flows: [], selectedFlow: null, builder: newFlowBuilderState(), detail: { validation: null, simulation: null, runResult: null } };
   showFlowsView('library');
   flowsModal.style.display = 'flex';
   flowsModal.classList.add('visible');
@@ -3601,6 +3795,7 @@ async function showFlowsModal() {
 }
 
 function hideFlowsModal() {
+  clearBuilderCompileTimer();
   flowsModal.classList.remove('visible');
   setTimeout(() => { flowsModal.style.display = 'none'; }, 300);
 }
@@ -3739,55 +3934,128 @@ function renderFlowInstalledSummary(flow, isExec) {
   </div>`;
 }
 
+function renderFlowDerivationSummary(manifest) {
+  const derivation = (manifest || {}).derivation || null;
+  const provenance = (manifest || {}).provenance || {};
+  if (!derivation && !provenance.template) return '';
+  const grounding = derivation ? (derivation.grounding || {}) : {};
+  const amendments = derivation ? (derivation.amendments || []) : [];
+  const authoredLifecycle = (manifest || {}).lifecycle || {};
+  const derivedLifecycle = derivation ? (((derivation.executable || {}).lifecycle) || {}) : {};
+  const executable = derivation ? (((derivation.executable || {}).nodes || []).map(n => humanCapTitle({ id: n.capability, framework: n.framework })).join(' → ')) : '';
+  return `<div class="flows-summary-card" style="margin:12px 0;">
+    ${provenance.template ? `<div class="composer-kv"><strong>Origen</strong><span>Plantilla del sistema · ${escapeHtml(provenance.source || 'system_default')}</span></div>` : ''}
+    <div class="composer-kv"><strong>Capacidad declarada</strong><span>${escapeHtml(grounding.desired_capability || ((manifest || {}).intent || {}).goal || ((manifest || {}).intent || {}).description || '—')}</span></div>
+    <div class="composer-kv"><strong>Lifecycle autoral</strong><span>${escapeHtml(lifecycleSummaryText(authoredLifecycle))}</span></div>
+    <div class="composer-kv"><strong>Lifecycle derivado</strong><span>${escapeHtml(lifecycleSummaryText(derivedLifecycle))}</span></div>
+    <div class="composer-kv"><strong>Roles universales</strong><span>${escapeHtml(((grounding.universal_roles || []).join(' · ')) || '—')}</span></div>
+    <div class="composer-kv"><strong>Data del negocio</strong><span>${escapeHtml(((grounding.business_artifacts || []).join(' · ')) || 'No detectada')}</span></div>
+    <div class="composer-kv"><strong>Brechas</strong><span>${escapeHtml(((grounding.missing_artifacts || []).join(' · ')) || 'Ninguna')}</span></div>
+    <div class="composer-kv"><strong>Plan derivado</strong><span>${escapeHtml(executable || 'Sin derivación')}</span></div>
+    <div class="composer-kv"><strong>Enmiendas visibles</strong><span>${escapeHtml((amendments || []).map(a => a.summary).join(' · ') || 'Ninguna')}</span></div>
+  </div>`;
+}
+
 // --- BUILDER ---
 flowsNewBtn.addEventListener('click', () => startFlowBuilder());
 
 async function startFlowBuilder(editFlow) {
-  flowsState.builder = editFlow
-    ? { name: editFlow.name, desc: editFlow.description || '', nodes: (editFlow.manifest?.nodes || []).map(n => ({ ...n })), suggestions: [] }
-    : { name: '', desc: '', nodes: [], suggestions: [] };
+  clearBuilderCompileTimer();
+  flowsState.builder = newFlowBuilderState(editFlow);
   showFlowsView('builder');
   flowsFooter.innerHTML = `
     <button class="modal-btn cancel" id="flows-builder-cancel">Cancelar</button>
     <button class="modal-btn cancel" id="flows-builder-prev" style="display:none;">← Atrás</button>
     <button class="modal-btn confirm" id="flows-builder-next">Siguiente →</button>
   `;
-  showBuilderStep(1);
 
   document.getElementById('flows-builder-cancel').addEventListener('click', () => showFlowsView('library'));
   document.getElementById('flows-builder-next').addEventListener('click', () => builderNext());
   document.getElementById('flows-builder-prev').addEventListener('click', () => builderPrev());
 
-  if (!flowsState.caps.length) await loadCapabilities();
-  renderCapGrid();
-  renderFlowSuggestions();
-  document.getElementById('flows-cap-search').addEventListener('input', renderCapGrid);
-  document.getElementById('flows-suggest-btn').addEventListener('click', suggestCapabilitiesForFlow);
-  document.getElementById('flows-builder-name').value = flowsState.builder.name;
-  document.getElementById('flows-builder-desc').value = flowsState.builder.desc;
+  // Si es edición, saltear step 0 y 1 y mostrar propuesta directamente
+  if (editFlow) {
+    if (!flowsState.caps.length) await loadCapabilities();
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    set('flows-builder-name', flowsState.builder.name);
+    set('flows-builder-desc', flowsState.builder.desc);
+    set('flows-builder-capability-hint', flowsState.builder.capabilityHint);
+    set('flows-builder-success', flowsState.builder.successCriteria);
+    set('flows-builder-autonomy', flowsState.builder.autonomyMode || 'approval');
+    set('flows-builder-entry-framework', flowsState.builder.entryFramework);
+    set('flows-builder-entry-capability', flowsState.builder.entryCapability);
+    set('flows-builder-tutela-framework', flowsState.builder.tutelaFramework);
+    set('flows-builder-tutela-capability', flowsState.builder.tutelaCapability);
+    document.getElementById('flows-cap-search').oninput = renderCapGrid;
+    renderCapGrid();
+    renderFlowSuggestions();
+    renderBuilderDiscovery();
+    renderFlowProposal();
+    void loadBuilderBusinessArtifacts();
+    showBuilderStep(2);
+    if (flowsState.builder.nodes.length) scheduleBuilderCompilation({ immediate: true });
+    return;
+  }
+
+  // Nuevo flujo: arrancar en Step 0 (datos)
+  showBuilderStep(0);
+  void loadDataSources();
+  if (!flowsState.caps.length) loadCapabilities();
+
+  // Botones del Step 0
+  const apiBtn = document.getElementById('flows-ds-api-btn');
+  const fileBtn = document.getElementById('flows-ds-file-btn');
+  if (apiBtn) apiBtn.onclick = () => window.open('/data.html', '_blank');
+  if (fileBtn) fileBtn.onclick = () => window.open('/data.html', '_blank');
+
+  // Wiring Step 2 search
+  const capSearch = document.getElementById('flows-cap-search');
+  if (capSearch) capSearch.oninput = renderCapGrid;
+
+  // Init Echo conversation
+  initEchoMode();
+
+  // Autonomy change
+  const autonomyInput = document.getElementById('flows-builder-autonomy');
+  if (autonomyInput) {
+    autonomyInput.value = flowsState.builder.autonomyMode || 'approval';
+    autonomyInput.onchange = () => {
+      saveBuilderStep(getCurrentBuilderStep());
+      renderBuilderDiscovery();
+    };
+  }
+
+  void loadBuilderBusinessArtifacts();
 }
 
 function showBuilderStep(step) {
+  document.getElementById('flows-builder-step0').style.display = step === 0 ? '' : 'none';
   document.getElementById('flows-builder-step1').style.display = step === 1 ? '' : 'none';
   document.getElementById('flows-builder-step2').style.display = step === 2 ? '' : 'none';
   document.getElementById('flows-builder-step3').style.display = step === 3 ? '' : 'none';
   const prev = document.getElementById('flows-builder-prev');
   const next = document.getElementById('flows-builder-next');
-  if (prev) prev.style.display = step > 1 ? '' : 'none';
+  if (prev) prev.style.display = step > 0 ? '' : 'none';
   if (next) {
     if (step === 3) {
       next.textContent = 'Guardar flujo';
+      next.className = 'modal-btn confirm';
+    } else if (step === 1) {
+      next.textContent = 'Ver propuesta →';
       next.className = 'modal-btn confirm';
     } else {
       next.textContent = 'Siguiente →';
       next.className = 'modal-btn confirm';
     }
   }
+  const stepLabels = { 0: 'Datos', 1: 'Automatización', 2: 'Propuesta', 3: 'Guardar' };
+  const title = document.getElementById('flows-modal-title');
+  if (title) title.textContent = `Nuevo flujo · ${stepLabels[step] || ''}`;
 }
 
 function builderPrev() {
   const current = getCurrentBuilderStep();
-  if (current > 1) {
+  if (current > 0) {
     saveBuilderStep(current);
     showBuilderStep(current - 1);
   }
@@ -3798,14 +4066,28 @@ async function builderNext() {
   saveBuilderStep(current);
   if (current === 3) {
     saveFlow();
+  } else if (current === 1) {
+    const name = document.getElementById('flows-builder-name').value.trim();
+    const desc = document.getElementById('flows-builder-desc').value.trim();
+    if (!name && !desc) {
+      const qi = document.getElementById('echo-quick-input');
+      if (qi && qi.value.trim()) await echoQuickSubmit();
+      else { alert('Contanos primero qué querés automatizar.'); return; }
+    }
+    showBuilderStep(2);
+    if (!flowsState.builder.suggestions.length) await suggestCapabilitiesForFlow();
+    await loadAndRenderMERE();
   } else {
     showBuilderStep(current + 1);
-    if (current === 1 && !flowsState.builder.suggestions.length) await suggestCapabilitiesForFlow();
-    if (current + 1 === 3) renderBuilderSummary();
+    if (current + 1 === 3) {
+      renderBuilderSummary();
+      scheduleBuilderCompilation({ immediate: true });
+    }
   }
 }
 
 function getCurrentBuilderStep() {
+  if (document.getElementById('flows-builder-step0').style.display !== 'none') return 0;
   if (document.getElementById('flows-builder-step1').style.display !== 'none') return 1;
   if (document.getElementById('flows-builder-step2').style.display !== 'none') return 2;
   return 3;
@@ -3815,7 +4097,96 @@ function saveBuilderStep(step) {
   if (step === 1) {
     flowsState.builder.name = document.getElementById('flows-builder-name').value.trim();
     flowsState.builder.desc = document.getElementById('flows-builder-desc').value.trim();
+    flowsState.builder.capabilityHint = document.getElementById('flows-builder-capability-hint').value.trim();
+    flowsState.builder.successCriteria = document.getElementById('flows-builder-success').value.trim();
+    flowsState.builder.autonomyMode = document.getElementById('flows-builder-autonomy').value || 'approval';
+    flowsState.builder.entryFramework = document.getElementById('flows-builder-entry-framework').value.trim();
+    flowsState.builder.entryCapability = document.getElementById('flows-builder-entry-capability').value.trim();
+    flowsState.builder.tutelaFramework = document.getElementById('flows-builder-tutela-framework').value.trim();
+    flowsState.builder.tutelaCapability = document.getElementById('flows-builder-tutela-capability').value.trim();
   }
+}
+
+async function loadBuilderBusinessArtifacts() {
+  if (!flowsState.builder) return null;
+  const bid = flowsBusinessID();
+  if (!bid) return null;
+  flowsState.builder.businessArtifacts = { loading: true, response: null, error: '' };
+  renderBuilderDiscovery();
+  try {
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/artifacts`).then(r => r.json());
+    if (!flowsState.builder) return null;
+    flowsState.builder.businessArtifacts = {
+      loading: false,
+      response: res.success ? (res.data || null) : null,
+      error: res.success ? '' : (res.error || 'No pude cargar la data del negocio')
+    };
+  } catch (err) {
+    if (!flowsState.builder) return null;
+    flowsState.builder.businessArtifacts = {
+      loading: false,
+      response: null,
+      error: err.message || String(err)
+    };
+  }
+  renderBuilderDiscovery();
+  return flowsState.builder.businessArtifacts.response;
+}
+
+function currentBuilderCompilationResponse() {
+  const manifest = buildAuthorialManifestFromBuilder();
+  const manifestKey = builderManifestKey(manifest);
+  const state = flowsState.builder.compilation || emptyBuilderCompilationState();
+  if (state.response && state.manifestKey === manifestKey) return state.response;
+  return null;
+}
+
+function currentBuilderDerivation() {
+  const current = currentBuilderCompilationResponse();
+  if (current && current.derivation) return current.derivation;
+  return (((flowsState.builder || {}).proposal || {}).derivation) || null;
+}
+
+function currentBuilderExecutablePlan() {
+  return ((currentBuilderDerivation() || {}).executable) || {};
+}
+
+function currentBuilderExecutableNodes() {
+  return currentBuilderExecutablePlan().nodes || [];
+}
+
+function currentBuilderAmendments() {
+  return ((currentBuilderDerivation() || {}).amendments) || [];
+}
+
+function renderBuilderDiscovery() {
+  const el = document.getElementById('flows-builder-discovery');
+  if (!el || !flowsState.builder) return;
+  const artifactsState = flowsState.builder.businessArtifacts || {};
+  const artifacts = ((artifactsState.response || {}).artifacts) || [];
+  const autonomy = builderAutonomyProfiles[flowsState.builder.autonomyMode || 'approval'] || builderAutonomyProfiles.approval;
+
+  let dataStatus = '';
+  if (artifactsState.loading) {
+    dataStatus = 'Leyendo data del negocio…';
+  } else if (artifactsState.error) {
+    dataStatus = 'No pude leer la data del negocio.';
+  } else if (artifacts.length) {
+    const userFacing = artifacts.filter(a => !a.includes('.v1') || ['business.context.v1','session.context.v1','user.input.v1','external.api.dump.v1'].includes(a));
+    dataStatus = `${artifacts.length} fuentes de datos disponibles`;
+  } else {
+    dataStatus = 'Sin datos del negocio detectados todavía.';
+  }
+
+  el.innerHTML = `
+    <div class="flows-summary-card" style="font-size:13px;color:var(--text-muted);display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+      <span>🎯 <strong style="color:var(--text);">${escapeHtml(flowsState.builder.name || flowsState.builder.desc || 'Sin nombre todavía')}</strong></span>
+      <span>·</span>
+      <span>${escapeHtml(autonomy.label)}</span>
+      <span>·</span>
+      <span>${escapeHtml(dataStatus)}</span>
+    </div>
+  `;
 }
 
 async function loadCapabilities() {
@@ -3941,10 +4312,11 @@ function frontendPriorityListProducer(n) {
   return key === 'radar.collection.priority_list' || key === 'foco.collection.priority_list' || capOutputs(selectedCapInfo(n)).includes('collection.priority_list.v1');
 }
 
-function assignLifecycleRoles(nodes) {
+function assignLifecycleRoles(nodes, lifecycle = null) {
   let staged = nodes.map((n, idx) => ({ ...n }));
+  const explicitEntry = lifecycleBindingLabel((lifecycle || {}).entry) ? lifecycle.entry : (lifecycleBindingLabel((lifecycle || {}).tutela) ? lifecycle.tutela : null);
   const hasFoco = staged.some(n => n.framework === 'foco' && ['focus.next_collection_task', 'focus.entry_briefing', 'focus.conversation'].includes(n.capability));
-  if (!hasFoco && staged.length) {
+  if (!hasFoco && staged.length && !lifecycleBindingLabel(explicitEntry)) {
     let insertAt = 0;
     let hasPriority = false;
     staged.forEach((n, idx) => {
@@ -3960,13 +4332,21 @@ function assignLifecycleRoles(nodes) {
       _autoFoco: true
     });
   }
+  const matchedExplicit = explicitEntry ? staged.some(n => nodeMatchesLifecycleBinding(n, explicitEntry)) : false;
   let entryAssigned = false;
   staged = staged.map((n, idx) => {
     let role = n.role || '';
-    if (n.framework === 'foco') role = 'entry';
-    else if (hasFoco && frontendPriorityListProducer(n)) role = 'bootstrap';
-    if (!role && idx === 0 && nodes.length > 1 && frontendBootstrapCandidate(n)) role = 'bootstrap';
-    if (!role && !entryAssigned) { role = 'entry'; entryAssigned = true; }
+    if (matchedExplicit) {
+      if (nodeMatchesLifecycleBinding(n, explicitEntry)) role = 'entry';
+      else if (role === 'entry') role = 'pipeline';
+      else if (!role && frontendPriorityListProducer(n)) role = 'bootstrap';
+      else if (!role && idx === 0 && nodes.length > 1 && frontendBootstrapCandidate(n)) role = 'bootstrap';
+    } else {
+      if (n.framework === 'foco') role = 'entry';
+      else if (hasFoco && frontendPriorityListProducer(n)) role = 'bootstrap';
+      if (!role && idx === 0 && nodes.length > 1 && frontendBootstrapCandidate(n)) role = 'bootstrap';
+      if (!role && !entryAssigned) { role = 'entry'; entryAssigned = true; }
+    }
     if (role === 'entry') entryAssigned = true;
     if (!role) role = 'pipeline';
     return { ...n, role };
@@ -3998,7 +4378,7 @@ function selectedFlowNodesOrdered() {
     id: `node_${idx + 1}_${String(n.capability || 'cap').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 28) || 'cap'}`,
     framework: n.framework,
     capability: n.capability
-  }))).map((n, idx) => ({
+  })), buildFlowLifecycleFromBuilder()).map((n, idx) => ({
     id: n._autoFoco ? 'node_foco_entry' : n.id,
     framework: n.framework,
     capability: n.capability,
@@ -4006,16 +4386,540 @@ function selectedFlowNodesOrdered() {
   }));
 }
 
-function buildManifestFromSelectedFlow() {
-  const nodes = selectedFlowNodesOrdered();
+function buildFlowIntentFromBuilder() {
+  const goal = (flowsState.builder.capabilityHint || flowsState.builder.name || '').trim();
+  const description = (flowsState.builder.desc || '').trim();
+  const successCriteria = (flowsState.builder.successCriteria || '').trim();
+  const autonomyMode = flowsState.builder.autonomyMode || 'approval';
+  const autonomy = builderAutonomyProfiles[autonomyMode] || builderAutonomyProfiles.approval;
+  if (!goal && !description && !successCriteria) return undefined;
+  const intentDescription = [description, autonomy.summary].filter(Boolean).join(' ');
+  return {
+    goal: goal || description,
+    success_criteria: successCriteria,
+    constraints: [...(autonomy.constraints || [])],
+    description: intentDescription || goal
+  };
+}
+
+function builderSuggestionDescription() {
+  const autonomy = builderAutonomyProfiles[flowsState.builder.autonomyMode || 'approval'] || builderAutonomyProfiles.approval;
+  return [
+    flowsState.builder.desc || '',
+    flowsState.builder.capabilityHint ? `Capacidad inicial: ${flowsState.builder.capabilityHint}.` : '',
+    flowsState.builder.successCriteria ? `Éxito esperado: ${flowsState.builder.successCriteria}.` : '',
+    autonomy.summary
+  ].filter(Boolean).join(' ');
+}
+
+function buildFlowLifecycleFromBuilder() {
+  return {
+    entry: {
+      framework: (flowsState.builder.entryFramework || '').trim(),
+      capability: (flowsState.builder.entryCapability || '').trim()
+    },
+    tutela: {
+      framework: (flowsState.builder.tutelaFramework || '').trim(),
+      capability: (flowsState.builder.tutelaCapability || '').trim()
+    }
+  };
+}
+
+function lifecycleBindingLabel(binding) {
+  const framework = ((binding || {}).framework || '').trim();
+  const capability = ((binding || {}).capability || '').trim();
+  if (framework && capability) return `${framework}.${capability}`;
+  return framework || capability || '';
+}
+
+function lifecycleSummaryText(lifecycle) {
+  const parts = [];
+  const entry = lifecycleBindingLabel((lifecycle || {}).entry);
+  const tutela = lifecycleBindingLabel((lifecycle || {}).tutela);
+  if (entry) parts.push(`entry: ${entry}`);
+  if (tutela) parts.push(`tutela: ${tutela}`);
+  return parts.join(' · ') || 'No declarada';
+}
+
+function nodeMatchesLifecycleBinding(node, binding) {
+  const framework = ((binding || {}).framework || '').trim();
+  const capability = ((binding || {}).capability || '').trim();
+  if (!framework && !capability) return false;
+  if (framework && (node.framework || '') !== framework) return false;
+  if (capability && (node.capability || '') !== capability) return false;
+  return true;
+}
+
+function buildAuthorialNodesFromBuilder() {
+  return normalizeBuilderNodes(flowsState.builder.nodes || []).map((n, idx) => {
+    const node = {
+      id: n.id || `node_${idx + 1}_${String(n.capability || 'cap').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 28) || 'cap'}`,
+      framework: n.framework,
+      capability: n.capability
+    };
+    if (n.role) node.role = n.role;
+    return node;
+  });
+}
+
+function buildAuthorialManifestFromBuilder() {
+  const nodes = buildAuthorialNodesFromBuilder();
   const edges = [];
   for (let i = 1; i < nodes.length; i++) edges.push({ from: nodes[i - 1].id, to: nodes[i].id });
-  return {
+  const manifest = {
     id: `flow_${nodes.map(n => n.capability).join('_')}`.replace(/[^a-z0-9_]/g, '_').substring(0, 60),
+    business_id: flowsBusinessID(),
     nodes,
     edges,
     policies: ['trace_required']
   };
+  const intent = buildFlowIntentFromBuilder();
+  if (intent) manifest.intent = intent;
+  const lifecycle = buildFlowLifecycleFromBuilder();
+  if (lifecycleBindingLabel(lifecycle.entry) || lifecycleBindingLabel(lifecycle.tutela)) manifest.lifecycle = lifecycle;
+  return manifest;
+}
+
+function builderManifestKey(manifest) {
+  return JSON.stringify(manifest || {});
+}
+
+function setBuilderCompilationResponse(response, manifest = null) {
+  const authored = manifest || response?.manifest || buildAuthorialManifestFromBuilder();
+  flowsState.builder.compilation = {
+    status: 'ready',
+    manifestKey: builderManifestKey(authored),
+    response,
+    error: ''
+  };
+}
+
+async function compileCurrentBuilderManifest({ force = false } = {}) {
+  if (!flowsState.builder) return null;
+  saveBuilderStep(1);
+  const manifest = buildAuthorialManifestFromBuilder();
+  if (!manifest.nodes.length) {
+    flowsState.builder.compilation = emptyBuilderCompilationState();
+    if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+    return null;
+  }
+  const manifestKey = builderManifestKey(manifest);
+  const current = flowsState.builder.compilation || emptyBuilderCompilationState();
+  if (!force && current.status === 'ready' && current.manifestKey === manifestKey && current.response) {
+    return current.response;
+  }
+  if (!force && current.status === 'compiling' && current.manifestKey === manifestKey) {
+    return null;
+  }
+  const requestID = (flowsState.builder.compileSeq || 0) + 1;
+  flowsState.builder.compileSeq = requestID;
+  flowsState.builder.compilation = {
+    status: 'compiling',
+    manifestKey,
+    response: current.manifestKey === manifestKey ? current.response : null,
+    error: ''
+  };
+  if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+  try {
+    const res = await apiFetch(`${API_BASE}/flows/workbench/compile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flow: manifest })
+    }).then(r => r.json());
+    if (!flowsState.builder || requestID !== flowsState.builder.compileSeq) return null;
+    if (!res.success || !res.data) {
+      flowsState.builder.compilation = {
+        status: 'error',
+        manifestKey,
+        response: null,
+        error: res.error || 'No pude recompilar la derivación actual.'
+      };
+      if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+      return null;
+    }
+    setBuilderCompilationResponse(res.data, manifest);
+    if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+    return res.data;
+  } catch (err) {
+    if (!flowsState.builder || requestID !== flowsState.builder.compileSeq) return null;
+    flowsState.builder.compilation = {
+      status: 'error',
+      manifestKey,
+      response: null,
+      error: err.message || String(err)
+    };
+    if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+    return null;
+  }
+}
+
+function scheduleBuilderCompilation({ immediate = false, force = false } = {}) {
+  if (!flowsState.builder) return;
+  clearBuilderCompileTimer();
+  if (immediate) {
+    void compileCurrentBuilderManifest({ force });
+    return;
+  }
+  flowsState.builder.compileTimer = setTimeout(() => {
+    if (flowsState.builder) flowsState.builder.compileTimer = null;
+    void compileCurrentBuilderManifest({ force });
+  }, 250);
+}
+
+// ============================================================
+// DATA SOURCES (Step 0)
+// ============================================================
+async function loadDataSources() {
+  const bid = flowsBusinessID();
+  if (!bid) { renderDataSources([]); return; }
+  try {
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections`).then(r => r.json());
+    renderDataSources(res.success ? (res.data || []) : []);
+  } catch { renderDataSources([]); }
+}
+
+function renderDataSources(sources) {
+  const el = document.getElementById('flows-datasources-list');
+  if (!el) return;
+  if (!sources.length) {
+    el.innerHTML = `<div class="ds-empty">
+      Todavía no hay datos conectados.<br>
+      <span style="font-size:12px;margin-top:4px;display:block;">Conectá una API o subí un archivo para que los flujos puedan trabajar con tu información real.</span>
+    </div>`;
+    return;
+  }
+  el.innerHTML = sources.map(s => {
+    const isApi = !!s.base_url;
+    const badgeClass = isApi ? 'ds-badge-api' : 'ds-badge-file';
+    const badgeText = isApi ? 'API' : 'Archivo';
+    const statusOk = s.status === 'ok' || s.status === 'active' || s.status === 'connected';
+    const syncText = s.last_sync_at ? `Última sync: ${formatRelativeTime(s.last_sync_at)}` : 'Sin sincronizar aún';
+    const recordText = s.record_count ? ` · ${s.record_count.toLocaleString()} registros` : '';
+    return `<div class="ds-card">
+      <div class="ds-card-top">
+        <div class="ds-card-name">${escapeHtml(s.name || s.base_url || 'Fuente de datos')}</div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span class="ds-badge ${badgeClass}">${badgeText}</span>
+          <span class="ds-badge ${statusOk ? 'ds-badge-ok' : 'ds-badge-warn'}">${statusOk ? '● Activa' : '○ Sin verificar'}</span>
+        </div>
+      </div>
+      <div class="ds-card-meta">${escapeHtml(syncText)}${escapeHtml(recordText)}</div>
+      ${isApi ? `<div style="margin-top:8px;"><button class="ds-sync-btn" onclick="syncDataSource('${s.id}', this)">↺ Sincronizar</button></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function syncDataSource(id, btn) {
+  const bid = flowsBusinessID();
+  if (!bid || !id) return;
+  if (btn) { btn.textContent = '…'; btn.disabled = true; }
+  try {
+    await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections/${encodeURIComponent(id)}/sync`, { method: 'POST' });
+    await loadDataSources();
+  } catch { if (btn) { btn.textContent = 'Error'; btn.disabled = false; } }
+}
+
+function formatRelativeTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d)) return ts;
+  const diff = Math.floor((Date.now() - d) / 1000);
+  if (diff < 60) return 'hace un momento';
+  if (diff < 3600) return `hace ${Math.floor(diff/60)} min`;
+  if (diff < 86400) return `hace ${Math.floor(diff/3600)} h`;
+  return `hace ${Math.floor(diff/86400)} días`;
+}
+
+// ============================================================
+// ECHO CONVERSATION (Step 1)
+// ============================================================
+const echoState = {
+  mode: 'quick',
+  discoveryStep: 0,
+  discoveryAnswers: [],
+};
+
+const ECHO_DISCOVERY_QUESTIONS = [
+  '¿Qué tarea hacés hoy manualmente que te gustaría que Remora haga por vos?',
+  '¿Cómo lo hacés actualmente? ¿Cuánto tiempo te toma cada vez?',
+  '¿Qué problema real te genera hacerlo así? ¿Qué se pierde o se demora?',
+  '¿Cómo sabrías que el flujo funcionó bien? ¿Qué resultado concreto esperás?',
+];
+
+const FRAMEWORK_ROLES = {
+  foco:      { icon: '🎯', role: 'Prioriza y decide qué trabajar primero' },
+  radar:     { icon: '📡', role: 'Analiza datos y calcula prioridades' },
+  sabio:     { icon: '🧠', role: 'Consulta tu información y responde preguntas' },
+  mecanico:  { icon: '⚙️',  role: 'Prepara acciones para tu aprobación' },
+  mensajero: { icon: '✉️',  role: 'Envía emails, mensajes y notificaciones' },
+  auditor:   { icon: '🔍', role: 'Detecta errores e inconsistencias en los datos' },
+  indexa:    { icon: '📦', role: 'Mantiene tus datos actualizados y sincronizados' },
+  echo:      { icon: '💬', role: 'Conversa y diseña el flujo con vos' },
+  alfa:      { icon: '🤝', role: 'Valida que el flujo sea posible con tu data' },
+  hosting:   { icon: '🏠', role: 'Gestiona credenciales y configuración de email' },
+  deployer:  { icon: '🚀', role: 'Publica y activa el flujo' },
+  charlie:   { icon: '📋', role: 'Documenta y registra cambios' },
+  excel:     { icon: '📊', role: 'Genera planillas y reportes estructurados' },
+  gmail:     { icon: '📧', role: 'Integra con Gmail para emails y borradores' },
+};
+
+function initEchoMode() {
+  const qBtn = document.getElementById('echo-mode-quick-btn');
+  const dBtn = document.getElementById('echo-mode-discovery-btn');
+  const qSend = document.getElementById('echo-quick-send');
+  const qInput = document.getElementById('echo-quick-input');
+  const dSend = document.getElementById('echo-discovery-send');
+  const dInput = document.getElementById('echo-discovery-input');
+  const finishBtn = document.getElementById('echo-discovery-finish-btn');
+
+  if (qBtn) qBtn.onclick = () => setEchoMode('quick');
+  if (dBtn) dBtn.onclick = () => setEchoMode('discovery');
+  if (qSend) qSend.onclick = echoQuickSubmit;
+  if (qInput) qInput.onkeydown = e => { if (e.key === 'Enter') echoQuickSubmit(); };
+  if (dSend) dSend.onclick = echoDiscoverySubmit;
+  if (dInput) dInput.onkeydown = e => { if (e.key === 'Enter') echoDiscoverySubmit(); };
+  if (finishBtn) finishBtn.onclick = echoDiscoveryFinish;
+
+  // Reset discovery state
+  echoState.discoveryStep = 0;
+  echoState.discoveryAnswers = [];
+  const dMessages = document.getElementById('echo-discovery-messages');
+  if (dMessages) {
+    dMessages.innerHTML = `<div class="echo-msg echo-msg-ai">${escapeHtml(ECHO_DISCOVERY_QUESTIONS[0])}</div>`;
+  }
+
+  // Personalize greeting with business name
+  const bizName = flowsBusinessName();
+  const greetingEl = document.querySelector('#echo-quick-messages .echo-msg-ai');
+  if (greetingEl && bizName && bizName !== 'Sin negocio') {
+    greetingEl.textContent = `Hola. ¿Qué tarea querés automatizar en ${bizName}?`;
+  }
+}
+
+function setEchoMode(mode) {
+  echoState.mode = mode;
+  const qBtn = document.getElementById('echo-mode-quick-btn');
+  const dBtn = document.getElementById('echo-mode-discovery-btn');
+  const qDiv = document.getElementById('echo-mode-quick');
+  const dDiv = document.getElementById('echo-mode-discovery');
+  if (qBtn) qBtn.classList.toggle('active', mode === 'quick');
+  if (dBtn) dBtn.classList.toggle('active', mode === 'discovery');
+  if (qDiv) qDiv.style.display = mode === 'quick' ? '' : 'none';
+  if (dDiv) dDiv.style.display = mode === 'discovery' ? '' : 'none';
+}
+
+async function echoQuickSubmit() {
+  const input = document.getElementById('echo-quick-input');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  const messages = document.getElementById('echo-quick-messages');
+  if (messages) {
+    messages.innerHTML += `<div class="echo-msg echo-msg-user">${escapeHtml(text)}</div>`;
+    messages.innerHTML += `<div class="echo-msg echo-msg-thinking" id="echo-quick-thinking">Entendido. Estoy armando el flujo…</div>`;
+  }
+  if (input) input.value = '';
+  // Populate hidden fields
+  setBuilderTextFields(text, '', text, '');
+  // Auto-advance to step 2
+  saveBuilderStep(1);
+  showBuilderStep(2);
+  await suggestCapabilitiesForFlow();
+  await loadAndRenderMERE();
+  const thinking = document.getElementById('echo-quick-thinking');
+  if (thinking) thinking.remove();
+}
+
+async function echoDiscoverySubmit() {
+  const input = document.getElementById('echo-discovery-input');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  const messages = document.getElementById('echo-discovery-messages');
+  if (messages) messages.innerHTML += `<div class="echo-msg echo-msg-user">${escapeHtml(text)}</div>`;
+  if (input) input.value = '';
+  echoState.discoveryAnswers.push(text);
+  echoState.discoveryStep++;
+  if (echoState.discoveryStep < ECHO_DISCOVERY_QUESTIONS.length) {
+    if (messages) {
+      messages.innerHTML += `<div class="echo-msg echo-msg-ai">${escapeHtml(ECHO_DISCOVERY_QUESTIONS[echoState.discoveryStep])}</div>`;
+      messages.scrollTop = messages.scrollHeight;
+    }
+  } else {
+    // All questions answered — show finish button
+    const inputRow = document.getElementById('echo-discovery-input-row');
+    const finishBtn = document.getElementById('echo-discovery-finish-btn');
+    if (inputRow) inputRow.style.display = 'none';
+    if (finishBtn) finishBtn.style.display = '';
+    if (messages) {
+      messages.innerHTML += `<div class="echo-msg echo-msg-ai">Perfecto. Ya tengo todo lo que necesito para diseñar tu flujo.</div>`;
+      messages.scrollTop = messages.scrollHeight;
+    }
+  }
+}
+
+async function echoDiscoveryFinish() {
+  const answers = echoState.discoveryAnswers;
+  const name = answers[0] || 'Automatización';
+  const desc = answers.join(' | ');
+  const success = answers[3] || '';
+  setBuilderTextFields(name, desc, name, success);
+  saveBuilderStep(1);
+  showBuilderStep(2);
+  await suggestCapabilitiesForFlow();
+  await loadAndRenderMERE();
+}
+
+function setBuilderTextFields(name, desc, hint, success) {
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+  set('flows-builder-name', name);
+  set('flows-builder-desc', desc);
+  set('flows-builder-capability-hint', hint);
+  set('flows-builder-success', success);
+}
+
+// ============================================================
+// MERE + ALFA VALIDATION (Step 2)
+// ============================================================
+async function loadAndRenderMERE() {
+  const bid = flowsBusinessID();
+  const el = document.getElementById('flows-mere-card');
+  if (!el || !bid) return;
+  el.innerHTML = `<div class="mere-wrap"><div class="mere-title">Mapa de entidades (MERE)</div><div class="composer-muted">Leyendo estructura de datos…</div></div>`;
+  try {
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/data/tables`).then(r => r.json());
+    const tables = (res.success && res.data) ? (Array.isArray(res.data) ? res.data : Object.keys(res.data)) : [];
+    if (!tables.length) {
+      el.innerHTML = `<div class="mere-wrap"><div class="mere-title">Mapa de entidades (MERE)</div><div class="composer-muted">Sin datos cargados aún. Los flujos pueden diseñarse igual y conectar data después.</div></div>`;
+      return;
+    }
+    // Load schema for each table (up to 5)
+    const tableDetails = await Promise.all(
+      tables.slice(0, 6).map(t =>
+        apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/data/tables/${encodeURIComponent(t)}?limit=1`)
+          .then(r => r.json()).then(d => ({ name: t, schema: d.success ? (d.data?.schema || d.data?.columns || []) : [] })).catch(() => ({ name: t, schema: [] }))
+      )
+    );
+    renderMERE(el, tableDetails);
+    renderAlfaValidation(tableDetails);
+  } catch {
+    el.innerHTML = `<div class="mere-wrap"><div class="mere-title">Mapa de entidades (MERE)</div><div class="composer-muted">No pude leer la estructura de datos.</div></div>`;
+  }
+}
+
+function renderMERE(el, tables) {
+  if (!tables.length) return;
+  // Detect relationships: columns ending in _id pointing to another table name
+  const tableNames = tables.map(t => t.name.toLowerCase());
+  const relations = [];
+  tables.forEach(t => {
+    const cols = t.schema || [];
+    cols.forEach(col => {
+      const colName = (col.name || col).toString().toLowerCase();
+      if (colName.endsWith('_id') && colName !== 'id') {
+        const ref = colName.replace(/_id$/, '');
+        if (tableNames.some(tn => tn === ref || tn.startsWith(ref))) {
+          relations.push({ from: t.name, to: ref, via: colName });
+        }
+      }
+    });
+  });
+
+  const entitiesHtml = tables.map(t => {
+    const cols = (t.schema || []).map(c => (c.name || c).toString());
+    const keyFields = cols.filter(c => !c.endsWith('_id') && c !== 'id').slice(0, 3);
+    return `<div class="mere-entity">
+      <div>${escapeHtml(t.name)}</div>
+      <div class="mere-entity-fields">${escapeHtml(keyFields.join(', ') || '…')}</div>
+    </div>`;
+  }).join('');
+
+  const relationsHtml = relations.length ? `
+    <div style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px;">
+      <div class="mere-title" style="margin-bottom:8px;">Relaciones detectadas</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--text-muted);">
+        ${relations.map(r => `<span><strong>${escapeHtml(r.from)}</strong> → <strong>${escapeHtml(r.to)}</strong> <span style="color:var(--text-dim);">via ${escapeHtml(r.via)}</span></span>`).join('<span style="color:var(--border);">·</span>')}
+      </div>
+    </div>` : '';
+
+  el.innerHTML = `<div class="mere-wrap">
+    <div class="mere-title">Mapa de entidades — ${tables.length} tabla${tables.length !== 1 ? 's' : ''} detectada${tables.length !== 1 ? 's' : ''}</div>
+    <div class="mere-entities">${entitiesHtml}</div>
+    ${relationsHtml}
+  </div>`;
+}
+
+function renderAlfaValidation(tables) {
+  const proposal = flowsState.builder.proposal;
+  if (!proposal || !proposal.manifest) return;
+  const nodes = (proposal.derivation?.executable?.nodes || proposal.manifest.nodes || []);
+  if (!nodes.length) return;
+  const tableNames = tables.map(t => t.name.toLowerCase());
+  const allCols = tables.flatMap(t => (t.schema || []).map(c => (c.name || c).toString().toLowerCase()));
+
+  // Per-framework validation heuristics
+  const checks = {
+    radar:     () => tableNames.some(t => t.includes('client') || t.includes('deudor') || t.includes('factura') || t.includes('pago')),
+    mecanico:  () => true,
+    mensajero: () => allCols.some(c => c.includes('email') || c.includes('mail') || c.includes('correo')),
+    foco:      () => true,
+    sabio:     () => tables.length > 0,
+    auditor:   () => tables.length > 0,
+    indexa:    () => true,
+    hosting:   () => true,
+    gmail:     () => allCols.some(c => c.includes('email') || c.includes('mail')),
+  };
+
+  const uniqueFrameworks = [...new Set(nodes.map(n => n.framework))];
+  const results = uniqueFrameworks.map(fw => {
+    const info = FRAMEWORK_ROLES[fw] || { icon: '🔧', role: 'Especialista del flujo' };
+    const checkFn = checks[fw];
+    const ok = !checkFn || checkFn();
+    return { fw, info, ok };
+  });
+
+  const hasWarnings = results.some(r => !r.ok);
+  const teamHtml = results.map(r => `
+    <div class="fw-team-card">
+      <div class="fw-team-icon" style="background:${frameworkBgColor(r.fw)};">${r.info.icon}</div>
+      <div class="fw-team-body">
+        <div class="fw-team-name">${escapeHtml(r.fw.charAt(0).toUpperCase() + r.fw.slice(1))}</div>
+        <div class="fw-team-role">${escapeHtml(r.info.role)}</div>
+        <div class="fw-team-status ${r.ok ? 'fw-status-ok' : 'fw-status-warn'}">
+          ${r.ok ? '✓ Tiene la data que necesita' : '⚠ Revisá si tenés los datos necesarios'}
+        </div>
+      </div>
+    </div>`).join('');
+
+  const gapNodes = (proposal.derivation?.grounding?.missing_artifacts || []);
+  const gapHtml = gapNodes.length ? `
+    <div class="fw-gap-card">
+      <div class="fw-gap-title">Para completar el flujo vas a necesitar:</div>
+      ${gapNodes.map(g => `<div class="fw-gap-item">→ ${escapeHtml(gapToHuman(g))}</div>`).join('')}
+    </div>` : `<div style="font-size:13px;color:#16a34a;margin-top:8px;">✓ El flujo tiene todo lo que necesita para funcionar.</div>`;
+
+  // Inject team section into proposal card if it exists, else create separate block
+  const existingProposal = document.getElementById('flows-proposal-card');
+  if (existingProposal && existingProposal.innerHTML) {
+    const teamSection = document.createElement('div');
+    teamSection.id = 'flows-alfa-team';
+    teamSection.style.marginTop = '14px';
+    teamSection.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;">Tu equipo de especialistas</div>
+      <div class="fw-team-grid">${teamHtml}</div>
+      ${gapHtml}`;
+    const existing = document.getElementById('flows-alfa-team');
+    if (existing) existing.replaceWith(teamSection);
+    else existingProposal.querySelector('.flows-summary-card')?.appendChild(teamSection);
+  }
+}
+
+function frameworkBgColor(fw) {
+  const colors = {
+    foco: 'rgba(139,92,246,0.12)', radar: 'rgba(37,99,235,0.12)',
+    mecanico: 'rgba(6,182,212,0.12)', mensajero: 'rgba(236,72,153,0.12)',
+    sabio: 'rgba(5,150,105,0.12)', auditor: 'rgba(245,158,11,0.12)',
+    hosting: 'rgba(22,163,74,0.12)', indexa: 'rgba(99,102,241,0.12)',
+  };
+  return colors[fw] || 'var(--surface2)';
 }
 
 function renderCapGrid() {
@@ -4069,19 +4973,23 @@ async function suggestCapabilitiesForFlow() {
       body: JSON.stringify({
         business_id: flowsBusinessID(),
         name: flowsState.builder.name,
-        description: flowsState.builder.desc,
-        max: 6
+        description: builderSuggestionDescription(),
+        max: 6,
+        lifecycle: buildFlowLifecycleFromBuilder()
       })
     }).then(r => r.json());
     flowsState.builder.suggestions = res.success ? (res.data?.suggestions || []) : [];
+    flowsState.builder.proposal = res.success ? (res.data?.proposal || null) : null;
     if (status) status.textContent = flowsState.builder.suggestions.length
-      ? `Sugerencias listas${res.data?.source === 'heuristic' ? ' (modo rápido)' : ' con IA'}. Haz click para agregarlas al flujo.`
+      ? `Sugerencias listas${res.data?.source === 'heuristic' ? ' (modo rápido)' : ' con IA'}. Puedes usar la propuesta del sistema o ajustar capacidades manualmente.`
       : 'No encontré sugerencias claras. Puedes elegir manualmente abajo.';
   } catch (err) {
     flowsState.builder.suggestions = [];
+    flowsState.builder.proposal = null;
     if (status) status.textContent = `No pude generar sugerencias: ${err.message || err}`;
   }
   renderFlowSuggestions();
+  renderFlowProposal();
 }
 
 function renderFlowSuggestions() {
@@ -4111,6 +5019,124 @@ function renderFlowSuggestions() {
   });
 }
 
+function proposalNodeList(nodes) {
+  return (nodes || []).map(n => humanCapTitle({ id: n.capability, framework: n.framework })).join(' → ');
+}
+
+function useSuggestedProposal() {
+  const proposal = flowsState.builder.proposal;
+  const nodes = (proposal && proposal.manifest && proposal.manifest.nodes) || [];
+  if (!nodes.length) return;
+  flowsState.builder.nodes = nodes.map((n, idx) => ({
+    id: n.id || `node_${idx + 1}`,
+    framework: n.framework,
+    capability: n.capability
+  }));
+  if (proposal.derivation || proposal.compiled) {
+    setBuilderCompilationResponse(proposal, proposal.manifest);
+  } else {
+    scheduleBuilderCompilation({ immediate: true });
+  }
+  renderCapGrid();
+  renderFlowSuggestions();
+  renderFlowProposal();
+  if (getCurrentBuilderStep() === 3) renderBuilderSummary();
+}
+
+const GAP_LABELS = {
+  'collection.priority_item.v1':  'Lista priorizada de clientes a cobrar',
+  'collection.priority_list.v1':  'Lista de priorización de cobranza',
+  'contact.destination.v1':       'Email o teléfono de cada cliente',
+  'entity.ref.v1':                'Referencia de cada cliente o deudor',
+  'dataset.raw.v1':               'Datos del negocio indexados en Remora',
+  'analysis.schema.v1':           'Configuración de análisis instalada',
+  'message.draft.collection_email.v1': 'Borrador de email de cobranza',
+  'credentials.smtp.v1':          'Credenciales de email para enviar',
+  'credentials.status.v1':        'Verificación de credenciales de envío',
+  'data.gaps.v1':                 'Brechas de calidad de datos detectadas',
+  'business.context.v1':          'Contexto del negocio cargado',
+  'business.semantic_pack.v1':    'Configuración semántica del negocio',
+};
+
+function gapToHuman(artifactId) {
+  return GAP_LABELS[artifactId] || artifactId;
+}
+
+function renderFlowProposal() {
+  const el = document.getElementById('flows-proposal-card');
+  if (!el) return;
+  const proposal = flowsState.builder.proposal;
+  if (!proposal || !proposal.manifest) {
+    el.innerHTML = '';
+    return;
+  }
+  const derivation = proposal.derivation || {};
+  const grounding = derivation.grounding || {};
+  const amendments = derivation.amendments || [];
+  const executableNodes = (derivation.executable || {}).nodes || [];
+  const authoredLifecycle = (proposal.manifest || {}).lifecycle || {};
+  const derivedLifecycle = ((derivation.executable || {}).lifecycle) || {};
+  const displayNodes = executableNodes.length ? executableNodes : (proposal.manifest.nodes || []);
+  const autonomy = builderAutonomyProfiles[flowsState.builder.autonomyMode || 'approval'] || builderAutonomyProfiles.approval;
+  const selected = JSON.stringify((proposal.manifest.nodes || []).map(n => `${n.framework}.${n.capability}`)) === JSON.stringify((flowsState.builder.nodes || []).map(n => `${n.framework}.${n.capability}`));
+
+  const missingArtifacts = grounding.missing_artifacts || [];
+  const gapsHtml = missingArtifacts.length ? `
+    <div style="margin:12px 0 0;padding:12px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.22);border-radius:10px;">
+      <div style="font-size:12px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Para completar el flujo necesitás:</div>
+      <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--text-muted);line-height:1.8;">
+        ${missingArtifacts.map(a => `<li>${escapeHtml(gapToHuman(a))}</li>`).join('')}
+      </ul>
+    </div>
+  ` : `<div style="margin:10px 0 0;font-size:13px;color:#16a34a;">✓ El flujo tiene todo lo que necesita para funcionar.</div>`;
+
+  const flowChainHtml = displayNodes.length ? `
+    <div style="margin:14px 0 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+      ${displayNodes.map((n, i) => {
+        const fw = (n.framework || '').toLowerCase();
+        const colors = {
+          foco: '#7c3aed', radar: '#2563eb', mecanico: '#0891b2',
+          mensajero: '#db2777', sabio: '#059669', auditor: '#d97706',
+          hosting: '#16a34a', indexa: '#6366f1'
+        };
+        const color = colors[fw] || 'var(--text-dim)';
+        return `
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;color:var(--text);line-height:1.2;">
+              ${escapeHtml(humanCapTitle({ id: n.capability, framework: n.framework }))}
+              <span style="font-size:11px;font-weight:400;color:${color};margin-left:5px;">${escapeHtml(n.framework)}</span>
+            </div>
+            ${i < displayNodes.length - 1 ? `<span style="color:var(--text-dim);font-size:14px;">→</span>` : ''}
+          </div>`;
+      }).join('')}
+    </div>
+  ` : '';
+
+  el.innerHTML = `
+    <div class="flows-summary-card">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px;">Flujo propuesto</div>
+      <div style="font-size:13px;color:var(--text-muted);">${escapeHtml(autonomy.label)} · ${escapeHtml(autonomy.approvalText)}</div>
+      ${flowChainHtml}
+      ${gapsHtml}
+      <button class="modal-btn confirm" id="flows-use-proposal-btn" type="button" style="width:100%;margin-top:16px;font-size:15px;">${selected ? '✓ Flujo aplicado' : 'Usar este flujo'}</button>
+      <details style="margin-top:12px;">
+        <summary style="cursor:pointer;font-size:12px;color:var(--text-dim);user-select:none;">Ver detalles técnicos</summary>
+        <div style="margin-top:8px;font-size:12px;color:var(--text-muted);line-height:1.7;">
+          <div><strong>Lifecycle autoral:</strong> ${escapeHtml(lifecycleSummaryText(authoredLifecycle))}</div>
+          <div><strong>Lifecycle derivado:</strong> ${escapeHtml(lifecycleSummaryText(derivedLifecycle))}</div>
+          <div><strong>Roles:</strong> ${escapeHtml((grounding.universal_roles || []).join(', ') || '—')}</div>
+          ${amendments.length ? `<div style="margin-top:4px;"><strong>Enmiendas:</strong> ${escapeHtml(amendments.map(a => a.summary).join(' · '))}</div>` : ''}
+        </div>
+      </details>
+    </div>
+  `;
+  const btn = document.getElementById('flows-use-proposal-btn');
+  if (btn) {
+    btn.disabled = selected;
+    btn.addEventListener('click', useSuggestedProposal);
+  }
+}
+
 function toggleCapNode(framework, capability) {
   const key = `${framework}.${capability}`;
   const idx = flowsState.builder.nodes.findIndex(n => `${n.framework}.${n.capability}` === key);
@@ -4121,30 +5147,40 @@ function toggleCapNode(framework, capability) {
   }
   renderCapGrid();
   renderFlowSuggestions();
+  renderFlowProposal();
+  scheduleBuilderCompilation();
+  if (getCurrentBuilderStep() === 3) renderBuilderSummary();
 }
 
 function renderSelectedNodes() {
   const el = document.getElementById('flows-selected-nodes');
   if (!el) return;
   if (!flowsState.builder.nodes.length) {
-    el.innerHTML = '<div class="composer-muted">Selecciona capacidades. Rémora separará automáticamente preparación, primer contacto y flujo principal.</div>';
+    el.innerHTML = '<div class="composer-muted">Selecciona capacidades. Aquí verás exactamente la autoría que se guardará; la derivación ejecutable se calcula aparte.</div>';
     return;
   }
-  const staged = assignLifecycleRoles(flowsState.builder.nodes.map((n, i) => ({ ...n, _originalIndex: i })));
+  const authored = (flowsState.builder.nodes || []).map((n, i) => ({
+    ...n,
+    _originalIndex: i
+  })).filter(n => n.framework && n.capability);
   el.innerHTML = `
     <div class="composer-chain">
-      ${staged.map((n, i) => `
+      ${authored.map((n, i) => `
         ${i ? '<span class="composer-arrow">→</span>' : ''}
-        <span class="composer-node-chip" style="cursor:${n._autoFoco ? 'default' : 'pointer'};" ${n._autoFoco ? '' : `data-idx="${n._originalIndex}"`} title="${escapeHtml(n.framework)}.${escapeHtml(n.capability)} · ${escapeHtml(flowRoleLabel(n.role))}">${escapeHtml(flowRoleLabel(n.role))}: ${escapeHtml(capSemanticName(n))}${n._autoFoco ? ' (automático)' : ' ✕'}</span>
+        <span class="composer-node-chip" data-idx="${n._originalIndex}" title="${escapeHtml(n.framework)}.${escapeHtml(n.capability)}">${escapeHtml(n.role ? `${flowRoleLabel(n.role)}: ` : '')}${escapeHtml(capSemanticName(n))} ✕</span>
       `).join('')}
     </div>
   `;
   el.querySelectorAll('.composer-node-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-      if (!chip.dataset.idx) return;
-      flowsState.builder.nodes.splice(parseInt(chip.dataset.idx), 1);
+      const idx = Number(chip.dataset.idx);
+      if (!Number.isFinite(idx)) return;
+      flowsState.builder.nodes.splice(idx, 1);
       renderCapGrid();
       renderFlowSuggestions();
+      renderFlowProposal();
+      scheduleBuilderCompilation();
+      if (getCurrentBuilderStep() === 3) renderBuilderSummary();
     });
   });
 }
@@ -4152,15 +5188,61 @@ function renderSelectedNodes() {
 function renderBuilderSummary() {
   const el = document.getElementById('flows-builder-summary');
   if (!el) return;
-  const manifest = buildManifestFromSelectedFlow();
+  const manifest = buildAuthorialManifestFromBuilder();
   const nodes = manifest.nodes;
+  const manifestKey = builderManifestKey(manifest);
+  const compilationState = flowsState.builder.compilation || emptyBuilderCompilationState();
+  const compilation = compilationState.response && compilationState.manifestKey === manifestKey ? compilationState.response : null;
+  const derivation = compilation ? (compilation.derivation || null) : null;
+  const compiled = compilation ? (compilation.compiled || {}) : null;
+  const amendments = derivation ? (derivation.amendments || []) : [];
+  const grounding = derivation ? (derivation.grounding || {}) : {};
+  const contracts = derivation ? (derivation.contracts || []) : [];
+  const handoffs = derivation ? (derivation.handoffs || []) : [];
+  const install = derivation ? (derivation.install || {}) : {};
+  const executable = derivation ? ((derivation.executable || {}).nodes || []) : [];
+  const authoredLifecycle = (manifest || {}).lifecycle || {};
+  const derivedLifecycle = derivation ? (((derivation.executable || {}).lifecycle) || {}) : {};
+  const autonomy = builderAutonomyProfiles[flowsState.builder.autonomyMode || 'approval'] || builderAutonomyProfiles.approval;
+  let compileStatus = '<div class="composer-muted" style="margin-bottom:12px;">La derivación actual se calculará cuando este diseño termine de compilar.</div>';
+  if (compilationState.status === 'compiling' && compilationState.manifestKey === manifestKey) {
+    compileStatus = '<div class="composer-muted" style="margin-bottom:12px;">Recalculando derivación sobre el manifest actual…</div>';
+  } else if (compilationState.status === 'error' && compilationState.manifestKey === manifestKey) {
+    compileStatus = `<div class="composer-muted" style="margin-bottom:12px;color:#dc2626;">No pude recompilar la derivación actual: ${escapeHtml(compilationState.error || 'error desconocido')}</div>`;
+  } else if (compiled && compiled.id) {
+    compileStatus = `<div class="composer-muted" style="margin-bottom:12px;">Derivación actual lista · ${escapeHtml(compiled.id)}</div>`;
+  }
   el.innerHTML = `
+    ${compileStatus}
     <div class="flows-summary-card">
       <div class="composer-kv"><strong>Nombre</strong><span>${escapeHtml(flowsState.builder.name || '(sin nombre)')}</span></div>
       <div class="composer-kv"><strong>Descripción</strong><span>${escapeHtml(flowsState.builder.desc || '—')}</span></div>
+      <div class="composer-kv"><strong>Éxito esperado</strong><span>${escapeHtml((manifest.intent || {}).success_criteria || '—')}</span></div>
+      <div class="composer-kv"><strong>Autonomía</strong><span>${escapeHtml(autonomy.label)} · ${escapeHtml(autonomy.approvalText)}</span></div>
       <div class="composer-kv"><strong>Capacidades</strong><span>${nodes.length} (${nodes.map(n => humanCapTitle({ id: n.capability, framework: n.framework })).join(' → ') || 'ninguna'})</span></div>
+      <div class="composer-kv"><strong>Capacidad declarada</strong><span>${escapeHtml((manifest.intent || {}).goal || '—')}</span></div>
+      <div class="composer-kv"><strong>Lifecycle autoral</strong><span>${escapeHtml(lifecycleSummaryText(authoredLifecycle))}</span></div>
+      <div class="composer-kv"><strong>Lifecycle derivado</strong><span>${escapeHtml(lifecycleSummaryText(derivedLifecycle))}</span></div>
+      <div class="composer-kv"><strong>Plan derivado</strong><span>${escapeHtml(proposalNodeList(executable) || 'Pendiente de compilación')}</span></div>
+      <div class="composer-kv"><strong>Roles universales</strong><span>${escapeHtml(((grounding.universal_roles || []).join(' · ')) || 'Pendiente de compilación')}</span></div>
+      <div class="composer-kv"><strong>Data detectada</strong><span>${escapeHtml(((grounding.business_artifacts || []).join(' · ')) || 'Pendiente de validación')}</span></div>
+      <div class="composer-kv"><strong>Brechas detectadas</strong><span>${escapeHtml(((grounding.missing_artifacts || []).join(' · ')) || 'Ninguna')}</span></div>
+      <div class="composer-kv"><strong>Enmiendas visibles</strong><span>${escapeHtml(amendments.map(a => `${a.kind}: ${a.summary}`).join(' · ') || 'Ninguna')}</span></div>
+      <div class="composer-kv"><strong>Qué se guardará</strong><span>${escapeHtml(`Solo la autoría manual · ${proposalNodeList(nodes) || 'Sin nodos'}`)}</span></div>
+      <div class="composer-kv"><strong>Contracts</strong><span>${escapeHtml(contracts.map(c => `${c.node_id}: ${(c.requires || c.inputs || []).join(', ') || 'sin prerequisitos'} → ${(c.produces || c.outputs || []).join(', ') || 'sin outputs'}`).join(' · ') || 'Pendiente de compilación')}</span></div>
+      <div class="composer-kv"><strong>Handoffs</strong><span>${escapeHtml(handoffs.map(h => h.summary).join(' · ') || 'Pendiente de compilación')}</span></div>
+      <div class="composer-kv"><strong>Install preview</strong><span>${escapeHtml(install.requires_install ? `Sí · ${(install.capabilities || []).join(' · ') || 'capacidad instalable detectada'}` : 'No requiere instalación')}</span></div>
     </div>
+    <div class="flows-help-card" style="margin-top:12px;">
+      Guardar solo crea o actualiza la autoría del flujo. La derivación/compiled se recalcula aparte. Instalar prepara dependencias. Probar ejecuta en modo seguro. Operar aprobada habilita efectos reales.
+    </div>
+    ${amendments.length ? `
+      <div class="flows-help-card" style="margin-top:12px;">
+        Este panel muestra authored y compiled en paralelo. Las enmiendas derivadas no se persisten automáticamente como nueva autoría.
+      </div>
+    ` : ''}
     <div class="composer-pre" style="margin-top:12px;max-height:200px;">${escapeHtml(JSON.stringify(manifest, null, 2))}</div>
+    ${compiled && compiled.flow ? `<div class="composer-pre" style="margin-top:12px;max-height:200px;">${escapeHtml(JSON.stringify(compiled.flow, null, 2))}</div>` : ''}
   `;
 }
 
@@ -4168,7 +5250,8 @@ async function saveFlow() {
   const name = flowsState.builder.name;
   if (!name) { alert('El nombre es requerido.'); return; }
   if (!flowsState.builder.nodes.length) { alert('Selecciona al menos una capacidad para el flujo.'); return; }
-  const manifest = buildManifestFromSelectedFlow();
+  const authoredManifest = buildAuthorialManifestFromBuilder();
+  const manifest = authoredManifest;
   const bid = flowsBusinessID();
   const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/flows`, {
     method: 'POST',
@@ -4177,14 +5260,57 @@ async function saveFlow() {
   });
   const json = await res.json();
   if (json.success) {
-    showFlowsView('library');
     await loadFlowsLibrary();
+    if (json.data && json.data.id) {
+      await openFlowDetail(json.data.id, 'design');
+    } else {
+      showFlowsView('library');
+    }
   } else {
     alert('Error al guardar: ' + (json.error || 'desconocido'));
   }
 }
 
 // --- DETAIL ---
+function executionFlowActions(selectedFlow) {
+  const manifest = (selectedFlow || {}).manifest || {};
+  const install = (manifest.derivation || {}).install || {};
+  const installed = Boolean((selectedFlow || {}).installed && (selectedFlow || {}).installed.installed);
+  const actions = [];
+  if (install.requires_install) {
+    actions.push(installed
+      ? { id: 'flows-detail-reconfigure', label: 'Reconfigurar', onclick: reconfigureCurrentFlow }
+      : { id: 'flows-detail-install', label: 'Instalar', onclick: installCurrentFlow });
+  }
+  actions.push({ id: 'flows-detail-dryrun', label: 'Probar', onclick: dryRunCurrentFlow });
+  actions.push({ id: 'flows-detail-run', label: 'Operar', onclick: runCurrentFlow });
+  actions.push({ id: 'flows-detail-run-approved', label: 'Operar aprobada', onclick: runCurrentFlowApproved });
+  return actions;
+}
+
+function renderFlowDetailFooter() {
+  const mode = flowsState.detailMode || 'design';
+  if (mode === 'execution') {
+    const actions = executionFlowActions(flowsState.selectedFlow);
+    flowsFooter.innerHTML = `
+      <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
+      ${actions.map(action => `<button class="modal-btn confirm" id="${action.id}">${action.label}</button>`).join('')}
+    `;
+    document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('execution'); renderFlowsExecution(); });
+    actions.forEach(action => {
+      const el = document.getElementById(action.id);
+      if (el) el.addEventListener('click', action.onclick);
+    });
+    return;
+  }
+  flowsFooter.innerHTML = `
+    <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
+    <button class="modal-btn confirm" id="flows-detail-edit-btn">Editar flujo</button>
+  `;
+  document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('library'); loadFlowsLibrary(); });
+  document.getElementById('flows-detail-edit-btn').addEventListener('click', () => startFlowBuilder(flowsState.selectedFlow));
+}
+
 async function openFlowDetail(flowId, mode = 'design') {
   showFlowsView('detail');
   flowsDetailContent.innerHTML = '<div class="composer-empty">Cargando detalle del flujo...</div>';
@@ -4207,21 +5333,7 @@ async function openFlowDetail(flowId, mode = 'design') {
   flowsState.selectedFlow = res.data;
   flowsState.detailMode = mode;
   flowsState.detail = { validation: null, simulation: null, runResult: null, smtpStatus: null };
-  if (mode === 'execution') {
-    flowsFooter.innerHTML = `
-      <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
-      <button class="modal-btn confirm" id="flows-detail-dryrun">Probar</button>
-    `;
-    document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('execution'); renderFlowsExecution(); });
-    document.getElementById('flows-detail-dryrun').addEventListener('click', dryRunCurrentFlow);
-  } else {
-    flowsFooter.innerHTML = `
-      <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
-      <button class="modal-btn confirm" id="flows-detail-edit-btn">Editar flujo</button>
-    `;
-    document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('library'); loadFlowsLibrary(); });
-    document.getElementById('flows-detail-edit-btn').addEventListener('click', () => startFlowBuilder(flowsState.selectedFlow));
-  }
+  renderFlowDetailFooter();
   renderFlowDetail();
   // Las credenciales de hosting las maneja Framework Hosting durante la
   // ejecucion del flujo, no el Staff desde este modal. El Staff solo prueba.
@@ -4527,7 +5639,8 @@ function renderFlowTopology(nodes) {
 }
 
 function renderFlowExecutionTopology(manifest, result = null) {
-  const nodes = flowExecutionTopologyNodes((manifest || {}).nodes || [], result);
+  const planNodes = ((((result || {}).derivation || {}).executable || {}).nodes || ((((manifest || {}).derivation || {}).executable || {}).nodes) || (manifest || {}).nodes || []);
+  const nodes = flowExecutionTopologyNodes(planNodes, result);
   const installed = Boolean((flowsState.selectedFlow || {}).installed && (flowsState.selectedFlow || {}).installed.installed);
   const hasBootstrap = nodes.some(n => n.role === 'bootstrap');
   const segment = activeSegmentPayload(result);
@@ -4675,6 +5788,7 @@ function renderFlowDetail() {
     </div>
   `;
   html += renderFlowInstalledSummary(f, isExec);
+  html += renderFlowDerivationSummary(m);
 
   // In design mode, show the topology (layered graph) instead of a linear list
   if (!isExec) {
@@ -4693,13 +5807,42 @@ function renderFlowDetail() {
         <div class="flow-loading-text">Ejecutando operaci\u00f3n... los frameworks est\u00e1n trabajando</div>
       </div>`;
     } else {
+      const install = (m.derivation || {}).install || {};
+      const installed = Boolean((f.installed || {}).installed);
+      const installCard = install.requires_install
+        ? `<div class="flows-action-card-v2" onclick="${installed ? 'reconfigureCurrentFlow()' : 'installCurrentFlow()'}">
+            <div class="flows-action-icon">${installed ? '&#9881;' : '&#11015;'}</div>
+            <div class="flows-action-text">
+              <div class="flows-action-inline-title">${installed ? 'Reconfigurar instalación' : 'Instalar'}</div>
+              <div class="flows-action-inline-desc">${installed ? 'Vuelve a preparar dependencias y configuración derivada sin editar la autoría del flujo.' : 'Prepara dependencias, schema y configuración para que el flujo quede listo para operar.'}</div>
+            </div>
+            <div class="flows-action-arrow">&rsaquo;</div>
+          </div>`
+        : '';
       html += renderFlowExecutionTopology(m, d.runResult);
-      html += `<div class="flows-action-grid single">
+      html += `<div class="flows-action-grid">
+        ${installCard}
         <div class="flows-action-card-v2 primary" onclick="document.getElementById('flows-detail-dryrun').click()">
           <div class="flows-action-icon">&#9654;</div>
           <div class="flows-action-text">
             <div class="flows-action-inline-title">Probar</div>
-            <div class="flows-action-inline-desc">Ejecuta el flujo completo con datos reales. Los emails se redirigen al correo de prueba. El sistema simula las respuestas del usuario en todas las dimensiones.</div>
+            <div class="flows-action-inline-desc">Ejecuta el flujo completo con datos reales, pero en modo seguro. Los emails se redirigen al correo de prueba y los side effects quedan contenidos.</div>
+          </div>
+          <div class="flows-action-arrow">&rsaquo;</div>
+        </div>
+        <div class="flows-action-card-v2" onclick="document.getElementById('flows-detail-run').click()">
+          <div class="flows-action-icon">&#9888;</div>
+          <div class="flows-action-text">
+            <div class="flows-action-inline-title">Operar con aprobación</div>
+            <div class="flows-action-inline-desc">Inicia la operación real, pero detiene efectos externos para pedir aprobación antes de aplicarlos.</div>
+          </div>
+          <div class="flows-action-arrow">&rsaquo;</div>
+        </div>
+        <div class="flows-action-card-v2 warning" onclick="document.getElementById('flows-detail-run-approved').click()">
+          <div class="flows-action-icon">&#10003;</div>
+          <div class="flows-action-text">
+            <div class="flows-action-inline-title">Operar aprobada</div>
+            <div class="flows-action-inline-desc">Ejecuta acciones reales una vez que ya decidiste instalar y aprobar la operación.</div>
           </div>
           <div class="flows-action-arrow">&rsaquo;</div>
         </div>
@@ -4957,8 +6100,8 @@ function renderCycleResultMessage(result) {
   });
 }
 
-function renderFlowNodeMap(nodes) {
-  nodes = assignLifecycleRoles(nodes || []);
+function renderFlowNodeMap(nodes, lifecycle = null) {
+  nodes = assignLifecycleRoles(nodes || [], lifecycle || {});
   if (!nodes.length) return '<div class="composer-muted">Este flujo todavía no tiene pasos.</div>';
   const groups = [
     { role: 'bootstrap', title: 'Instalación / análisis' },
