@@ -28,15 +28,17 @@ type capabilityProviderInfo struct {
 type capabilityRegistry map[string][]capabilityProviderInfo
 
 type flowManifest struct {
-	ID                string        `json:"id"`
-	BusinessID        string        `json:"business_id,omitempty"`
-	Audience          string        `json:"audience,omitempty"`
-	Intent            flowIntent    `json:"intent,omitempty"`
-	Lifecycle         flowLifecycle `json:"lifecycle,omitempty"`
-	ProvidedArtifacts []string      `json:"provided_artifacts,omitempty"`
-	Nodes             []flowNode    `json:"nodes"`
-	Edges             []flowEdge    `json:"edges,omitempty"`
-	Policies          []string      `json:"policies,omitempty"`
+	ID                string          `json:"id"`
+	BusinessID        string          `json:"business_id,omitempty"`
+	Audience          string          `json:"audience,omitempty"`
+	Intent            flowIntent      `json:"intent,omitempty"`
+	Lifecycle         flowLifecycle   `json:"lifecycle,omitempty"`
+	ProvidedArtifacts []string        `json:"provided_artifacts,omitempty"`
+	Nodes             []flowNode      `json:"nodes"`
+	Edges             []flowEdge       `json:"edges,omitempty"`
+	Policies          []string        `json:"policies,omitempty"`
+	Provenance        flowProvenance   `json:"provenance,omitempty"`
+	Derivation        *flowDerivation  `json:"derivation,omitempty"`
 }
 
 type flowIntent struct {
@@ -44,11 +46,14 @@ type flowIntent struct {
 	OperatorRole    string   `json:"operator_role,omitempty"`
 	SuccessCriteria string   `json:"success_criteria,omitempty"`
 	Constraints     []string `json:"constraints,omitempty"`
+	Roles           []string `json:"roles,omitempty"`
 	Description     string   `json:"description,omitempty"`
+	CapabilityHint  string   `json:"capability_hint,omitempty"`
 }
 
 type flowLifecycle struct {
-	Entry flowLifecycleEntry `json:"entry,omitempty"`
+	Entry  flowLifecycleEntry `json:"entry,omitempty"`
+	Tutela flowLifecycleEntry `json:"tutela,omitempty"`
 }
 
 type flowLifecycleEntry struct {
