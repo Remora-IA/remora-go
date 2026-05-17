@@ -1,0 +1,97 @@
+{
+  "name": "inspector",
+  "version": "0.1.0",
+  "description": "Conecta APIs externas de forma conversacional: busca documentación con Exa AI, testea endpoints con inspección HTTP completa y diagnostica errores en lenguaje humano. Sin formularios.",
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/frameworkinspector"]
+  },
+  "cwd": "framework-inspector",
+  "execution_mode": "sync_chain",
+  "inputs": [],
+  "outputs": [
+    {
+      "name": "connection_spec",
+      "format": "inspector.connection.v1",
+      "path": "inspector_connection.json",
+      "required": false,
+      "description": "Especificación de conexión validada lista para persistir"
+    }
+  ],
+  "commands": {
+    "next-question": {
+      "description": "Retorna la siguiente pregunta de la conversación de conexión",
+      "args": ["next-question"],
+      "params": []
+    },
+    "ingest-answer": {
+      "description": "Procesa la respuesta del usuario y avanza en la conversación",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"],
+      "defaults": { "question_id": "" }
+    },
+    "test-endpoint": {
+      "description": "Testea un endpoint HTTP con inspección completa de headers, status y body",
+      "args": ["test-endpoint", "--url", "{params.url}", "--token", "{params.token}", "--header", "{params.header}"],
+      "params": ["url", "token", "header"],
+      "defaults": { "token": "", "header": "Authorization" }
+    },
+    "search-docs": {
+      "description": "Busca documentación de una API usando Exa AI",
+      "args": ["search-docs", "--query", "{params.query}"],
+      "params": ["query"]
+    },
+    "reset": {
+      "description": "Reinicia el estado de la conversación",
+      "args": ["reset"],
+      "params": []
+    },
+    "status": {
+      "description": "Muestra el estado actual de la conversación",
+      "args": ["status"],
+      "params": []
+    }
+  },
+  "user_input": {
+    "supported": true,
+    "modes": ["short_answer"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "capabilities_semantic": {
+    "what_it_does": "Conecta APIs externas conversacionalmente con diagnóstico de errores y búsqueda de documentación",
+    "domain": "integrations",
+    "produces": ["inspector.connection.v1"],
+    "requires": []
+  },
+  "capabilities": [
+    {
+      "id": "connection.setup",
+      "description": "Configura una conexión a una API externa de forma conversacional, con diagnóstico de errores y búsqueda de documentación",
+      "command": "next-question",
+      "execution": "conversational",
+      "produces": ["inspector.connection.v1"]
+    },
+    {
+      "id": "connection.diagnose",
+      "description": "Diagnostica por qué una API no responde correctamente, con inspección de headers, status codes y body",
+      "command": "test-endpoint",
+      "execution": "single_shot",
+      "requires": ["inspector.connection.v1"],
+      "produces": ["inspector.connection.v1"]
+    },
+    {
+      "id": "connection.search_docs",
+      "description": "Busca documentación de una API en internet usando Exa AI",
+      "command": "search-docs",
+      "execution": "single_shot",
+      "produces": ["inspector.docs.v1"]
+    }
+  ],
+  "model": {
+    "provider": "anthropic",
+    "name": "claude-haiku-4-5-20251001",
+    "env_key": "ANTHROPIC_API_KEY",
+    "capabilities": ["text", "conversation", "tool_use"]
+  }
+}

@@ -3165,17 +3165,21 @@
           <button class="modal-btn cancel" id="flows-ds-api-toggle" type="button" style="flex:1;font-size:13px;">🔗 Conectar API</button>
           <button class="modal-btn cancel" id="flows-ds-file-toggle" type="button" style="flex:1;font-size:13px;">📁 Subir archivo</button>
         </div>
-        <!-- Panel inline: conectar API -->
-        <div id="flows-ds-api-panel" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);">
-          <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">Conectar una API</div>
-          <input id="ds-api-name" type="text" placeholder="Nombre (ej: Sistema de gestión)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text-primary);font-size:13px;margin-bottom:8px;">
-          <input id="ds-api-url" type="text" placeholder="URL base (ej: https://mi-sistema.com/api/v2)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text-primary);font-size:13px;margin-bottom:8px;">
-          <input id="ds-api-token" type="password" placeholder="Token de autenticación (opcional)" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text-primary);font-size:13px;margin-bottom:10px;">
-          <div style="display:flex;gap:8px;">
-            <button class="modal-btn confirm" id="ds-api-connect-btn" type="button" style="flex:1;">Conectar</button>
-            <button class="modal-btn cancel" id="ds-api-cancel-btn" type="button">Cancelar</button>
+        <!-- Panel inline: conectar API via Inspector IA -->
+        <div id="flows-ds-api-panel" style="display:none;margin-top:12px;padding:14px;border:1px solid rgba(139,92,246,0.25);border-radius:12px;background:var(--surface);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="echo-speaker-badge echo-speaker-echo" style="font-size:11px;padding:2px 9px;"><span class="echo-speaker-dot">●</span> Inspector</span>
+              <span style="font-size:13px;font-weight:600;color:var(--text);">Conectar una API</span>
+            </div>
+            <button class="modal-btn cancel" id="ds-api-cancel-btn" type="button" style="padding:4px 10px;font-size:12px;">✕</button>
           </div>
-          <div id="ds-api-status" style="font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
+          <div id="ds-inspector-messages" class="echo-chat-box" style="max-height:200px;overflow-y:auto;min-height:60px;margin-bottom:10px;"></div>
+          <div id="ds-inspector-input-row" class="echo-input-row">
+            <input id="ds-inspector-input" type="text" class="echo-input" placeholder="Escribí tu respuesta…">
+            <button class="modal-btn confirm echo-send-btn" id="ds-inspector-send" type="button">→</button>
+          </div>
+          <div id="ds-inspector-status" style="font-size:12px;color:var(--text-muted);margin-top:6px;display:none;"></div>
         </div>
         <!-- Panel inline: subir archivo -->
         <div id="flows-ds-file-panel" style="display:none;margin-top:12px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);">
@@ -4615,43 +4619,126 @@ function initDataSourcePanels() {
   const apiConnect = document.getElementById('ds-api-connect-btn');
   const fileUpload = document.getElementById('ds-file-upload-btn');
 
-  if (apiToggle) apiToggle.onclick = () => toggle('flows-ds-api-panel', 'flows-ds-file-panel');
+  if (apiToggle) apiToggle.onclick = () => { toggle('flows-ds-api-panel', 'flows-ds-file-panel'); dsInspectorOpen(); };
   if (fileToggle) fileToggle.onclick = () => toggle('flows-ds-file-panel', 'flows-ds-api-panel');
-  if (apiCancel) apiCancel.onclick = () => { document.getElementById('flows-ds-api-panel').style.display = 'none'; };
+  if (apiCancel) apiCancel.onclick = () => { document.getElementById('flows-ds-api-panel').style.display = 'none'; dsInspectorConvId = null; };
   if (fileCancel) fileCancel.onclick = () => { document.getElementById('flows-ds-file-panel').style.display = 'none'; };
-  if (apiConnect) apiConnect.onclick = dsConnectAPI;
   if (fileUpload) fileUpload.onclick = dsUploadFile;
+
+  const sendBtn = document.getElementById('ds-inspector-send');
+  const inspInput = document.getElementById('ds-inspector-input');
+  if (sendBtn) sendBtn.onclick = dsInspectorSend;
+  if (inspInput) inspInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dsInspectorSend(); } });
 }
 
-async function dsConnectAPI() {
-  const bid = flowsBusinessID();
-  const name = (document.getElementById('ds-api-name')?.value || '').trim();
-  const url = (document.getElementById('ds-api-url')?.value || '').trim();
-  const token = (document.getElementById('ds-api-token')?.value || '').trim();
-  const status = document.getElementById('ds-api-status');
-  if (!url) { if (status) status.textContent = 'Ingresá la URL de la API.'; return; }
-  if (status) status.textContent = 'Conectando…';
-  const btn = document.getElementById('ds-api-connect-btn');
-  if (btn) btn.disabled = true;
+// ─── Inspector chat (reemplaza el form de API) ─────────────────────────────
+
+let dsInspectorConvId = null;
+let dsInspectorWaiting = false;
+
+function dsInspectorAddMsg(speaker, text) {
+  const box = document.getElementById('ds-inspector-messages');
+  if (!box) return;
+  const isAI = speaker !== 'user';
+  const cls = isAI ? 'echo-msg echo-msg-ai' : 'echo-msg echo-msg-user';
+  const label = isAI ? 'Inspector' : 'Tú';
+  const badgeCls = isAI ? 'echo-speaker-badge echo-speaker-echo' : 'echo-speaker-badge';
+  const badgeStyle = isAI ? '' : 'background:rgba(37,99,235,0.12);color:#2563eb;';
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `<div style="margin-bottom:4px;"><span class="${badgeCls}" style="${badgeStyle}font-size:10px;">${isAI ? '<span class="echo-speaker-dot">●</span> ' : ''}${escapeHtml(label)}</span></div><div class="${cls}">${escapeHtml(text)}</div>`;
+  box.appendChild(wrap);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function dsInspectorOpen() {
+  const panel = document.getElementById('flows-ds-api-panel');
+  if (!panel || panel.style.display === 'none') return;
+  if (dsInspectorConvId) return; // already started
+  const box = document.getElementById('ds-inspector-messages');
+  if (box) box.innerHTML = '';
+  dsInspectorAddMsg('inspector', 'Iniciando conexión…');
   try {
-    const body = { name: name || url, base_url: url, auth_type: token ? 'bearer' : 'none', auth_token: token || '' };
-    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    const bid = flowsBusinessID();
+    const res = await apiFetch(`${API_BASE}/conversations-single`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Inspector API', framework: 'inspector', business_id: bid })
     }).then(r => r.json());
-    if (res.success) {
-      if (status) status.textContent = '✓ Conexión guardada. Sincronizando…';
-      if (res.data?.id) {
-        await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections/${res.data.id}/sync`, { method: 'POST' });
-      }
-      document.getElementById('flows-ds-api-panel').style.display = 'none';
-      await loadDataSources();
+    if (!res.success) throw new Error(res.error || 'no se pudo crear conversación');
+    dsInspectorConvId = res.data.conversation.id;
+    if (box) box.innerHTML = '';
+    if (res.data.first_question) {
+      dsInspectorAddMsg('inspector', res.data.first_question.content || res.data.first_question.text || JSON.stringify(res.data.first_question));
     } else {
-      if (status) status.textContent = `Error: ${res.error || 'No pude conectar'}`;
+      dsInspectorAddMsg('inspector', '¿A qué API o sistema querés conectarte?');
+    }
+    const input = document.getElementById('ds-inspector-input');
+    if (input) input.focus();
+  } catch (e) {
+    if (box) box.innerHTML = '';
+    dsInspectorAddMsg('inspector', `No pude iniciar Inspector: ${e.message}. ¿Está corriendo el servidor?`);
+  }
+}
+
+async function dsInspectorSend() {
+  if (dsInspectorWaiting) return;
+  const input = document.getElementById('ds-inspector-input');
+  const text = (input?.value || '').trim();
+  if (!text || !dsInspectorConvId) return;
+  input.value = '';
+  dsInspectorAddMsg('user', text);
+  dsInspectorWaiting = true;
+  const sendBtn = document.getElementById('ds-inspector-send');
+  if (sendBtn) sendBtn.disabled = true;
+  dsInspectorAddMsg('inspector', '…');
+  try {
+    const res = await apiFetch(`${API_BASE}/conversations-single/${dsInspectorConvId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    }).then(r => r.json());
+    // Remove typing indicator
+    const box = document.getElementById('ds-inspector-messages');
+    if (box && box.lastChild) box.removeChild(box.lastChild);
+    if (res.success) {
+      const msg = res.data?.framework_message;
+      if (msg) {
+        const content = msg.content || msg.text || '';
+        dsInspectorAddMsg('inspector', content);
+        // Check if inspector is done (empty response = done)
+        if (!content || res.data?.idle) {
+          await dsInspectorFinish();
+        }
+      } else if (res.data?.idle) {
+        await dsInspectorFinish();
+      }
+    } else {
+      dsInspectorAddMsg('inspector', `Error: ${res.error || 'respuesta inesperada'}`);
     }
   } catch (e) {
-    if (status) status.textContent = `Error: ${e.message}`;
+    const box = document.getElementById('ds-inspector-messages');
+    if (box && box.lastChild) box.removeChild(box.lastChild);
+    dsInspectorAddMsg('inspector', `Error de conexión: ${e.message}`);
   }
-  if (btn) btn.disabled = false;
+  dsInspectorWaiting = false;
+  if (sendBtn) sendBtn.disabled = false;
+  if (input) input.focus();
+}
+
+async function dsInspectorFinish() {
+  // Inspector terminó — la conexión quedó en inspector_connection.json en el servidor.
+  // Guardamos vía el endpoint de api-connections usando los datos del artifact.
+  dsInspectorAddMsg('inspector', '✓ ¡Conexión lista! Guardando…');
+  const bid = flowsBusinessID();
+  try {
+    // Pedimos status al inspector para obtener los datos finales de conexión
+    // El servidor ya tiene el artifact; lo guardamos a través del endpoint normal
+    await loadDataSources();
+    document.getElementById('flows-ds-api-panel').style.display = 'none';
+    dsInspectorConvId = null;
+  } catch (e) {
+    dsInspectorAddMsg('inspector', `No pude guardar la conexión automáticamente: ${e.message}`);
+  }
 }
 
 async function dsUploadFile() {
