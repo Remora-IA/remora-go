@@ -283,7 +283,10 @@ func inferUniversalRoleForNode(node flowNode, manifests map[string]*manifest.Man
 		return "actuar"
 	case strings.Contains(key, "ledger") || strings.Contains(key, "state") || strings.Contains(key, "record"):
 		return "registrar"
-	case strings.Contains(key, "query") || strings.Contains(key, "analysis") || strings.Contains(key, "priority") || strings.Contains(key, "focus") || strings.Contains(key, "entity_360"):
+	// foco → priorizar (antes de analizar, para que no colisione con radar/sabio)
+	case strings.Contains(key, "foco") || (strings.Contains(key, "focus") && strings.Contains(key, "next")):
+		return "priorizar"
+	case strings.Contains(key, "query") || strings.Contains(key, "analysis") || strings.Contains(key, "priority") || strings.Contains(key, "entity_360"):
 		return "analizar"
 	case strings.Contains(key, "lookup") || strings.Contains(key, "dataset") || strings.Contains(key, "read"):
 		return "leer"

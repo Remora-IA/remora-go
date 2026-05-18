@@ -47,6 +47,44 @@ type Manifest struct {
 	// RequiresInfra declara dependencias de infraestructura que el orquestador
 	// debe proveer vía env vars. Ej: ["postgres+pgvector"].
 	RequiresInfra []string `json:"requires_infra,omitempty"`
+
+	Agent AgentSpec `json:"agent,omitempty"`
+
+	// SemanticRules declara reglas machine-readable para el planner de flujos.
+	// Permite que el suggest engine razone correctamente sin hardcoding por dominio.
+	SemanticRules SemanticRules `json:"semantic_rules,omitempty"`
+}
+
+type AgentSpec struct {
+	MaxTurns     int  `json:"max_turns,omitempty"`
+	ToolsOnStart bool `json:"tools_on_start,omitempty"`
+}
+
+// SemanticRules describe cuándo usar un framework, sus dependencias y qué
+// integraciones externas cubre. Leído por el suggest engine en tiempo de ejecución.
+type SemanticRules struct {
+	// UseWhen: señales/keywords que indican que este framework es candidato.
+	// El planner suma score por cada señal que aparezca en la descripción del flujo.
+	UseWhen []string `json:"use_when,omitempty"`
+
+	// NeverWithout: frameworks que deben estar en el flujo si este framework aparece.
+	// Ej: mecanico.NeverWithout = ["auditor"]. El planner filtra combinaciones inválidas.
+	NeverWithout []string `json:"never_without,omitempty"`
+
+	// Position: rol en el pipeline. Orienta el orden de nodos.
+	//   "bootstrap" - prepara contexto antes de la interacción (indexa, configura)
+	//   "entry"     - primer framework que habla con el usuario
+	//   "pipeline"  - procesamiento intermedio (análisis, transformación)
+	//   "output"    - entrega resultado final (envío, reporte, escritura)
+	Position string `json:"position,omitempty"`
+
+	// NotFor: casos donde NO usar este framework. Ayuda al LLM a no alucinarlo.
+	NotFor []string `json:"not_for,omitempty"`
+
+	// CoversIntegrations: sistemas externos que este framework sabe conectar.
+	// Usado por el gap detector: si el flujo menciona "slack" y ningún framework
+	// tiene "slack" aquí, se emite un gap.
+	CoversIntegrations []string `json:"covers_integrations,omitempty"`
 }
 
 // CapabilitiesSemantic describe el rol del framework en términos

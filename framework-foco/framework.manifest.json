@@ -263,6 +263,11 @@
       "last_priority_list.json"
     ]
   },
+  "semantic_rules": {
+    "use_when": ["priorizar", "qué hacer primero", "agenda", "tarea", "siguiente paso", "foco", "decisión", "norte", "fecha límite", "scheduling", "operativo", "cobrador", "cobranza", "cartera", "moroso", "deuda", "factura", "acción inmediata"],
+    "position": "entry",
+    "not_for": ["enviar mensajes", "corregir datos", "auditoría de calidad de datos"]
+  },
   "capabilities_semantic": {
     "tags": [
       "focus",

@@ -184,6 +184,11 @@
       }
     }
   },
+  "semantic_rules": {
+    "use_when": ["análisis", "analizar", "cobranza", "cartera", "priorizar", "scoring", "deuda", "mora", "factura", "moroso", "calcular", "métricas", "detectar", "riesgo", "inventario", "rentabilidad", "rendimiento", "evaluación", "reporte analítico", "algoritmo"],
+    "position": "pipeline",
+    "not_for": ["enviar mensajes", "corregir errores de datos", "chat sin datos estructurados"]
+  },
   "capabilities_semantic": {
     "tags": [
       "radar",

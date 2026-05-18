@@ -2744,6 +2744,10 @@
     .builder-right-col { padding-left:20px; overflow-y:auto; min-height:0; }
     .builder-right-placeholder { color:var(--text-muted); font-size:13px; text-align:center; padding:48px 16px; opacity:0.6; }
     .inspector-event-msg { font-size:11px; color:var(--text-muted); font-style:italic; padding:4px 8px; border-left:2px solid rgba(139,92,246,0.3); margin:4px 0; }
+    .echo-proposal-card { margin:10px 0 4px 0; padding:14px 16px; background:rgba(37,99,235,0.07); border:1px solid rgba(37,99,235,0.22); border-radius:12px; }
+    .echo-proposal-title { font-weight:700; font-size:13px; margin-bottom:5px; color:var(--text); }
+    .echo-proposal-summary { font-size:12px; color:var(--text-muted); margin-bottom:12px; line-height:1.5; }
+    .echo-proposal-actions { display:flex; gap:8px; flex-wrap:wrap; }
     @media (max-width:700px) {
       .builder-two-col { grid-template-columns:1fr; }
       .builder-left-col { border-right:none; border-bottom:1px solid var(--border); padding-right:0; padding-bottom:16px; margin-bottom:16px; }
@@ -3817,6 +3821,56 @@ function flowsBusinessName() {
   return activeMembership()?.business_name || flowsBusinessID() || 'Sin negocio';
 }
 
+// --- MODAL STATE PERSISTENCE ---
+const FLOWS_MODAL_STATE_KEY = 'remora_flows_modal_state';
+
+function saveModalState(view, builderStep) {
+  const bid = flowsBusinessID();
+  if (!bid) return;
+  const state = {
+    open: true, view,
+    builderStep: builderStep != null ? builderStep : getCurrentBuilderStep(),
+    echoConvId: echoConvId || null,
+    bid
+  };
+  localStorage.setItem(FLOWS_MODAL_STATE_KEY, JSON.stringify(state));
+}
+
+function clearModalState() {
+  localStorage.removeItem(FLOWS_MODAL_STATE_KEY);
+}
+
+function getModalState() {
+  try {
+    const raw = localStorage.getItem(FLOWS_MODAL_STATE_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.open || s.bid !== flowsBusinessID()) return null;
+    return s;
+  } catch { return null; }
+}
+
+async function restoreModalState() {
+  const state = getModalState();
+  if (!state || !state.open) return;
+  if (state.bid !== flowsBusinessID()) return;
+
+  if (state.view === 'builder') {
+    const bid = flowsBusinessID();
+    flowsModalTitle.textContent = `Flujos de ${flowsBusinessName()}`;
+    flowsModalSubtitle.textContent = 'Diseña automatizaciones y pruébalas completas de forma segura.';
+    clearBuilderCompileTimer();
+    flowsState = { caps: [], flows: [], selectedFlow: null, builder: newFlowBuilderState(), detail: { validation: null, simulation: null, runResult: null } };
+    flowsModal.style.display = 'flex';
+    flowsModal.classList.add('visible');
+    await startFlowBuilder(null, state.echoConvId || null);
+    showBuilderStep(state.builderStep ?? 0);
+  } else {
+    await showFlowsModal();
+    if (state.view && state.view !== 'library') showFlowsView(state.view);
+  }
+}
+
 // --- MODAL ---
 async function showFlowsModal() {
   const bid = flowsBusinessID();
@@ -3828,11 +3882,13 @@ async function showFlowsModal() {
   showFlowsView('library');
   flowsModal.style.display = 'flex';
   flowsModal.classList.add('visible');
+  saveModalState('library', null);
   await loadFlowsLibrary();
 }
 
 function hideFlowsModal() {
   clearBuilderCompileTimer();
+  clearModalState();
   flowsModal.classList.remove('visible');
   setTimeout(() => { flowsModal.style.display = 'none'; }, 300);
 }
@@ -3845,6 +3901,7 @@ function showFlowsView(view) {
   flowsTabDesign.classList.toggle('active', view === 'library' || view === 'builder');
   flowsTabRun.classList.toggle('active', view === 'execution' || (view === 'detail' && flowsState.detailMode === 'execution'));
   flowsFooter.innerHTML = '';
+  if (flowsModal.style.display !== 'none') saveModalState(view, null);
 }
 
 flowsCancelBtn.addEventListener('click', hideFlowsModal);
@@ -3996,7 +4053,7 @@ function renderFlowDerivationSummary(manifest) {
 // --- BUILDER ---
 flowsNewBtn.addEventListener('click', () => startFlowBuilder());
 
-async function startFlowBuilder(editFlow) {
+async function startFlowBuilder(editFlow, savedEchoConvId) {
   clearBuilderCompileTimer();
   flowsState.builder = newFlowBuilderState(editFlow);
   inspectorConvId = null; inspectorWaiting = false; inspectorStarted = false;
@@ -4036,10 +4093,21 @@ async function startFlowBuilder(editFlow) {
     return;
   }
 
-  // Nuevo flujo: arrancar en Step 0 (datos)
+  // Mostrar step 0 inmediatamente para dar feedback visual
   showBuilderStep(0);
+
+  // Saltear Step 0 si ya hay fuentes conectadas (async, swaps step after load)
   void loadDataSources();
   if (!flowsState.caps.length) loadCapabilities();
+  apiFetch(`${API_BASE}/businesses/${encodeURIComponent(flowsBusinessID())}/api-connections`)
+    .then(r => r.json())
+    .then(res => {
+      if (res?.success && (res.data || []).length > 0) {
+        showBuilderStep(1);
+        document.getElementById('flows-right-placeholder').style.display = '';
+      }
+    })
+    .catch(() => null);
 
   // Botones del Step 0 — inline
   initDataSourcePanels();
@@ -4049,7 +4117,7 @@ async function startFlowBuilder(editFlow) {
   if (capSearch) capSearch.oninput = renderCapGrid;
 
   // Init Echo conversation
-  initEchoMode();
+  initEchoMode(savedEchoConvId);
 
   // Autonomy change
   const autonomyInput = document.getElementById('flows-builder-autonomy');
@@ -4068,6 +4136,7 @@ function showBuilderStep(step) {
   document.getElementById('flows-builder-step0').style.display = step === 0 ? '' : 'none';
   document.getElementById('flows-builder-step1').style.display = step === 1 ? '' : 'none';
   document.getElementById('flows-builder-step2').style.display = step === 2 ? '' : 'none';
+  if (flowsModal.style.display !== 'none') saveModalState('builder', step);
 
   // Widen modal for two-column layout (steps 0 and 1)
   const flowContent = document.querySelector('#flows-modal .flows-content');
@@ -4834,107 +4903,286 @@ function echoMsgHtml(speaker, text, isThinking = false) {
   </div>`;
 }
 
-function initEchoMode() {
-  const qBtn = document.getElementById('echo-mode-quick-btn');
-  const dBtn = document.getElementById('echo-mode-discovery-btn');
-  const qSend = document.getElementById('echo-quick-send');
-  const qInput = document.getElementById('echo-quick-input');
-  const dSend = document.getElementById('echo-discovery-send');
-  const dInput = document.getElementById('echo-discovery-input');
-  const finishBtn = document.getElementById('echo-discovery-finish-btn');
+let echoConvId = null;
+let echoWaiting = false;
 
-  if (qBtn) qBtn.onclick = () => setEchoMode('quick');
-  if (dBtn) dBtn.onclick = () => setEchoMode('discovery');
-  if (qSend) qSend.onclick = echoQuickSubmit;
-  if (qInput) qInput.onkeydown = e => { if (e.key === 'Enter') echoQuickSubmit(); };
-  if (dSend) dSend.onclick = echoDiscoverySubmit;
-  if (dInput) dInput.onkeydown = e => { if (e.key === 'Enter') echoDiscoverySubmit(); };
-  if (finishBtn) finishBtn.onclick = echoDiscoveryFinish;
-
-  // Reset discovery state
-  echoState.discoveryStep = 0;
-  echoState.discoveryAnswers = [];
-
-  // Personalizar saludo con nombre del negocio
-  const bizName = flowsBusinessName();
-  const greeting = bizName && bizName !== 'Sin negocio'
-    ? `Hola. ¿Qué tarea querés automatizar en ${bizName}?`
-    : 'Hola. ¿Qué tarea querés automatizar?';
-
-  const qMessages = document.getElementById('echo-quick-messages');
-  if (qMessages) qMessages.innerHTML = echoMsgHtml('echo', greeting);
-
-  const dMessages = document.getElementById('echo-discovery-messages');
-  if (dMessages) dMessages.innerHTML = echoMsgHtml('echo', ECHO_DISCOVERY_QUESTIONS[0]);
+function stripJsonBlobs(text) {
+  // Remove JSON objects leaked into LLM text output
+  return text.replace(/\s*\{(?:[^{}]|\{[^{}]*\})*\}\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
 }
 
-function setEchoMode(mode) {
-  echoState.mode = mode;
+async function createFlowFromEchoProposal(p, btn) {
+  const bid = flowsBusinessID();
+  if (!bid) return;
+  const name = p?.title || p?.name || 'Nuevo flujo';
+  const desc = p?.summary || p?.description || '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando…'; }
+  try {
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/flows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc })
+    }).then(r => r.json());
+    if (res.success) {
+      await loadFlowsLibrary();
+      showFlowsView('library');
+      // Highlight the newly created flow card briefly
+      if (res.data?.id) {
+        setTimeout(() => {
+          const card = document.querySelector(`[data-id="${res.data.id}"]`);
+          if (card) {
+            card.style.transition = 'box-shadow 0.3s';
+            card.style.boxShadow = '0 0 0 2px rgba(37,99,235,0.5)';
+            card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            setTimeout(() => { card.style.boxShadow = ''; }, 2000);
+          }
+        }, 150);
+      }
+    } else {
+      if (btn) { btn.disabled = false; btn.textContent = 'Crear este flujo'; }
+      alert('No se pudo crear: ' + (res.error || 'desconocido'));
+    }
+  } catch (e) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear este flujo'; }
+    alert('Error: ' + e.message);
+  }
+}
+
+function renderEchoAcceptedCard(p, messages) {
+  if (!messages) return;
+  const card = document.createElement('div');
+  card.className = 'echo-proposal-card';
+  card.style.borderColor = 'rgba(22,163,74,0.35)';
+  card.style.background = 'rgba(22,163,74,0.07)';
+  card.innerHTML = `
+    <div class="echo-proposal-title" style="color:#16a34a;">✓ ${escapeHtml(p?.title || 'Flujo configurado')}</div>
+    <div class="echo-proposal-summary">${escapeHtml(p?.summary || 'El flujo se va a guardar en tu biblioteca con nombre y descripción. Podés agregarle pasos desde ahí.')}</div>
+    <div class="echo-proposal-actions">
+      <button class="modal-btn confirm echo-next-step-btn">Guardar en mi biblioteca →</button>
+      <button class="modal-btn cancel echo-go-library-btn">Ver mis flujos</button>
+    </div>
+  `;
+  card.querySelector('.echo-next-step-btn').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'Preparando…';
+    try {
+      if (!flowsState.builder.proposal) await updateBuilderRightPanel();
+      if (flowsState.builder.proposal) useSuggestedProposal();
+      builderNext();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Guardar en mi biblioteca →';
+    }
+  });
+  card.querySelector('.echo-go-library-btn').addEventListener('click', () => showFlowsView('library'));
+  messages.appendChild(card);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function renderEchoProposalCard(p, messages) {
+  if (!p || !messages) return;
+  const card = document.createElement('div');
+  card.className = 'echo-proposal-card';
+  const title = escapeHtml(p.title || 'Flujo propuesto');
+  const summary = escapeHtml(p.summary || p.description || '');
+  const acceptLabel = escapeHtml(p.accept_label || 'Crear este flujo');
+  const adjustLabel = escapeHtml(p.adjust_label || 'Ajustar');
+  card.innerHTML = `
+    <div class="echo-proposal-title">${title}</div>
+    ${summary ? `<div class="echo-proposal-summary">${summary}</div>` : ''}
+    <div class="echo-proposal-actions">
+      <button class="modal-btn confirm echo-proposal-accept">${acceptLabel}</button>
+      <button class="modal-btn cancel echo-proposal-adjust">${adjustLabel}</button>
+    </div>
+  `;
+  card.querySelector('.echo-proposal-accept').addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    const origText = btn.textContent;
+    btn.textContent = 'Preparando…';
+    try {
+      // Asegurarse de que el panel derecho tiene las sugerencias cargadas
+      if (!flowsState.builder.proposal) {
+        await updateBuilderRightPanel();
+      }
+      // Auto-seleccionar el pipeline sugerido por el sistema
+      if (flowsState.builder.proposal) useSuggestedProposal();
+      // Ir al Step 2 (revisar y guardar) — el flujo se crea con nodos reales
+      builderNext();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  });
+  card.querySelector('.echo-proposal-adjust').addEventListener('click', () => {
+    const input = document.getElementById('echo-quick-input');
+    if (input) { input.value = 'Quiero ajustar: '; input.focus(); }
+  });
+  messages.appendChild(card);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function initEchoMode(savedConvId) {
+  const qSend = document.getElementById('echo-quick-send');
+  const qInput = document.getElementById('echo-quick-input');
+
+  if (qSend) qSend.onclick = echoQuickSubmit;
+  if (qInput) qInput.onkeydown = e => { if (e.key === 'Enter' && !echoWaiting) echoQuickSubmit(); };
+
+  // Hide discovery mode tabs — one chat only
   const qBtn = document.getElementById('echo-mode-quick-btn');
   const dBtn = document.getElementById('echo-mode-discovery-btn');
-  const qDiv = document.getElementById('echo-mode-quick');
   const dDiv = document.getElementById('echo-mode-discovery');
-  if (qBtn) qBtn.classList.toggle('active', mode === 'quick');
-  if (dBtn) dBtn.classList.toggle('active', mode === 'discovery');
-  if (qDiv) qDiv.style.display = mode === 'quick' ? '' : 'none';
-  if (dDiv) dDiv.style.display = mode === 'discovery' ? '' : 'none';
+  if (qBtn) qBtn.style.display = 'none';
+  if (dBtn) dBtn.style.display = 'none';
+  if (dDiv) dDiv.style.display = 'none';
+
+  echoWaiting = false;
+
+  const qMessages = document.getElementById('echo-quick-messages');
+
+  if (savedConvId) {
+    // Restore existing conversation — skip new session
+    echoConvId = savedConvId;
+    if (qMessages) qMessages.innerHTML = echoMsgHtml('echo', 'Conversación restaurada. Podés seguir desde donde estabas.');
+    if (qInput) { qInput.disabled = false; qInput.focus(); }
+    if (qSend) qSend.disabled = false;
+  } else {
+    echoConvId = null;
+    if (qMessages) qMessages.innerHTML = '';
+    startEchoSession();
+  }
+}
+
+async function startEchoSession() {
+  const messages = document.getElementById('echo-quick-messages');
+  const inp = document.getElementById('echo-quick-input');
+  const sendBtn = document.getElementById('echo-quick-send');
+  if (messages) messages.innerHTML = echoMsgHtml('echo', '…', true);
+  try {
+    const bid = flowsBusinessID();
+    // Load connected sources so Echo knows what APIs are already available
+    let connectedSources = [];
+    try {
+      const srcRes = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/api-connections`).then(r => r.json());
+      connectedSources = srcRes.success ? (srcRes.data || []) : [];
+    } catch {}
+    const contextPayload = connectedSources.length
+      ? { connected_sources: connectedSources.map(s => ({ name: s.name || s.base_url, base_url: s.base_url })) }
+      : {};
+    const res = await apiFetch(`${API_BASE}/conversations-single`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: 'Echo', framework: 'echo', business_id: bid, context: contextPayload })
+    }).then(r => r.json());
+    if (!res.success) throw new Error(res.error || 'sin respuesta');
+    echoConvId = res.data.conversation.id;
+    if (messages) messages.innerHTML = '';
+    const fq = res.data.first_question;
+    const rawText = fq ? (fq.content || fq.text || '') : '¿Qué tarea querés automatizar?';
+    const cleanText = stripJsonBlobs(rawText);
+    if (cleanText && messages) { messages.innerHTML = echoMsgHtml('echo', cleanText); messages.scrollTop = messages.scrollHeight; }
+    const fqProposal = (fq?.events || []).slice().reverse().find(ev => ev.type === 'configuration.proposal' && ev.payload);
+    if (fqProposal && messages) renderEchoProposalCard(fqProposal.payload, messages);
+    if (inp) { inp.disabled = false; inp.focus(); }
+    if (sendBtn) sendBtn.disabled = false;
+  } catch (e) {
+    if (messages) messages.innerHTML = echoMsgHtml('echo', `Error al iniciar: ${e.message}`);
+  }
 }
 
 async function echoQuickSubmit() {
+  if (echoWaiting || !echoConvId) return;
   const input = document.getElementById('echo-quick-input');
   const text = (input?.value || '').trim();
   if (!text) return;
+  input.value = '';
   const messages = document.getElementById('echo-quick-messages');
-  if (messages) {
-    messages.innerHTML += echoMsgHtml('user', text);
-    messages.innerHTML += echoMsgHtml('echo', 'Entendido. Estoy armando el flujo…', true);
-  }
-  if (input) { input.value = ''; input.disabled = true; }
+  if (messages) { messages.innerHTML += echoMsgHtml('user', text); messages.scrollTop = messages.scrollHeight; }
+
+  echoWaiting = true;
   const sendBtn = document.getElementById('echo-quick-send');
   if (sendBtn) sendBtn.disabled = true;
-  setBuilderTextFields(text, '', text, '');
-  saveBuilderStep(1);
-  // Update the right panel live — don't leave the chat
-  await updateBuilderRightPanel();
-  if (input) input.disabled = false;
-  if (sendBtn) sendBtn.disabled = false;
-}
+  if (input) input.disabled = true;
 
-async function echoDiscoverySubmit() {
-  const input = document.getElementById('echo-discovery-input');
-  const text = (input?.value || '').trim();
-  if (!text) return;
-  const messages = document.getElementById('echo-discovery-messages');
-  if (messages) messages.innerHTML += echoMsgHtml('user', text);
-  if (input) input.value = '';
-  echoState.discoveryAnswers.push(text);
-  echoState.discoveryStep++;
-  if (echoState.discoveryStep < ECHO_DISCOVERY_QUESTIONS.length) {
-    if (messages) {
-      messages.innerHTML += echoMsgHtml('echo', ECHO_DISCOVERY_QUESTIONS[echoState.discoveryStep]);
-      messages.scrollTop = messages.scrollHeight;
-    }
-  } else {
-    const inputRow = document.getElementById('echo-discovery-input-row');
-    const finishBtn = document.getElementById('echo-discovery-finish-btn');
-    if (inputRow) inputRow.style.display = 'none';
-    if (finishBtn) finishBtn.style.display = '';
-    if (messages) {
-      messages.innerHTML += echoMsgHtml('echo', 'Perfecto, ya entiendo el problema. Ahora le paso el contexto a Alfa para validar que tengamos la data necesaria.');
-      messages.scrollTop = messages.scrollHeight;
-    }
+  const typingId = 'echo-typing-' + Date.now();
+  if (messages) {
+    const t = document.createElement('div');
+    t.id = typingId;
+    t.innerHTML = echoMsgHtml('echo', '…', true);
+    messages.appendChild(t);
+    messages.scrollTop = messages.scrollHeight;
   }
-}
 
-async function echoDiscoveryFinish() {
-  const answers = echoState.discoveryAnswers;
-  const name = answers[0] || 'Automatización';
-  const desc = answers.join(' | ');
-  const success = answers[3] || '';
-  setBuilderTextFields(name, desc, name, success);
-  saveBuilderStep(1);
-  // Update right panel without leaving the chat view
-  await updateBuilderRightPanel();
+  try {
+    const res = await apiFetch(`${API_BASE}/conversations-single/${echoConvId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    }).then(r => r.json());
+
+    document.getElementById(typingId)?.remove();
+
+    if (res.success) {
+      const msg = res.data?.framework_message;
+      if (msg) {
+        // Show tool events
+        (msg.events || []).forEach(ev => {
+          if (ev.type === 'tool_execution_start' && messages)
+            messages.innerHTML += `<div class="inspector-event-msg">🔍 ${escapeHtml((ev.message || '').split(':')[0])}</div>`;
+          else if (ev.type === 'tool_execution_end' && messages)
+            messages.innerHTML += `<div class="inspector-event-msg">✓ ${escapeHtml((ev.message || '').split(':')[0])}</div>`;
+        });
+        const rawContent = msg.content || msg.text || '';
+        const cleanContent = stripJsonBlobs(rawContent);
+        if (cleanContent && messages) messages.innerHTML += echoMsgHtml('echo', cleanContent);
+        const evs = msg.events || [];
+        const proposalEv = evs.slice().reverse().find(ev => ev.type === 'configuration.proposal' && ev.payload);
+        const acceptedEv = evs.slice().reverse().find(ev => ev.type === 'configuration.accepted' && ev.payload);
+        if (proposalEv) {
+          renderEchoProposalCard(proposalEv.payload, messages);
+          // Update right panel name from Echo's proposal
+          const pName = proposalEv.payload?.title || proposalEv.payload?.name || '';
+          const pDesc = proposalEv.payload?.summary || proposalEv.payload?.description || '';
+          if (pName) {
+            const nameEl = document.getElementById('flows-builder-name');
+            if (nameEl) nameEl.value = pName;
+            flowsState.builder.name = pName;
+          }
+          if (pDesc) {
+            const descEl = document.getElementById('flows-builder-desc');
+            if (descEl) descEl.value = pDesc;
+            flowsState.builder.desc = pDesc;
+          }
+          if (pName || pDesc) {
+            renderFlowProposal();
+            // Auto-suggest frameworks in the background so they're ready when user clicks "Crear"
+            updateBuilderRightPanel().then(() => {
+              if (flowsState.builder.proposal) useSuggestedProposal();
+            }).catch(() => {});
+          }
+        }
+        if (acceptedEv) {
+          renderEchoAcceptedCard(acceptedEv.payload, messages);
+        } else if (!proposalEv && cleanContent && /flujo listo|podés verlo|puedes verlo|configuraci[oó]n lista/i.test(cleanContent)) {
+          // Echo said "done" without a formal accepted event — still show navigation
+          renderEchoAcceptedCard({ title: 'Flujo listo', summary: 'Podés continuar al siguiente paso o ver tus flujos.' }, messages);
+        }
+        if (messages) messages.scrollTop = messages.scrollHeight;
+      }
+    } else {
+      if (messages) messages.innerHTML += echoMsgHtml('echo', `Error: ${res.error || 'sin respuesta'}`);
+    }
+  } catch (e) {
+    document.getElementById(typingId)?.remove();
+    if (messages) messages.innerHTML += echoMsgHtml('echo', `Error: ${e.message}`);
+  }
+
+  echoWaiting = false;
+  if (sendBtn) sendBtn.disabled = false;
+  if (input) { input.disabled = false; input.focus(); }
+  if (messages) messages.scrollTop = messages.scrollHeight;
 }
 
 async function updateBuilderRightPanel() {
@@ -5161,9 +5409,11 @@ async function suggestCapabilitiesForFlow() {
     }).then(r => r.json());
     flowsState.builder.suggestions = res.success ? (res.data?.suggestions || []) : [];
     flowsState.builder.proposal = res.success ? (res.data?.proposal || null) : null;
+    flowsState.builder.gaps = res.success ? (res.data?.gaps || []) : [];
     if (status) status.textContent = flowsState.builder.suggestions.length
       ? `Sugerencias listas${res.data?.source === 'heuristic' ? ' (modo rápido)' : ' con IA'}. Puedes usar la propuesta del sistema o ajustar capacidades manualmente.`
       : 'No encontré sugerencias claras. Puedes elegir manualmente abajo.';
+    renderIntegrationGaps();
   } catch (err) {
     flowsState.builder.suggestions = [];
     flowsState.builder.proposal = null;
@@ -5171,6 +5421,28 @@ async function suggestCapabilitiesForFlow() {
   }
   renderFlowSuggestions();
   renderFlowProposal();
+}
+
+function renderIntegrationGaps() {
+  const gaps = flowsState.builder?.gaps || [];
+  // Insertar o actualizar el bloque de gaps arriba del panel de sugerencias
+  let el = document.getElementById('flows-integration-gaps');
+  if (!gaps.length) { if (el) el.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'flows-integration-gaps';
+    const suggestionsEl = document.getElementById('flows-suggestions-list');
+    if (suggestionsEl) suggestionsEl.parentNode.insertBefore(el, suggestionsEl);
+    else return;
+  }
+  el.innerHTML = gaps.map(g => `
+    <div style="margin:8px 0;padding:12px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:10px;">
+      <div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:4px;">⚠ Integración no disponible: ${escapeHtml(g.system)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">${escapeHtml(g.need)}</div>
+      ${g.alternatives?.length ? `<div style="font-size:11px;color:var(--text-dim);">Alternativa: ${escapeHtml(g.alternatives[0])}</div>` : ''}
+      ${g.can_proceed ? `<div style="font-size:11px;color:#16a34a;margin-top:4px;">✓ El flujo puede funcionar sin esta integración</div>` : `<div style="font-size:11px;color:#b45309;margin-top:4px;">Este flujo necesita esta integración para operar</div>`}
+    </div>
+  `).join('');
 }
 
 function renderFlowSuggestions() {
@@ -5430,25 +5702,32 @@ function renderBuilderSummary() {
 async function saveFlow() {
   const name = flowsState.builder.name;
   if (!name) { alert('El nombre es requerido.'); return; }
-  if (!flowsState.builder.nodes.length) { alert('Selecciona al menos una capacidad para el flujo.'); return; }
   const authoredManifest = buildAuthorialManifestFromBuilder();
   const manifest = authoredManifest;
   const bid = flowsBusinessID();
-  const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/flows`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, description: flowsState.builder.desc, manifest })
-  });
-  const json = await res.json();
-  if (json.success) {
-    await loadFlowsLibrary();
-    if (json.data && json.data.id) {
-      await openFlowDetail(json.data.id, 'design');
+  const saveBtn = document.getElementById('flows-builder-next');
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Guardando…'; }
+  try {
+    const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/flows`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: flowsState.builder.desc, manifest })
+    });
+    const json = await res.json();
+    if (json.success) {
+      await loadFlowsLibrary();
+      if (json.data?.id) {
+        await openFlowDetail(json.data.id, 'design');
+      } else {
+        showFlowsView('library');
+      }
     } else {
-      showFlowsView('library');
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Guardar flujo'; }
+      alert('Error al guardar: ' + (json.error || 'desconocido'));
     }
-  } else {
-    alert('Error al guardar: ' + (json.error || 'desconocido'));
+  } catch (e) {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Guardar flujo'; }
+    alert('Error: ' + e.message);
   }
 }
 
@@ -5968,15 +6247,22 @@ function renderFlowDetail() {
       <div class="flow-phase-badge ${badgeClass}">${badgeText}</div>
     </div>
   `;
-  html += renderFlowInstalledSummary(f, isExec);
-  html += renderFlowDerivationSummary(m);
-
-  // In design mode, show the topology (layered graph) instead of a linear list
-  if (!isExec) {
-    if (nodes.length) {
+  // In design mode with no nodes: show a friendly empty state instead of all the technical metadata
+  if (!isExec && nodes.length === 0) {
+    html += `
+      <div style="margin:24px 0;padding:28px 24px;background:rgba(37,99,235,0.04);border:1px dashed rgba(37,99,235,0.2);border-radius:12px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px;">\ud83d\uddc2\ufe0f</div>
+        <div style="font-weight:600;font-size:15px;color:var(--text);margin-bottom:6px;">${escapeHtml(f.name || 'Flujo')}</div>
+        ${f.description ? `<div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;max-width:380px;margin-left:auto;margin-right:auto;">${escapeHtml(f.description)}</div>` : ''}
+        <div style="font-size:13px;color:var(--text-muted);">Este flujo todav\u00eda no tiene pasos.<br>Us\u00e1 el bot\u00f3n <strong>Editar flujo</strong> para configurarlo.</div>
+      </div>
+    `;
+  } else {
+    html += renderFlowInstalledSummary(f, isExec);
+    html += renderFlowDerivationSummary(m);
+    // In design mode, show the topology (layered graph)
+    if (!isExec && nodes.length) {
       html += renderFlowTopology(nodes);
-    } else {
-      html += `<div class="composer-muted">Este flujo todav\u00eda no tiene pasos. Usa "Editar flujo" para agregarlos.</div>`;
     }
   }
 
@@ -8324,7 +8610,7 @@ function renderAuthState() {
     launcherLogoutBtn.style.display = 'inline-flex';
     launcherScreen.classList.remove('auth-locked');
     launcherAuthRequired.style.display = 'none';
-    if (!isRemoraStaff()) showBusinessWorkspace();
+    if (!isRemoraStaff()) { showBusinessWorkspace(); setTimeout(() => restoreModalState(), 50); }
     else businessFlowPanel.classList.remove('visible');
   } else if (authState.user) {
     authUserLabel.textContent = `${authState.user.email} · sin negocio`;

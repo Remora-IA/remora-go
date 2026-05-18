@@ -278,6 +278,12 @@
       "conversation"
     ]
   },
+  "semantic_rules": {
+    "use_when": ["corregir datos", "resolver brechas", "fix", "reparar datos", "completar datos faltantes"],
+    "never_without": ["auditor"],
+    "position": "pipeline",
+    "not_for": ["análisis de cobranzas", "enviar mensajes", "priorizar tareas", "cualquier flujo sin auditor previo"]
+  },
   "capabilities_semantic": {
     "tags": [
       "fix",

@@ -12,17 +12,20 @@ import (
 )
 
 type capabilityProviderInfo struct {
-	Capability  string   `json:"capability"`
-	Framework   string   `json:"framework"`
-	Command     string   `json:"command,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Inputs      []string `json:"inputs,omitempty"`
-	Outputs     []string `json:"outputs,omitempty"`
-	Requires    []string `json:"requires,omitempty"`
-	Produces    []string `json:"produces,omitempty"`
-	Execution   string   `json:"execution,omitempty"`
-	Policies    []string `json:"policies,omitempty"`
-	Source      string   `json:"source"`
+	Capability  string              `json:"capability"`
+	Framework   string              `json:"framework"`
+	Command     string              `json:"command,omitempty"`
+	Description string              `json:"description,omitempty"`
+	Inputs      []string            `json:"inputs,omitempty"`
+	Outputs     []string            `json:"outputs,omitempty"`
+	Requires    []string            `json:"requires,omitempty"`
+	Produces    []string            `json:"produces,omitempty"`
+	Execution   string              `json:"execution,omitempty"`
+	Policies    []string            `json:"policies,omitempty"`
+	Source      string              `json:"source"`
+	// SemanticRules propaga los datos de manifest.SemanticRules para
+	// que el heurístico y el gap detector los lean sin volver al manifest.
+	SemanticRules map[string][]string `json:"semantic_rules,omitempty"`
 }
 
 type capabilityRegistry map[string][]capabilityProviderInfo
@@ -574,19 +577,38 @@ func buildCapabilityRegistry(manifests map[string]*manifest.Manifest) capability
 		if m == nil {
 			continue
 		}
+		// Construir semantic_rules del manifest para propagarlas a cada capability
+		semanticRules := map[string][]string{}
+		if len(m.SemanticRules.UseWhen) > 0 {
+			semanticRules["use_when"] = m.SemanticRules.UseWhen
+		}
+		if len(m.SemanticRules.NeverWithout) > 0 {
+			semanticRules["never_without"] = m.SemanticRules.NeverWithout
+		}
+		if len(m.SemanticRules.NotFor) > 0 {
+			semanticRules["not_for"] = m.SemanticRules.NotFor
+		}
+		if m.SemanticRules.Position != "" {
+			semanticRules["position"] = []string{m.SemanticRules.Position}
+		}
+		if len(m.SemanticRules.CoversIntegrations) > 0 {
+			semanticRules["covers_integrations"] = m.SemanticRules.CoversIntegrations
+		}
+
 		for _, cap := range m.Capabilities {
 			info := capabilityProviderInfo{
-				Capability:  cap.ID,
-				Framework:   name,
-				Command:     cap.Command,
-				Description: cap.Description,
-				Inputs:      append([]string(nil), cap.Inputs...),
-				Outputs:     append([]string(nil), cap.Outputs...),
-				Requires:    append([]string(nil), cap.Requires...),
-				Produces:    append([]string(nil), cap.Produces...),
-				Execution:   cap.Execution,
-				Policies:    append([]string(nil), cap.Policies...),
-				Source:      "capabilities",
+				Capability:    cap.ID,
+				Framework:     name,
+				Command:       cap.Command,
+				Description:   cap.Description,
+				Inputs:        append([]string(nil), cap.Inputs...),
+				Outputs:       append([]string(nil), cap.Outputs...),
+				Requires:      append([]string(nil), cap.Requires...),
+				Produces:      append([]string(nil), cap.Produces...),
+				Execution:     cap.Execution,
+				Policies:      append([]string(nil), cap.Policies...),
+				Source:        "capabilities",
+				SemanticRules: semanticRules,
 			}
 			addCapabilityProvider(registry, cap.ID, info)
 			for _, produced := range cap.Produces {

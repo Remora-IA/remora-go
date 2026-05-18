@@ -128,6 +128,11 @@
       "conversation"
     ]
   },
+  "semantic_rules": {
+    "use_when": ["auditar", "calidad de datos", "duplicados", "errores en datos", "integridad de datos", "validar datos", "inconsistencias", "datos sucios", "revisar errores", "datos incorrectos"],
+    "position": "pipeline",
+    "not_for": ["análisis de cobranzas sin brechas de datos", "enviar mensajes", "priorizar tareas"]
+  },
   "capabilities_semantic": {
     "tags": [
       "audit",

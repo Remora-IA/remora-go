@@ -333,6 +333,12 @@
       "conversation"
     ]
   },
+  "semantic_rules": {
+    "use_when": ["consultar datos", "sql", "base de datos", "cuántos clientes", "qué registros", "vista 360", "contacto de cliente", "datos del negocio", "tablas", "información de"],
+    "position": "pipeline",
+    "not_for": ["enviar mensajes", "priorizar sin datos", "auditoría de calidad"],
+    "covers_integrations": ["sqlite", "timebilling"]
+  },
   "capabilities_semantic": {
     "tags": [
       "sqlite",

@@ -119,6 +119,12 @@
       "sent_*.jsonl"
     ]
   },
+  "semantic_rules": {
+    "use_when": ["enviar email", "enviar mensaje", "notificar", "reporte por correo", "smtp", "comunicar resultado", "mandar", "alertar", "enviar reporte"],
+    "position": "output",
+    "not_for": ["análisis de datos", "priorización", "corregir datos", "auditoría"],
+    "covers_integrations": ["smtp", "email"]
+  },
   "capabilities_semantic": {
     "tags": [
       "messaging",
