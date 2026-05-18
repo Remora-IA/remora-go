@@ -22,7 +22,16 @@ type flowSuggestRequest struct {
 	CapabilityHint string        `json:"capability_hint,omitempty"`
 	Intent         flowIntent    `json:"intent,omitempty"`
 	Lifecycle      flowLifecycle `json:"lifecycle,omitempty"`
-	ExistingFlow   []struct {
+	// Pipeline es la lista explícita de nodos que Echo decidió — framework + capability en orden.
+	// Si está presente, el backend los usa directamente sin heurístico ni inferencia.
+	// Echo es quien razona sobre qué usar; el backend solo lo materializa.
+	Pipeline []struct {
+		Framework  string `json:"framework"`
+		Capability string `json:"capability"`
+	} `json:"pipeline,omitempty"`
+	// Frameworks (legado, sin capability) — fallback si no hay Pipeline.
+	Frameworks []string `json:"frameworks,omitempty"`
+	ExistingFlow []struct {
 		Framework  string `json:"framework"`
 		Capability string `json:"capability"`
 	} `json:"existing_flow,omitempty"`
@@ -720,135 +729,103 @@ func filterDependencyRules(nodes []flowNode, manifests map[string]*manifest.Mani
 	return out
 }
 
-// canonicalDomain describe un dominio conocido con su pipeline canónico.
-// Cuando el texto del flujo coincide con las señales del dominio, se usa
-// este pipeline directamente — sin inferencia, sin heurístico, sin LLM.
-type canonicalDomain struct {
-	Signals  []string   // palabras clave que identifican el dominio
-	Pipeline []flowNode // pipeline canónico, en orden
-	Roles    []string   // roles semánticos del dominio (para el intent plan)
+// buildPipelineFromExplicitFrameworks construye el pipeline cuando Echo
+// ya decidió qué frameworks usar. Para cada framework elige la mejor
+// capability usando el heurístico restringido a ese framework.
+// Esto es determinista y no requiere ningún hardcoding por dominio.
+func buildPipelineFromExplicitFrameworks(frameworks []string, req flowSuggestRequest, intentPlan flowSuggestIntentPlan, caps []capabilityProviderInfo) []flowNode {
+	// Índice de caps por framework
+	byFW := map[string][]capabilityProviderInfo{}
+	for _, c := range caps {
+		byFW[c.Framework] = append(byFW[c.Framework], c)
+	}
+	nodes := []flowNode{}
+	for i, fw := range frameworks {
+		fwCaps := byFW[fw]
+		if len(fwCaps) == 0 {
+			continue // framework no existe en el catálogo — saltar silenciosamente
+		}
+		// Elegir la mejor capability de este framework para el contexto del flujo
+		best := selectBestCapabilityForFramework(fw, fwCaps, req, intentPlan)
+		if best.Capability == "" {
+			best = fwCaps[0] // fallback: primera capability del framework
+		}
+		nodes = append(nodes, flowNode{
+			ID:         fmt.Sprintf("node_%d_%s_%s", i+1, fw, flowSafeIDStr(best.Capability)),
+			Framework:  fw,
+			Capability: best.Capability,
+		})
+	}
+	return nodes
 }
 
-// canonicalDomains es la tabla de verdad del sistema.
-// Cada dominio define el pipeline completo y correcto para ese caso de uso.
-// Agregar un nuevo dominio = agregar una entrada aquí. Nada más cambia.
-//
-// Arquitectura de roles:
-//   Inspector  → ingesta de fuentes externas (se hace una vez, no entra en el pipeline diario)
-//   Sabio      → habla SQL, produce dataset.raw.v1 desde la DB ya poblada
-//   Auditor    → verifica calidad de datos (saldos faltantes, registros incompletos)
-//   Mecánico   → avisa al usuario si Auditor detecta brechas insalvables
-//   Radar      → analiza bajo configuración semántica del negocio (umbrales, criterios)
-//   Foco       → traduce el análisis en tareas concretas del día según contexto y eventos
-var canonicalDomains = []canonicalDomain{
-	{
-		// Cobranzas: pipeline completo de gestión de cartera.
-		// Sabio extrae, Auditor valida calidad, Mecánico alerta si falta data,
-		// Radar puntúa y prioriza, Foco define las tareas del día.
-		Signals: []string{
-			"cobranza", "cobro", "mora", "moroso", "deuda", "deudor",
-			"factura vencida", "cartera", "cobrador", "recupero", "impago",
-			"analizar cobranza", "análisis de cobranza", "gestión de cobro",
-		},
-		Pipeline: []flowNode{
-			{ID: "node_sabio_extract",   Framework: "sabio",   Capability: "data.query.sql"},
-			{ID: "node_auditor_quality", Framework: "auditor", Capability: "data.quality.audit"},
-			{ID: "node_mecanico_alert",  Framework: "mecanico", Capability: "message.draft.collection_email"},
-			{ID: "node_radar_priority",  Framework: "radar",   Capability: "collection.priority_list"},
-			{ID: "node_foco_task",       Framework: "foco",    Capability: "focus.next_collection_task"},
-		},
-		Roles: []string{"analizar", "validar", "priorizar"},
-	},
-	{
-		// Solo auditoría/calidad de datos (sin análisis de negocio posterior).
-		Signals: []string{
-			"calidad de dato", "duplicado", "dato incorrecto", "integridad",
-			"brecha de dato", "error en dato", "limpiar dato", "auditoría de datos",
-		},
-		Pipeline: []flowNode{
-			{ID: "node_auditor_quality", Framework: "auditor",  Capability: "data.quality.audit"},
-			{ID: "node_mecanico_fix",    Framework: "mecanico", Capability: "message.draft.collection_email"},
-		},
-		Roles: []string{"validar"},
-	},
-	{
-		// Envío de comunicaciones / notificaciones.
-		Signals: []string{
-			"enviar correo", "enviar email", "notificar por email",
-			"reporte por correo", "smtp", "notificación",
-		},
-		Pipeline: []flowNode{
-			{ID: "node_mensajero_send", Framework: "mensajero", Capability: "email.send"},
-		},
-		Roles: []string{"actuar"},
-	},
-	{
-		// Consulta de datos sin análisis posterior.
-		Signals: []string{
-			"consultar datos", "vista 360", "reporte sql", "query sql", "reporte de datos",
-		},
-		Pipeline: []flowNode{
-			{ID: "node_sabio_query", Framework: "sabio", Capability: "data.query.sql"},
-		},
-		Roles: []string{"analizar"},
-	},
-}
-
-// detectCanonicalDomain retorna el pipeline canónico si el texto del flujo
-// encaja con un dominio conocido. Prioriza el dominio con más señales coincidentes.
-func detectCanonicalDomain(text string) (canonicalDomain, bool) {
-	text = strings.ToLower(text)
-	bestMatch := canonicalDomain{}
-	bestCount := 0
-	for _, domain := range canonicalDomains {
-		count := 0
-		for _, signal := range domain.Signals {
-			if strings.Contains(text, strings.ToLower(signal)) {
-				count++
+// selectBestCapabilityForFramework elige la capability más relevante de un
+// framework dado el contexto del flujo. Usa scoring simple por tokens y roles.
+func selectBestCapabilityForFramework(fw string, fwCaps []capabilityProviderInfo, req flowSuggestRequest, plan flowSuggestIntentPlan) capabilityProviderInfo {
+	text := strings.ToLower(req.Name + " " + req.Description + " " + plan.Goal + " " + plan.Description)
+	best := capabilityProviderInfo{}
+	bestScore := -1
+	for _, c := range fwCaps {
+		hay := strings.ToLower(c.Framework + " " + c.Capability + " " + c.Description)
+		score := 0
+		// Token overlap con el texto del flujo
+		for _, token := range strings.FieldsFunc(text, func(r rune) bool { return r < 'a' || r > 'z' }) {
+			if len(token) >= 4 && strings.Contains(hay, token) {
+				score += 2
 			}
 		}
-		if count > bestCount {
-			bestCount = count
-			bestMatch = domain
+		// Bonus por use_when del manifest
+		if rules, ok := c.SemanticRules["use_when"]; ok {
+			for _, signal := range rules {
+				if strings.Contains(text, strings.ToLower(signal)) {
+					score += 5
+				}
+			}
+		}
+		// Penalizar capabilities deprecated o de configuración cuando hay alternativas
+		if strings.Contains(strings.ToLower(c.Capability), "configure") || strings.Contains(strings.ToLower(c.Capability), "semantic") {
+			score -= 3
+		}
+		if score > bestScore {
+			bestScore = score
+			best = c
 		}
 	}
-	return bestMatch, bestCount > 0
+	return best
 }
 
 func buildFlowSuggestionProposal(req flowSuggestRequest, suggestions []flowCapabilitySuggestion, manifests map[string]*manifest.Manifest, business businessArtifactsResponse) *flowSuggestionProposal {
 	intentPlan := composeFlowSuggestIntentPlan(req, business)
+	caps := dedupCapabilityInfos(buildCapabilityRegistry(manifests))
 
-	// 1. Intentar pipeline canónico primero (determinista, sin inferencia).
-	//    Si el dominio es conocido, usamos el pipeline exacto — punto final.
-	flowText := req.Name + " " + req.Description + " " + intentPlan.Goal + " " + intentPlan.Description
 	var nodes []flowNode
-	if domain, ok := detectCanonicalDomain(flowText); ok {
-		// Usar pipeline canónico directamente, sin heurístico ni role-binding
-		for i, n := range domain.Pipeline {
-			node := n
-			if node.ID == "" {
-				node.ID = fmt.Sprintf("node_%d_%s", i+1, flowSafeIDStr(node.Capability))
+
+	if len(req.Pipeline) > 0 {
+		// CAMINO 1a: Echo especificó framework+capability exactos.
+		// El backend solo valida que existan y los usa directamente — sin inferencia.
+		for i, p := range req.Pipeline {
+			if p.Framework == "" || p.Capability == "" {
+				continue
 			}
-			nodes = append(nodes, node)
-		}
-		// Sobreescribir roles del intent plan con los del dominio
-		intentPlan.Roles = make([]flowSuggestRolePlan, 0, len(domain.Roles))
-		for _, role := range domain.Roles {
-			intentPlan.Roles = append(intentPlan.Roles, flowSuggestRolePlan{
-				Role:      role,
-				Objective: objectiveForIntentRole(role, intentPlan.Goal, intentPlan.Description),
-				Reason:    "Dominio conocido: pipeline canónico aplicado.",
+			nodes = append(nodes, flowNode{
+				ID:         fmt.Sprintf("node_%d_%s_%s", i+1, p.Framework, flowSafeIDStr(p.Capability)),
+				Framework:  p.Framework,
+				Capability: p.Capability,
 			})
 		}
+	} else if len(req.Frameworks) > 0 {
+		// CAMINO 1b: Echo especificó solo frameworks (sin capability).
+		// El backend elige la mejor capability de cada uno por contexto.
+		nodes = buildPipelineFromExplicitFrameworks(req.Frameworks, req, intentPlan, caps)
 	} else {
-		// 2. Fallback: tomar top sugerencias del heurístico, una por framework.
-		//    Sin role-binding frágil — si el heurístico lo puntúa alto, entra.
+		// CAMINO 2: No hay frameworks explícitos — fallback al heurístico.
+		// Tomar top sugerencias, una capability por framework, sin role-binding frágil.
 		if len(suggestions) == 0 {
 			return nil
 		}
 		seenFW := map[string]bool{}
 		for _, s := range suggestions {
-			if len(nodes) >= 3 || seenFW[s.Framework] || s.Framework == "" || s.Capability == "" {
+			if len(nodes) >= 4 || seenFW[s.Framework] || s.Framework == "" || s.Capability == "" {
 				continue
 			}
 			seenFW[s.Framework] = true

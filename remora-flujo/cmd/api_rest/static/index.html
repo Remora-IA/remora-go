@@ -5155,9 +5155,14 @@ async function echoQuickSubmit() {
             if (descEl) descEl.value = pDesc;
             flowsState.builder.desc = pDesc;
           }
+          // Guardar pipeline que Echo propuso explícitamente (framework+capability en orden)
+          const echoPipeline = proposalEv.payload?.payload?.pipeline || [];
+          const echoFW = proposalEv.payload?.payload?.frameworks || proposalEv.payload?.frameworks || [];
+          if (echoPipeline.length) flowsState.builder.echoPipeline = echoPipeline;
+          else if (echoFW.length) flowsState.builder.echoFrameworks = echoFW;
           if (pName || pDesc) {
             renderFlowProposal();
-            // Auto-suggest frameworks in the background so they're ready when user clicks "Crear"
+            // Auto-suggest en background — pasa los frameworks de Echo si los hay
             updateBuilderRightPanel().then(() => {
               if (flowsState.builder.proposal) useSuggestedProposal();
             }).catch(() => {});
@@ -5404,7 +5409,11 @@ async function suggestCapabilitiesForFlow() {
         name: flowsState.builder.name,
         description: builderSuggestionDescription(),
         max: 6,
-        lifecycle: buildFlowLifecycleFromBuilder()
+        lifecycle: buildFlowLifecycleFromBuilder(),
+        // Si Echo propuso el pipeline explícitamente, pasarlo directamente.
+        // El backend lo usa sin inferir nada.
+        pipeline: flowsState.builder.echoPipeline || undefined,
+        frameworks: flowsState.builder.echoPipeline?.length ? undefined : (flowsState.builder.echoFrameworks || undefined)
       })
     }).then(r => r.json());
     flowsState.builder.suggestions = res.success ? (res.data?.suggestions || []) : [];
