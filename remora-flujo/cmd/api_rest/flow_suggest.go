@@ -720,17 +720,123 @@ func filterDependencyRules(nodes []flowNode, manifests map[string]*manifest.Mani
 	return out
 }
 
+// canonicalDomain describe un dominio conocido con su pipeline canónico.
+// Cuando el texto del flujo coincide con las señales del dominio, se usa
+// este pipeline directamente — sin inferencia, sin heurístico, sin LLM.
+type canonicalDomain struct {
+	Signals  []string   // palabras clave que identifican el dominio
+	Pipeline []flowNode // pipeline canónico, en orden
+	Roles    []string   // roles semánticos del dominio (para el intent plan)
+}
+
+// canonicalDomains es la tabla de verdad del sistema.
+// Agregar aquí un nuevo dominio es suficiente — nada más cambia.
+var canonicalDomains = []canonicalDomain{
+	{
+		Signals:  []string{"cobranza", "cobro", "mora", "moroso", "deuda", "deudor", "factura vencida", "cartera", "cobrador", "recupero", "impago"},
+		Pipeline: []flowNode{
+			{ID: "node_radar_priority", Framework: "radar", Capability: "collection.priority_list"},
+			{ID: "node_foco_task", Framework: "foco", Capability: "focus.next_collection_task"},
+		},
+		Roles: []string{"analizar", "priorizar"},
+	},
+	{
+		Signals:  []string{"calidad de dato", "duplicado", "dato incorrecto", "integridad", "brecha de dato", "error en dato", "limpiar dato"},
+		Pipeline: []flowNode{
+			{ID: "node_auditor_quality", Framework: "auditor", Capability: "data.quality.audit"},
+		},
+		Roles: []string{"validar"},
+	},
+	{
+		Signals:  []string{"enviar correo", "enviar email", "notificar por email", "reporte por correo", "smtp"},
+		Pipeline: []flowNode{
+			{ID: "node_mensajero_send", Framework: "mensajero", Capability: "email.send"},
+		},
+		Roles: []string{"actuar"},
+	},
+	{
+		Signals:  []string{"consultar datos", "vista 360", "reporte sql", "query sql", "reporte de datos"},
+		Pipeline: []flowNode{
+			{ID: "node_sabio_query", Framework: "sabio", Capability: "data.query.sql"},
+		},
+		Roles: []string{"analizar"},
+	},
+}
+
+// detectCanonicalDomain retorna el pipeline canónico si el texto del flujo
+// encaja con un dominio conocido. Prioriza el dominio con más señales coincidentes.
+func detectCanonicalDomain(text string) (canonicalDomain, bool) {
+	text = strings.ToLower(text)
+	bestMatch := canonicalDomain{}
+	bestCount := 0
+	for _, domain := range canonicalDomains {
+		count := 0
+		for _, signal := range domain.Signals {
+			if strings.Contains(text, strings.ToLower(signal)) {
+				count++
+			}
+		}
+		if count > bestCount {
+			bestCount = count
+			bestMatch = domain
+		}
+	}
+	return bestMatch, bestCount > 0
+}
+
 func buildFlowSuggestionProposal(req flowSuggestRequest, suggestions []flowCapabilitySuggestion, manifests map[string]*manifest.Manifest, business businessArtifactsResponse) *flowSuggestionProposal {
 	intentPlan := composeFlowSuggestIntentPlan(req, business)
-	if len(suggestions) == 0 {
-		return nil
+
+	// 1. Intentar pipeline canónico primero (determinista, sin inferencia).
+	//    Si el dominio es conocido, usamos el pipeline exacto — punto final.
+	flowText := req.Name + " " + req.Description + " " + intentPlan.Goal + " " + intentPlan.Description
+	var nodes []flowNode
+	if domain, ok := detectCanonicalDomain(flowText); ok {
+		// Usar pipeline canónico directamente, sin heurístico ni role-binding
+		for i, n := range domain.Pipeline {
+			node := n
+			if node.ID == "" {
+				node.ID = fmt.Sprintf("node_%d_%s", i+1, flowSafeIDStr(node.Capability))
+			}
+			nodes = append(nodes, node)
+		}
+		// Sobreescribir roles del intent plan con los del dominio
+		intentPlan.Roles = make([]flowSuggestRolePlan, 0, len(domain.Roles))
+		for _, role := range domain.Roles {
+			intentPlan.Roles = append(intentPlan.Roles, flowSuggestRolePlan{
+				Role:      role,
+				Objective: objectiveForIntentRole(role, intentPlan.Goal, intentPlan.Description),
+				Reason:    "Dominio conocido: pipeline canónico aplicado.",
+			})
+		}
+	} else {
+		// 2. Fallback: tomar top sugerencias del heurístico, una por framework.
+		//    Sin role-binding frágil — si el heurístico lo puntúa alto, entra.
+		if len(suggestions) == 0 {
+			return nil
+		}
+		seenFW := map[string]bool{}
+		for _, s := range suggestions {
+			if len(nodes) >= 3 || seenFW[s.Framework] || s.Framework == "" || s.Capability == "" {
+				continue
+			}
+			seenFW[s.Framework] = true
+			nodes = append(nodes, flowNode{
+				ID:         fmt.Sprintf("node_%d_%s", len(nodes)+1, flowSafeIDStr(s.Capability)),
+				Framework:  s.Framework,
+				Capability: s.Capability,
+			})
+		}
 	}
-	bindings := buildFlowSuggestionBindings(intentPlan, suggestions, manifests)
-	bindings = bindIntentPlanToSuggestions(intentPlan, bindings)
-	nodes := buildFlowNodesFromBindings(bindings)
+
 	nodes = filterDependencyRules(nodes, manifests)
 	if len(nodes) == 0 {
 		return nil
+	}
+
+	roles := flowSuggestRoleNames(intentPlan.Roles)
+	if len(roles) == 0 {
+		roles = []string{"analizar"}
 	}
 	manifest := flowManifest{
 		BusinessID: req.BusinessID,
@@ -739,7 +845,7 @@ func buildFlowSuggestionProposal(req flowSuggestRequest, suggestions []flowCapab
 			OperatorRole:    intentPlan.OperatorRole,
 			SuccessCriteria: intentPlan.SuccessCriteria,
 			Description:     intentPlan.Description,
-			Roles:           flowSuggestRoleNames(intentPlan.Roles),
+			Roles:           roles,
 			CapabilityHint:  intentPlan.CapabilityHint,
 		},
 		Lifecycle: req.Lifecycle,
@@ -749,7 +855,6 @@ func buildFlowSuggestionProposal(req flowSuggestRequest, suggestions []flowCapab
 	compilation := compileFlowManifest(manifest, manifests, business)
 	return &flowSuggestionProposal{
 		IntentPlan: intentPlan,
-		Bindings:   bindings,
 		Manifest:   compilation.Authored,
 		Derivation: compilation.Derivation,
 		Compiled:   compilation.Compiled,
