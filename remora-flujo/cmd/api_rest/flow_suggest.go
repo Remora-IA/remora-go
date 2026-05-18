@@ -730,32 +730,63 @@ type canonicalDomain struct {
 }
 
 // canonicalDomains es la tabla de verdad del sistema.
-// Agregar aquí un nuevo dominio es suficiente — nada más cambia.
+// Cada dominio define el pipeline completo y correcto para ese caso de uso.
+// Agregar un nuevo dominio = agregar una entrada aquí. Nada más cambia.
+//
+// Arquitectura de roles:
+//   Inspector  → ingesta de fuentes externas (se hace una vez, no entra en el pipeline diario)
+//   Sabio      → habla SQL, produce dataset.raw.v1 desde la DB ya poblada
+//   Auditor    → verifica calidad de datos (saldos faltantes, registros incompletos)
+//   Mecánico   → avisa al usuario si Auditor detecta brechas insalvables
+//   Radar      → analiza bajo configuración semántica del negocio (umbrales, criterios)
+//   Foco       → traduce el análisis en tareas concretas del día según contexto y eventos
 var canonicalDomains = []canonicalDomain{
 	{
-		Signals:  []string{"cobranza", "cobro", "mora", "moroso", "deuda", "deudor", "factura vencida", "cartera", "cobrador", "recupero", "impago"},
-		Pipeline: []flowNode{
-			{ID: "node_radar_priority", Framework: "radar", Capability: "collection.priority_list"},
-			{ID: "node_foco_task", Framework: "foco", Capability: "focus.next_collection_task"},
+		// Cobranzas: pipeline completo de gestión de cartera.
+		// Sabio extrae, Auditor valida calidad, Mecánico alerta si falta data,
+		// Radar puntúa y prioriza, Foco define las tareas del día.
+		Signals: []string{
+			"cobranza", "cobro", "mora", "moroso", "deuda", "deudor",
+			"factura vencida", "cartera", "cobrador", "recupero", "impago",
+			"analizar cobranza", "análisis de cobranza", "gestión de cobro",
 		},
-		Roles: []string{"analizar", "priorizar"},
+		Pipeline: []flowNode{
+			{ID: "node_sabio_extract",   Framework: "sabio",   Capability: "data.query.sql"},
+			{ID: "node_auditor_quality", Framework: "auditor", Capability: "data.quality.audit"},
+			{ID: "node_mecanico_alert",  Framework: "mecanico", Capability: "message.draft.collection_email"},
+			{ID: "node_radar_priority",  Framework: "radar",   Capability: "collection.priority_list"},
+			{ID: "node_foco_task",       Framework: "foco",    Capability: "focus.next_collection_task"},
+		},
+		Roles: []string{"analizar", "validar", "priorizar"},
 	},
 	{
-		Signals:  []string{"calidad de dato", "duplicado", "dato incorrecto", "integridad", "brecha de dato", "error en dato", "limpiar dato"},
+		// Solo auditoría/calidad de datos (sin análisis de negocio posterior).
+		Signals: []string{
+			"calidad de dato", "duplicado", "dato incorrecto", "integridad",
+			"brecha de dato", "error en dato", "limpiar dato", "auditoría de datos",
+		},
 		Pipeline: []flowNode{
-			{ID: "node_auditor_quality", Framework: "auditor", Capability: "data.quality.audit"},
+			{ID: "node_auditor_quality", Framework: "auditor",  Capability: "data.quality.audit"},
+			{ID: "node_mecanico_fix",    Framework: "mecanico", Capability: "message.draft.collection_email"},
 		},
 		Roles: []string{"validar"},
 	},
 	{
-		Signals:  []string{"enviar correo", "enviar email", "notificar por email", "reporte por correo", "smtp"},
+		// Envío de comunicaciones / notificaciones.
+		Signals: []string{
+			"enviar correo", "enviar email", "notificar por email",
+			"reporte por correo", "smtp", "notificación",
+		},
 		Pipeline: []flowNode{
 			{ID: "node_mensajero_send", Framework: "mensajero", Capability: "email.send"},
 		},
 		Roles: []string{"actuar"},
 	},
 	{
-		Signals:  []string{"consultar datos", "vista 360", "reporte sql", "query sql", "reporte de datos"},
+		// Consulta de datos sin análisis posterior.
+		Signals: []string{
+			"consultar datos", "vista 360", "reporte sql", "query sql", "reporte de datos",
+		},
 		Pipeline: []flowNode{
 			{ID: "node_sabio_query", Framework: "sabio", Capability: "data.query.sql"},
 		},
