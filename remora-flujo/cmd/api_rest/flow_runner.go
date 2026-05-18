@@ -10,13 +10,38 @@ import (
 )
 
 func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep flowStepCallback) flowRunResult {
-	prepareFlowManifestLifecycle(&req.Flow, s.allManifests)
-	runID := newFlowRunID(req.Flow.ID)
 	createdAt := time.Now().UTC()
-	var businessArtifacts []string
+	var business businessArtifactsResponse
 	if strings.TrimSpace(req.Flow.BusinessID) != "" {
-		businessArtifacts = s.businessArtifacts(req.Flow.BusinessID).Artifacts
+		business = s.businessArtifacts(req.Flow.BusinessID)
 	}
+	var compilation flowCompilation
+	if strings.TrimSpace(req.CompiledID) != "" {
+		record, err := s.loadCompiledRecord(req.CompiledID)
+		if err == nil {
+			compilation = flowCompilation{
+				Authored:   cloneFlowManifest(record.Authored),
+				Derivation: record.Derivation,
+				Compiled:   record.Compiled,
+			}
+			req.Flow = cloneFlowManifest(record.Compiled.Flow)
+			if strings.TrimSpace(req.Flow.BusinessID) == "" {
+				req.Flow.BusinessID = record.Authored.BusinessID
+			}
+			if !flowIntentDefined(req.Flow.Intent) {
+				req.Flow.Intent = record.Authored.Intent
+			}
+			if len(business.Artifacts) == 0 && strings.TrimSpace(record.Authored.BusinessID) != "" {
+				business = s.businessArtifacts(record.Authored.BusinessID)
+			}
+		}
+	}
+	if compilation.Compiled.ID == "" {
+		compilation = s.compileAndPersistFlowManifest(req.Flow, s.allManifests, business)
+		req.Flow = compilation.Compiled.Flow
+	}
+	runID := newFlowRunID(req.Flow.ID)
+	businessArtifacts := business.Artifacts
 	autoArtifacts := uniqueStrings(append(businessArtifacts, req.FixtureArtifacts...))
 	if flowIntentDefined(req.Flow.Intent) {
 		autoArtifacts = append(autoArtifacts, "flow.intent.v1")
@@ -30,6 +55,7 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 		RunID:             runID,
 		FlowID:            req.Flow.ID,
 		Status:            "completed",
+		CompiledID:        compilation.Compiled.ID,
 		Valid:             validation.Valid,
 		DryRun:            req.DryRun,
 		Approved:          req.Approved,
@@ -39,6 +65,7 @@ func (s *server) runFlowManifest(ctx context.Context, req flowRunRequest, onStep
 		BusinessArtifacts: sortedStringSlice(businessArtifacts),
 		ExecutionOrder:    make([]string, 0, len(nodeOrder)),
 		Artifacts:         map[string]flowRunArtifact{},
+		Derivation:        compilation.Derivation,
 		Validation:        validation,
 		Warnings:          validation.Warnings,
 		CreatedAt:         createdAt.Format(time.RFC3339Nano),
@@ -123,6 +150,26 @@ cycleStart:
 				ArtifactTypes:  []string{s.recordFlowInstallation(runID, node.ID, req.Flow.BusinessID, available, result.Artifacts)},
 				StartedAt:      time.Now().UTC().Format(time.RFC3339Nano),
 				FinishedAt:     time.Now().UTC().Format(time.RFC3339Nano),
+			}
+			emitStep("step_complete", step)
+			result.Timeline = append(result.Timeline, step)
+			continue
+		}
+		// Nodo condicional: run_if especifica un artifact que debe estar disponible.
+		// Si no está → skip limpio. Permite ramas condicionales (ej: Mecánico solo
+		// si Auditor produjo data.gaps.v1).
+		if node.RunIf != "" && !available[node.RunIf] {
+			result.ExecutionOrder = append(result.ExecutionOrder, node.ID+"_skip_condition")
+			step := flowRunStep{
+				Node:         node.ID,
+				Framework:    node.Framework,
+				Capability:   node.Capability,
+				Role:         node.Role,
+				CycleIndex:   cyclesDone,
+				Status:       "skipped",
+				HumanSummary: "Condición no cumplida: " + node.RunIf + " no está disponible. El nodo se saltea.",
+				StartedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+				FinishedAt:   time.Now().UTC().Format(time.RFC3339Nano),
 			}
 			emitStep("step_complete", step)
 			result.Timeline = append(result.Timeline, step)
@@ -479,6 +526,7 @@ cycleStart:
 	result.CyclesDone = cyclesDone
 	result.Timeline = normalizeFlowTimelineSegments(result.Timeline, result.Artifacts)
 	result.NeedsInput = normalizeFlowRequiredInputs(result.NeedsInput, result.Artifacts)
+	result.Handoffs = buildObservedFlowHandoffs(result.Timeline)
 	if result.Status == "completed" {
 		s.recordFlowReadiness(runID, "flow", true, nil, available, result.Artifacts)
 	}

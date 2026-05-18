@@ -3772,6 +3772,7 @@ function normalizeBuilderNodes(nodes) {
       capability: n.capability
     };
     if (n.role) node.role = n.role;
+    if (n.run_if) node.run_if = n.run_if;
     return node;
   }).filter(n => n.framework && n.capability);
 }
@@ -4563,6 +4564,7 @@ function buildAuthorialNodesFromBuilder() {
       capability: n.capability
     };
     if (n.role) node.role = n.role;
+    if (n.run_if) node.run_if = n.run_if;
     return node;
   });
 }

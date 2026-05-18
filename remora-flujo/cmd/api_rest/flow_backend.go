@@ -76,6 +76,11 @@ type flowNode struct {
 	Requires   []string          `json:"requires,omitempty"`
 	Produces   []string          `json:"produces,omitempty"`
 	Policies   []string          `json:"policies,omitempty"`
+	// RunIf es un artifact que debe estar disponible para que este nodo ejecute.
+	// Si el artifact no está presente en el momento de ejecución, el nodo se saltea
+	// con status "skipped" sin error. Permite ramas condicionales sin cambiar el grafo.
+	// Ejemplo: "data.gaps.v1" → el nodo solo corre si Auditor encontró brechas.
+	RunIf string `json:"run_if,omitempty"`
 }
 
 type flowEdge struct {

@@ -28,6 +28,7 @@ type flowSuggestRequest struct {
 	Pipeline []struct {
 		Framework  string `json:"framework"`
 		Capability string `json:"capability"`
+		RunIf      string `json:"run_if,omitempty"`
 	} `json:"pipeline,omitempty"`
 	// Frameworks (legado, sin capability) — fallback si no hay Pipeline.
 	Frameworks []string `json:"frameworks,omitempty"`
@@ -811,6 +812,7 @@ func buildFlowSuggestionProposal(req flowSuggestRequest, suggestions []flowCapab
 				ID:         fmt.Sprintf("node_%d_%s_%s", i+1, p.Framework, flowSafeIDStr(p.Capability)),
 				Framework:  p.Framework,
 				Capability: p.Capability,
+				RunIf:      p.RunIf,
 			})
 		}
 	} else if len(req.Frameworks) > 0 {
