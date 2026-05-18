@@ -275,6 +275,9 @@ func inferUniversalRoleForNode(node flowNode, manifests map[string]*manifest.Man
 	}
 	key := strings.ToLower(strings.Join(fields, " "))
 	switch {
+	// foco primero — sus contratos contienen "state"/"record" y caerían mal en "registrar"
+	case strings.Contains(key, "foco") || (strings.Contains(key, "focus") && strings.Contains(key, "next")):
+		return "priorizar"
 	case strings.Contains(key, "draft"):
 		return "redactar"
 	case strings.Contains(key, "audit") || strings.Contains(key, "validate") || strings.Contains(key, "quality"):
@@ -283,9 +286,6 @@ func inferUniversalRoleForNode(node flowNode, manifests map[string]*manifest.Man
 		return "actuar"
 	case strings.Contains(key, "ledger") || strings.Contains(key, "state") || strings.Contains(key, "record"):
 		return "registrar"
-	// foco → priorizar (antes de analizar, para que no colisione con radar/sabio)
-	case strings.Contains(key, "foco") || (strings.Contains(key, "focus") && strings.Contains(key, "next")):
-		return "priorizar"
 	case strings.Contains(key, "query") || strings.Contains(key, "analysis") || strings.Contains(key, "priority") || strings.Contains(key, "entity_360"):
 		return "analizar"
 	case strings.Contains(key, "lookup") || strings.Contains(key, "dataset") || strings.Contains(key, "read"):
