@@ -26,6 +26,8 @@ type capabilityProviderInfo struct {
 	// SemanticRules propaga los datos de manifest.SemanticRules para
 	// que el heurístico y el gap detector los lean sin volver al manifest.
 	SemanticRules map[string][]string `json:"semantic_rules,omitempty"`
+	// InteractionMode refleja manifest.InteractionMode: "conversational", "background" o "data_service".
+	InteractionMode string `json:"interaction_mode,omitempty"`
 }
 
 type capabilityRegistry map[string][]capabilityProviderInfo
@@ -602,18 +604,19 @@ func buildCapabilityRegistry(manifests map[string]*manifest.Manifest) capability
 
 		for _, cap := range m.Capabilities {
 			info := capabilityProviderInfo{
-				Capability:    cap.ID,
-				Framework:     name,
-				Command:       cap.Command,
-				Description:   cap.Description,
-				Inputs:        append([]string(nil), cap.Inputs...),
-				Outputs:       append([]string(nil), cap.Outputs...),
-				Requires:      append([]string(nil), cap.Requires...),
-				Produces:      append([]string(nil), cap.Produces...),
-				Execution:     cap.Execution,
-				Policies:      append([]string(nil), cap.Policies...),
-				Source:        "capabilities",
-				SemanticRules: semanticRules,
+				Capability:      cap.ID,
+				Framework:       name,
+				Command:         cap.Command,
+				Description:     cap.Description,
+				Inputs:          append([]string(nil), cap.Inputs...),
+				Outputs:         append([]string(nil), cap.Outputs...),
+				Requires:        append([]string(nil), cap.Requires...),
+				Produces:        append([]string(nil), cap.Produces...),
+				Execution:       cap.Execution,
+				Policies:        append([]string(nil), cap.Policies...),
+				Source:          "capabilities",
+				SemanticRules:   semanticRules,
+				InteractionMode: m.InteractionMode,
 			}
 			addCapabilityProvider(registry, cap.ID, info)
 			for _, produced := range cap.Produces {

@@ -53,6 +53,13 @@ type Manifest struct {
 	// SemanticRules declara reglas machine-readable para el planner de flujos.
 	// Permite que el suggest engine razone correctamente sin hardcoding por dominio.
 	SemanticRules SemanticRules `json:"semantic_rules,omitempty"`
+
+	// InteractionMode declara cómo el framework se relaciona con el usuario final.
+	//   - "conversational"  puede hablar directamente con el usuario (Foco, Mecánico, Radar)
+	//   - "background"      opera en segundo plano, sin interacción directa (Auditor)
+	//   - "data_service"    solo extrae/consulta datos, no analiza ni conversa (Sabio)
+	// Si está vacío se asume "conversational" por compatibilidad.
+	InteractionMode string `json:"interaction_mode,omitempty"`
 }
 
 type AgentSpec struct {

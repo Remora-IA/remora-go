@@ -3482,6 +3482,32 @@ function frameworkGlow(name) {
   return `hsla(${hue}, 72%, 58%, 0.28)`;
 }
 
+// frameworkInteractionMode devuelve el modo de interacción de un framework
+// basado en los caps cargados desde el manifest.
+// "conversational" → habla con el usuario · "background" → segundo plano · "data_service" → solo extrae datos
+function frameworkInteractionMode(name) {
+  const key = frameworkType(name);
+  const cap = (flowsState.caps || []).find(c => frameworkType(c.framework) === key);
+  return cap?.interaction_mode || 'conversational';
+}
+
+const interactionModeLabel = {
+  conversational: 'Conversa',
+  background:     'Background',
+  data_service:   'Data'
+};
+const interactionModeBadgeStyle = {
+  conversational: 'background:#16a34a22;color:#16a34a;border:1px solid #16a34a44;',
+  background:     'background:#ca8a0422;color:#ca8a04;border:1px solid #ca8a0444;',
+  data_service:   'background:#2563eb22;color:#2563eb;border:1px solid #2563eb44;'
+};
+function interactionModeBadge(frameworkName) {
+  const mode = frameworkInteractionMode(frameworkName);
+  const label = interactionModeLabel[mode] || mode;
+  const style = interactionModeBadgeStyle[mode] || '';
+  return `<span style="font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600;${style}">${label}</span>`;
+}
+
 let selectedFlow = null;
 let activeNodes = []; // { id, name, type }
 let currentConvId = null;
@@ -4313,7 +4339,8 @@ async function loadCapabilities() {
           produces: info.produces || [],
           requires: info.requires || [],
           policies: info.policies || [],
-          execution: info.execution || ''
+          execution: info.execution || '',
+          interaction_mode: info.interaction_mode || ''
         });
       }
     });
@@ -5471,7 +5498,7 @@ function renderFlowSuggestions() {
       <div class="flows-suggestion-top">
         <div>
           <div class="flows-suggestion-title">${escapeHtml(s.title || humanCapTitle({ id: s.capability, framework: s.framework }))}</div>
-          <div class="flows-suggestion-meta">${escapeHtml(s.framework)} · ${escapeHtml(s.capability)}</div>
+          <div class="flows-suggestion-meta" style="display:flex;gap:6px;align-items:center;">${escapeHtml(s.framework)} · ${escapeHtml(s.capability)} ${interactionModeBadge(s.framework)}</div>
         </div>
         <span class="${selected.has(key) ? 'flows-selected-badge' : 'flows-category-badge'}">${selected.has(key) ? 'Seleccionada' : escapeHtml(s.category || 'Sugerida')}</span>
       </div>
@@ -5566,9 +5593,10 @@ function renderFlowProposal() {
         const color = colors[fw] || 'var(--text-dim)';
         return `
           <div style="display:flex;align-items:center;gap:6px;">
-            <div style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;color:var(--text);line-height:1.2;">
+            <div style="padding:7px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;color:var(--text);line-height:1.2;display:flex;align-items:center;gap:6px;">
               ${escapeHtml(humanCapTitle({ id: n.capability, framework: n.framework }))}
-              <span style="font-size:11px;font-weight:400;color:${color};margin-left:5px;">${escapeHtml(n.framework)}</span>
+              <span style="font-size:11px;font-weight:400;color:${color};">${escapeHtml(n.framework)}</span>
+              ${interactionModeBadge(n.framework)}
             </div>
             ${i < displayNodes.length - 1 ? `<span style="color:var(--text-dim);font-size:14px;">→</span>` : ''}
           </div>`;

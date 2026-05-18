@@ -346,5 +346,6 @@
         "no_silent_fallback"
       ]
     }
-  ]
+  ],
+  "interaction_mode": "conversational"
 }

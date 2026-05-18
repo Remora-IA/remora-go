@@ -695,5 +695,6 @@
         "safe_for_runtime"
       ]
     }
-  ]
+  ],
+  "interaction_mode": "data_service"
 }

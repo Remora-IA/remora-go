@@ -179,5 +179,6 @@
         "safe_for_runtime"
       ]
     }
-  ]
+  ],
+  "interaction_mode": "background"
 }

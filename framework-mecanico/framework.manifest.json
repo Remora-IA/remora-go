@@ -475,5 +475,6 @@
         "trace_required"
       ]
     }
-  ]
+  ],
+  "interaction_mode": "conversational"
 }

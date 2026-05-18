@@ -204,5 +204,6 @@
         "audit_log_required"
       ]
     }
-  ]
+  ],
+  "interaction_mode": "conversational"
 }
