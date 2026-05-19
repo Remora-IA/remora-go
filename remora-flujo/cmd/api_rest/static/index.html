@@ -6135,13 +6135,9 @@ function renderFlowTopology(nodes) {
     edgeData.push({ from: fwId(fw), to: userId, label: '' });
   }
 
-  // Framework edges
+  // Framework edges (sin label — la topología es visual, los detalles van en el panel)
   for (const e of topo.edges) {
-    edgeData.push({
-      from: fwId(e.from),
-      to: fwId(e.to),
-      label: e.artifacts.slice(0, 2).map(artifactLabel).join(', ')
-    });
+    edgeData.push({ from: fwId(e.from), to: fwId(e.to), label: '' });
   }
 
   const dagId = 'flow-dag-' + Date.now();
