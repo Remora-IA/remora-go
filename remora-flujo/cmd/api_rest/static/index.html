@@ -3482,13 +3482,20 @@ function frameworkGlow(name) {
   return `hsla(${hue}, 72%, 58%, 0.28)`;
 }
 
-// frameworkInteractionMode devuelve el modo de interacción de un framework
-// basado en los caps cargados desde el manifest.
+// frameworkInteractionMode devuelve el modo de interacción de un framework.
+// Lee de discoveredFrameworks (manifest completo) → caps cargados → fallback por nombre.
 // "conversational" → habla con el usuario · "background" → segundo plano · "data_service" → solo extrae datos
 function frameworkInteractionMode(name) {
   const key = frameworkType(name);
+  // 1. Manifest completo (discoveredFrameworks es la fuente más confiable)
+  const fw = discoveredFrameworks.find(f => frameworkType(f.name) === key);
+  if (fw?.interaction_mode) return fw.interaction_mode;
+  // 2. Caps cargados por /capabilities
   const cap = (flowsState.caps || []).find(c => frameworkType(c.framework) === key);
-  return cap?.interaction_mode || 'conversational';
+  if (cap?.interaction_mode) return cap.interaction_mode;
+  // 3. Fallback conservador por nombre de framework conocido
+  const known = { sabio: 'data_service', auditor: 'background', inspector: 'data_service' };
+  return known[key] || 'conversational';
 }
 
 const interactionModeLabel = {
