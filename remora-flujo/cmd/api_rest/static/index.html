@@ -5978,20 +5978,34 @@ function computeFlowTopology(nodes) {
       }
     }
   }
-  const dataProvider = capabilityProviderName('dataset.export');
-  const auditProvider = capabilityProviderName('data.quality.audit');
-  const fixProvider = capabilityProviderName('action.fix.propose_all_auto') || capabilityProviderName('action.fix.resolve_gaps_conversational');
+  // 3b. Edges implícitos por interaction_mode — arquitectura de capas.
+  //   data_service → background: la capa de datos valida a través de background.
+  //   background → conversational: datos validados llegan a quienes hablan con el usuario.
+  //   conversational ↔ data_service: los nodos conversacionales pueden consultar datos directamente.
+  //   Esto modela la arquitectura real del flujo sin hardcodear nombres de frameworks.
   const frameworksInTopology = new Set(nodes.map(n => n.framework));
-  if (dataProvider && auditProvider && frameworksInTopology.has(dataProvider) && frameworksInTopology.has(auditProvider)) {
-    ensureEdge(dataProvider, auditProvider, 'dataset validado');
-    for (const n of nodes) {
-      if (n.framework !== auditProvider && n.framework !== dataProvider && flowNodeConsumesBusinessData(n)) {
-        ensureEdge(auditProvider, n.framework, 'datos validados');
-      }
-    }
-    if (fixProvider && frameworksInTopology.has(fixProvider)) {
-      ensureEdge(auditProvider, fixProvider, 'brechas de datos');
-    }
+  const fwsByMode = { data_service: [], background: [], conversational: [] };
+  for (const fw of frameworksInTopology) {
+    const mode = frameworkInteractionMode(fw);
+    if (fwsByMode[mode]) fwsByMode[mode].push(fw);
+    else fwsByMode.conversational.push(fw);
+  }
+  // data_service → background
+  for (const ds of fwsByMode.data_service) {
+    for (const bg of fwsByMode.background) ensureEdge(ds, bg, 'datos');
+  }
+  // background → conversational
+  for (const bg of fwsByMode.background) {
+    for (const cv of fwsByMode.conversational) ensureEdge(bg, cv, 'datos validados');
+  }
+  // conversational → data_service (consulta directa — línea punteada conceptual)
+  for (const cv of fwsByMode.conversational) {
+    for (const ds of fwsByMode.data_service) ensureEdge(cv, ds, 'consulta');
+  }
+  // También conservar el fixProvider legacy
+  const fixProvider = capabilityProviderName('action.fix.propose_all_auto') || capabilityProviderName('action.fix.resolve_gaps_conversational');
+  if (fixProvider && frameworksInTopology.has(fixProvider)) {
+    for (const bg of fwsByMode.background) ensureEdge(bg, fixProvider, 'brechas de datos');
   }
 
   // 4. Group frameworks by interaction_mode (data_service → background → conversational)
