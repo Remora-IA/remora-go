@@ -5987,36 +5987,18 @@ function computeFlowTopology(nodes) {
     }
   }
 
-  // 4. Topological sort into tiers (frameworks in same tier have no dependency between them)
+  // 4. Group frameworks by interaction_mode (data_service → background → conversational)
+  //    This produces the layered view the user sees: Sabio arriba, Auditor en el medio,
+  //    Foco/Mecánico/Radar abajo (cerca del usuario). Usuario va al fondo.
   const frameworks = [...new Set(nodes.map(n => n.framework))];
-  const inDeg = Object.fromEntries(frameworks.map(f => [f, 0]));
-  const adj = Object.fromEntries(frameworks.map(f => [f, new Set()]));
-  for (const e of edges) {
-    if (adj[e.from] && inDeg[e.to] !== undefined) {
-      if (!adj[e.from].has(e.to)) { adj[e.from].add(e.to); inDeg[e.to]++; }
-    }
+  const modeOrder = ['data_service', 'background', 'conversational'];
+  const fwByMode = { data_service: [], background: [], conversational: [] };
+  for (const fw of frameworks) {
+    const mode = frameworkInteractionMode(fw);
+    if (fwByMode[mode]) fwByMode[mode].push(fw);
+    else fwByMode['conversational'].push(fw); // fallback
   }
-  const tiers = [];
-  const visited = new Set();
-  let ready = frameworks.filter(f => inDeg[f] === 0);
-  while (ready.length) {
-    tiers.push([...ready]);
-    const next = [];
-    for (const f of ready) {
-      visited.add(f);
-      for (const to of adj[f]) {
-        inDeg[to]--;
-        if (inDeg[to] === 0 && !visited.has(to)) next.push(to);
-      }
-    }
-    ready = [...new Set(next)];
-  }
-  for (const f of frameworks) {
-    if (!visited.has(f)) {
-      if (!tiers.length) tiers.push([]);
-      tiers[tiers.length - 1].push(f);
-    }
-  }
+  const tiers = modeOrder.filter(m => fwByMode[m].length).map(m => fwByMode[m]);
 
   // 5. Build per-framework metadata
   const fwMeta = {};
@@ -6078,24 +6060,24 @@ function renderFlowTopology(nodes) {
     for (const fw of topo.tiers[0]) userFacing.add(fw);
   }
 
-  // Render bubble nodes per tier, with User node at the top
+  // Render tiers top→bottom: data_service / background / conversational / Usuario
+  const tierLabels = {
+    data_service:   { label: '3era Categoría · Data', color: '#2563eb' },
+    background:     { label: '2da Categoría · Background', color: '#ca8a04' },
+    conversational: { label: '1era Categoría · Conversa con el usuario', color: '#16a34a' }
+  };
+  const modeForTier = ['data_service', 'background', 'conversational'];
   let tiersHtml = '';
 
-  // User node as tier 0
-  tiersHtml += `<div class="flow-dag-tier">
-    <div class="flow-dag-node l-user" id="${userId}">
-      <div class="flow-dag-bubble"><div class="flow-dag-bubble-ring"></div>U</div>
-      <div class="flow-dag-node-label">Usuario</div>
-      <div class="flow-dag-node-sub">Inicia y aprueba</div>
-    </div>
-  </div>`;
-
   topo.tiers.forEach((tier, tIdx) => {
-    tiersHtml += '<div class="flow-dag-tier">';
+    const mode = modeForTier[tIdx] || 'conversational';
+    const tierLabel = tierLabels[mode] || tierLabels.conversational;
+    tiersHtml += `<div style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px;">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:${tierLabel.color};opacity:0.7;">${tierLabel.label}</div>
+      <div class="flow-dag-tier">`;
     for (const fw of tier) {
       const meta = topo.fwMeta[fw];
       const layer = meta.layer;
-      // Show each capability name, max 2 lines
       const capsLines = meta.caps.slice(0, 2);
       const capsExtra = meta.caps.length > 2 ? ' +' + (meta.caps.length - 2) : '';
       const capsText = capsLines.join(', ') + capsExtra;
@@ -6109,15 +6091,27 @@ function renderFlowTopology(nodes) {
         <div class="flow-dag-node-sub">${escapeHtml(capsText)}</div>
       </div>`;
     }
-    tiersHtml += '</div>';
+    tiersHtml += `</div></div>`;
   });
 
-  // Build edge data: framework-to-framework edges + user-to-entry edges
+  // Usuario al fondo (recibe output de los nodos conversacionales)
+  tiersHtml += `<div style="display:flex;flex-direction:column;align-items:center;width:100%;gap:8px;">
+    <div class="flow-dag-tier">
+      <div class="flow-dag-node l-user" id="${userId}">
+        <div class="flow-dag-bubble"><div class="flow-dag-bubble-ring"></div>U</div>
+        <div class="flow-dag-node-label">Usuario</div>
+        <div class="flow-dag-node-sub">Recibe y aprueba</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Build edge data: framework-to-framework edges + conversational→user edges
   const edgeData = [];
 
-  // User → first-tier user-facing frameworks
-  for (const fw of userFacing) {
-    edgeData.push({ from: userId, to: fwId(fw), label: '' });
+  // Conversational frameworks → User (al fondo)
+  const conversationalFws = topo.tiers.find((_, i) => modeForTier[i] === 'conversational') || topo.tiers[topo.tiers.length - 1] || [];
+  for (const fw of conversationalFws) {
+    edgeData.push({ from: fwId(fw), to: userId, label: '' });
   }
 
   // Framework edges
