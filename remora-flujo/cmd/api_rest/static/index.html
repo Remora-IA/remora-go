@@ -2416,6 +2416,24 @@
     .flow-semantic-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface); }
     .flow-semantic-card.intent { border-color: rgba(37,99,235,0.18); background: rgba(37,99,235,0.06); }
     .flow-semantic-card.work { border-color: rgba(217,119,6,0.20); background: rgba(217,119,6,0.06); }
+    .flow-chat-test { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--surface); margin-top: 12px; }
+    .flow-chat-test-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+    .flow-chat-test-back { font-size: 13px; color: var(--text-muted); cursor: pointer; border: 1px solid var(--border); background: var(--surface); padding: 4px 10px; border-radius: 6px; }
+    .flow-chat-test-back:hover { background: var(--surface2); color: var(--text); }
+    .flow-chat-test-title { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+    .flow-chat-test-badge { font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); background: rgba(37,99,235,0.10); border: 1px solid rgba(37,99,235,0.16); border-radius: 999px; padding: 4px 8px; }
+    .flow-chat-test-messages { display: grid; gap: 10px; padding: 16px; max-height: 360px; overflow-y: auto; min-height: 80px; }
+    .flow-chat-test-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+    .flow-chat-test-chip { font-size: 13px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); cursor: pointer; color: var(--text); }
+    .flow-chat-test-chip:hover { background: var(--surface2); border-color: var(--border-hover); }
+    .flow-chat-test-input-row { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--surface2); }
+    .flow-chat-test-input { flex: 1; border: 1px solid var(--border); border-radius: 10px; padding: 9px 14px; font-size: 14px; background: var(--surface); color: var(--text); outline: none; font-family: inherit; }
+    .flow-chat-test-input:focus { border-color: var(--accent); }
+    .flow-chat-test-send { border: none; background: var(--send-bg); color: var(--send-icon); border-radius: 10px; padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .flow-chat-test-send:disabled { opacity: 0.4; cursor: default; }
+    .flow-chat-test-thinking { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-muted); }
+    .flow-chat-test-safe-banner { font-size: 12px; font-weight: 600; color: #16a34a; background: rgba(22,163,74,0.08); border-bottom: 1px solid rgba(22,163,74,0.15); padding: 7px 16px; letter-spacing: 0.01em; }
+    .flows-action-group-label { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); padding: 4px 2px 2px; }
     .flow-semantic-card.cycle { border-color: rgba(22,163,74,0.22); background: rgba(22,163,74,0.07); }
     .flow-semantic-label { font-size: 10px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
     .flow-semantic-value { font-size: 14px; font-weight: 750; color: var(--text); line-height: 1.35; }
@@ -5797,16 +5815,8 @@ function executionFlowActions(selectedFlow) {
 function renderFlowDetailFooter() {
   const mode = flowsState.detailMode || 'design';
   if (mode === 'execution') {
-    const actions = executionFlowActions(flowsState.selectedFlow);
-    flowsFooter.innerHTML = `
-      <button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>
-      ${actions.map(action => `<button class="modal-btn confirm" id="${action.id}">${action.label}</button>`).join('')}
-    `;
+    flowsFooter.innerHTML = `<button class="modal-btn cancel" id="flows-detail-back">&larr; Volver</button>`;
     document.getElementById('flows-detail-back').addEventListener('click', () => { showFlowsView('execution'); renderFlowsExecution(); });
-    actions.forEach(action => {
-      const el = document.getElementById(action.id);
-      if (el) el.addEventListener('click', action.onclick);
-    });
     return;
   }
   flowsFooter.innerHTML = `
@@ -6317,49 +6327,31 @@ function renderFlowDetail() {
   }
 
   // In execution mode, show action cards or loading indicator
-  if (isExec && !d.streamingEl && !d.runResult) {
+  if (d.chatTest) {
+    html += renderFlowChatTestHtml(d.chatTest);
+  } else if (isExec && !d.streamingEl && !d.runResult) {
     if (d.runLoading) {
       html += `<div class="flow-loading">
         <div class="flow-loading-spinner"></div>
         <div class="flow-loading-text">Ejecutando operaci\u00f3n... los frameworks est\u00e1n trabajando</div>
       </div>`;
     } else {
-      const install = (m.derivation || {}).install || {};
-      const installed = Boolean((f.installed || {}).installed);
-      const installCard = install.requires_install
-        ? `<div class="flows-action-card-v2" onclick="${installed ? 'reconfigureCurrentFlow()' : 'installCurrentFlow()'}">
-            <div class="flows-action-icon">${installed ? '&#9881;' : '&#11015;'}</div>
-            <div class="flows-action-text">
-              <div class="flows-action-inline-title">${installed ? 'Reconfigurar instalación' : 'Instalar'}</div>
-              <div class="flows-action-inline-desc">${installed ? 'Vuelve a preparar dependencias y configuración derivada sin editar la autoría del flujo.' : 'Prepara dependencias, schema y configuración para que el flujo quede listo para operar.'}</div>
-            </div>
-            <div class="flows-action-arrow">&rsaquo;</div>
-          </div>`
-        : '';
       html += renderFlowExecutionTopology(m, d.runResult);
       html += `<div class="flows-action-grid">
-        ${installCard}
+        <div class="flows-action-group-label">¿Cómo querés probar?</div>
         <div class="flows-action-card-v2 primary" onclick="document.getElementById('flows-detail-dryrun').click()">
           <div class="flows-action-icon">&#9654;</div>
           <div class="flows-action-text">
-            <div class="flows-action-inline-title">Probar</div>
-            <div class="flows-action-inline-desc">Ejecuta el flujo completo con datos reales, pero en modo seguro. Los emails se redirigen al correo de prueba y los side effects quedan contenidos.</div>
+            <div class="flows-action-inline-title">Ver el flujo por dentro</div>
+            <div class="flows-action-inline-desc">Ejecuta cada paso y muestra cómo los frameworks se coordinan. Los emails se redirigen y los side effects quedan contenidos.</div>
           </div>
           <div class="flows-action-arrow">&rsaquo;</div>
         </div>
-        <div class="flows-action-card-v2" onclick="document.getElementById('flows-detail-run').click()">
-          <div class="flows-action-icon">&#9888;</div>
+        <div class="flows-action-card-v2" onclick="openFlowChatTest()">
+          <div class="flows-action-icon">&#128172;</div>
           <div class="flows-action-text">
-            <div class="flows-action-inline-title">Operar con aprobación</div>
-            <div class="flows-action-inline-desc">Inicia la operación real, pero detiene efectos externos para pedir aprobación antes de aplicarlos.</div>
-          </div>
-          <div class="flows-action-arrow">&rsaquo;</div>
-        </div>
-        <div class="flows-action-card-v2 warning" onclick="document.getElementById('flows-detail-run-approved').click()">
-          <div class="flows-action-icon">&#10003;</div>
-          <div class="flows-action-text">
-            <div class="flows-action-inline-title">Operar aprobada</div>
-            <div class="flows-action-inline-desc">Ejecuta acciones reales una vez que ya decidiste instalar y aprobar la operación.</div>
+            <div class="flows-action-inline-title">Como usuario final</div>
+            <div class="flows-action-inline-desc">Chatea con la IA exactamente como lo verá tu cliente. Todo pasa atrás — vos solo ves una conversación.</div>
           </div>
           <div class="flows-action-arrow">&rsaquo;</div>
         </div>
@@ -8073,12 +8065,252 @@ async function simulateCurrentFlow() {
   renderFlowDetail();
 }
 
+async function autoInstallIfNeeded() {
+  const selected = flowsState.selectedFlow;
+  if (!selected || !selected.id) return;
+  const manifest = selected.manifest || {};
+  const install = (manifest.derivation || {}).install || {};
+  const installed = Boolean((selected.installed || {}).installed);
+  if (!install.requires_install || installed) return;
+
+  flowsState.detail.runLoading = true;
+  flowsState.detail._autoInstalling = true;
+  renderFlowDetail();
+  const content = document.getElementById('flows-detail-content');
+  if (content) content.insertAdjacentHTML('afterbegin', `<div class="flow-run-live" style="margin-bottom:12px;">
+    <div class="flow-loading-spinner" style="width:18px;height:18px;border-width:2px;"></div>
+    <div>Preparando el flujo por primera vez...</div>
+  </div>`);
+
+  const res = await apiFetch(`${API_BASE}/flows/${encodeURIComponent(selected.id)}/install`, { method: 'POST' }).then(r => r.json());
+  flowsState.detail.runLoading = false;
+  flowsState.detail._autoInstalling = false;
+  if (!res.success) throw new Error(res.error || 'No se pudo preparar el flujo');
+  flowsState.selectedFlow.installed = { installed: true };
+}
+
 async function dryRunCurrentFlow() {
   const m = flowsState.selectedFlow.manifest;
   if (!m) return;
+  try { await autoInstallIfNeeded(); } catch(e) { alert('No se pudo preparar el flujo: ' + e.message); return; }
   paintFlowStarting('Iniciando prueba segura completa... preparando dimensiones y correo de prueba.');
   await nextPaint();
   await streamFlowRun(m, false, true, 'Prueba segura completa', { testMode: true });
+}
+
+// ── Chat de prueba (vista usuario final) ─────────────────────────────────────
+
+function renderFlowChatTestHtml(ct) {
+  const msgs = ct.messages || [];
+  const chips = ct.chips || [];
+
+  let messagesHtml = '';
+  if (ct.loading) {
+    messagesHtml = `<div class="flow-chat-test-thinking"><div class="flow-loading-spinner" style="width:15px;height:15px;border-width:2px;"></div> Iniciando conversación...</div>`;
+  } else {
+    msgs.forEach(m => {
+      if (m.role === 'user') {
+        messagesHtml += `
+          <div class="flow-chat-row user">
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;max-width:min(85%,600px);">
+              <div class="flow-chat-speaker">Tú</div>
+              <div class="flow-chat-bubble"><div class="flow-chat-text">${escapeHtml(m.content)}</div></div>
+            </div>
+            <div class="flow-chat-avatar user">T</div>
+          </div>`;
+      } else {
+        messagesHtml += `
+          <div class="flow-chat-row assistant">
+            <div class="flow-chat-avatar remora">R</div>
+            <div style="display:flex;flex-direction:column;gap:3px;max-width:min(85%,600px);">
+              <div class="flow-chat-speaker">Rémora</div>
+              <div class="flow-chat-bubble"><div class="flow-chat-text">${escapeHtml(m.content)}</div></div>
+            </div>
+          </div>`;
+      }
+    });
+    if (ct.sending) {
+      messagesHtml += `
+        <div class="flow-chat-row assistant">
+          <div class="flow-chat-avatar remora">R</div>
+          <div class="flow-chat-test-thinking"><div class="flow-loading-spinner" style="width:13px;height:13px;border-width:2px;"></div> Pensando...</div>
+        </div>`;
+    }
+  }
+
+  const chipsHtml = chips.map(c =>
+    `<button class="flow-chat-test-chip" onclick="sendFlowChatTestMessage(${JSON.stringify(c)})">${escapeHtml(c)}</button>`
+  ).join('');
+
+  const disabled = (ct.loading || ct.sending) ? 'disabled' : '';
+
+  return `
+    <div class="flow-chat-test">
+      <div class="flow-chat-test-header">
+        <button class="flow-chat-test-back" onclick="closeFlowChatTest()">← Volver</button>
+        <div class="flow-chat-test-title">Vista de usuario final</div>
+        <div class="flow-chat-test-badge">PRUEBA</div>
+      </div>
+      <div class="flow-chat-test-safe-banner">
+        🔒 Modo prueba activo — los emails se envían a vos, no al cliente real
+      </div>
+      <div class="flow-chat-test-messages" id="flow-chat-test-messages">${messagesHtml}</div>
+      ${chipsHtml ? `<div class="flow-chat-test-chips" id="flow-chat-test-chips">${chipsHtml}</div>` : '<div id="flow-chat-test-chips"></div>'}
+      <div class="flow-chat-test-input-row">
+        <input class="flow-chat-test-input" id="flow-chat-test-input" placeholder="Respondé como si fueras tu cliente..." ${disabled}
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_sendFlowChatTestFromInput();}"/>
+        <button class="flow-chat-test-send" id="flow-chat-test-send" ${disabled} onclick="_sendFlowChatTestFromInput()">Enviar</button>
+      </div>
+    </div>`;
+}
+
+function closeFlowChatTest() {
+  flowsState.detail.chatTest = null;
+  renderFlowDetail();
+}
+
+function _sendFlowChatTestFromInput() {
+  const input = document.getElementById('flow-chat-test-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  sendFlowChatTestMessage(text);
+}
+
+async function sendFlowChatTestMessage(text) {
+  const ct = flowsState.detail.chatTest;
+  if (!ct || ct.sending || ct.loading || !ct.convId) return;
+
+  ct.messages.push({ role: 'user', content: text });
+  ct.chips = [];
+  ct.sending = true;
+  _updateFlowChatTestUI();
+
+  try {
+    const res = await apiFetch(`${API_BASE}/conversations/${ct.convId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    });
+    const json = await res.json();
+    if (json.success && json.data && json.data.framework_message) {
+      const q = json.data.framework_message;
+      ct.messages.push({ role: 'assistant', content: q.content });
+      ct.chips = q.suggested_chips || [];
+    } else {
+      ct.messages.push({ role: 'assistant', content: 'Error: ' + (json.error || 'No se pudo obtener respuesta.') });
+      ct.chips = [];
+    }
+  } catch (e) {
+    ct.messages.push({ role: 'assistant', content: 'Error de conexión con el servidor.' });
+    ct.chips = [];
+  }
+
+  ct.sending = false;
+  _updateFlowChatTestUI();
+}
+
+function _updateFlowChatTestUI() {
+  const ct = flowsState.detail.chatTest;
+  if (!ct) return;
+
+  const messagesEl = document.getElementById('flow-chat-test-messages');
+  if (!messagesEl) { renderFlowDetail(); return; }
+
+  const msgs = ct.messages || [];
+  let html = '';
+  msgs.forEach(m => {
+    if (m.role === 'user') {
+      html += `
+        <div class="flow-chat-row user">
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;max-width:min(85%,600px);">
+            <div class="flow-chat-speaker">Tú</div>
+            <div class="flow-chat-bubble"><div class="flow-chat-text">${escapeHtml(m.content)}</div></div>
+          </div>
+          <div class="flow-chat-avatar user">T</div>
+        </div>`;
+    } else {
+      html += `
+        <div class="flow-chat-row assistant">
+          <div class="flow-chat-avatar remora">R</div>
+          <div style="display:flex;flex-direction:column;gap:3px;max-width:min(85%,600px);">
+            <div class="flow-chat-speaker">Rémora</div>
+            <div class="flow-chat-bubble"><div class="flow-chat-text">${escapeHtml(m.content)}</div></div>
+          </div>
+        </div>`;
+    }
+  });
+  if (ct.sending) {
+    html += `
+      <div class="flow-chat-row assistant">
+        <div class="flow-chat-avatar remora">R</div>
+        <div class="flow-chat-test-thinking"><div class="flow-loading-spinner" style="width:13px;height:13px;border-width:2px;"></div> Pensando...</div>
+      </div>`;
+  }
+  messagesEl.innerHTML = html;
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  const chipsEl = document.getElementById('flow-chat-test-chips');
+  if (chipsEl) {
+    chipsEl.innerHTML = (ct.chips || []).map(c =>
+      `<button class="flow-chat-test-chip" onclick="sendFlowChatTestMessage(${JSON.stringify(c)})">${escapeHtml(c)}</button>`
+    ).join('');
+  }
+
+  const inputEl = document.getElementById('flow-chat-test-input');
+  const sendEl  = document.getElementById('flow-chat-test-send');
+  if (inputEl) { inputEl.disabled = ct.sending; if (!ct.sending) inputEl.focus(); }
+  if (sendEl)  sendEl.disabled = ct.sending;
+}
+
+async function openFlowChatTest() {
+  const proposal = flowsState.selectedFlow;
+  if (!proposal) return;
+  const manifest = proposal.manifest || {};
+  const nodes = manifest.nodes || [];
+
+  const allFrameworks = [...new Set(nodes.map(n => n.framework).filter(Boolean))];
+  const convFrameworks = allFrameworks.filter(name => {
+    const mode = frameworkInteractionMode(name);
+    return !mode || mode === 'conversational';
+  });
+  const frameworks = convFrameworks.length ? convFrameworks : allFrameworks;
+
+  if (!frameworks.length) {
+    alert('Este flujo no tiene frameworks configurados.');
+    return;
+  }
+
+  flowsState.detail.chatTest = { loading: true, convId: null, messages: [], chips: [], sending: false };
+  flowsState.detailMode = 'execution';
+  renderFlowDetail();
+
+  try {
+    const res = await apiFetch(`${API_BASE}/conversations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: `Prueba: ${manifest.name || 'Flujo'}`, frameworks })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Error creando conversación');
+
+    const ct = flowsState.detail.chatTest;
+    ct.convId = json.data.conversation.id;
+    ct.loading = false;
+
+    if (json.data.first_question) {
+      const q = json.data.first_question;
+      ct.messages.push({ role: 'assistant', content: q.content });
+      ct.chips = q.suggested_chips || [];
+    }
+
+    _updateFlowChatTestUI();
+  } catch (e) {
+    flowsState.detail.chatTest = null;
+    renderFlowDetail();
+    alert('Error iniciando chat de prueba: ' + (e.message || e));
+  }
 }
 
 async function installCurrentFlow() {

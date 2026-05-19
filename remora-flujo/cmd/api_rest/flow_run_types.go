@@ -1,6 +1,7 @@
 package main
 
 type flowRunRequest struct {
+	CompiledID       string                 `json:"compiled_id,omitempty"`
 	Flow             flowManifest           `json:"flow"`
 	Input            string                 `json:"input,omitempty"`
 	DryRun           bool                   `json:"dry_run"`
@@ -19,6 +20,7 @@ type flowRunResult struct {
 	RunID             string                     `json:"run_id"`
 	FlowID            string                     `json:"flow_id,omitempty"`
 	Status            string                     `json:"status"`
+	CompiledID        string                     `json:"compiled_id,omitempty"`
 	CyclesDone        int                        `json:"cycles_done,omitempty"`
 	Valid             bool                       `json:"valid"`
 	DryRun            bool                       `json:"dry_run"`
@@ -30,6 +32,8 @@ type flowRunResult struct {
 	ExecutionOrder    []string                   `json:"execution_order"`
 	Timeline          []flowRunStep              `json:"timeline"`
 	Artifacts         map[string]flowRunArtifact `json:"artifacts"`
+	Derivation        *flowDerivation            `json:"derivation,omitempty"`
+	Handoffs          []flowObservedHandoff      `json:"handoffs,omitempty"`
 	Validation        flowValidationResult       `json:"validation"`
 	Warnings          []flowValidationIssue      `json:"warnings,omitempty"`
 	NeedsInput        []flowRequiredInput        `json:"needs_input,omitempty"`

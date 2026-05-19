@@ -52,3 +52,53 @@ func TestFlowStoreIndexesArtifactAndInstallationState(t *testing.T) {
 		t.Fatalf("weights = %#v", got.Weights)
 	}
 }
+
+func TestCreateFlowPreservesAuthorialManifestAndDropsDerivedPlan(t *testing.T) {
+	fs, err := openFlowStore(filepath.Join(t.TempDir(), "flows.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer fs.close()
+
+	manifest := &flowManifest{
+		Intent: flowIntent{Goal: "enviar correos a la gente que me debe"},
+		Derivation: &flowDerivation{
+			Executable: flowExecutablePlan{
+				Nodes: []flowNode{{ID: "node_foco_entry", Framework: "foco", Capability: "focus.next_collection_task", Role: flowRoleEntry}},
+			},
+		},
+		Nodes: []flowNode{
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+	}
+
+	created, err := fs.createFlow("Cobranza simple", "desc", "biz-1", manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := fs.getFlow(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Manifest == nil {
+		t.Fatal("expected stored manifest")
+	}
+	if stored.Manifest.Derivation != nil {
+		t.Fatalf("stored manifest should not persist derived plan: %#v", stored.Manifest.Derivation)
+	}
+	if len(stored.Manifest.Nodes) != 2 {
+		t.Fatalf("expected authorial nodes preserved, got %#v", stored.Manifest.Nodes)
+	}
+	if stored.Manifest.Nodes[0].ID != "prioritize" || stored.Manifest.Nodes[1].ID != "draft" {
+		t.Fatalf("unexpected node order %#v", stored.Manifest.Nodes)
+	}
+	for _, node := range stored.Manifest.Nodes {
+		if node.ID == "node_foco_entry" || node.Role != "" {
+			t.Fatalf("authorial manifest should remain unnormalized, got %#v", stored.Manifest.Nodes)
+		}
+	}
+	if stored.Manifest.Intent.Goal != "enviar correos a la gente que me debe" {
+		t.Fatalf("intent=%#v", stored.Manifest.Intent)
+	}
+}

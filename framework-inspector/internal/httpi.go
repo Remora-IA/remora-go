@@ -16,8 +16,12 @@ func BasicAuthToken(user, pass string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass))
 }
 
-// TestEndpoint hace un GET al URL con las credenciales dadas e inspecciona la respuesta completa.
-func TestEndpoint(rawURL, token, authHeader string) *TestResult {
+// TestEndpoint hace un request HTTP al URL con las credenciales dadas e inspecciona la respuesta completa.
+// body es opcional: si no está vacío, se envía como JSON en el request body.
+func TestEndpoint(rawURL, token, authHeader, method, body string) *TestResult {
+	if method == "" {
+		method = "GET"
+	}
 	if authHeader == "" {
 		authHeader = "Authorization"
 	}
@@ -29,7 +33,11 @@ func TestEndpoint(rawURL, token, authHeader string) *TestResult {
 		},
 	}
 
-	req, err := http.NewRequest("GET", rawURL, nil)
+	var bodyReader io.Reader
+	if body != "" {
+		bodyReader = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(strings.ToUpper(method), rawURL, bodyReader)
 	if err != nil {
 		return &TestResult{
 			Success:   false,
@@ -40,6 +48,9 @@ func TestEndpoint(rawURL, token, authHeader string) *TestResult {
 
 	req.Header.Set("Accept", "application/json, */*")
 	req.Header.Set("User-Agent", "Remora-Inspector/0.1")
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if token != "" {
 		val := token
 		if authHeader == "Authorization" && !strings.HasPrefix(strings.ToLower(token), "bearer ") && !strings.HasPrefix(strings.ToLower(token), "basic ") {
@@ -129,7 +140,7 @@ func DiagnoseHTTP(status int, headers map[string]string, body string) string {
 		return "✗ 404 Not Found: La URL base no existe. Revisá que la ruta sea correcta — a veces tiene /api/v1, /v2, /rest, etc."
 
 	case status == 405:
-		return "✗ 405 Method Not Allowed: Este endpoint no acepta GET. Puede ser un endpoint solo de POST. Es normal para el URL base."
+		return "✗ 405 Method Not Allowed: Este endpoint no acepta este método HTTP. Probá con --method POST o --method OPTIONS. También probá sub-endpoints de la documentación (ej: /billing_documents, /clients)."
 
 	case status == 422:
 		return "✗ 422 Unprocessable: El servidor entendió la request pero le faltan datos. La autenticación parece funcionar."

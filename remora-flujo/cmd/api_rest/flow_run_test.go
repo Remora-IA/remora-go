@@ -76,6 +76,87 @@ func TestRunFlowManifestDryRunExecutesSafeNodesAndStopsBeforeSideEffect(t *testi
 	}
 }
 
+func TestRunFlowManifestBuildsObservedHandoffs(t *testing.T) {
+	root := t.TempDir()
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{
+			Success:    true,
+			ExitCode:   0,
+			Stdout:     `{"artifact_type":"message.draft.v1","subject":"Prueba real","body":"Contenido real"}`,
+			DurationMs: 4,
+		})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: root, allManifests: dryRunExecutionTestManifests(), channel: adapter.New(channel.URL, "test-key")}
+
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		DryRun: true,
+		Flow: flowManifest{
+			ID: "handoff_trace",
+			Nodes: []flowNode{
+				{ID: "draft", Framework: "safe", Capability: "message.draft.test"},
+				{ID: "send", Framework: "sender", Capability: "message.send"},
+			},
+			Edges: []flowEdge{{From: "draft", To: "send"}},
+		},
+	}, nil)
+
+	if len(result.Handoffs) != 1 {
+		t.Fatalf("expected one observed handoff, got %#v", result.Handoffs)
+	}
+	if result.CompiledID == "" {
+		t.Fatalf("expected compiled id in run result, got %#v", result)
+	}
+	handoff := result.Handoffs[0]
+	if handoff.FromNode != "draft" || handoff.ToNode != "send" {
+		t.Fatalf("unexpected handoff %#v", handoff)
+	}
+	if !containsString(handoff.Artifacts, "message.draft.v1") {
+		t.Fatalf("expected message.draft.v1 in handoff %#v", handoff)
+	}
+}
+
+func TestRunFlowManifestUsesPersistedCompiledPlanByID(t *testing.T) {
+	root := t.TempDir()
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(adapter.Response{
+			Success:    true,
+			ExitCode:   0,
+			Stdout:     `{"artifact_type":"message.draft.v1","subject":"Prueba real","body":"Contenido real"}`,
+			DurationMs: 4,
+		})
+	}))
+	defer channel.Close()
+	s := &server{rootDir: root, allManifests: dryRunExecutionTestManifests(), channel: adapter.New(channel.URL, "test-key")}
+	compilation := s.compileAndPersistFlowManifest(flowManifest{
+		ID:         "compiled_run",
+		BusinessID: "biz-1",
+		Nodes: []flowNode{
+			{ID: "draft", Framework: "safe", Capability: "message.draft.test"},
+			{ID: "send", Framework: "sender", Capability: "message.send"},
+		},
+		Edges: []flowEdge{{From: "draft", To: "send"}},
+	}, s.allManifests, businessArtifactsResponse{BusinessID: "biz-1"})
+
+	result := s.runFlowManifest(context.Background(), flowRunRequest{
+		CompiledID: compilation.Compiled.ID,
+		DryRun:     true,
+	}, nil)
+
+	if result.CompiledID != compilation.Compiled.ID {
+		t.Fatalf("compiled_id=%q want %q", result.CompiledID, compilation.Compiled.ID)
+	}
+	if result.FlowID != "compiled_run" {
+		t.Fatalf("flow_id=%q want compiled_run", result.FlowID)
+	}
+	if !strings.HasPrefix(result.RunID, "compiled_run_") {
+		t.Fatalf("run_id=%q should be derived from compiled flow id", result.RunID)
+	}
+	if len(result.Timeline) != 2 {
+		t.Fatalf("timeline=%#v", result.Timeline)
+	}
+}
+
 func TestSummarizeAuditorGapsCompactsMissingContactsAndCounts(t *testing.T) {
 	artifacts := map[string]flowRunArtifact{
 		"data.gaps.v1": {
@@ -497,12 +578,107 @@ func TestInstallFlowAnalysisRunsRadarAndMarksInstalled(t *testing.T) {
 	if result.Status != "installed" || result.ArtifactType != "flow.installation.v1" {
 		t.Fatalf("unexpected result %#v", result)
 	}
+	if result.CompiledID == "" {
+		t.Fatalf("expected compiled id in installation result, got %#v", result)
+	}
 	updated, err := store.getFlow(created.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if updated.Status != "installed" {
 		t.Fatalf("flow status=%s want installed", updated.Status)
+	}
+}
+
+func TestInstallFlowAnalysisUsesInstallableNodeFromFlowDesign(t *testing.T) {
+	root := t.TempDir()
+	packPath := filepath.Join(root, "framework-sabio", "businesses", "biz-1", "sabio.business.json")
+	if err := os.MkdirAll(filepath.Dir(packPath), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(packPath, []byte(`{"business_id":"biz-1"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	var seenArgs []string
+	channel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var rpc struct {
+			Params struct {
+				Args []string `json:"args"`
+			} `json:"params"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&rpc)
+		seenArgs = append([]string{}, rpc.Params.Args...)
+		_ = json.NewEncoder(w).Encode(adapter.Response{
+			Success:  true,
+			ExitCode: 0,
+			Stdout:   `{"artifact_type":"analysis.schema.v1","artifacts":["analysis.schema.v1","analysis.plan.v1"]}`,
+		})
+	}))
+	defer channel.Close()
+	store, err := openFlowStore(filepath.Join(root, "flows.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.close()
+	s := &server{rootDir: root, flows: store, channel: adapter.New(channel.URL, "test-key"), allManifests: map[string]*manifest.Manifest{
+		"radar": {
+			Name: "radar", Cwd: ".", Binary: manifest.BinarySpec{Command: "/bin/sh"},
+			Commands: map[string]manifest.Command{"configure-custom": {Args: []string{"-c", "custom-install"}, Params: []string{"business_id", "semantic_pack"}}},
+			Capabilities: []manifest.CapabilitySpec{{
+				ID:       "analysis.configure.priority",
+				Command:  "configure-custom",
+				Requires: []string{"business.semantic_pack.v1"},
+				Produces: []string{"analysis.schema.v1", "analysis.plan.v1"},
+				Policies: []string{"install_once"},
+			}},
+		},
+	}}
+	created, err := store.createFlow("Cobranza", "Cobranza", "biz-1", &flowManifest{
+		Intent: flowIntent{Goal: "analizar cobranzas"},
+		Nodes:  []flowNode{{ID: "configure", Framework: "radar", Capability: "analysis.configure.priority"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := store.getFlow(created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := s.installFlowAnalysis(context.Background(), flow, flowInstallOptions{})
+	if err != nil {
+		t.Fatalf("installFlowAnalysis: %v", err)
+	}
+	if result.CompiledID == "" {
+		t.Fatalf("expected compiled id in installation result, got %#v", result)
+	}
+	if result.Status != "installed" {
+		t.Fatalf("unexpected result %#v", result)
+	}
+	if !containsString(seenArgs, "custom-install") {
+		t.Fatalf("expected install to use flow-declared command, args=%#v", seenArgs)
+	}
+}
+
+func TestInstallFlowAnalysisRejectsCompiledIDFromAnotherBusiness(t *testing.T) {
+	s := &server{rootDir: t.TempDir(), allManifests: flowTestManifests()}
+	foreignCompilation := s.compileAndPersistFlowManifest(flowManifest{
+		ID:         "foreign_flow",
+		BusinessID: "biz-2",
+		Nodes:      []flowNode{{ID: "configure", Framework: "radar", Capability: "analysis.configure"}},
+	}, s.allManifests, businessArtifactsResponse{BusinessID: "biz-2"})
+
+	flow := &flowWithManifest{
+		storedFlow: storedFlow{ID: "flw_local", BusinessID: "biz-1"},
+		Manifest: &flowManifest{
+			ID:         "local_flow",
+			BusinessID: "biz-1",
+			Nodes:      []flowNode{{ID: "configure", Framework: "radar", Capability: "analysis.configure"}},
+		},
+	}
+	_, err := s.installFlowAnalysis(context.Background(), flow, flowInstallOptions{CompiledID: foreignCompilation.Compiled.ID})
+	if err == nil || !strings.Contains(err.Error(), "compiled_id no pertenece al business del flow") {
+		t.Fatalf("expected business mismatch error, got %v", err)
 	}
 }
 

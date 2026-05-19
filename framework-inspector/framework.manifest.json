@@ -33,8 +33,8 @@
     "test-endpoint": {
       "description": "Testea un endpoint HTTP con inspección completa de headers, status y body",
       "args": ["test-endpoint", "--url", "{params.url}", "--token", "{params.token}", "--header", "{params.header}"],
-      "params": ["url", "token", "header", "user", "pass"],
-      "defaults": { "token": "", "header": "Authorization", "user": "", "pass": "" }
+      "params": ["url", "token", "header", "user", "pass", "method", "body"],
+      "defaults": { "token": "", "header": "Authorization", "user": "", "pass": "", "method": "GET", "body": "" }
     },
     "search-docs": {
       "description": "Busca documentación de una API usando Exa AI",
@@ -88,10 +88,19 @@
       "produces": ["inspector.docs.v1"]
     }
   ],
+  "agent": {
+    "tools_on_start": true,
+    "max_turns": 15
+  },
   "model": {
-    "provider": "anthropic",
-    "name": "claude-haiku-4-5-20251001",
-    "env_key": "ANTHROPIC_API_KEY",
-    "capabilities": ["text", "conversation", "tool_use"]
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation", "tool_use"],
+    "fallback": {
+      "provider": "anthropic",
+      "name": "claude-haiku-4-5-20251001",
+      "env_key": "ANTHROPIC_API_KEY"
+    }
   }
 }

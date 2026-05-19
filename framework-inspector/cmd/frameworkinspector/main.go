@@ -187,7 +187,7 @@ func cmdIngestAnswer() {
 		}
 		// Ejecutar test inmediatamente
 		s.Step = internal.StepTesting
-		result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader)
+		result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader, "", "")
 		s.TestResult = result
 		if result.Success {
 			s.Step = internal.StepName
@@ -202,7 +202,7 @@ func cmdIngestAnswer() {
 			// Nueva URL
 			s.BaseURL = ans
 			s.TestResult = nil
-			result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader)
+			result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader, "", "")
 			s.TestResult = result
 			if result.Success {
 				s.Step = internal.StepName
@@ -215,7 +215,7 @@ func cmdIngestAnswer() {
 				s.AuthHeader = strings.TrimSpace(parts[0])
 				s.AuthToken = strings.TrimSpace(parts[1])
 			}
-			result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader)
+			result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader, "", "")
 			s.TestResult = result
 			if result.Success {
 				s.Step = internal.StepName
@@ -223,7 +223,7 @@ func cmdIngestAnswer() {
 		} else {
 			// Asumir que es un nuevo token
 			s.AuthToken = ans
-			result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader)
+			result := internal.TestEndpoint(s.BaseURL, s.AuthToken, s.AuthHeader, "", "")
 			s.TestResult = result
 			if result.Success {
 				s.Step = internal.StepName
@@ -286,6 +286,8 @@ func cmdTestEndpoint() {
 	header := fs.String("header", "Authorization", "Nombre del header de auth")
 	user := fs.String("user", "", "Usuario para Basic Auth")
 	pass := fs.String("pass", "", "Contraseña para Basic Auth")
+	method := fs.String("method", "GET", "Método HTTP (GET, POST, OPTIONS)")
+	body := fs.String("body", "", "JSON body para POST requests")
 	fs.Parse(os.Args[2:])
 
 	if *url == "" {
@@ -299,7 +301,7 @@ func cmdTestEndpoint() {
 		hdr = "Authorization"
 	}
 
-	result := internal.TestEndpoint(*url, tok, hdr)
+	result := internal.TestEndpoint(*url, tok, hdr, *method, *body)
 	outputJSON(result)
 }
 

@@ -1,9 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 func newBusinessDefaultsServer(t *testing.T) *server {
@@ -28,7 +34,7 @@ func newBusinessDefaultsServer(t *testing.T) *server {
 	return &server{rootDir: root, auth: auth, flows: flows}
 }
 
-func TestEnsureDefaultBusinessAssetsCreatesFlowOnce(t *testing.T) {
+func TestEnsureDefaultBusinessAssetsRegistersTemplateOnceWithoutMaterializingFlow(t *testing.T) {
 	s := newBusinessDefaultsServer(t)
 	user, err := s.auth.createUser("owner@example.com", "password123", "Owner", "user")
 	if err != nil {
@@ -48,14 +54,208 @@ func TestEnsureDefaultBusinessAssetsCreatesFlowOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(flows) != 1 {
-		t.Fatalf("flows = %d, want 1", len(flows))
+	if len(flows) != 0 {
+		t.Fatalf("flows = %d, want 0 because defaults should stay as templates until explicit instantiation", len(flows))
 	}
-	if flows[0].Name != defaultBusinessFlowName {
-		t.Fatalf("name = %q", flows[0].Name)
+	var templateID, name, description, manifestRaw, status string
+	if err := s.flows.db.QueryRow(
+		`SELECT id, name, description, manifest_json, status FROM flow_templates WHERE business_id = ?`,
+		business.ID,
+	).Scan(&templateID, &name, &description, &manifestRaw, &status); err != nil {
+		t.Fatal(err)
 	}
-	if flows[0].Manifest == nil || flows[0].Manifest.ID != defaultBusinessFlowManifestID() {
-		t.Fatalf("manifest = %#v", flows[0].Manifest)
+	if templateID == "" {
+		t.Fatal("expected stored default template id")
+	}
+	if name != defaultBusinessFlowName {
+		t.Fatalf("name = %q", name)
+	}
+	if description != defaultBusinessFlowDescription {
+		t.Fatalf("description = %q", description)
+	}
+	if status != "available" {
+		t.Fatalf("status = %q", status)
+	}
+	var manifest flowManifest
+	if err := json.Unmarshal([]byte(manifestRaw), &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.ID != defaultBusinessFlowManifestID() {
+		t.Fatalf("manifest id = %q", manifest.ID)
+	}
+	if !manifest.Provenance.Template || manifest.Provenance.Source != "system_default_proposal" || manifest.Provenance.TemplateID != "default_business_collection" {
+		t.Fatalf("expected template proposal provenance, got %#v", manifest.Provenance)
+	}
+	var count int
+	if err := s.flows.db.QueryRow(`SELECT COUNT(*) FROM flow_templates WHERE business_id = ?`, business.ID).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("template count = %d, want 1", count)
+	}
+}
+
+func TestHandleListFlowTemplatesReturnsDefaultTemplateProposal(t *testing.T) {
+	s := newBusinessDefaultsServer(t)
+	user, err := s.auth.createUser("owner@example.com", "password123", "Owner", "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	business, _, err := s.auth.createBusiness(user.ID, "Panalbit", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := s.auth.createSession(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ensureDefaultBusinessAssets(*business); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodGet, apiBase+"/businesses/"+business.ID+"/flow-templates", nil)
+	req = mux.SetURLVars(req, map[string]string{"business_id": business.ID})
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	s.handleListFlowTemplates(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Success bool                       `json:"success"`
+		Data    []flowTemplateWithManifest `json:"data"`
+		Error   string                     `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Success {
+		t.Fatalf("unexpected error: %s", resp.Error)
+	}
+	if len(resp.Data) != 1 {
+		t.Fatalf("templates=%d want 1", len(resp.Data))
+	}
+	if resp.Data[0].Manifest == nil {
+		t.Fatal("expected template manifest")
+	}
+	if !resp.Data[0].Manifest.Provenance.Template || resp.Data[0].Manifest.Provenance.Source != "system_default_proposal" {
+		t.Fatalf("expected visible template proposal provenance, got %#v", resp.Data[0].Manifest.Provenance)
+	}
+}
+
+func TestHandleCreateFlowExplicitlyMaterializesTemplateIntoFlow(t *testing.T) {
+	s := newBusinessDefaultsServer(t)
+	user, err := s.auth.createUser("owner@example.com", "password123", "Owner", "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	business, _, err := s.auth.createBusiness(user.ID, "Panalbit", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := s.auth.createSession(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(map[string]interface{}{
+		"name":        "Cobranza instanciada",
+		"description": "instanciación explícita desde template default",
+		"manifest":    defaultBusinessFlowManifest(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, apiBase+"/businesses/"+business.ID+"/flows", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"business_id": business.ID})
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	s.handleCreateFlow(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Success bool             `json:"success"`
+		Data    flowWithManifest `json:"data"`
+		Error   string           `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Success {
+		t.Fatalf("unexpected error: %s", resp.Error)
+	}
+	if resp.Data.Manifest == nil {
+		t.Fatal("expected created manifest")
+	}
+	if resp.Data.Manifest.Provenance.Template {
+		t.Fatalf("created flow should be an instantiated flow, got template provenance %#v", resp.Data.Manifest.Provenance)
+	}
+	if resp.Data.Manifest.Provenance.Source != "template_instantiation" {
+		t.Fatalf("source = %q want template_instantiation", resp.Data.Manifest.Provenance.Source)
+	}
+	if resp.Data.Manifest.Provenance.TemplateID != "default_business_collection" {
+		t.Fatalf("template_id = %q", resp.Data.Manifest.Provenance.TemplateID)
+	}
+	if resp.Data.Manifest.ID == defaultBusinessFlowManifestID() {
+		t.Fatalf("instantiated flow must not keep template manifest id %q", resp.Data.Manifest.ID)
+	}
+}
+
+func TestHandleCreateFlowKeepsAuthoredFlowsCompatible(t *testing.T) {
+	s := newBusinessDefaultsServer(t)
+	user, err := s.auth.createUser("owner@example.com", "password123", "Owner", "user")
+	if err != nil {
+		t.Fatal(err)
+	}
+	business, _, err := s.auth.createBusiness(user.ID, "Panalbit", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := s.auth.createSession(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := json.Marshal(map[string]interface{}{
+		"name":        "Flow authored",
+		"description": "creación manual compatible",
+		"manifest": &flowManifest{
+			Nodes: []flowNode{
+				{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, apiBase+"/businesses/"+business.ID+"/flows", bytes.NewReader(body))
+	req = mux.SetURLVars(req, map[string]string{"business_id": business.ID})
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+
+	s.handleCreateFlow(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Success bool             `json:"success"`
+		Data    flowWithManifest `json:"data"`
+		Error   string           `json:"error"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Success {
+		t.Fatalf("unexpected error: %s", resp.Error)
+	}
+	if resp.Data.Manifest == nil {
+		t.Fatal("expected created manifest")
+	}
+	if resp.Data.Manifest.Provenance.Template {
+		t.Fatalf("authored flow should not be classified as template: %#v", resp.Data.Manifest.Provenance)
 	}
 }
 

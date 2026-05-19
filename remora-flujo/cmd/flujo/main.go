@@ -27,6 +27,8 @@ func main() {
 	switch os.Args[1] {
 	case "status":
 		cmdStatus()
+	case "flow":
+		cmdFlow(os.Args[2:])
 	case "next":
 		cmdNext()
 	case "start":
@@ -929,6 +931,16 @@ func usage() {
 	fmt.Println(`Remora Flujo - handoff por estado/eventos
 
 USO:
+  go run ./cmd/flujo flow create --business <business_id> [--name <nombre>] [--description <texto>]
+  go run ./cmd/flujo flow draft --business <business_id> --name <nombre> --description <texto> [--create]
+  go run ./cmd/flujo flow compile --id <flow_id>
+  go run ./cmd/flujo flow inspect --id <flow_id>
+  go run ./cmd/flujo flow validate --id <flow_id>
+  go run ./cmd/flujo flow simulate --id <flow_id> [--fixtures a,b] [--input texto]
+  go run ./cmd/flujo flow run --id <flow_id> [--fixtures a,b] [--input texto] [--dry-run]
+  go run ./cmd/flujo flow install --id <flow_id> [--reconfigure]
+  go run ./cmd/flujo flow replay --run <run_id>
+  go run ./cmd/flujo flow debug --id <flow_id> [--fixtures a,b] [--input texto] [--step] [--break-on handoff,needs_input,approval]
   go run ./cmd/flujo status
   go run ./cmd/flujo next
   go run ./cmd/flujo run

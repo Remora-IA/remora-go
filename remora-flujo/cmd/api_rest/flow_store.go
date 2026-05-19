@@ -29,8 +29,25 @@ type storedFlow struct {
 type flowWithManifest struct {
 	storedFlow
 	Manifest    *flowManifest            `json:"manifest"`
+	CompiledID  string                   `json:"compiled_id,omitempty"`
 	Operational *flowOperationalSnapshot `json:"operational,omitempty"`
 	Installed   *flowInstalledSnapshot   `json:"installed,omitempty"`
+}
+
+type storedFlowTemplate struct {
+	ID           string `json:"id"`
+	BusinessID   string `json:"business_id"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	ManifestJSON string `json:"manifest_json"`
+	Status       string `json:"status"`
+	CreatedAt    string `json:"created_at"`
+	UpdatedAt    string `json:"updated_at"`
+}
+
+type flowTemplateWithManifest struct {
+	storedFlowTemplate
+	Manifest *flowManifest `json:"manifest"`
 }
 
 type flowOperationalSnapshot struct {
@@ -57,6 +74,7 @@ type flowInstallationResult struct {
 	FlowID       string                 `json:"flow_id"`
 	BusinessID   string                 `json:"business_id"`
 	Status       string                 `json:"status"`
+	CompiledID   string                 `json:"compiled_id,omitempty"`
 	Already      bool                   `json:"already_installed,omitempty"`
 	ArtifactType string                 `json:"artifact_type,omitempty"`
 	Artifacts    []string               `json:"artifacts,omitempty"`
@@ -65,7 +83,8 @@ type flowInstallationResult struct {
 }
 
 type flowInstallOptions struct {
-	Reconfigure bool `json:"reconfigure"`
+	CompiledID  string `json:"compiled_id,omitempty"`
+	Reconfigure bool   `json:"reconfigure"`
 }
 
 type flowStore struct {
@@ -98,8 +117,21 @@ func (fs *flowStore) migrate() error {
 	)`); err != nil {
 		return err
 	}
+	if _, err := fs.db.Exec(`CREATE TABLE IF NOT EXISTS flow_templates (
+		id TEXT PRIMARY KEY,
+		business_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		description TEXT NOT NULL DEFAULT '',
+		manifest_json TEXT NOT NULL DEFAULT '{}',
+		status TEXT NOT NULL DEFAULT 'available',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	)`); err != nil {
+		return err
+	}
 	stmts := []string{
 		`CREATE INDEX IF NOT EXISTS idx_flows_business_updated ON flows (business_id, updated_at DESC)`,
+		`CREATE INDEX IF NOT EXISTS idx_flow_templates_business_updated ON flow_templates (business_id, updated_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS flow_runs (
 			run_id TEXT PRIMARY KEY,
 			flow_id TEXT NOT NULL,
@@ -158,7 +190,7 @@ func (fs *flowStore) createFlow(name, description, businessID string, manifest *
 
 	manifest.ID = "flow_" + flowSafeIDStr(name)
 	manifest.BusinessID = businessID
-	prepareFlowManifestLifecycle(manifest)
+	stripFlowDerivedState(manifest)
 
 	manifestRaw, err := json.Marshal(manifest)
 	if err != nil {
@@ -241,7 +273,7 @@ func (fs *flowStore) updateFlow(id, name, description string, manifest *flowMani
 		return nil, fmt.Errorf("name es requerido")
 	}
 
-	prepareFlowManifestLifecycle(manifest)
+	stripFlowDerivedState(manifest)
 	manifestRaw, err := json.Marshal(manifest)
 	if err != nil {
 		return nil, fmt.Errorf("no se pudo serializar manifest: %w", err)
@@ -446,6 +478,16 @@ func (s *server) enrichFlowRuntimeStatus(flow *flowWithManifest) {
 	flow.Operational = s.flowOperationalSnapshot(flow.BusinessID, flow.Manifest)
 }
 
+func (s *server) enrichFlowDesignSemantics(flow *flowWithManifest, business businessArtifactsResponse) {
+	if flow == nil || flow.Manifest == nil {
+		return
+	}
+	compilation := s.compileAndPersistFlowManifest(*flow.Manifest, s.allManifests, business)
+	flow.CompiledID = compilation.Compiled.ID
+	flow.Manifest = &compilation.Authored
+	flow.Manifest.Derivation = compilation.Derivation
+}
+
 func flowUsesInstallableAnalysis(flow flowManifest, manifests map[string]*manifest.Manifest) bool {
 	for _, node := range flow.Nodes {
 		if producesArtifact(node, manifests, "analysis.schema.v1") || nodeHasPolicy(node, manifests, "install_once") {
@@ -497,6 +539,27 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 		return flowInstallationResult{Status: "installed"}, fmt.Errorf("flow sin manifest")
 	}
 	result := flowInstallationResult{FlowID: flow.ID, BusinessID: flow.BusinessID, Status: "installed"}
+	var compilation flowCompilation
+	if strings.TrimSpace(opts.CompiledID) != "" {
+		record, err := s.loadCompiledRecord(opts.CompiledID)
+		if err != nil {
+			return result, err
+		}
+		if strings.TrimSpace(record.Authored.BusinessID) != "" && record.Authored.BusinessID != flow.BusinessID {
+			return result, fmt.Errorf("compiled_id no pertenece al business del flow")
+		}
+		if strings.TrimSpace(record.Authored.ID) != "" && flow.Manifest != nil && strings.TrimSpace(flow.Manifest.ID) != "" && record.Authored.ID != flow.Manifest.ID {
+			return result, fmt.Errorf("compiled_id no pertenece al flow solicitado")
+		}
+		compilation = flowCompilation{
+			Authored:   cloneFlowManifest(record.Authored),
+			Derivation: record.Derivation,
+			Compiled:   record.Compiled,
+		}
+	} else {
+		compilation = s.compileAndPersistFlowManifest(*flow.Manifest, s.allManifests, s.businessArtifacts(flow.BusinessID))
+	}
+	result.CompiledID = compilation.Compiled.ID
 	if s.radarAnalysisInstalled(flow.BusinessID) && !opts.Reconfigure {
 		_ = s.flows.updateFlowStatus(flow.ID, "installed")
 		if s.flows != nil {
@@ -508,13 +571,21 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 		result.Summary = "El flujo ya estaba instalado; se reutiliza el plan de análisis existente."
 		return result, nil
 	}
-	m, providerName, ok := s.findProviderForCapability("analysis.configure")
-	if !ok || m == nil {
-		return result, fmt.Errorf("provider no encontrado para capability analysis.configure")
-	}
-	cmd, ok := m.Commands["configure-analysis"]
+	installNode, ok := findInstallableFlowNode(compilation.Compiled.Flow, s.allManifests)
 	if !ok {
-		return result, fmt.Errorf("%s no expone configure-analysis", providerName)
+		return result, fmt.Errorf("el flow no declara un paso instalable de análisis")
+	}
+	m := s.allManifests[installNode.Framework]
+	if m == nil {
+		return result, fmt.Errorf("framework no encontrado para instalar: %s", installNode.Framework)
+	}
+	contract, err := resolveFlowNodeContract(installNode, m)
+	if err != nil {
+		return result, err
+	}
+	cmd, ok := m.Commands[contract.Command]
+	if !ok {
+		return result, fmt.Errorf("%s no expone %s", installNode.Framework, contract.Command)
 	}
 	semanticPath := s.businessSemanticPackPath(flow.BusinessID)
 	if semanticPath == "" {
@@ -547,13 +618,13 @@ func (s *server) installFlowAnalysis(ctx context.Context, flow *flowWithManifest
 			msg = strings.TrimSpace(resp.Stderr)
 		}
 		if msg == "" {
-			msg = fmt.Sprintf("%s configure-analysis terminó con exit code %d", providerName, resp.ExitCode)
+			msg = fmt.Sprintf("%s %s terminó con exit code %d", installNode.Framework, contract.Command, resp.ExitCode)
 		}
 		return result, fmt.Errorf("%s", msg)
 	}
 	payload := parseArtifactPayload(resp.Stdout)
 	if typ, _ := payload["artifact_type"].(string); typ != "analysis.schema.v1" {
-		return result, fmt.Errorf("%s no devolvió analysis.schema.v1", providerName)
+		return result, fmt.Errorf("%s no devolvió analysis.schema.v1", installNode.Framework)
 	}
 	runID := "flow_install_" + safeFilePart(flow.ID)
 	schemaArtifactPath := s.persistFlowArtifact(runID, "install", "analysis.schema.v1", payload)
@@ -681,6 +752,11 @@ func (s *server) handleListFlows(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "no se pudieron listar flujos: "+err.Error())
 		return
 	}
+	business := s.businessArtifacts(businessID)
+	for i := range flows {
+		s.enrichFlowRuntimeStatus(&flows[i])
+		s.enrichFlowDesignSemantics(&flows[i], business)
+	}
 	writeOK(w, flows)
 }
 
@@ -701,11 +777,19 @@ func (s *server) handleCreateFlow(w http.ResponseWriter, r *http.Request) {
 	if req.Manifest == nil {
 		req.Manifest = &flowManifest{Nodes: []flowNode{}}
 	}
-	flow, err := s.flows.createFlow(req.Name, req.Description, businessID, req.Manifest)
+	created, err := s.flows.createFlow(req.Name, req.Description, businessID, materializeTemplateInstantiation(req.Manifest))
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	flow, err := s.flows.getFlow(created.ID)
+	if err != nil {
+		writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: created})
+		return
+	}
+	business := s.businessArtifacts(businessID)
+	s.enrichFlowRuntimeStatus(flow)
+	s.enrichFlowDesignSemantics(flow, business)
 	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: flow})
 }
 
@@ -720,6 +804,7 @@ func (s *server) handleGetFlow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.enrichFlowRuntimeStatus(flow)
+	s.enrichFlowDesignSemantics(flow, s.businessArtifacts(flow.BusinessID))
 	writeOK(w, flow)
 }
 
@@ -765,11 +850,18 @@ func (s *server) handleUpdateFlow(w http.ResponseWriter, r *http.Request) {
 	if req.Manifest == nil {
 		req.Manifest = existing.Manifest
 	}
-	flow, err := s.flows.updateFlow(id, req.Name, req.Description, req.Manifest)
+	updated, err := s.flows.updateFlow(id, req.Name, req.Description, req.Manifest)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	flow, err := s.flows.getFlow(updated.ID)
+	if err != nil {
+		writeOK(w, updated)
+		return
+	}
+	s.enrichFlowRuntimeStatus(flow)
+	s.enrichFlowDesignSemantics(flow, s.businessArtifacts(flow.BusinessID))
 	writeOK(w, flow)
 }
 

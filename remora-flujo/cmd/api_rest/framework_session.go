@@ -218,6 +218,69 @@ func sanitizeLiveConvFile(s string) string {
 	return b.String()
 }
 
+func (s *server) persistInspectorConnection(conv *Conversation, msg *Message) {
+	if msg == nil || conv == nil {
+		return
+	}
+	bid := conv.BusinessID
+	if bid == "" {
+		return
+	}
+	for _, ev := range msg.Events {
+		if ev.Type != "configuration.proposal" && ev.Type != "configuration.accepted" {
+			continue
+		}
+		payload, ok := ev.Payload.(map[string]any)
+		if !ok {
+			continue
+		}
+		artifactType, _ := payload["artifact_type"].(string)
+		if artifactType != "inspector.connection.v1" {
+			continue
+		}
+		inner, _ := payload["payload"].(map[string]any)
+		if inner == nil {
+			inner = payload
+		}
+		name, _ := inner["name"].(string)
+		baseURL, _ := inner["base_url"].(string)
+		authToken, _ := inner["auth_token"].(string)
+		authHeader, _ := inner["auth_header"].(string)
+		if name == "" {
+			name = "API Connection"
+		}
+		if baseURL == "" {
+			return
+		}
+		authType := "bearer"
+		if authHeader != "" && authHeader != "Authorization" {
+			authType = "custom_header"
+		}
+		creds := map[string]string{}
+		if authToken != "" {
+			creds["token"] = authToken
+		}
+		if authHeader != "" {
+			creds["header"] = authHeader
+		}
+		req := createAPIConnectionRequest{
+			Name:     name,
+			BaseURL:  baseURL,
+			AuthType: authType,
+			Credentials: creds,
+			Resources: []apiConnectionResource{{
+				Name:      "default",
+				Method:    "GET",
+				Path:      "/",
+				TableName: strings.ToLower(strings.ReplaceAll(name, " ", "_")),
+			}},
+			SyncFrequency: "manual",
+		}
+		_, _ = s.auth.createAPIConnection(bid, "inspector", req)
+		return
+	}
+}
+
 func redactLiveEventText(s string) string {
 	if s == "" {
 		return s

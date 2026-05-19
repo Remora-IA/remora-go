@@ -52,6 +52,7 @@ func main() {
 	})
 
 	log.Printf("Channel listening on %s (base_dir=%s, keys=%d)", *addr, *baseDir, len(keys))
+	os.Setenv("CHANNEL_URL", "http://127.0.0.1"+*addr)
 
 	go func() {
 		sig := make(chan os.Signal, 1)

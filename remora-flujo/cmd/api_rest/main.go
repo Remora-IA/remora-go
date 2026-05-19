@@ -194,7 +194,11 @@ func main() {
 	r.HandleFunc(apiBase+"/flows/simulate", srv.simulateFlow).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/flows/run", srv.runFlow).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/flows/run/stream", srv.runFlowStream).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/flows/runs/{id}", srv.handleGetFlowRun).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/flows/suggest", srv.suggestFlowCapabilities).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/flows/workbench/compile", srv.compileFlowWorkbench).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/flows/compiled/{compiled_id}", srv.handleGetCompiledFlow).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/businesses/{business_id}/flow-templates", srv.handleListFlowTemplates).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/businesses/{business_id}/flows", srv.handleListFlows).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/businesses/{business_id}/flows", srv.handleCreateFlow).Methods("POST", "OPTIONS")
 	r.HandleFunc(apiBase+"/businesses/{business_id}/hosting/connect", srv.handleHostingConnect).Methods("POST", "OPTIONS")
@@ -712,6 +716,7 @@ func (s *server) createConversation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// first nunca debe ser nil: startFrameworkSession devuelve error explícito si falla.
+	s.persistInspectorConnection(conv, first)
 	_ = appendMessage(conv.ID, *first)
 
 	writeJSON(w, http.StatusCreated, APIResponse{Success: true, Data: map[string]interface{}{
@@ -1669,6 +1674,7 @@ func (s *server) postSingleMessage(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
+		s.persistInspectorConnection(conv, frameworkMsg)
 		if err := appendMessage(id, *frameworkMsg); err != nil {
 			writeErr(w, http.StatusInternalServerError, err.Error())
 			return

@@ -16,6 +16,14 @@ func (s *server) runFlow(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "JSON inválido: "+err.Error())
 		return
 	}
+	if strings.TrimSpace(req.CompiledID) != "" && strings.TrimSpace(req.Flow.BusinessID) == "" {
+		record, err := s.loadCompiledRecord(req.CompiledID)
+		if err != nil {
+			writeErr(w, http.StatusNotFound, err.Error())
+			return
+		}
+		req.Flow.BusinessID = record.Authored.BusinessID
+	}
 	if strings.TrimSpace(req.Flow.BusinessID) != "" {
 		if _, _, ok := s.requireMembershipContext(w, r, req.Flow.BusinessID, nil); !ok {
 			return
@@ -37,6 +45,14 @@ func (s *server) runFlowStream(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, http.StatusBadRequest, "JSON inválido: "+err.Error())
 		return
+	}
+	if strings.TrimSpace(req.CompiledID) != "" && strings.TrimSpace(req.Flow.BusinessID) == "" {
+		record, err := s.loadCompiledRecord(req.CompiledID)
+		if err != nil {
+			writeErr(w, http.StatusNotFound, err.Error())
+			return
+		}
+		req.Flow.BusinessID = record.Authored.BusinessID
 	}
 	if strings.TrimSpace(req.Flow.BusinessID) != "" {
 		if _, _, ok := s.requireMembershipContext(w, r, req.Flow.BusinessID, nil); !ok {

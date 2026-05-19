@@ -135,6 +135,13 @@ func (s *server) entryProviderName(flow flowManifest) string {
 		_, providerName, _ := s.findProviderForCapability(flow.Lifecycle.Entry.Capability)
 		return providerName
 	}
+	if flow.Lifecycle.Tutela.Framework != "" {
+		return flow.Lifecycle.Tutela.Framework
+	}
+	if flow.Lifecycle.Tutela.Capability != "" {
+		_, providerName, _ := s.findProviderForCapability(flow.Lifecycle.Tutela.Capability)
+		return providerName
+	}
 	if len(flow.Nodes) > 0 {
 		return flow.Nodes[0].Framework
 	}

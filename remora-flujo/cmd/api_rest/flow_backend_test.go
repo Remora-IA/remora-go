@@ -165,6 +165,371 @@ func TestPrepareFlowManifestLifecycleHonorsConfiguredEntry(t *testing.T) {
 	}
 }
 
+func TestPrepareFlowManifestLifecycleHonorsConfiguredTutelaPreference(t *testing.T) {
+	flow := flowManifest{
+		ID:         "cobranza",
+		BusinessID: "biz-1",
+		Lifecycle: flowLifecycle{
+			Tutela: flowLifecycleBinding{Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+		Nodes: []flowNode{
+			{ID: "focus", Framework: "foco", Capability: "focus.next_collection_task"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+	}
+
+	prepareFlowManifestLifecycle(&flow, flowTestManifests())
+
+	var focusRole, draftRole string
+	for _, node := range flow.Nodes {
+		switch node.ID {
+		case "focus":
+			focusRole = node.Role
+		case "draft":
+			draftRole = node.Role
+		}
+	}
+	if draftRole != flowRoleEntry {
+		t.Fatalf("configured tutela should be respected as explicit entry preference, nodes=%#v", flow.Nodes)
+	}
+	if focusRole == flowRoleEntry {
+		t.Fatalf("configured tutela should prevent foco from remaining implicit entry, nodes=%#v", flow.Nodes)
+	}
+	if flow.Lifecycle.Entry.Framework != "mecanico" || flow.Lifecycle.Entry.Capability != "message.draft.collection_email" {
+		t.Fatalf("expected derived lifecycle entry to become explicit from tutela, got %#v", flow.Lifecycle)
+	}
+}
+
+func TestDeriveFlowManifestReportsGroundingAndVisibleAmendments(t *testing.T) {
+	flow := flowManifest{
+		ID:         "cobranza",
+		BusinessID: "biz-1",
+		Intent:     flowIntent{Goal: "enviar correos a la gente que me debe"},
+		Nodes: []flowNode{
+			{ID: "focus", Framework: "foco", Capability: "focus.next_collection_task"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list"},
+		},
+	}
+
+	derivation := deriveFlowManifest(flow, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1"},
+		Sources:    map[string]string{"business.semantic_pack.v1": "/tmp/pack.json"},
+	})
+	if derivation == nil {
+		t.Fatal("expected derivation")
+	}
+	if len(derivation.Executable.Nodes) != 3 {
+		t.Fatalf("expected executable plan with preserved nodes, got %#v", derivation.Executable.Nodes)
+	}
+	if !containsString(derivation.Grounding.MissingArtifacts, "contact.destination.v1") {
+		t.Fatalf("expected missing contact grounding, got %#v", derivation.Grounding)
+	}
+	if !containsString(derivation.Grounding.UniversalRoles, "redactar") || !containsString(derivation.Grounding.UniversalRoles, "analizar") {
+		t.Fatalf("expected universal roles in grounding, got %#v", derivation.Grounding.UniversalRoles)
+	}
+	var promotedPriority, reordered bool
+	for _, amendment := range derivation.Amendments {
+		if amendment.Kind == "role_changed" && amendment.NodeID == "prioritize" && amendment.After == flowRoleBootstrap {
+			promotedPriority = true
+		}
+		if amendment.Kind == "nodes_reordered" {
+			reordered = true
+		}
+	}
+	if !promotedPriority || !reordered {
+		t.Fatalf("expected visible amendments, got %#v", derivation.Amendments)
+	}
+}
+
+func TestDeriveFlowManifestMakesLifecycleDecisionExplicitAndVisible(t *testing.T) {
+	flow := flowManifest{
+		ID:         "cobranza_lifecycle",
+		BusinessID: "biz-1",
+		Intent:     flowIntent{Goal: "priorizar y preparar cobranza"},
+		Nodes: []flowNode{
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+	}
+
+	derivation := deriveFlowManifest(flow, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1"},
+	})
+	if derivation == nil {
+		t.Fatal("expected derivation")
+	}
+	if derivation.Executable.Lifecycle.Entry.Framework == "" || derivation.Executable.Lifecycle.Entry.Capability == "" {
+		t.Fatalf("expected explicit derived entry lifecycle, got %#v", derivation.Executable.Lifecycle)
+	}
+	if derivation.Executable.Lifecycle.Tutela.Framework == "" || derivation.Executable.Lifecycle.Tutela.Capability == "" {
+		t.Fatalf("expected explicit derived tutela lifecycle, got %#v", derivation.Executable.Lifecycle)
+	}
+	var sawEntryAmendment, sawTutelaAmendment bool
+	for _, amendment := range derivation.Amendments {
+		if amendment.Kind == "lifecycle_entry_changed" {
+			sawEntryAmendment = true
+		}
+		if amendment.Kind == "lifecycle_tutela_changed" {
+			sawTutelaAmendment = true
+		}
+	}
+	if !sawEntryAmendment || !sawTutelaAmendment {
+		t.Fatalf("expected lifecycle corrections as visible amendments, got %#v", derivation.Amendments)
+	}
+}
+
+func TestDeriveFlowManifestExposesContractsHandoffsAndInstallPreview(t *testing.T) {
+	manifests := flowTestManifests()
+	manifests["radar"] = &manifest.Manifest{
+		Name: "radar",
+		Commands: map[string]manifest.Command{
+			"configure-analysis": {Args: []string{"configure-analysis"}, Params: []string{}},
+			"prioritize":         {Args: []string{"prioritize"}, Params: []string{}},
+		},
+		Capabilities: []manifest.CapabilitySpec{
+			{
+				ID:       "analysis.configure",
+				Command:  "configure-analysis",
+				Requires: []string{"business.semantic_pack.v1"},
+				Produces: []string{"analysis.schema.v1", "analysis.plan.v1"},
+				Policies: []string{"install_once"},
+			},
+			{
+				ID:       "collection.priority_list",
+				Command:  "prioritize",
+				Requires: []string{"dataset.raw.v1", "business.semantic_pack.v1"},
+				Produces: []string{"collection.priority_list.v1", "collection.priority_item.v1", "entity.ref.v1"},
+			},
+		},
+	}
+	flow := flowManifest{
+		ID:         "cobranza_instalable",
+		BusinessID: "biz-1",
+		Nodes: []flowNode{
+			{ID: "configure", Framework: "radar", Capability: "analysis.configure"},
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+	}
+
+	derivation := deriveFlowManifest(flow, manifests, businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1"},
+	})
+	if derivation == nil {
+		t.Fatal("expected derivation")
+	}
+	if !derivation.Install.RequiresInstall || !containsString(derivation.Install.Capabilities, "analysis.configure") {
+		t.Fatalf("expected install preview for analysis.configure, got %#v", derivation.Install)
+	}
+	if len(derivation.Contracts) == 0 {
+		t.Fatal("expected derived contracts")
+	}
+	var sawDraftContract bool
+	for _, contract := range derivation.Contracts {
+		if contract.NodeID != "draft" {
+			continue
+		}
+		sawDraftContract = true
+		if !containsString(contract.Produces, "message.draft.v1") {
+			t.Fatalf("expected draft contract produces message.draft.v1, got %#v", contract)
+		}
+	}
+	if !sawDraftContract {
+		t.Fatalf("missing draft contract in %#v", derivation.Contracts)
+	}
+	var sawPriorityHandoff bool
+	for _, handoff := range derivation.Handoffs {
+		if handoff.FromNode != "prioritize" {
+			continue
+		}
+		sawPriorityHandoff = true
+		if len(handoff.Artifacts) == 0 {
+			t.Fatalf("expected explicit handoff artifacts, got %#v", handoff)
+		}
+	}
+	if !sawPriorityHandoff {
+		t.Fatalf("expected handoff leaving prioritize, got %#v", derivation.Handoffs)
+	}
+}
+
+func TestCompileFlowManifestReturnsStableCompiledPlanIdentity(t *testing.T) {
+	flow := flowManifest{
+		ID:         "cobranza",
+		BusinessID: "biz-1",
+		Intent:     flowIntent{Goal: "priorizar y redactar"},
+		Nodes: []flowNode{
+			{ID: "prioritize", Framework: "radar", Capability: "collection.priority_list"},
+			{ID: "draft", Framework: "mecanico", Capability: "message.draft.collection_email"},
+		},
+	}
+	first := compileFlowManifest(flow, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1"},
+	})
+	second := compileFlowManifest(flow, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1"},
+	})
+	if first.Compiled.ID == "" || first.Compiled.ID != second.Compiled.ID {
+		t.Fatalf("compiled IDs should be stable, got %q and %q", first.Compiled.ID, second.Compiled.ID)
+	}
+	if len(first.Compiled.Flow.Nodes) == 0 {
+		t.Fatalf("expected compiled executable nodes, got %#v", first.Compiled.Flow.Nodes)
+	}
+	if first.Derivation == nil || len(first.Derivation.Executable.Nodes) == 0 {
+		t.Fatalf("expected derivation executable, got %#v", first.Derivation)
+	}
+}
+
+func TestBuildFlowSuggestionProposalReturnsExplicitDesign(t *testing.T) {
+	req := flowSuggestRequest{
+		BusinessID:  "biz-1",
+		Name:        "Analizar cobranzas",
+		Description: "Quiero revisar cartera y luego preparar correos.",
+	}
+	suggestions := []flowCapabilitySuggestion{
+		{Framework: "radar", Capability: "collection.priority_list"},
+		{Framework: "mecanico", Capability: "message.draft.collection_email"},
+	}
+	proposal := buildFlowSuggestionProposal(req, suggestions, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1"},
+	})
+	if proposal == nil {
+		t.Fatal("expected proposal")
+	}
+	if proposal.Manifest.Intent.Goal != "Analizar cobranzas" {
+		t.Fatalf("unexpected intent %#v", proposal.Manifest.Intent)
+	}
+	if len(proposal.Manifest.Nodes) != 2 {
+		t.Fatalf("proposal manifest=%#v", proposal.Manifest)
+	}
+	if proposal.Derivation == nil || len(proposal.Derivation.Amendments) == 0 {
+		t.Fatalf("expected explicit derivation with amendments, got %#v", proposal.Derivation)
+	}
+	if proposal.Compiled.ID == "" || len(proposal.Compiled.Flow.Nodes) == 0 {
+		t.Fatalf("expected compiled plan in proposal, got %#v", proposal.Compiled)
+	}
+}
+
+func TestBuildFlowSuggestionProposalCanComposeFromIntentRolesWithoutCapabilityHint(t *testing.T) {
+	req := flowSuggestRequest{
+		BusinessID:  "biz-1",
+		Name:        "Cobranza asistida",
+		Description: "Quiero analizar la cartera y redactar correos para los casos prioritarios.",
+		Intent: flowIntent{
+			Goal:         "Reducir mora con mensajes listos para revisión",
+			OperatorRole: "collector",
+			Roles:        []string{"analizar", "redactar"},
+		},
+	}
+	suggestions := []flowCapabilitySuggestion{
+		{Framework: "mensajero", Capability: "message.send"},
+		{Framework: "sabio", Capability: "data.entity_360"},
+		{Framework: "mecanico", Capability: "message.draft.collection_email"},
+	}
+	proposal := buildFlowSuggestionProposal(req, suggestions, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1", "contact.destination.v1"},
+	})
+	if proposal == nil {
+		t.Fatal("expected proposal")
+	}
+	if proposal.IntentPlan.Goal != "Reducir mora con mensajes listos para revisión" {
+		t.Fatalf("intent plan goal = %q", proposal.IntentPlan.Goal)
+	}
+	if got := proposal.Manifest.Intent.Goal; got != "Reducir mora con mensajes listos para revisión" {
+		t.Fatalf("manifest goal = %q", got)
+	}
+	if !containsString(proposal.Manifest.Intent.Roles, "analizar") || !containsString(proposal.Manifest.Intent.Roles, "redactar") {
+		t.Fatalf("expected authored manifest to preserve intent roles, got %#v", proposal.Manifest.Intent.Roles)
+	}
+	if len(proposal.Manifest.Nodes) < 2 {
+		t.Fatalf("expected bound nodes, got %#v", proposal.Manifest.Nodes)
+	}
+	if proposal.Manifest.Nodes[0].Capability != "data.entity_360" || proposal.Manifest.Nodes[1].Capability != "message.draft.collection_email" {
+		t.Fatalf("expected intent-first binding analyze->draft, got %#v", proposal.Manifest.Nodes)
+	}
+}
+
+func TestBuildFlowSuggestionProposalSubordinatesCapabilityHintToIntentRoles(t *testing.T) {
+	req := flowSuggestRequest{
+		BusinessID:     "biz-1",
+		Name:           "Cobranza guiada",
+		Description:    "Necesito revisar cartera y preparar un borrador antes de cualquier envío.",
+		CapabilityHint: "message.send",
+		Intent: flowIntent{
+			Goal:         "Preparar borradores revisables",
+			OperatorRole: "collector",
+			Roles:        []string{"analizar", "redactar"},
+		},
+	}
+	suggestions := []flowCapabilitySuggestion{
+		{Framework: "mensajero", Capability: "message.send"},
+		{Framework: "mecanico", Capability: "message.draft.collection_email"},
+		{Framework: "sabio", Capability: "data.entity_360"},
+	}
+	proposal := buildFlowSuggestionProposal(req, suggestions, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1", "contact.destination.v1"},
+	})
+	if proposal == nil {
+		t.Fatal("expected proposal")
+	}
+	if proposal.IntentPlan.CapabilityHint != "message.send" {
+		t.Fatalf("capability hint = %q", proposal.IntentPlan.CapabilityHint)
+	}
+	if proposal.Manifest.Intent.Goal == "message.send" {
+		t.Fatalf("goal should remain intent-first, got %#v", proposal.Manifest.Intent)
+	}
+	for _, node := range proposal.Manifest.Nodes {
+		if node.Capability == "message.send" {
+			t.Fatalf("capability hint should not dominate authored proposal, got %#v", proposal.Manifest.Nodes)
+		}
+	}
+}
+
+func TestBuildFlowSuggestionProposalExposesRoleBindingsAheadOfNodes(t *testing.T) {
+	req := flowSuggestRequest{
+		BusinessID:  "biz-1",
+		Name:        "Cobranza asistida",
+		Description: "Analizar cartera y redactar correos para los casos prioritarios.",
+		Intent: flowIntent{
+			Goal:         "Reducir mora con mensajes listos para revisión",
+			OperatorRole: "collector",
+			Roles:        []string{"analizar", "redactar"},
+		},
+	}
+	suggestions := []flowCapabilitySuggestion{
+		{Framework: "mensajero", Capability: "message.send"},
+		{Framework: "sabio", Capability: "data.entity_360"},
+		{Framework: "mecanico", Capability: "message.draft.collection_email"},
+	}
+	proposal := buildFlowSuggestionProposal(req, suggestions, flowTestManifests(), businessArtifactsResponse{
+		BusinessID: "biz-1",
+		Artifacts:  []string{"business.semantic_pack.v1", "data.sqlite_db.v1", "contact.destination.v1"},
+	})
+	if proposal == nil {
+		t.Fatal("expected proposal")
+	}
+	if len(proposal.Bindings) != 2 {
+		t.Fatalf("expected explicit role bindings before nodes, got %#v", proposal.Bindings)
+	}
+	if proposal.Bindings[0].Role != "analizar" || proposal.Bindings[0].Capability != "data.entity_360" {
+		t.Fatalf("expected analyze role to bind first, got %#v", proposal.Bindings)
+	}
+	if proposal.Bindings[1].Role != "redactar" || proposal.Bindings[1].Capability != "message.draft.collection_email" {
+		t.Fatalf("expected draft role binding second, got %#v", proposal.Bindings)
+	}
+	if proposal.Manifest.Nodes[0].Capability != proposal.Bindings[0].Capability || proposal.Manifest.Nodes[1].Capability != proposal.Bindings[1].Capability {
+		t.Fatalf("authored nodes should be materialized from explicit bindings, bindings=%#v nodes=%#v", proposal.Bindings, proposal.Manifest.Nodes)
+	}
+}
+
 func TestValidateFlowManifestMissingRequirementAllowsRuntimeCredentials(t *testing.T) {
 	manifests := flowTestManifests()
 	flow := flowManifest{

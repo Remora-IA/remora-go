@@ -15,6 +15,7 @@ import (
 
 	"channel/adapter"
 	"channel/manifest"
+	"remora-flujo/internal/agentloop"
 	"remora-flujo/internal/llm"
 )
 
@@ -47,20 +48,15 @@ type historyTurn struct {
 	Content string `json:"content"`
 }
 
-type toolDecision struct {
-	Action string         `json:"action"`
-	Tool   string         `json:"tool,omitempty"`
-	Args   map[string]any `json:"args,omitempty"`
-	Final  string         `json:"final,omitempty"`
-}
-
 type toolRunner struct {
-	client    *adapter.Client
-	workspace string
-	root      string
-	framework string
-	convID    string
-	session   sessionContext
+	client                   *adapter.Client
+	workspace                string
+	root                     string
+	framework                string
+	convID                   string
+	session                  sessionContext
+	sink                     *eventSinkAdapter
+	inspectorConnectionSaved bool
 }
 
 type sessionContext map[string]any
@@ -126,7 +122,6 @@ func runStart(args []string) error {
 	defer live.close()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	system := sessionSystem(prompt)
 	sessionCtx := decodeSessionContext(*contextB64)
 	user := "Sesión nueva sin mensaje inicial del usuario. Responde únicamente con el primer mensaje conversacional visible para el usuario según INITIAL_PROMPT.md. No uses saludos genéricos como \"¿en qué puedo ayudarte hoy?\". Si el framework trabaja bajo demanda, pregunta por el input concreto que necesita según su propósito. Si falta un dato crítico, devuelve solo una pregunta corta y específica. No inventes contenido específico, porcentajes, objetivos, ejemplos, eventos, tareas ni axiomas."
 	if ctxText := sessionContextText(sessionCtx); ctxText != "" {
@@ -140,12 +135,47 @@ func runStart(args []string) error {
 	for _, ev := range events {
 		_ = live.emit(ev)
 	}
-	text, err := client.Stream(ctx, llm.CompletionRequest{System: system, User: user, MaxTokens: 500}, func(se llm.StreamEvent) {
-		_ = live.emit(event{Type: se.Type, Framework: *framework, Provider: spec.Provider, Model: spec.Name, Delta: se.Delta})
-	})
-	if err != nil {
-		return err
+
+	var text string
+	if man.Agent.ToolsOnStart {
+		workspace, werr := ensureWorkspace(root, *framework, *convID)
+		if werr != nil {
+			return werr
+		}
+		runner := newToolRunner(root, workspace, *framework, *convID, sessionCtx)
+		sink := newEventSinkAdapter(live, *framework, spec)
+		runner.sink = sink
+		maxTurns := man.Agent.MaxTurns
+		if maxTurns <= 0 {
+			maxTurns = 30
+		}
+		result, aerr := agentloop.Run(ctx, client, runner, sink, agentloop.Config{
+			MaxTurns:  maxTurns,
+			MaxTokens: 1200,
+			System:    toolSystem(prompt, workspace),
+			User:      user,
+			Framework: *framework,
+			Spec:      spec,
+		})
+		if aerr != nil {
+			return aerr
+		}
+		text = result.Text
+		for _, ae := range result.Events {
+			events = append(events, event{Type: ae.Type, Framework: ae.Framework, Message: ae.Message})
+		}
+		events = append(events, sink.extraEvents...)
+	} else {
+		system := sessionSystem(prompt)
+		var serr error
+		text, serr = client.Stream(ctx, llm.CompletionRequest{System: system, User: user, MaxTokens: 500}, func(se llm.StreamEvent) {
+			_ = live.emit(event{Type: se.Type, Framework: *framework, Provider: spec.Provider, Model: spec.Name, Delta: se.Delta})
+		})
+		if serr != nil {
+			return serr
+		}
 	}
+
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return errors.New("start: LLM devolvió respuesta vacía")
@@ -237,17 +267,33 @@ func runMessage(args []string) error {
 	}
 	_ = live.emit(event{Type: "workspace.ready", Framework: *framework, Message: workspace})
 	runner := newToolRunner(root, workspace, *framework, *convID, sessionCtx)
-	text, toolEvents, err := runAgentLoop(ctx, client, runner, live, *framework, spec, prompt, user)
+	sink := newEventSinkAdapter(live, *framework, spec)
+	runner.sink = sink
+	maxTurns := man.Agent.MaxTurns
+	if maxTurns <= 0 {
+		maxTurns = 30
+	}
+	result, err := agentloop.Run(ctx, client, runner, sink, agentloop.Config{
+		MaxTurns:  maxTurns,
+		MaxTokens: 1200,
+		System:    toolSystem(prompt, workspace),
+		User:      user,
+		Framework: *framework,
+		Spec:      spec,
+	})
 	if err != nil {
 		return err
 	}
-	text = strings.TrimSpace(text)
+	text := strings.TrimSpace(result.Text)
 	if text == "" {
 		return errors.New("message: LLM devolvió respuesta vacía")
 	}
 	done := event{Type: "llm.response_done", Framework: *framework, Message: "respuesta generada", Provider: spec.Provider, Model: spec.Name}
 	assistant := event{Type: "assistant", Framework: *framework, Message: text, Provider: spec.Provider, Model: spec.Name}
-	events = append(events, toolEvents...)
+	for _, ae := range result.Events {
+		events = append(events, event{Type: ae.Type, Framework: ae.Framework, Message: ae.Message})
+	}
+	events = append(events, sink.extraEvents...)
 	setupEvents, setupText := assistedSetupCompletionEvents(ctx, runner, live, *framework, spec)
 	events = append(events, setupEvents...)
 	if setupText != "" {
@@ -329,179 +375,35 @@ func newToolRunner(root, workspace, framework, convID string, session sessionCon
 	return &toolRunner{client: c, workspace: workspace, root: root, framework: framework, convID: convID, session: session}
 }
 
-func runAgentLoop(ctx context.Context, client llm.Client, runner *toolRunner, live *liveEventWriter, framework string, spec llm.Spec, prompt, user string) (string, []event, error) {
-	var observations []string
-	var events []event
-	seen := map[string]bool{}
-	for i := 0; i < 4; i++ {
-		out, err := client.Complete(ctx, llm.CompletionRequest{
-			System:    toolSystem(prompt, runner.workspace),
-			User:      toolUser(user, observations),
-			MaxTokens: 900,
-		})
-		if err != nil {
-			return "", events, err
-		}
-		decisions := parseToolDecisions(out)
-		if len(decisions) == 0 {
-			text := strings.TrimSpace(out)
-			emitSyntheticText(live, framework, spec, text)
-			return text, events, nil
-		}
-		executed := false
-		for _, decision := range decisions {
-			if decision.Action == "final" {
-				text := strings.TrimSpace(decision.Final)
-				if text == "" {
-					text = strings.TrimSpace(out)
-				}
-				emitSyntheticText(live, framework, spec, text)
-				return text, events, nil
-			}
-			if decision.Action != "tool" || decision.Tool == "" {
-				continue
-			}
-			key := decisionKey(decision)
-			if seen[key] {
-				text, err := streamFinal(ctx, client, live, framework, spec, prompt, user, observations)
-				return text, events, err
-			}
-			seen[key] = true
-			start := event{Type: "tool_execution_start", Framework: framework, Message: decision.Tool}
-			events = append(events, start)
-			_ = live.emit(start)
-			result := runner.execute(ctx, decision.Tool, decision.Args)
-			end := event{Type: "tool_execution_end", Framework: framework, Message: decision.Tool + ": " + truncate(result, 800)}
-			events = append(events, end)
-			_ = live.emit(end)
-			if ev, ok := configurationToolEvent(framework, decision.Tool, result); ok {
-				events = append(events, ev)
-				_ = live.emit(ev)
-			}
-			observations = append(observations, "TOOL "+decision.Tool+" RESULT:\n"+truncate(result, 5000))
-			executed = true
-		}
-		if !executed {
-			emitSyntheticText(live, framework, spec, out)
-			return strings.TrimSpace(out), events, nil
-		}
+type eventSinkAdapter struct {
+	live        *liveEventWriter
+	framework   string
+	spec        llm.Spec
+	extraEvents []event
+}
+
+func newEventSinkAdapter(live *liveEventWriter, framework string, spec llm.Spec) *eventSinkAdapter {
+	return &eventSinkAdapter{live: live, framework: framework, spec: spec}
+}
+
+func (a *eventSinkAdapter) OnToolStart(tool string) {
+	_ = a.live.emit(event{Type: "tool_execution_start", Framework: a.framework, Message: tool})
+}
+
+func (a *eventSinkAdapter) OnToolEnd(tool string, result string) {
+	_ = a.live.emit(event{Type: "tool_execution_end", Framework: a.framework, Message: tool + ": " + agentloop.Truncate(result, 800)})
+	if ev, ok := configurationToolEvent(a.framework, tool, result); ok {
+		a.extraEvents = append(a.extraEvents, ev)
+		_ = a.live.emit(ev)
 	}
-	text, err := streamFinal(ctx, client, live, framework, spec, prompt, user, observations)
-	return text, events, err
 }
 
-func streamFinal(ctx context.Context, client llm.Client, live *liveEventWriter, framework string, spec llm.Spec, prompt, user string, observations []string) (string, error) {
-	finalUser := user + "\n\nResultados de herramientas:\n" + strings.Join(observations, "\n\n") + "\n\nResponde al usuario con la conclusión final. No menciones JSON ni herramientas salvo que sea necesario."
-	text, err := client.Stream(ctx, llm.CompletionRequest{System: sessionSystem(prompt), User: finalUser, MaxTokens: 1200}, func(se llm.StreamEvent) {
-		_ = live.emit(event{Type: se.Type, Framework: framework, Provider: spec.Provider, Model: spec.Name, Delta: se.Delta})
-	})
-	return strings.TrimSpace(text), err
-}
-
-func emitSyntheticText(live *liveEventWriter, framework string, spec llm.Spec, text string) {
-	_ = live.emit(event{Type: "text_start", Framework: framework, Provider: spec.Provider, Model: spec.Name})
+func (a *eventSinkAdapter) OnText(text string) {
+	_ = a.live.emit(event{Type: "text_start", Framework: a.framework, Provider: a.spec.Provider, Model: a.spec.Name})
 	if text != "" {
-		_ = live.emit(event{Type: "text_delta", Framework: framework, Provider: spec.Provider, Model: spec.Name, Delta: text})
+		_ = a.live.emit(event{Type: "text_delta", Framework: a.framework, Provider: a.spec.Provider, Model: a.spec.Name, Delta: text})
 	}
-	_ = live.emit(event{Type: "text_end", Framework: framework, Provider: spec.Provider, Model: spec.Name})
-}
-
-func parseToolDecision(raw string) (toolDecision, bool) {
-	candidate := extractJSONObject(raw)
-	if candidate == "" {
-		return toolDecision{Action: "final", Final: strings.TrimSpace(raw)}, false
-	}
-	var d toolDecision
-	if err := json.Unmarshal([]byte(candidate), &d); err != nil {
-		return toolDecision{Action: "final", Final: strings.TrimSpace(raw)}, false
-	}
-	if d.Action == "" {
-		d.Action = "final"
-	}
-	return d, true
-}
-
-func parseToolDecisions(raw string) []toolDecision {
-	objects := extractJSONObjects(raw)
-	out := make([]toolDecision, 0, len(objects))
-	for _, obj := range objects {
-		var d toolDecision
-		if err := json.Unmarshal([]byte(obj), &d); err != nil {
-			continue
-		}
-		if d.Action != "" && d.Action != "tool" && d.Tool == "" {
-			d.Tool = d.Action
-			d.Action = "tool"
-		}
-		if d.Action == "" && d.Tool != "" {
-			d.Action = "tool"
-		}
-		if d.Action == "" {
-			d.Action = "final"
-		}
-		out = append(out, d)
-	}
-	return out
-}
-
-func decisionKey(d toolDecision) string {
-	b, _ := json.Marshal(d)
-	return string(b)
-}
-
-func extractJSONObject(raw string) string {
-	objects := extractJSONObjects(raw)
-	if len(objects) == 0 {
-		return ""
-	}
-	return objects[0]
-}
-
-func extractJSONObjects(raw string) []string {
-	s := strings.TrimSpace(raw)
-	if strings.HasPrefix(s, "```") {
-		s = strings.TrimPrefix(s, "```json")
-		s = strings.TrimPrefix(s, "```")
-		s = strings.TrimSuffix(s, "```")
-		s = strings.TrimSpace(s)
-	}
-	var objects []string
-	start := -1
-	depth := 0
-	inString := false
-	escape := false
-	for i := 0; i < len(s); i++ {
-		ch := s[i]
-		if escape {
-			escape = false
-			continue
-		}
-		if ch == '\\' && inString {
-			escape = true
-			continue
-		}
-		if ch == '"' {
-			inString = !inString
-			continue
-		}
-		if inString {
-			continue
-		}
-		switch ch {
-		case '{':
-			if depth == 0 {
-				start = i
-			}
-			depth++
-		case '}':
-			depth--
-			if depth == 0 && start >= 0 {
-				objects = append(objects, s[start:i+1])
-				start = -1
-			}
-		}
-	}
-	return objects
+	_ = a.live.emit(event{Type: "text_end", Framework: a.framework, Provider: a.spec.Provider, Model: a.spec.Name})
 }
 
 func toolSystem(prompt, workspace string) string {
@@ -528,13 +430,6 @@ Si no necesitas herramientas o ya terminaste, responde SOLO JSON:
 Usa máximo una herramienta por respuesta. Después de cada herramienta recibirás su observación y podrás pedir otra.
 Usa propose_configuration cuando quieras que el usuario acepte o ajuste una configuración antes de instalarla. No presentes una configuración como aceptada hasta que el usuario la acepte. Usa commit_configuration solo después de una aceptación explícita del usuario.
 Usa herramientas solo cuando aporten algo real. Los paths relativos viven dentro del workspace temporal.`, workspace)
-}
-
-func toolUser(user string, observations []string) string {
-	if len(observations) == 0 {
-		return user
-	}
-	return user + "\n\nObservaciones previas:\n" + strings.Join(observations, "\n\n")
 }
 
 func decodeSessionContext(encoded string) sessionContext {
@@ -608,7 +503,7 @@ func assistedSetupCompletionEvents(ctx context.Context, runner *toolRunner, live
 	return []event{ev}, text
 }
 
-func (r *toolRunner) execute(ctx context.Context, tool string, args map[string]any) string {
+func (r *toolRunner) Execute(ctx context.Context, tool string, args map[string]any) string {
 	if args == nil {
 		args = map[string]any{}
 	}
@@ -662,7 +557,9 @@ func (r *toolRunner) execute(ctx context.Context, tool string, args map[string]a
 		if err != nil {
 			return "ERROR: " + err.Error()
 		}
-		return responseText(r.client.ExecuteCommand(ctx, cmd, cmdArgs, cwd))
+		result := responseText(r.client.ExecuteCommand(ctx, cmd, cmdArgs, cwd))
+		r.maybeAutoSaveInspectorConnection(cmd, cmdArgs, result)
+		return result
 	default:
 		return "ERROR: herramienta no soportada: " + tool
 	}
@@ -713,6 +610,75 @@ func (r *toolRunner) commitConfiguration(args map[string]any) string {
 	}
 	payload["path"] = path
 	raw, _ = json.Marshal(payload)
+	return string(raw)
+}
+
+func (r *toolRunner) maybeAutoSaveInspectorConnection(cmd string, cmdArgs []string, result string) {
+	if r.framework != "inspector" {
+		return
+	}
+	if !strings.Contains(cmd, "frameworkinspector") {
+		return
+	}
+	hasTestEndpoint := false
+	for _, a := range cmdArgs {
+		if a == "test-endpoint" {
+			hasTestEndpoint = true
+			break
+		}
+	}
+	if !hasTestEndpoint {
+		return
+	}
+	var parsed struct {
+		Success    bool   `json:"success"`
+		StatusCode int    `json:"status_code"`
+		BodySnippet string `json:"body_snippet"`
+	}
+	if json.Unmarshal([]byte(result), &parsed) != nil || !parsed.Success {
+		return
+	}
+	if r.inspectorConnectionSaved {
+		return
+	}
+	url := ""
+	token := ""
+	header := ""
+	for i, a := range cmdArgs {
+		switch a {
+		case "--url":
+			if i+1 < len(cmdArgs) { url = cmdArgs[i+1] }
+		case "--token":
+			if i+1 < len(cmdArgs) { token = cmdArgs[i+1] }
+		case "--header":
+			if i+1 < len(cmdArgs) { header = cmdArgs[i+1] }
+		}
+	}
+	if url == "" {
+		return
+	}
+	r.inspectorConnectionSaved = true
+	payload := map[string]any{
+		"artifact_type": "inspector.connection.v1",
+		"payload": map[string]any{
+			"name":        r.framework + " connection",
+			"base_url":    url,
+			"auth_token":  token,
+			"auth_header": header,
+			"verified":    true,
+		},
+	}
+	if ev, ok := configurationToolEvent(r.framework, "propose_configuration", mustJSON(payload)); ok {
+		if r.sink != nil {
+			r.sink.OnToolStart("propose_configuration")
+			r.sink.OnToolEnd("propose_configuration", mustJSON(payload))
+		}
+		_ = ev
+	}
+}
+
+func mustJSON(v any) string {
+	raw, _ := json.Marshal(v)
 	return string(raw)
 }
 
@@ -969,13 +935,6 @@ func stringSliceArg(args map[string]any, key string) []string {
 	return nil
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max] + "..."
-}
-
 func writeJSON(v any) error {
 	out, err := json.Marshal(v)
 	if err != nil {
@@ -1032,27 +991,29 @@ func specFor(man *manifest.Manifest) (llm.Spec, error) {
 		Capabilities: man.Model.Capabilities,
 		BaseURL:      man.Model.BaseURL,
 	}
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER"))) {
-	case "groq":
-		spec.Provider = "groq"
-		spec.EnvKey = "GROQ_API_KEY"
-		spec.Name = envOr("REMORA_GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
-		spec.BaseURL = ""
-	case "minimax":
-		spec.Provider = "minimax"
-		spec.EnvKey = "MINIMAX_API_KEY"
-		spec.Name = envOr("REMORA_MINIMAX_MODEL", "MiniMax-M2.7")
-		spec.BaseURL = ""
-	case "openrouter":
-		spec.Provider = "openrouter"
-		spec.EnvKey = "OPENROUTER_API_KEY"
-		spec.Name = envOr("REMORA_OPENROUTER_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
-		spec.BaseURL = "https://openrouter.ai/api/v1/chat/completions"
-	}
-	if spec.Provider == "" {
-		spec.Provider = "groq"
-		spec.EnvKey = "GROQ_API_KEY"
-		spec.Name = "meta-llama/llama-4-scout-17b-16e-instruct"
+	runtimeProvider := strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER")))
+	if spec.Provider == "" || (spec.EnvKey != "" && os.Getenv(spec.EnvKey) == "") {
+		switch runtimeProvider {
+		case "groq":
+			spec.Provider = "groq"
+			spec.EnvKey = "GROQ_API_KEY"
+			spec.Name = envOr("REMORA_GROQ_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+			spec.BaseURL = ""
+		case "minimax":
+			spec.Provider = "minimax"
+			spec.EnvKey = "MINIMAX_API_KEY"
+			spec.Name = envOr("REMORA_MINIMAX_MODEL", "MiniMax-M2.7")
+			spec.BaseURL = ""
+		case "openrouter":
+			spec.Provider = "openrouter"
+			spec.EnvKey = "OPENROUTER_API_KEY"
+			spec.Name = envOr("REMORA_OPENROUTER_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
+			spec.BaseURL = "https://openrouter.ai/api/v1/chat/completions"
+		default:
+			spec.Provider = "groq"
+			spec.EnvKey = "GROQ_API_KEY"
+			spec.Name = "meta-llama/llama-4-scout-17b-16e-instruct"
+		}
 	}
 	if os.Getenv(spec.EnvKey) == "" {
 		if man.Model.Fallback != nil && man.Model.Fallback.Provider != "" && os.Getenv(man.Model.Fallback.EnvKey) != "" {
@@ -1075,7 +1036,7 @@ REGLAS CRITICAS:
 - Nunca muestres comandos, rutas, reglas internas ni explicaciones del prompt.
 - Nunca digas "soy una IA", "soy asistente", "estoy listo" ni hagas un saludo genérico.
 - Tu salida debe ser solamente el siguiente mensaje conversacional visible para el usuario.
-- Si el prompt indica que falta un dato crítico, haz una sola pregunta corta con exactamente 3 opciones genéricas de estado/decisión.
+- Seguí el estilo de conversación definido en INITIAL_PROMPT.md. No impongas formatos de opciones numeradas ni listas si el prompt no los pide.
 - No inventes resultados, objetivos, eventos, tareas, axiomas, datos de negocio ni ejemplos concretos.
 
 INITIAL_PROMPT.md:

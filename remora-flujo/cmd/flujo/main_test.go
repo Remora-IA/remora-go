@@ -1,6 +1,12 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
+	"testing"
+)
 
 func TestParseEchoReadinessReady(t *testing.T) {
 	ready, question := parseEchoReadiness("ready_for_alfa: true\nrecommended_action: pass_to_alfa\n")
@@ -37,4 +43,37 @@ func TestContainsNormalized(t *testing.T) {
 	if !containsNormalized(response, question) {
 		t.Fatal("expected normalized containment")
 	}
+}
+
+func TestUsageMentionsCanonicalFlowCreateAndDraft(t *testing.T) {
+	output := captureStdout(t, usage)
+	for _, want := range []string{
+		"go run ./cmd/flujo flow create --business <business_id> [--name <nombre>] [--description <texto>]",
+		"go run ./cmd/flujo flow draft --business <business_id> --name <nombre> --description <texto> [--create]",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected %q in usage output:\n%s", want, output)
+		}
+	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	previous := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	t.Cleanup(func() {
+		os.Stdout = previous
+	})
+	fn()
+	_ = w.Close()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatal(err)
+	}
+	_ = r.Close()
+	return buf.String()
 }

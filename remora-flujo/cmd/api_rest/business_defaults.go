@@ -4,12 +4,17 @@ import "strings"
 
 const (
 	defaultBusinessFlowName        = "Cobranza asistida con análisis"
-	defaultBusinessFlowDescription = "Flujo por defecto para priorizar cobranza, revisar contexto del cliente y preparar el envío del mensaje."
+	defaultBusinessFlowDescription = "Plantilla base para priorizar cobranza, revisar contexto del cliente y preparar el envío del mensaje."
 )
 
 func defaultBusinessFlowManifest() *flowManifest {
 	return &flowManifest{
-		ID:       "flow_cobranza_asistida_con_anlisis",
+		ID: "flow_cobranza_asistida_con_anlisis",
+		Provenance: flowProvenance{
+			Source:     "system_default_proposal",
+			Template:   true,
+			TemplateID: "default_business_collection",
+		},
 		Policies: []string{"trace_required"},
 		Nodes: []flowNode{
 			{ID: "node_1_analysis_configure", Framework: "radar", Capability: "analysis.configure", Role: flowRoleBootstrap},
@@ -41,19 +46,19 @@ func (s *server) ensureDefaultBusinessAssets(business authBusiness) error {
 	if strings.TrimSpace(business.ID) == "" || s == nil || s.flows == nil {
 		return nil
 	}
-	flows, err := s.flows.listFlowsByBusiness(business.ID)
+	templates, err := s.flows.listFlowTemplatesByBusiness(business.ID)
 	if err != nil {
 		return err
 	}
-	for _, flow := range flows {
-		if flow.Name == defaultBusinessFlowName {
+	for _, template := range templates {
+		if template.Name == defaultBusinessFlowName {
 			return nil
 		}
-		if flow.Manifest != nil && flow.Manifest.ID == defaultBusinessFlowManifestID() {
+		if template.Manifest != nil && template.Manifest.ID == defaultBusinessFlowManifestID() {
 			return nil
 		}
 	}
-	_, err = s.flows.createFlow(defaultBusinessFlowName, defaultBusinessFlowDescription, business.ID, defaultBusinessFlowManifest())
+	_, err = s.flows.createFlowTemplate(defaultBusinessFlowName, defaultBusinessFlowDescription, business.ID, defaultBusinessFlowManifest())
 	return err
 }
 
