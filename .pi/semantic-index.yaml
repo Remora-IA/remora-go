@@ -1,0 +1,4321 @@
+meta:
+  project: remora-go-lite
+  built_at: '2026-05-17T00:00:00Z'
+  code_hash: b3cb0b01d0736071
+  run_id: run-1778992200
+  components:
+  - remora-cli
+  - remora-flujo
+  - channel
+  built_by: pi-detective, pi-pre-narrador, pi-indexer
+  status: complete
+features:
+  flow-create-wizard:
+    description: Wizard interactivo para crear flows desde CLI con prompts secuenciales y sugerencia IA
+    components:
+    - remora-cli
+    - remora-flujo
+    entry_points:
+    - fn: handleFlowCreate
+      component: remora-cli
+      file: remora-cli/cmd/remora/flow_workbench.go
+      line: 1114
+    call_chain:
+    - remora-cli/handleFlowCreate [flow_workbench.go:1114]
+    - remora-cli/promptFlowCreateAnswers [flow_workbench.go:1076]
+    - remora-cli/fetchBusinessArtifacts [flow_workbench.go:1064]
+    - remora-cli/buildFlowCreateSuggestPayload [flow_workbench.go:949]
+    - → [HTTP POST /api/v1/flows/suggest]
+    - remora-flujo/suggestFlowCapabilities [flow_suggest.go]
+    - → [HTTP POST /api/v1/businesses/{id}/flows]
+    - remora-flujo/handleCreateFlow [flow_store.go:763]
+    - remora-cli/printFlowCreatePreview [flow_workbench.go:1218]
+    - remora-cli/formatFlowWorkbench [flow_workbench.go:1414]
+    interfaces_crossed:
+    - cli-to-api-http
+    unknowns: []
+  flow-draft-from-spec:
+    description: Crear flow desde descripcion textual directa sin wizard, con opcion --create para persistir
+    components:
+    - remora-cli
+    - remora-flujo
+    entry_points:
+    - fn: handleFlowDraft
+      component: remora-cli
+      file: remora-cli/cmd/remora/flow_workbench.go
+      line: 1235
+    call_chain:
+    - remora-cli/handleFlowDraft [flow_workbench.go:1235]
+    - → [HTTP POST /api/v1/flows/suggest]
+    - remora-flujo/suggestFlowCapabilities
+    - '→ si --create: [HTTP POST /api/v1/businesses/{id}/flows]'
+    - remora-flujo/handleCreateFlow [flow_store.go:763]
+    - remora-cli/formatFlowWorkbench [flow_workbench.go:1414]
+    interfaces_crossed:
+    - cli-to-api-http
+    unknowns: []
+  flow-simulate-pipeline:
+    description: 'Simular ejecucion de un flow end-to-end: CLI → API REST → channel subprocess → resultado'
+    components:
+    - remora-cli
+    - remora-flujo
+    - channel
+    entry_points:
+    - fn: handleFlowSimulate
+      component: remora-cli
+      file: remora-cli/cmd/remora/flow_workbench.go
+      line: 1330
+    call_chain:
+    - remora-cli/handleFlowSimulate [flow_workbench.go:1330]
+    - remora-cli/mustFetchFlowRecord [flow_workbench.go:1387]
+    - → [HTTP GET /api/v1/flows/{id}]
+    - remora-flujo/handleGetFlow [flow_store.go:796]
+    - → [HTTP POST /api/v1/flows/simulate]
+    - remora-flujo/simulateFlow [flow_run.go]
+    - remora-flujo/ensureChannel [flow_channel.go:22]
+    - → [exec.Command channelBin] si no corre
+    - channel/Handle [internal/handler.go:50]
+    - remora-cli/formatFlowWorkbench [flow_workbench.go:1414]
+    interfaces_crossed:
+    - cli-to-api-http
+    - flujo-to-channel-exec
+    unknowns: []
+  flow-debug-suite:
+    description: Suite de comandos de debugging para inspeccionar frameworks, traces, capabilities y dependencias
+    components:
+    - remora-cli
+    - remora-flujo
+    entry_points:
+    - fn: handleDebugCommand
+      component: remora-cli
+      file: remora-cli/cmd/remora/flow_workbench.go
+      line: 274
+    call_chain:
+    - remora-cli/handleDebugCommand [flow_workbench.go:274]
+    - → handleDebugFrameworks [310] | handleDebugManifest [373] | handleDebugCommands [401]
+    - → handleDebugCapabilities [444] | handleDebugTrace [505] | handleDebugValidate [539]
+    - → handleDebugSimulate [572] | handleDebugDependencies [625]
+    - remora-cli/newClient().get() → remora-flujo API
+    interfaces_crossed:
+    - cli-to-api-http
+    unknowns: []
+  channel-jsonrpc-server:
+    description: Servidor JSON-RPC 2.0 HTTP que ejecuta comandos del SO, lee/escribe archivos, con whitelist y API key auth
+    components:
+    - channel
+    entry_points:
+    - fn: Handle
+      component: channel
+      file: channel/internal/handler.go
+      line: 50
+    call_chain:
+    - channel/main [channel/main.go:1]
+    - channel/Handle [internal/handler.go:50]
+    - channel/ValidateSecurity [internal/security.go:21]
+    - channel/ValidateJSONRPC [internal/jsonrpc.go:14]
+    - → executeCommand | readFile | writeFile | listDir | grep | find | editFile | httpGet
+    - channel/ExecuteCommandWithEnv [internal/exec.go:22]
+    - channel/IsCommandAllowed [internal/whitelist.go:97]
+    interfaces_crossed: []
+    unknowns: []
+  auth-session-api:
+    description: Registro, login, logout e identidad de usuarios con cookies de sesion y Bearer tokens
+    components:
+    - remora-flujo
+    entry_points:
+    - fn: handleAuthRegister
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/auth_handlers.go
+      line: 42
+    call_chain:
+    - remora-flujo/handleAuthRegister [auth_handlers.go:42]
+    - → s.auth.createUser()
+    - → s.auth.createSession()
+    - → setAuthCookie() / writeOK()
+    - remora-flujo/handleAuthLogin [auth_handlers.go:68]
+    - → s.auth.authenticate()
+    - remora-flujo/handleAuthMe [auth_handlers.go:103]
+    - remora-flujo/handleAuthLogout [auth_handlers.go:94]
+    interfaces_crossed: []
+    unknowns: []
+  vault-secrets-management:
+    description: Gestion de secretos cifrados con AES-GCM por conversacion, con CLI vault genkey/set/get/has/list/delete
+    components:
+    - channel
+    entry_points:
+    - fn: cmdSet
+      component: channel
+      file: channel/vault/main.go
+      line: 109
+    call_chain:
+    - channel/cmdGenKey [vault/main.go:177]
+    - channel/vault.GenerateKey [vault/vault.go:259]
+    - channel/cmdSet [vault/main.go:109]
+    - channel/vault.Set [vault/vault.go:145] → masterKey() → AES-GCM → WriteFile
+    - channel/cmdGet [vault/main.go:91]
+    - channel/vault.Get [vault/vault.go:176] → masterKey() → AES-GCM → ReadFile
+    - channel/cmdHas [vault/main.go:77]
+    - channel/vault.Has [vault/vault.go:210]
+    interfaces_crossed: []
+    unknowns: []
+  frontend-flow-builder:
+    description: 'Builder visual de flows en 3 pasos desde canvas HTML: describe, elige capabilities, guarda'
+    components:
+    - remora-flujo
+    entry_points:
+    - fn: handleCreateFlow
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/flow_store.go
+      line: 763
+    call_chain:
+    - 'Browser: GET / → index.html'
+    - 'JS: GET /api/v1/businesses/{id}/flows → handleListFlows [flow_store.go:745]'
+    - 'JS: POST /api/v1/flows/suggest → suggestFlowCapabilities'
+    - 'JS: POST /api/v1/businesses/{id}/flows → handleCreateFlow [flow_store.go:763]'
+    interfaces_crossed:
+    - cli-to-api-http
+    unknowns:
+    - Frontend code en static/index.html (10017 lineas) no analizado en detalle
+interfaces:
+  cli-to-api-http:
+    type: http
+    from:
+      component: remora-cli
+      file: remora-cli/cmd/remora/main.go
+      line: 73
+      code: newClient().get() / newClient().post()
+    to:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/main.go
+      line: 171
+      fn: setupRoutes (HandleFunc registrations)
+    protocol: 'HTTP REST JSON — base URL from REMORA_API_URL (default: http://localhost:8084)'
+    verifiable: true
+  flujo-to-channel-exec:
+    type: exec
+    from:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/flow_channel.go
+      line: 56
+      code: exec.Command(channelBin, -addr, addr, -base-dir, baseDir, -api-keys, apiKey)
+    to:
+      component: channel
+      file: channel/cmd/channel/main.go
+      line: 1
+      fn: main
+    protocol: 'subprocess: remora-flujo inicia channel como proceso hijo; luego pingChannel() via HTTP hasta listo (100 reintentos
+      x 100ms)'
+    verifiable: true
+  flujo-to-channel-http:
+    type: http
+    from:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/flow_channel.go
+      line: 194
+      code: pingChannel() http.Do
+    to:
+      component: channel
+      file: channel/internal/handler.go
+      line: 50
+      fn: Handle
+    protocol: HTTP JSON-RPC 2.0 POST / con header X-API-Key; channel escucha en :8080 (PORT env)
+    verifiable: true
+  cli-to-flujo-binary:
+    type: exec
+    from:
+      component: remora-cli
+      file: remora-cli/cmd/remora/flow_workbench.go
+      line: 895
+      code: exec.LookPath('flujo') o exec.Command('go','run','./cmd/flujo',...)
+    to:
+      component: remora-flujo
+      file: remora-flujo/cmd/flujo/main.go
+      line: 1
+      fn: main
+    protocol: 'subprocess: remora-cli delega subcomandos run/compile/install/replay al binario flujo'
+    verifiable: true
+  flujo-to-llm-http:
+    type: http
+    from:
+      component: remora-flujo
+      file: remora-flujo/internal/llm/client.go
+      line: 192
+      code: Complete() / Stream() http.Do
+    to:
+      component: external-llm
+      file: ''
+      line: 0
+      fn: ''
+    protocol: HTTP HTTPS POST a MiniMax/Groq/OpenRouter segun REMORA_LLM_PROVIDER; API key del proveedor en env
+    verifiable: false
+functions:
+  handleFlowWorkbench:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 237
+    role: Dispatcher raiz del comando 'flow'; despacha a subcomandos create/draft/inspect/simulate/debug
+    feature: flow-debug-suite
+    callers:
+    - main
+    callees:
+    - delegateToCanonicalFlowWorkbench
+    - handleDebugCommand
+    - handleFlowCreate
+    - handleFlowDraft
+    - handleFlowInspect
+    - handleFlowSimulate
+  handleFlowCreate:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1114
+    role: Wizard interactivo para crear un flow con prompts, suggest IA y persistencia
+    feature: flow-create-wizard
+    callers:
+    - handleFlowWorkbench
+    callees:
+    - promptFlowCreateAnswers
+    - fetchBusinessArtifacts
+    - buildFlowCreateSuggestPayload
+    - post
+    - printFlowCreatePreview
+    - formatFlowWorkbench
+  handleFlowDraft:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1235
+    role: Crear flow desde spec textual directa sin wizard; opcion --create para persistir
+    feature: flow-draft-from-spec
+    callers:
+    - handleFlowWorkbench
+    callees:
+    - post
+    - formatFlowWorkbench
+  handleFlowInspect:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1312
+    role: Inspeccionar flow existente por ID mostrando workbench completo
+    feature: flow-debug-suite
+    callers:
+    - handleFlowWorkbench
+    callees:
+    - mustFetchFlowRecord
+    - formatFlowWorkbench
+  handleFlowSimulate:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1330
+    role: Simular ejecucion de flow con input y fixtures opcionales
+    feature: flow-simulate-pipeline
+    callers:
+    - handleFlowWorkbench
+    callees:
+    - mustFetchFlowRecord
+    - post
+    - parseCSVList
+    - formatFlowWorkbench
+  handleDebugCommand:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 274
+    role: Dispatcher del subcomando 'debug'; despacha a 8 subcomandos de debugging
+    feature: flow-debug-suite
+    callers:
+    - handleFlowWorkbench
+    callees:
+    - handleDebugFrameworks
+    - handleDebugManifest
+    - handleDebugCommands
+    - handleDebugCapabilities
+    - handleDebugTrace
+    - handleDebugValidate
+    - handleDebugSimulate
+    - handleDebugDependencies
+    - printDebugUsage
+  handleDebugFrameworks:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 310
+    role: Listar frameworks instalados con version, modo y freshness
+    feature: flow-debug-suite
+    callers:
+    - handleDebugCommand
+    callees:
+    - get
+    - printFrameworkName
+  handleDebugTrace:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 505
+    role: Ver timeline de ejecucion de un run con steps y duraciones
+    feature: flow-debug-suite
+    callers:
+    - handleDebugCommand
+    callees:
+    - get
+    - decodeAPIData
+    - printRunTrace
+  handleDebugValidate:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 539
+    role: Validar integridad de un flow detectando violaciones y advertencias
+    feature: flow-debug-suite
+    callers:
+    - handleDebugCommand
+    callees:
+    - post
+    - decodeAPIData
+    - printFlowValidation
+  handleDebugSimulate:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 572
+    role: Dry-run de flow con timeline detallado y plan de ejecucion
+    feature: flow-debug-suite
+    callers:
+    - handleDebugCommand
+    callees:
+    - get
+    - post
+    - printSimulateResult
+  handleDebugDependencies:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 625
+    role: Visualizar grafo de dependencias de un flow
+    feature: flow-debug-suite
+    callers:
+    - handleDebugCommand
+    callees:
+    - get
+    - decodeAPIData
+    - printFlowDependencies
+  promptFlowCreateAnswers:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1076
+    role: 'Wizard interactivo: hace preguntas en secuencia via bufio.NewReader(os.Stdin)'
+    feature: flow-create-wizard
+    callers:
+    - handleFlowCreate
+    callees:
+    - promptFlowField
+  fetchBusinessArtifacts:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1064
+    role: Obtener artifacts del negocio via GET /businesses/{id}/artifacts
+    feature: flow-create-wizard
+    callers:
+    - handleFlowCreate
+    callees:
+    - get
+  buildFlowCreateSuggestPayload:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 949
+    role: Construir payload de suggest con intent, roles y constraints inferidos
+    feature: flow-create-wizard
+    callers:
+    - handleFlowCreate
+    callees:
+    - applyFlowCreateIntentModel
+    - inferFlowCreateRoles
+  mustFetchFlowRecord:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1387
+    role: Obtener record de un flow por ID; termina con error si no existe
+    feature: flow-simulate-pipeline
+    callers:
+    - handleFlowInspect
+    - handleFlowSimulate
+    - handleDebugSimulate
+    - handleDebugDependencies
+    callees:
+    - get
+    - decodeAPIData
+  formatFlowWorkbench:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 1414
+    role: 'Formatter principal del workbench: imprime nodes, edges, grounding, handoffs, lifecycle'
+    feature: flow-create-wizard
+    callers:
+    - handleFlowCreate
+    - handleFlowDraft
+    - handleFlowInspect
+    - handleFlowSimulate
+    - handleDebugSimulate
+    callees: []
+  canonicalFlowWorkbenchCommand:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 895
+    role: Busca binario 'flujo' en PATH o via 'go run ./cmd/flujo'; delega subcomandos no nativos
+    feature: flow-debug-suite
+    callers:
+    - delegateToCanonicalFlowWorkbench
+    callees: []
+  handleAuthRegister:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/auth_handlers.go
+    line: 42
+    role: 'Registrar nuevo usuario: createUser + createSession + setAuthCookie'
+    feature: auth-session-api
+    callers:
+    - setupRoutes
+    callees:
+    - createUser
+    - createSession
+    - setAuthCookie
+    - writeOK
+  handleAuthLogin:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/auth_handlers.go
+    line: 68
+    role: 'Autenticar usuario: authenticate + createSession + setAuthCookie'
+    feature: auth-session-api
+    callers:
+    - setupRoutes
+    callees:
+    - authenticate
+    - createSession
+    - setAuthCookie
+    - writeOK
+  handleAuthMe:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/auth_handlers.go
+    line: 103
+    role: Devolver identidad del usuario autenticado con memberships
+    feature: auth-session-api
+    callers:
+    - setupRoutes
+    callees:
+    - currentUser
+    - memberships
+  handleCreateFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_store.go
+    line: 763
+    role: 'Crear flow: valida membership, inserta en SQLite, enriquece y devuelve HTTP 201'
+    feature: flow-create-wizard
+    callers:
+    - setupRoutes
+    callees:
+    - requireMembershipContext
+    - createFlow
+    - enrichFlowRuntimeStatus
+    - enrichFlowDesignSemantics
+    - writeJSON
+  handleListFlows:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_store.go
+    line: 745
+    role: Listar flows de un negocio con runtime status y design semantics
+    feature: frontend-flow-builder
+    callers:
+    - setupRoutes
+    callees:
+    - requireMembershipContext
+    - listFlowsByBusiness
+    - enrichFlowRuntimeStatus
+    - enrichFlowDesignSemantics
+    - writeOK
+  handleGetFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_store.go
+    line: 796
+    role: Obtener flow por ID con enriquecimiento de runtime status
+    feature: flow-simulate-pipeline
+    callers:
+    - setupRoutes
+    callees:
+    - getFlow
+    - requireMembershipContext
+    - enrichFlowRuntimeStatus
+    - writeOK
+  handleUpdateFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_store.go
+    line: 831
+    role: 'Actualizar flow por ID: manifest o descripcion'
+    feature: flow-crud-api
+    callers:
+    - setupRoutes
+    callees:
+    - getFlow
+    - requireMembershipContext
+  handleDeleteFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_store.go
+    line: 868
+    role: Eliminar flow por ID
+    feature: flow-crud-api
+    callers:
+    - setupRoutes
+    callees:
+    - getFlow
+    - requireMembershipContext
+  handleInstallFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_store.go
+    line: 811
+    role: Ejecutar analisis de instalacion de un flow
+    feature: flow-crud-api
+    callers:
+    - setupRoutes
+    callees:
+    - installFlowAnalysis
+    - writeOK
+  Handle:
+    component: channel
+    file: channel/internal/handler.go
+    line: 50
+    role: 'Handler principal JSON-RPC: valida API key, despacha metodos execute_command/read_file/write_file/etc'
+    feature: channel-jsonrpc-server
+    callers:
+    - main
+    callees:
+    - ValidateSecurity
+    - LogRequest
+    - ValidateJSONRPC
+    - executeCommand
+    - readFile
+    - writeFile
+    - listDir
+    - grep
+    - find
+    - editFile
+    - httpGet
+  ExecuteCommandWithEnv:
+    component: channel
+    file: channel/internal/exec.go
+    line: 22
+    role: Ejecutar comando del SO con timeout via exec.CommandContext; sin shell
+    feature: channel-jsonrpc-server
+    callers:
+    - executeCommand
+    callees: []
+  ValidateSecurity:
+    component: channel
+    file: channel/internal/security.go
+    line: 21
+    role: Validar API key del request; rechaza si no esta en CHANNEL_API_KEYS
+    feature: channel-jsonrpc-server
+    callers:
+    - Handle
+    callees:
+    - ValidatePath
+    - isPathSafe
+  HandleMessage:
+    component: remora-flujo
+    file: remora-flujo/autonomia/session.go
+    line: 95
+    role: Procesar mensaje en sesion de autonomia controlada
+    feature: auth-session-api
+    callers:
+    - handleAutonomiaMessage
+    callees: []
+  ensureChannel:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_channel.go
+    line: 22
+    role: Asegurar que channel este corriendo; lo inicia via exec.Command si no responde
+    feature: flow-simulate-pipeline
+    callers:
+    - simulateFlow
+    - runFlow
+    callees:
+    - pingChannel
+    - buildChannelBinary
+  handleTasksList:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/tareas.go
+    line: 89
+    role: Listar tareas del sistema foco desde DB
+    feature: auth-session-api
+    callers:
+    - setupRoutes
+    callees:
+    - writeOK
+  handleTracesLatest:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/traces.go
+    line: 20
+    role: Devolver trazas mas recientes de ejecucion
+    feature: flow-debug-suite
+    callers:
+    - setupRoutes
+    callees:
+    - writeOK
+axioms:
+  run-flow-manifest-001:
+    description: El flujo SIEMPRE se compila antes de ejecutar; si no existe compiled previo, se genera uno nuevo
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 1
+    functions:
+    - fn: runFlowManifest
+      file: api_rest/flow_runner.go
+      line: 12
+    - fn: loadCompiledRecord
+      file: api_rest/flow_compiled_store.go
+      line: 60
+    - fn: compileAndPersistFlowManifest
+      file: api_rest/flow_compiled_store.go
+      line: 76
+    source: narrative
+    status: observed
+  run-flow-manifest-002:
+    description: Si compiled_id proporcionado, DEBE pertenecer al mismo business_id del request
+    type: contractual
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 1
+    functions:
+    - fn: runFlowManifest
+      file: api_rest/flow_runner.go
+      line: 12
+    - fn: loadCompiledRecord
+      file: api_rest/flow_compiled_store.go
+      line: 60
+    - fn: compileAndPersistFlowManifest
+      file: api_rest/flow_compiled_store.go
+      line: 76
+    source: narrative
+    status: observed
+  run-flow-manifest-003:
+    description: Validacion invalida aborta inmediatamente (status=invalid, sin ejecucion de nodos)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 2
+    functions:
+    - fn: validateFlowManifestWithArtifacts
+      file: api_rest/flow_backend.go
+      line: 631
+    - fn: flowExecutionOrder
+      file: api_rest/flow_backend.go
+      line: 1006
+    source: narrative
+    status: observed
+  run-flow-manifest-004:
+    description: El orden topologico respeta las dependencias declaradas entre nodos
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 2
+    functions:
+    - fn: validateFlowManifestWithArtifacts
+      file: api_rest/flow_backend.go
+      line: 631
+    - fn: flowExecutionOrder
+      file: api_rest/flow_backend.go
+      line: 1006
+    source: narrative
+    status: observed
+  run-flow-manifest-005:
+    description: Los artefactos de sistema se inyectan ANTES de iterar nodos; ningun nodo puede alterar este conjunto base
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 3
+    functions:
+    - fn: systemFlowArtifacts
+      file: api_rest/flow_backend.go
+      line: 886
+    - fn: ensureSemanticSegmentInitialized
+      file: api_rest/flow_segments.go
+      line: 19
+    - fn: injectSemanticSegmentOwnerNode
+      file: api_rest/flow_segments.go
+      line: 497
+    source: narrative
+    status: observed
+  run-flow-manifest-006:
+    description: flow.intent.v1 se genera SOLO si el manifest declara un intent explicito
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 3
+    functions:
+    - fn: systemFlowArtifacts
+      file: api_rest/flow_backend.go
+      line: 886
+    - fn: ensureSemanticSegmentInitialized
+      file: api_rest/flow_segments.go
+      line: 19
+    - fn: injectSemanticSegmentOwnerNode
+      file: api_rest/flow_segments.go
+      line: 497
+    source: narrative
+    status: observed
+  run-flow-manifest-007:
+    description: Un nodo NUNCA se ejecuta si tiene artefactos requeridos faltantes sin resolucion posible
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 4
+    functions:
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: ensureDataPipeline
+      file: api_rest/flow_data_pipeline.go
+      line: 20
+    - fn: resolveMissingFlowArtifacts
+      file: api_rest/flow_gap_inputs.go
+      line: 11
+    - fn: ensureFlowPreflightAudit
+      file: api_rest/flow_preflight.go
+      line: 92
+    source: narrative
+    status: observed
+  run-flow-manifest-008:
+    description: 'La iteracion es breakable: cualquier fallo, needs_input o needs_approval DETIENE la iteracion'
+    type: security
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 4
+    functions:
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: ensureDataPipeline
+      file: api_rest/flow_data_pipeline.go
+      line: 20
+    - fn: resolveMissingFlowArtifacts
+      file: api_rest/flow_gap_inputs.go
+      line: 11
+    - fn: ensureFlowPreflightAudit
+      file: api_rest/flow_preflight.go
+      line: 92
+    source: narrative
+    status: observed
+  run-flow-manifest-009:
+    description: Bootstrap nodes se saltan en ciclos subsiguientes (cyclesDone > 0)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 4
+    functions:
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: ensureDataPipeline
+      file: api_rest/flow_data_pipeline.go
+      line: 20
+    - fn: resolveMissingFlowArtifacts
+      file: api_rest/flow_gap_inputs.go
+      line: 11
+    - fn: ensureFlowPreflightAudit
+      file: api_rest/flow_preflight.go
+      line: 92
+    source: narrative
+    status: observed
+  run-flow-manifest-010:
+    description: La aprobacion runtime es un gate que SIEMPRE detiene la ejecucion antes de side-effects no autorizados
+    type: security
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 5
+    functions:
+    - fn: nodeRequiresRuntimeApproval
+      file: api_rest/flow_runtime_approval.go
+      line: 28
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: recordNodeArtifacts
+      file: api_rest/flow_artifacts.go
+      line: 102
+    source: narrative
+    status: observed
+  run-flow-manifest-011:
+    description: Exit code != 0 SIEMPRE produce status=failed y rompe la iteracion
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 5
+    functions:
+    - fn: nodeRequiresRuntimeApproval
+      file: api_rest/flow_runtime_approval.go
+      line: 28
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: recordNodeArtifacts
+      file: api_rest/flow_artifacts.go
+      line: 102
+    source: narrative
+    status: observed
+  run-flow-manifest-012:
+    description: Ciclos se resetean con resetCycleArtifacts; artefactos de bootstrap/infra persisten entre ciclos
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 6
+    functions:
+    - fn: isCycleTerminalStep
+      file: api_rest/flow_cycles.go
+      line: 37
+    - fn: resetCycleArtifacts
+      file: api_rest/flow_cycles.go
+      line: 9
+    - fn: normalizeFlowTimelineSegments
+      file: api_rest/flow_segments.go
+      line: 446
+    - fn: persistFlowRun
+      file: api_rest/flow_artifacts.go
+      line: 328
+    source: narrative
+    status: observed
+  run-flow-manifest-013:
+    description: El flujo SIEMPRE se persiste al finalizar (persistFlowRun) independientemente del status final
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 6
+    functions:
+    - fn: isCycleTerminalStep
+      file: api_rest/flow_cycles.go
+      line: 37
+    - fn: resetCycleArtifacts
+      file: api_rest/flow_cycles.go
+      line: 9
+    - fn: normalizeFlowTimelineSegments
+      file: api_rest/flow_segments.go
+      line: 446
+    - fn: persistFlowRun
+      file: api_rest/flow_artifacts.go
+      line: 328
+    source: narrative
+    status: observed
+  run-flow-manifest-014:
+    description: maxCycles <= 0 se normaliza a 1 (siempre al menos un ciclo)
+    type: contractual
+    scope:
+    - remora-flujo
+    mechanism: run-flow-manifest
+    pipeline: flow-execution-loop
+    step: 6
+    functions:
+    - fn: isCycleTerminalStep
+      file: api_rest/flow_cycles.go
+      line: 37
+    - fn: resetCycleArtifacts
+      file: api_rest/flow_cycles.go
+      line: 9
+    - fn: normalizeFlowTimelineSegments
+      file: api_rest/flow_segments.go
+      line: 446
+    - fn: persistFlowRun
+      file: api_rest/flow_artifacts.go
+      line: 328
+    source: narrative
+    status: observed
+  run-loop-001:
+    description: Las sesiones activas tienen prioridad ABSOLUTA sobre el pipeline normal de drivers
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 1
+    functions:
+    - fn: loadQueue
+      file: api_rest/store.go
+      line: 226
+    - fn: driversFor
+      file: api_rest/drivers.go
+      line: 175
+    - fn: loadActiveSessionFromDisk
+      file: api_rest/flow_segments.go
+      line: 721
+    - fn: classifySegmentIntent
+      file: api_rest/flow_segments.go
+      line: 924
+    source: narrative
+    status: observed
+  run-loop-002:
+    description: El claim de sesion para una conversacion es atomico (una vez asignada, no se reasigna)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 1
+    functions:
+    - fn: loadQueue
+      file: api_rest/store.go
+      line: 226
+    - fn: driversFor
+      file: api_rest/drivers.go
+      line: 175
+    - fn: loadActiveSessionFromDisk
+      file: api_rest/flow_segments.go
+      line: 721
+    - fn: classifySegmentIntent
+      file: api_rest/flow_segments.go
+      line: 924
+    source: narrative
+    status: observed
+  run-loop-003:
+    description: Un solo framework queda elegido como proximo speaker por ciclo (nunca responden dos simultaneamente)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 1
+    functions:
+    - fn: loadQueue
+      file: api_rest/store.go
+      line: 226
+    - fn: driversFor
+      file: api_rest/drivers.go
+      line: 175
+    - fn: loadActiveSessionFromDisk
+      file: api_rest/flow_segments.go
+      line: 721
+    - fn: classifySegmentIntent
+      file: api_rest/flow_segments.go
+      line: 924
+    source: narrative
+    status: observed
+  run-loop-004:
+    description: La clasificacion de intent (capability-based) PRECEDE a las reglas declarativas
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 2
+    functions:
+    - fn: classifyIntent
+      file: api_rest/intent.go
+      line: 22
+    - fn: reorderDrivers
+      file: api_rest/rules.go
+      line: 185
+    source: narrative
+    status: observed
+  run-loop-005:
+    description: Vision preprocessing se aplica SOLO si la regla lo pide Y hay imagenes en resources
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 2
+    functions:
+    - fn: classifyIntent
+      file: api_rest/intent.go
+      line: 22
+    - fn: reorderDrivers
+      file: api_rest/rules.go
+      line: 185
+    source: narrative
+    status: observed
+  run-loop-006:
+    description: La whitelist de allowed_delegates del session owner NUNCA se puede saltar
+    type: security
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 2
+    functions:
+    - fn: classifyIntent
+      file: api_rest/intent.go
+      line: 22
+    - fn: reorderDrivers
+      file: api_rest/rules.go
+      line: 185
+    source: narrative
+    status: observed
+  run-loop-007:
+    description: El enriquecimiento con contexto de tarea NUNCA contiene newlines (Channel rechaza unsafe args)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 3
+    source: narrative
+    status: observed
+  run-loop-008:
+    description: Si vision preprocessing falla, se continua con texto plano sin abortar
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 3
+    source: narrative
+    status: observed
+  run-loop-009:
+    description: Solo el primer driver con pregunta lista es elegido; los demas se ignoran en este ciclo
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 4
+    functions:
+    - fn: PollQuestionFull
+      file: api_rest/generic_driver.go
+      line: 233
+    - fn: saveQueue
+      file: api_rest/store.go
+      line: 230
+    source: narrative
+    status: observed
+  run-loop-010:
+    description: La pregunta queda registrada en queue con speaker asignado antes de retornar
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-loop
+    pipeline: conversational-routing
+    step: 4
+    functions:
+    - fn: PollQuestionFull
+      file: api_rest/generic_driver.go
+      line: 233
+    - fn: saveQueue
+      file: api_rest/store.go
+      line: 230
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-001:
+    description: Si no hay requisitos terminales NI campos requeridos, gaps se anulan (gaps = nil)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 1
+    functions:
+    - fn: loadBusinessScopeTables
+      file: api_rest/business_artifacts.go
+      line: 210
+    - fn: flowTerminalRequirementsForArtifacts
+      file: api_rest/flow_segments.go
+      line: 361
+    - fn: flowRequiredDataFields
+      file: <empty>
+      line: 0
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-002:
+    description: El scope del negocio filtra gaps que no pertenecen a las tablas del negocio actual
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 1
+    functions:
+    - fn: loadBusinessScopeTables
+      file: api_rest/business_artifacts.go
+      line: 210
+    - fn: flowTerminalRequirementsForArtifacts
+      file: api_rest/flow_segments.go
+      line: 361
+    - fn: flowRequiredDataFields
+      file: <empty>
+      line: 0
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-003:
+    description: Maximo 2 passes de resolucion (maxResolutionPasses=2); NUNCA se hace loop infinito
+    type: contractual
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 2
+    functions:
+    - fn: parseDataGaps
+      file: api_rest/flow_proposals.go
+      line: 112
+    - fn: filterGapsByScope
+      file: api_rest/business_artifacts.go
+      line: 240
+    - fn: filterGapsByExistingEntityData
+      file: <empty>
+      line: 0
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-004:
+    description: Gaps de tipo bulk_migration NUNCA se envian a resolucion conversacional; son solo observabilidad
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 2
+    functions:
+    - fn: parseDataGaps
+      file: api_rest/flow_proposals.go
+      line: 112
+    - fn: filterGapsByScope
+      file: api_rest/business_artifacts.go
+      line: 240
+    - fn: filterGapsByExistingEntityData
+      file: <empty>
+      line: 0
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-005:
+    description: 'El breakout por no-progress es obligatorio: si ningun gap se resolvio en un pass, se termina'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 2
+    functions:
+    - fn: parseDataGaps
+      file: api_rest/flow_proposals.go
+      line: 112
+    - fn: filterGapsByScope
+      file: api_rest/business_artifacts.go
+      line: 240
+    - fn: filterGapsByExistingEntityData
+      file: <empty>
+      line: 0
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-006:
+    description: El re-audit SOLO se ejecuta en pass 0 tras resolucion exitosa
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 3
+    functions:
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: requestMecanicoProposalApproval
+      file: api_rest/flow_proposals.go
+      line: 195
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-007:
+    description: Si Mecanico genera proposals, se solicita aprobacion humana (requestMecanicoProposalApproval)
+    type: security
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 3
+    functions:
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: requestMecanicoProposalApproval
+      file: api_rest/flow_proposals.go
+      line: 195
+    source: narrative
+    status: observed
+  resolve-flow-gaps-iteratively-008:
+    description: Si no hubo progreso en un pass (anyResolved=false), se rompe el loop inmediatamente
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: resolve-flow-gaps-iteratively
+    pipeline: gap-resolution-loop
+    step: 3
+    functions:
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: requestMecanicoProposalApproval
+      file: api_rest/flow_proposals.go
+      line: 195
+    source: narrative
+    status: observed
+  execute-flow-node-001:
+    description: Un command no encontrado en el manifest SIEMPRE produce error sin ejecucion
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 1
+    functions:
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: resolveFlowParamTemplate
+      file: api_rest/flow_params.go
+      line: 219
+    - fn: setParamIfDeclared
+      file: api_rest/flow_params.go
+      line: 13
+    source: narrative
+    status: observed
+  execute-flow-node-002:
+    description: Los parametros se resuelven con templates contra artefactos; un template invalido aborta la ejecucion
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 1
+    functions:
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: resolveFlowParamTemplate
+      file: api_rest/flow_params.go
+      line: 219
+    - fn: setParamIfDeclared
+      file: api_rest/flow_params.go
+      line: 13
+    source: narrative
+    status: observed
+  execute-flow-node-003:
+    description: El scoping de conv_id es deterministico y reproducible para el mismo business+flow
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 2
+    functions:
+    - fn: focoFlowStateConvID
+      file: api_rest/flow_execution.go
+      line: 153
+    - fn: businessVaultConvID
+      file: api_rest/flow_smtp.go
+      line: 266
+    - fn: applyArtifactParamDefaults
+      file: api_rest/flow_params.go
+      line: 19
+    - fn: materializePortableArtifactParams
+      file: api_rest/flow_execution.go
+      line: 87
+    source: narrative
+    status: observed
+  execute-flow-node-004:
+    description: La ruta SQLite del negocio se inyecta SOLO si el command declara el parametro "db"
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 2
+    functions:
+    - fn: focoFlowStateConvID
+      file: api_rest/flow_execution.go
+      line: 153
+    - fn: businessVaultConvID
+      file: api_rest/flow_smtp.go
+      line: 266
+    - fn: applyArtifactParamDefaults
+      file: api_rest/flow_params.go
+      line: 19
+    - fn: materializePortableArtifactParams
+      file: api_rest/flow_execution.go
+      line: 87
+    source: narrative
+    status: observed
+  execute-flow-node-005:
+    description: Timeout default es 300s; con politica "long_running" se extiende a 600s
+    type: contractual
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 3
+    source: narrative
+    status: observed
+  execute-flow-node-006:
+    description: Si Channel esta unavailable, se retorna un error especifico con la URL del channel (no un timeout generico)
+    type: contractual
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 3
+    source: narrative
+    status: observed
+  execute-flow-node-007:
+    description: 'La ejecucion es atomica: un nodo se ejecuta una sola vez por iteracion'
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-flow-node
+    pipeline: node-execution
+    step: 3
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-001:
+    description: 'Si no existe dataset NI dump: retorna true INMEDIATAMENTE (asume no hay datos que auditar)'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 1
+    functions:
+    - fn: ensureFlowPreflightAudit
+      file: api_rest/flow_preflight.go
+      line: 92
+    - fn: ensureSabioDataMediation
+      file: api_rest/flow_data_mediation.go
+      line: 10
+    - fn: findProviderForCapability
+      file: api_rest/flow_backend.go
+      line: 864
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-002:
+    description: Sabio mediation se dispara SOLO si hay sqlite_db pero no hay dump/dataset
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 1
+    functions:
+    - fn: ensureFlowPreflightAudit
+      file: api_rest/flow_preflight.go
+      line: 92
+    - fn: ensureSabioDataMediation
+      file: api_rest/flow_data_mediation.go
+      line: 10
+    - fn: findProviderForCapability
+      file: api_rest/flow_backend.go
+      line: 864
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-003:
+    description: 'Si faltan inputs del auditor: skip sin bloquear (retorna true con advertencia)'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 2
+    functions:
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: extractHumanSummary
+      file: api_rest/flow_summaries.go
+      line: 11
+    - fn: summarizeAuditorGaps
+      file: api_rest/flow_gap_inputs.go
+      line: 105
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-004:
+    description: 'Si Auditor falla: el flujo se DETIENE; no se intenta resolucion de gaps con datos corruptos'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 2
+    functions:
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: extractHumanSummary
+      file: api_rest/flow_summaries.go
+      line: 11
+    - fn: summarizeAuditorGaps
+      file: api_rest/flow_gap_inputs.go
+      line: 105
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-005:
+    description: El preflight SIEMPRE ejecuta Auditor antes de intentar resolucion de gaps
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 2
+    functions:
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: executeFlowNode
+      file: api_rest/flow_execution.go
+      line: 15
+    - fn: extractHumanSummary
+      file: api_rest/flow_summaries.go
+      line: 11
+    - fn: summarizeAuditorGaps
+      file: api_rest/flow_gap_inputs.go
+      line: 105
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-006:
+    description: El resultado de readiness se persiste SIEMPRE (flow.preflight.v1), tanto si ready como si no
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 3
+    functions:
+    - fn: resolveFlowGapsIteratively
+      file: api_rest/flow_gap_resolution.go
+      line: 13
+    - fn: recordFlowPreflight
+      file: api_rest/flow_preflight.go
+      line: 186
+    source: narrative
+    status: observed
+  ensure-flow-preflight-audit-007:
+    description: La readiness se determina DESPUES de intentar resolucion de gaps (no antes)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-flow-preflight-audit
+    pipeline: preflight-validation
+    step: 3
+    functions:
+    - fn: resolveFlowGapsIteratively
+      file: api_rest/flow_gap_resolution.go
+      line: 13
+    - fn: recordFlowPreflight
+      file: api_rest/flow_preflight.go
+      line: 186
+    source: narrative
+    status: observed
+  install-flow-analysis-001:
+    description: Si el flow ya esta instalado Y no es reconfigure, SIEMPRE retorna early sin re-ejecutar
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 1
+    functions:
+    - fn: installFlowAnalysis
+      file: api_rest/flow_store.go
+      line: 537
+    - fn: loadCompiledRecord
+      file: api_rest/flow_compiled_store.go
+      line: 60
+    - fn: compileAndPersistFlowManifest
+      file: api_rest/flow_compiled_store.go
+      line: 76
+    - fn: radarAnalysisInstalled
+      file: api_rest/flow_installation.go
+      line: 27
+    source: narrative
+    status: observed
+  install-flow-analysis-002:
+    description: El compiled_id DEBE pertenecer al mismo business_id; cross-business esta prohibido
+    type: security
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 1
+    functions:
+    - fn: installFlowAnalysis
+      file: api_rest/flow_store.go
+      line: 537
+    - fn: loadCompiledRecord
+      file: api_rest/flow_compiled_store.go
+      line: 60
+    - fn: compileAndPersistFlowManifest
+      file: api_rest/flow_compiled_store.go
+      line: 76
+    - fn: radarAnalysisInstalled
+      file: api_rest/flow_installation.go
+      line: 27
+    source: narrative
+    status: observed
+  install-flow-analysis-003:
+    description: Si falta semantic_pack para el business, retorna error (prerequisito obligatorio)
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 1
+    functions:
+    - fn: installFlowAnalysis
+      file: api_rest/flow_store.go
+      line: 537
+    - fn: loadCompiledRecord
+      file: api_rest/flow_compiled_store.go
+      line: 60
+    - fn: compileAndPersistFlowManifest
+      file: api_rest/flow_compiled_store.go
+      line: 76
+    - fn: radarAnalysisInstalled
+      file: api_rest/flow_installation.go
+      line: 27
+    source: narrative
+    status: observed
+  install-flow-analysis-004:
+    description: El timeout es de 120s hard-coded; no configurable por manifest
+    type: contractual
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 2
+    functions:
+    - fn: findInstallableFlowNode
+      file: api_rest/flow_derivation.go
+      line: 432
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: ExecuteCommand
+      file: adapter/adapter.go
+      line: 48
+    source: narrative
+    status: observed
+  install-flow-analysis-005:
+    description: 'Si channel esta unavailable: retorna error especifico de channel-unavailable con URL'
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 2
+    functions:
+    - fn: findInstallableFlowNode
+      file: api_rest/flow_derivation.go
+      line: 432
+    - fn: resolveFlowNodeContract
+      file: api_rest/flow_backend.go
+      line: 824
+    - fn: ExecuteCommand
+      file: adapter/adapter.go
+      line: 48
+    source: narrative
+    status: observed
+  install-flow-analysis-006:
+    description: El nodo instalable DEBE devolver artifact_type=analysis.schema.v1; otro tipo es error
+    type: contractual
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 3
+    functions:
+    - fn: parseArtifactPayload
+      file: api_rest/flow_artifacts.go
+      line: 319
+    - fn: persistFlowArtifact
+      file: api_rest/flow_artifacts.go
+      line: 364
+    source: narrative
+    status: observed
+  install-flow-analysis-007:
+    description: La instalacion se registra con upsertInstallation que es idempotente
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: install-flow-analysis
+    pipeline: radar-installation
+    step: 3
+    functions:
+    - fn: parseArtifactPayload
+      file: api_rest/flow_artifacts.go
+      line: 319
+    - fn: persistFlowArtifact
+      file: api_rest/flow_artifacts.go
+      line: 364
+    source: narrative
+    status: observed
+  chat-echo-001:
+    description: Echo SIEMPRE habla primero; el usuario nunca ve una pregunta de Alfa antes de que Echo declare readiness
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 1
+    functions:
+    - fn: chatEcho
+      file: flujo/main.go
+      line: 408
+    - fn: mustLoad
+      file: flujo/main.go
+      line: 911
+    - fn: buildPrompt
+      file: flujo/main.go
+      line: 718
+    - fn: promptRole
+      file: flujo/main.go
+      line: 621
+    source: narrative
+    status: observed
+  chat-echo-002:
+    description: El estado se persiste a disco (mustSave) despues de cada transicion de fase
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 1
+    functions:
+    - fn: chatEcho
+      file: flujo/main.go
+      line: 408
+    - fn: mustLoad
+      file: flujo/main.go
+      line: 911
+    - fn: buildPrompt
+      file: flujo/main.go
+      line: 718
+    - fn: promptRole
+      file: flujo/main.go
+      line: 621
+    source: narrative
+    status: observed
+  chat-echo-003:
+    description: Alfa se activa SOLO si Echo declara readiness O hay 2+ respuestas reales de usuario
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 2
+    functions:
+    - fn: echoReadyToHandOff
+      file: flujo/main.go
+      line: 515
+    - fn: runRole
+      file: flujo/main.go
+      line: 601
+    - fn: countUserResponses
+      file: flujo/main.go
+      line: 570
+    source: narrative
+    status: observed
+  chat-echo-004:
+    description: El handoff de Echo a Alfa es irreversible dentro de una sesion chatEcho
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 2
+    functions:
+    - fn: echoReadyToHandOff
+      file: flujo/main.go
+      line: 515
+    - fn: runRole
+      file: flujo/main.go
+      line: 601
+    - fn: countUserResponses
+      file: flujo/main.go
+      line: 570
+    source: narrative
+    status: observed
+  chat-echo-005:
+    description: /salir, /exit, /quit SIEMPRE terminan el loop sin handoff
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 2
+    functions:
+    - fn: echoReadyToHandOff
+      file: flujo/main.go
+      line: 515
+    - fn: runRole
+      file: flujo/main.go
+      line: 601
+    - fn: countUserResponses
+      file: flujo/main.go
+      line: 570
+    source: narrative
+    status: observed
+  chat-echo-006:
+    description: Las imagenes se procesan SOLO si el input del usuario contiene markup de imagen
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 3
+    functions:
+    - fn: parseImageInput
+      file: flujo/main.go
+      line: 665
+    - fn: promptRoleWithImages
+      file: flujo/main.go
+      line: 625
+    - fn: printEchoQuestionIfMissing
+      file: flujo/main.go
+      line: 557
+    source: narrative
+    status: observed
+  chat-echo-007:
+    description: Cada respuesta de Echo se imprime con printEchoQuestionIfMissing que garantiza visibilidad
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: chat-echo
+    pipeline: discovery-loop
+    step: 3
+    functions:
+    - fn: parseImageInput
+      file: flujo/main.go
+      line: 665
+    - fn: promptRoleWithImages
+      file: flujo/main.go
+      line: 625
+    - fn: printEchoQuestionIfMissing
+      file: flujo/main.go
+      line: 557
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-001:
+    description: El turn count SIEMPRE se incrementa antes de ejecutar; nunca se repite un turno
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 1
+    functions:
+    - fn: executeSessionFollowupDetailed
+      file: api_rest/orchestrator.go
+      line: 508
+    - fn: incrementSessionOnDisk
+      file: api_rest/flow_segments.go
+      line: 880
+    - fn: generateOwnerFollowupWithLLM
+      file: api_rest/orchestrator.go
+      line: 1067
+    - fn: resolvePortableCommandArgs
+      file: api_rest/flow_execution.go
+      line: 125
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-002:
+    description: El manifest del session owner DEBE existir; si no existe, retorna error inmediatamente
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 1
+    functions:
+    - fn: executeSessionFollowupDetailed
+      file: api_rest/orchestrator.go
+      line: 508
+    - fn: incrementSessionOnDisk
+      file: api_rest/flow_segments.go
+      line: 880
+    - fn: generateOwnerFollowupWithLLM
+      file: api_rest/orchestrator.go
+      line: 1067
+    - fn: resolvePortableCommandArgs
+      file: api_rest/flow_execution.go
+      line: 125
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-003:
+    description: Las delegaciones SOLO se ejecutan si estan en allowed_delegates del session owner
+    type: security
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 2
+    functions:
+    - fn: extractFollowupTextAndDelegations
+      file: api_rest/orchestrator.go
+      line: 1635
+    - fn: executeDelegations
+      file: api_rest/orchestrator.go
+      line: 737
+    - fn: synthesizeFollowupRuntimeFailureArtifact
+      file: api_rest/orchestrator.go
+      line: 1559
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-004:
+    description: La sintesis (second pass) SIEMPRE borra el draft del plan; nunca reutiliza el draft pre-delegacion
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 2
+    functions:
+    - fn: extractFollowupTextAndDelegations
+      file: api_rest/orchestrator.go
+      line: 1635
+    - fn: executeDelegations
+      file: api_rest/orchestrator.go
+      line: 737
+    - fn: synthesizeFollowupRuntimeFailureArtifact
+      file: api_rest/orchestrator.go
+      line: 1559
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-005:
+    description: 'Si la sintesis falla o no llega a phase=synthesis: se genera un artefacto de failure explicito'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 2
+    functions:
+    - fn: extractFollowupTextAndDelegations
+      file: api_rest/orchestrator.go
+      line: 1635
+    - fn: executeDelegations
+      file: api_rest/orchestrator.go
+      line: 737
+    - fn: synthesizeFollowupRuntimeFailureArtifact
+      file: api_rest/orchestrator.go
+      line: 1559
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-006:
+    description: El session followup SIEMPRE produce un QueuedQuestion con speaker = session.Framework
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 3
+    functions:
+    - fn: persistFollowupArtifact
+      file: api_rest/orchestrator.go
+      line: 689
+    - fn: saveQueue
+      file: api_rest/store.go
+      line: 230
+    source: narrative
+    status: observed
+  execute-session-followup-detailed-007:
+    description: Si text es vacio tras toda la pipeline, retorna nil sin persistir (no se acepta respuesta nula)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: execute-session-followup-detailed
+    pipeline: followup-with-delegation
+    step: 3
+    functions:
+    - fn: persistFollowupArtifact
+      file: api_rest/orchestrator.go
+      line: 689
+    - fn: saveQueue
+      file: api_rest/store.go
+      line: 230
+    source: narrative
+    status: observed
+  resolve-missing-flow-artifacts-001:
+    description: 'El orden de intento es siempre: artefactos existentes > lookup externo > resolucion conversacional > input
+      directo'
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: resolve-missing-flow-artifacts
+    pipeline: artifact-resolution
+    step: 1
+    functions:
+    - fn: resolveMissingFlowArtifacts
+      file: api_rest/flow_gap_inputs.go
+      line: 11
+    - fn: contactDestinationFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 173
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    source: narrative
+    status: observed
+  resolve-missing-flow-artifacts-002:
+    description: Un artefacto resuelto se marca en available[] Y se persiste inmediatamente (persistFlowArtifact)
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: resolve-missing-flow-artifacts
+    pipeline: artifact-resolution
+    step: 1
+    functions:
+    - fn: resolveMissingFlowArtifacts
+      file: api_rest/flow_gap_inputs.go
+      line: 11
+    - fn: contactDestinationFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 173
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    source: narrative
+    status: observed
+  resolve-missing-flow-artifacts-003:
+    description: El vault check de credentials.smtp tiene timeout de 10s hard-coded
+    type: security
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: resolve-missing-flow-artifacts
+    pipeline: artifact-resolution
+    step: 2
+    functions:
+    - fn: credentialAvailableFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 202
+    - fn: invokeProviderNextQuestion
+      file: api_rest/flow_provider_interaction.go
+      line: 10
+    source: narrative
+    status: observed
+  resolve-missing-flow-artifacts-004:
+    description: Cada tipo de artefacto tiene su propia cadena de resolucion; NUNCA se aplica una estrategia generica a contact.destination
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: resolve-missing-flow-artifacts
+    pipeline: artifact-resolution
+    step: 2
+    functions:
+    - fn: credentialAvailableFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 202
+    - fn: invokeProviderNextQuestion
+      file: api_rest/flow_provider_interaction.go
+      line: 10
+    source: narrative
+    status: observed
+  resolve-missing-flow-artifacts-005:
+    description: Si Mecanico genera preguntas, esas se retornan como needs SIN detener el loop (el caller decide si breaks)
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: resolve-missing-flow-artifacts
+    pipeline: artifact-resolution
+    step: 2
+    functions:
+    - fn: credentialAvailableFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 202
+    - fn: invokeProviderNextQuestion
+      file: api_rest/flow_provider_interaction.go
+      line: 10
+    source: narrative
+    status: observed
+  execute-delegations-001:
+    description: La whitelist de allowed_delegates es OBLIGATORIA; una capability no listada NUNCA se ejecuta
+    type: security
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 1
+    functions:
+    - fn: executeDelegations
+      file: api_rest/orchestrator.go
+      line: 737
+    - fn: resolveDelegationExecutionTarget
+      file: api_rest/orchestrator.go
+      line: 944
+    source: narrative
+    status: observed
+  execute-delegations-002:
+    description: El envelope SIEMPRE contiene requests[] y results[] del mismo largo (uno por cada request)
+    type: contractual
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 1
+    functions:
+    - fn: executeDelegations
+      file: api_rest/orchestrator.go
+      line: 737
+    - fn: resolveDelegationExecutionTarget
+      file: api_rest/orchestrator.go
+      line: 944
+    source: narrative
+    status: observed
+  execute-delegations-003:
+    description: Capabilities bloqueadas se reportan como failure silenciosa (no se propagan como error al caller)
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 1
+    functions:
+    - fn: executeDelegations
+      file: api_rest/orchestrator.go
+      line: 737
+    - fn: resolveDelegationExecutionTarget
+      file: api_rest/orchestrator.go
+      line: 944
+    source: narrative
+    status: observed
+  execute-delegations-004:
+    description: 'Si el manifest no tiene command para la capability: se intenta fallback a "query", "entity-360", "audit",
+      "analyze"'
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 2
+    functions:
+    - fn: findManifestCapability
+      file: api_rest/flow_backend.go
+      line: 855
+    source: narrative
+    status: observed
+  execute-delegations-005:
+    description: Los resultados parciales se contabilizan separadamente de exitos y fallos
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 2
+    functions:
+    - fn: findManifestCapability
+      file: api_rest/flow_backend.go
+      line: 855
+    source: narrative
+    status: observed
+  execute-delegations-006:
+    description: JSON invalido se trata como text/plain y se marca verified=true
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 3
+    functions:
+    - fn: delegationOutputVerified
+      file: api_rest/orchestrator.go
+      line: 1020
+    - fn: delegationOutputError
+      file: api_rest/orchestrator.go
+      line: 1030
+    - fn: delegationOutputPartial
+      file: api_rest/orchestrator.go
+      line: 1043
+    - fn: incrementDelegationSummary
+      file: api_rest/orchestrator.go
+      line: 973
+    source: narrative
+    status: observed
+  execute-delegations-007:
+    description: Cada resultado se acumula con su request_id correlacionado
+    type: behavioral
+    scope:
+    - remora-flujo
+    - channel
+    mechanism: execute-delegations
+    pipeline: delegation-execution
+    step: 3
+    functions:
+    - fn: delegationOutputVerified
+      file: api_rest/orchestrator.go
+      line: 1020
+    - fn: delegationOutputError
+      file: api_rest/orchestrator.go
+      line: 1030
+    - fn: delegationOutputPartial
+      file: api_rest/orchestrator.go
+      line: 1043
+    - fn: incrementDelegationSummary
+      file: api_rest/orchestrator.go
+      line: 973
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-001:
+    description: El pipeline se cortocircuita en cuanto CUALQUIER fuente resuelve el contacto (early return true)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 1
+    functions:
+    - fn: ensureContactDestinationPipeline
+      file: api_rest/flow_data_pipeline.go
+      line: 39
+    - fn: contactDestinationFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 173
+    - fn: flowInteractionAnswerFromArtifacts
+      file: api_rest/flow_user_interaction.go
+      line: 36
+    - fn: isLikelyEmail
+      file: api_rest/flow_artifacts.go
+      line: 60
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-002:
+    description: Un email valido en req.Input se acepta DIRECTAMENTE sin verificacion adicional
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 1
+    functions:
+    - fn: ensureContactDestinationPipeline
+      file: api_rest/flow_data_pipeline.go
+      line: 39
+    - fn: contactDestinationFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 173
+    - fn: flowInteractionAnswerFromArtifacts
+      file: api_rest/flow_user_interaction.go
+      line: 36
+    - fn: isLikelyEmail
+      file: api_rest/flow_artifacts.go
+      line: 60
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-003:
+    description: 'El orden de prioridad es: artefactos > interaction answer > input directo > Sabio > Mecanico > input request'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 1
+    functions:
+    - fn: ensureContactDestinationPipeline
+      file: api_rest/flow_data_pipeline.go
+      line: 39
+    - fn: contactDestinationFromArtifacts
+      file: api_rest/flow_readiness.go
+      line: 173
+    - fn: flowInteractionAnswerFromArtifacts
+      file: api_rest/flow_user_interaction.go
+      line: 36
+    - fn: isLikelyEmail
+      file: api_rest/flow_artifacts.go
+      line: 60
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-004:
+    description: 'Si se resuelve via Sabio: se emite step de persistencia contra Sabio'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 2
+    functions:
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: recordContactDestination
+      file: api_rest/flow_data_pipeline.go
+      line: 332
+    - fn: emitSabioPersistContactStep
+      file: api_rest/flow_data_pipeline.go
+      line: 338
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-005:
+    description: La pregunta al usuario SIEMPRE incluye el entity display name para contexto
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 2
+    functions:
+    - fn: lookupSabioContactDestination
+      file: api_rest/flow_readiness.go
+      line: 51
+    - fn: recordContactDestination
+      file: api_rest/flow_data_pipeline.go
+      line: 332
+    - fn: emitSabioPersistContactStep
+      file: api_rest/flow_data_pipeline.go
+      line: 338
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-006:
+    description: El pipeline SIEMPRE termina con needs_input si ninguna fuente resolvio (nunca retorna true sin contacto)
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 3
+    functions:
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    - fn: inputRequestForContactDestination
+      file: api_rest/flow_readiness.go
+      line: 231
+    - fn: recordFlowReadiness
+      file: api_rest/flow_readiness.go
+      line: 9
+    source: narrative
+    status: observed
+  ensure-contact-destination-pipeline-007:
+    description: La pregunta contextual incluye el nombre del deudor/entidad para que el usuario sepa de quien se habla
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: ensure-contact-destination-pipeline
+    pipeline: contact-resolution-jit
+    step: 3
+    functions:
+    - fn: invokeMecanicoResolveGaps
+      file: api_rest/flow_gap_resolution.go
+      line: 289
+    - fn: inputRequestForContactDestination
+      file: api_rest/flow_readiness.go
+      line: 231
+    - fn: recordFlowReadiness
+      file: api_rest/flow_readiness.go
+      line: 9
+    source: narrative
+    status: observed
+  run-message-001:
+    description: --framework es OBLIGATORIO; sin el la funcion retorna error inmediatamente
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 1
+    functions:
+    - fn: runMessage
+      file: framework_session/main.go
+      line: 172
+    - fn: loadManifest
+      file: framework_session/main.go
+      line: 1011
+    - fn: readInitialPrompt
+      file: api_rest/initial_prompt.go
+      line: 15
+    - fn: specFor
+      file: framework_session/main.go
+      line: 1027
+    source: narrative
+    status: observed
+  run-message-002:
+    description: Si --message-b64 se proporciona, se decodifica con base64.RawURLEncoding; invalido produce error
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 1
+    functions:
+    - fn: runMessage
+      file: framework_session/main.go
+      line: 172
+    - fn: loadManifest
+      file: framework_session/main.go
+      line: 1011
+    - fn: readInitialPrompt
+      file: api_rest/initial_prompt.go
+      line: 15
+    - fn: specFor
+      file: framework_session/main.go
+      line: 1027
+    source: narrative
+    status: observed
+  run-message-003:
+    description: El timeout del context es 120s hard-coded para todo el agent loop
+    type: contractual
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 2
+    functions:
+    - fn: ensureWorkspace
+      file: framework_session/main.go
+      line: 315
+    source: narrative
+    status: observed
+  run-message-004:
+    description: maxTurns viene del manifest (Agent.MaxTurns) con default 30 si no esta declarado
+    type: contractual
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 2
+    functions:
+    - fn: ensureWorkspace
+      file: framework_session/main.go
+      line: 315
+    source: narrative
+    status: observed
+  run-message-005:
+    description: MaxTokens es 1200 hard-coded para respuestas concisas
+    type: contractual
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 2
+    functions:
+    - fn: ensureWorkspace
+      file: framework_session/main.go
+      line: 315
+    source: narrative
+    status: observed
+  run-message-006:
+    description: El workspace se crea o reutiliza por (framework, conv_id); es idempotente
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 2
+    functions:
+    - fn: ensureWorkspace
+      file: framework_session/main.go
+      line: 315
+    source: narrative
+    status: observed
+  run-message-007:
+    description: 'Si el LLM devuelve respuesta vacia: retorna error (no se acepta respuesta nula)'
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 3
+    functions:
+    - fn: assistedSetupCompletionEvents
+      file: framework_session/main.go
+      line: 576
+    - fn: writeJSON
+      file: api_rest/main.go
+      line: 421
+    source: narrative
+    status: observed
+  run-message-008:
+    description: La respuesta SIEMPRE incluye reasoning explicativo del procesamiento interno
+    type: behavioral
+    scope:
+    - remora-flujo
+    mechanism: run-message
+    pipeline: single-framework-agent
+    step: 3
+    functions:
+    - fn: assistedSetupCompletionEvents
+      file: framework_session/main.go
+      line: 576
+    - fn: writeJSON
+      file: api_rest/main.go
+      line: 421
+    source: narrative
+    status: observed
+  all-cli-handlers-use-newclient:
+    description: Todos los handlers CLI que necesitan datos del backend instancian newClient() y usan .get() o .post() del
+      paquete remora/main.go
+    type: structural
+    scope: remora-cli
+    mechanism: null
+    source: pattern
+    status: clean
+    cpgql_query: |-
+      grep -n "newClient\|\.get(\|\.post(" remora-cli/cmd/remora/flow_workbench.go | head -30
+    violations: []
+  channel-always-validates-api-key:
+    description: Handle() valida API key via ValidateSecurity() antes de cualquier dispatch de metodo JSON-RPC
+    type: security
+    scope: channel
+    mechanism: null
+    source: pattern
+    status: clean
+    cpgql_query: |-
+      grep -n "ValidateSecurity\|writeError.*unauthorized" channel/internal/handler.go | head -10
+    violations: []
+  channel-path-confinement:
+    description: Todos los metodos de acceso a archivos en channel (readFile, writeFile, editFile) pasan por resolveWithinBase()
+      que confina paths a CHANNEL_BASE_DIR
+    type: security
+    scope: channel
+    mechanism: null
+    source: pattern
+    status: clean
+    cpgql_query: |-
+      grep -n "resolveWithinBase" channel/internal/handler.go
+    violations: []
+  flujo-membership-check:
+    description: Todos los handlers de flow con ownership de negocio llaman a requireMembershipContext() antes de acceder
+      a datos
+    type: security
+    scope: remora-flujo
+    mechanism: null
+    source: pattern
+    status: clean
+    cpgql_query: |-
+      grep -n "requireMembershipContext" remora-flujo/cmd/api_rest/flow_store.go | head -20
+    violations: []
+  vault-aes-gcm-encryption:
+    description: Todos los secretos en vault se cifran con AES-GCM usando masterKey() leida de REMORA_VAULT_KEY antes de WriteFile
+    type: security
+    scope: channel
+    mechanism: null
+    source: pattern
+    status: clean
+    cpgql_query: |-
+      grep -n "masterKey\|AES\|gcm" channel/vault/vault.go | head -20
+    violations: []
+narrative:
+  surfaces:
+  - id: cli-remora
+    type: CLI
+    entry: remora-cli/cmd/remora/main.go
+    flujos:
+    - slug: flow-workbench-usage
+      titulo: El usuario descubre los subcomandos disponibles
+      escenas: 1
+    - slug: flow-debug-usage
+      titulo: El usuario descubre subcomandos de debug
+      escenas: 1
+    - slug: flow-create
+      titulo: El usuario crea un nuevo flow automatizado
+      escenas: 3
+    - slug: flow-draft
+      titulo: El usuario crea un flow a partir de spec directa sin wizard
+      escenas: 1
+    - slug: flow-inspect
+      titulo: El usuario inspecciona un flow existente
+      escenas: 1
+    - slug: flow-simulate
+      titulo: El usuario simula la ejecucion de un flow
+      escenas: 2
+    - slug: flow-debug-frameworks
+      titulo: El usuario lista frameworks instalados
+      escenas: 1
+    - slug: flow-debug-manifest
+      titulo: El usuario ve el manifest completo de un framework
+      escenas: 1
+    - slug: flow-debug-commands
+      titulo: El usuario lista comandos de un framework
+      escenas: 1
+    - slug: flow-debug-capabilities
+      titulo: El usuario ve capabilities de un framework
+      escenas: 1
+    - slug: flow-debug-trace
+      titulo: El usuario inspecciona el timeline de una ejecucion pasada
+      escenas: 2
+    - slug: flow-debug-validate
+      titulo: El usuario valida la integridad de un flow
+      escenas: 2
+    - slug: flow-debug-simulate
+      titulo: El usuario hace dry-run con timeline detallado
+      escenas: 1
+    - slug: flow-debug-dependencies
+      titulo: El usuario visualiza el grafo de dependencias
+      escenas: 1
+  - id: api-rest
+    type: HTTP
+    entry: remora-flujo/cmd/api_rest/main.go
+    flujos:
+    - slug: auth-api
+      titulo: El cliente se autentica y gestiona su identidad
+      escenas: 4
+    - slug: flow-crud-api
+      titulo: CRUD de flows via API REST
+      escenas: 5
+    - slug: flow-suggest-api
+      titulo: Sugerencia de capabilities con IA
+      escenas: 1
+    - slug: flow-simulate-api
+      titulo: Simulacion y validacion de flows
+      escenas: 2
+  - id: frontend-canvas
+    type: Web
+    entry: remora-flujo/cmd/api_rest/static/index.html
+    flujos:
+    - slug: frontend-auth
+      titulo: El usuario se autentica desde la UI web
+      escenas: 3
+    - slug: frontend-flow-builder
+      titulo: El usuario crea un flow desde el canvas en 3 pasos
+      escenas: 4
+    - slug: frontend-single-fw
+      titulo: El usuario prueba un framework aislado
+      escenas: 2
+    - slug: frontend-chat-canvas
+      titulo: El usuario interactua en el canvas de conversacion
+      escenas: 5
+  - id: channel-rpc
+    type: RPC
+    entry: channel/cmd/channel/main.go
+    flujos:
+    - slug: channel-rpc-dispatch
+      titulo: Un cliente hace una llamada JSON-RPC al channel
+      escenas: 5
+    - slug: channel-orchestrator
+      titulo: El desarrollador usa el orquestador CLI
+      escenas: 4
+    - slug: vault-cli
+      titulo: Un framework gestiona secretos cifrados
+      escenas: 5
+gaps:
+- symbol: gap-1
+  component: remora-cli
+  status: PARCIAL
+  detail: '''remora flow run'', ''flow compile'', ''flow install'', ''flow replay'' no tienen handlers nativos
+
+    en remora-cli. Se delegan a canonicalFlowWorkbenchCommand() [flow_workbench.go:895] que
+
+    busca el binario ''flujo'' en PATH. Si no disponible: stderr ''flow workbench canonico no
+
+    disponible; usa flujo flow ...'', exit 1.
+
+    '
+- symbol: gap-2
+  component: remora-flujo
+  status: AUSENTE
+  detail: 'El frontend no expone el timeline de un run ni las dependencies de un flow. Solo disponibles
+
+    via CLI con ''remora flow debug trace'' y ''remora flow debug dependencies''. No hay componente
+
+    UI en static/index.html que consuma GET /api/v1/flows/runs/{id} con visualizacion de
+
+    timeline o dependency graph.
+
+    '
+- symbol: gap-3
+  component: channel
+  status: INCOMPLETO
+  detail: 'Channel no tiene modo dev sin autenticacion. Sin API keys el servidor falla con
+
+    log.Fatal("At least one API key is required") [cmd/channel/main.go:42]. El check de
+
+    len(keys)==0 es incondicional; no hay modo bypass para desarrollo local.
+
+    '
+- symbol: gap-4
+  component: remora-cli
+  status: BUG
+  detail: 'printDebugUsage() [flow_workbench.go:259] muestra ''remora debug frameworks'' (sin ''flow''
+
+    intermedio). El handler real requiere ''remora flow debug'' porque el dispatcher esta en
+
+    handleFlowWorkbench() [flow_workbench.go:244]. Siguiendo el ejemplo impreso, el comando
+
+    falla.
+
+    '
+- symbol: gap-5
+  component: remora-flujo
+  status: AUSENTE
+  detail: 'El frontend flows-execution-view no tiene panel de resultado detallado. El resultado se
+
+    muestra como conversacion de chat pero no hay panel de timeline, handoffs ni produces
+
+    equivalente al output de printRunTrace() en la CLI.
+
+    '
+- symbol: gap-6
+  component: channel
+  status: BUG
+  detail: 'orchestrator usa paths hardcodeados ''/Users/alcless_a1234_cursor/remora-go/'' en
+
+    absPathsFromPorts() [orchestrator/main.go:225] y resolveInputs() [orchestrator/main.go:243]
+
+    en lugar del --base-dir real. En otro entorno los paths no existen y los comandos fallan.
+
+    '
+- symbol: gap-7
+  component: remora-flujo
+  status: AUSENTE
+  detail: 'El frontend no expone gestion de vault ni credenciales SMTP. Los endpoints handleSMTPCheck,
+
+    handleHostingConnect, handleSMTPImport, handleSMTPDelete [flow_smtp.go] existen en la API
+
+    pero no tienen UI asociada en el canvas principal. El usuario debe usar vault CLI o llamar
+
+    directamente al endpoint.
+
+    '
+sinks:
+- type: env
+  component: remora-cli
+  location: devcli/client.go:61
+  risk: low
+  detail: 'caller: newClient
+
+    name: Getenv
+
+    reads REMORA_API_URL to configure HTTP client base URL
+
+    '
+- type: http
+  component: remora-cli
+  location: devcli/client.go:73
+  risk: medium
+  detail: 'caller: get
+
+    name: NewRequest
+
+    outbound GET to remora-flujo API
+
+    '
+- type: http
+  component: remora-cli
+  location: devcli/client.go:80
+  risk: medium
+  detail: 'caller: get
+
+    name: Do
+
+    executes GET HTTP request to remora-flujo API
+
+    '
+- type: http
+  component: remora-cli
+  location: devcli/client.go:99
+  risk: medium
+  detail: 'caller: post
+
+    name: NewRequest
+
+    outbound POST to remora-flujo API
+
+    '
+- type: http
+  component: remora-cli
+  location: devcli/client.go:107
+  risk: medium
+  detail: 'caller: post
+
+    name: Do
+
+    executes POST HTTP request to remora-flujo API
+
+    '
+- type: http
+  component: remora-cli
+  location: devcli/client.go:613
+  risk: medium
+  detail: 'caller: HealthCheck
+
+    name: Do
+
+    health check HTTP call to API backend
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:224
+  risk: high
+  detail: 'caller: migrate
+
+    name: Exec
+
+    schema migration SQL execution
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:249
+  risk: medium
+  detail: 'caller: seedDefaults
+
+    name: QueryRow
+
+    reads default user row
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:280
+  risk: high
+  detail: 'caller: createUser
+
+    name: Exec
+
+    INSERT user into auth store
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:293
+  risk: high
+  detail: 'caller: authenticate
+
+    name: QueryRow
+
+    SELECT user by credentials for authentication
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:315
+  risk: high
+  detail: 'caller: createSession
+
+    name: Exec
+
+    INSERT session token into store
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:325
+  risk: high
+  detail: 'caller: userByToken
+
+    name: QueryRow
+
+    SELECT user by session token
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:345
+  risk: medium
+  detail: 'caller: deleteSessionToken
+
+    name: Exec
+
+    DELETE session token (logout)
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:350
+  risk: medium
+  detail: 'caller: memberships
+
+    name: Query
+
+    SELECT all memberships for user
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:374
+  risk: medium
+  detail: 'caller: membership
+
+    name: QueryRow
+
+    SELECT single membership record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:409
+  risk: high
+  detail: 'caller: upsertMembership
+
+    name: Exec
+
+    UPSERT membership record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:391
+  risk: medium
+  detail: 'caller: upsertMembership
+
+    name: QueryRow
+
+    check existing membership before upsert
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:439
+  risk: high
+  detail: 'caller: createBusiness
+
+    name: Exec
+
+    INSERT new business record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:422
+  risk: medium
+  detail: 'caller: createBusiness
+
+    name: QueryRow
+
+    check business existence
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:461
+  risk: medium
+  detail: 'caller: business
+
+    name: QueryRow
+
+    SELECT business by ID
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:471
+  risk: medium
+  detail: 'caller: listBusinesses
+
+    name: Query
+
+    SELECT all businesses
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:493
+  risk: medium
+  detail: 'caller: listUsersOverview
+
+    name: Query
+
+    SELECT users overview for admin
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:531
+  risk: medium
+  detail: 'caller: businessMembers
+
+    name: Query
+
+    SELECT members of a business
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:577
+  risk: high
+  detail: 'caller: createInvite
+
+    name: Exec
+
+    INSERT invite token
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:581
+  risk: medium
+  detail: 'caller: createInvite
+
+    name: QueryRow
+
+    read created invite
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:586
+  risk: medium
+  detail: 'caller: inviteByToken
+
+    name: QueryRow
+
+    SELECT invite by token
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:623
+  risk: high
+  detail: 'caller: acceptInvite
+
+    name: Exec
+
+    UPDATE invite acceptance
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:614
+  risk: medium
+  detail: 'caller: acceptInvite
+
+    name: QueryRow
+
+    validate invite before acceptance
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:646
+  risk: high
+  detail: 'caller: createRemoraTeamInvite
+
+    name: Exec
+
+    INSERT remora team invite
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:654
+  risk: medium
+  detail: 'caller: remoraTeamInviteByToken
+
+    name: QueryRow
+
+    SELECT remora team invite by token
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:686
+  risk: high
+  detail: 'caller: acceptRemoraTeamInvite
+
+    name: Exec
+
+    UPDATE remora team invite acceptance
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/auth.go:687
+  risk: medium
+  detail: 'caller: acceptRemoraTeamInvite
+
+    name: QueryRow
+
+    read remora team invite state
+
+    '
+- type: http
+  component: remora-flujo
+  location: api_rest/auth.go:701
+  risk: low
+  detail: 'caller: authTokenFromRequest
+
+    name: Get
+
+    reads Authorization header from request
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/auth.go:716
+  risk: low
+  detail: 'caller: setAuthCookie
+
+    name: Getenv
+
+    reads REMORA_AUTH_SECURE_COOKIE
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/auth.go:729
+  risk: low
+  detail: 'caller: clearAuthCookie
+
+    name: Getenv
+
+    reads REMORA_AUTH_SECURE_COOKIE
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/contactos.go:51
+  risk: high
+  detail: 'caller: contactosLookupProfile
+
+    name: Command
+
+    exec.Command to contactos binary for profile lookup
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/contactos.go:83
+  risk: high
+  detail: 'caller: contactosStoreProfile
+
+    name: Command
+
+    exec.Command to contactos binary for profile store
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/data_browser.go:45
+  risk: medium
+  detail: 'caller: handleDataTables
+
+    name: Query
+
+    SELECT data tables list
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/data_browser.go:65
+  risk: medium
+  detail: 'caller: handleDataTableRows
+
+    name: Query
+
+    SELECT rows from data table
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/data_browser.go:229
+  risk: low
+  detail: 'caller: openDataDB
+
+    name: Getenv
+
+    reads SABIO_DB path for data browser SQLite
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/data_browser.go:461
+  risk: high
+  detail: 'caller: importSheet
+
+    name: Exec
+
+    INSERT rows from uploaded sheet
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/data_browser.go:466
+  risk: high
+  detail: 'caller: importSheet
+
+    name: Prepare
+
+    prepared statement for bulk insert
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/drivers.go:359
+  risk: low
+  detail: 'caller: runtimeCommand
+
+    name: Getenv
+
+    reads runtime env override variable
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_artifacts.go:337
+  risk: medium
+  detail: 'caller: persistFlowRun
+
+    name: WriteFile
+
+    persists flow run result to disk
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_artifacts.go:374
+  risk: medium
+  detail: 'caller: persistFlowArtifact
+
+    name: WriteFile
+
+    persists flow artifact to disk
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/flow_channel.go:56
+  risk: critical
+  detail: 'caller: ensureChannel
+
+    name: Command
+
+    exec.Command(channelBin) starts channel subprocess; cross-component delegation
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/flow_channel.go:134
+  risk: medium
+  detail: 'caller: buildChannelBinary
+
+    name: Command
+
+    exec.Command go build of channel binary
+
+    '
+- type: http
+  component: remora-flujo
+  location: api_rest/flow_channel.go:194
+  risk: medium
+  detail: 'caller: pingChannel
+
+    name: Do
+
+    HTTP ping to channel health endpoint
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_compiled_store.go:57
+  risk: medium
+  detail: 'caller: persistCompiledRecord
+
+    name: WriteFile
+
+    writes compiled flow record to disk
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/flow_dimensions.go:236
+  risk: low
+  detail: 'caller: deepAnalysisStressTurnLimit
+
+    name: Getenv
+
+    reads REMORA_DEEP_ANALYSIS_STRESS_TURNS
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/flow_dimensions.go:398
+  risk: low
+  detail: 'caller: flowBranchLimit
+
+    name: Getenv
+
+    reads REMORA_FLOW_MAX_BRANCHES
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_execution.go:103
+  risk: medium
+  detail: 'caller: materializePortableArtifactParams
+
+    name: WriteFile
+
+    materializes artifact params to disk
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_installation.go:72
+  risk: medium
+  detail: 'caller: flowMarkedInstalled
+
+    name: Query
+
+    SELECT flow installation status
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/flow_runtime_approval.go:182
+  risk: low
+  detail: 'caller: modelSpecFromManifest
+
+    name: Getenv
+
+    reads LLM provider API key env var
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_segments.go:840
+  risk: medium
+  detail: 'caller: claimSessionForConversation
+
+    name: WriteFile
+
+    claims session by writing to disk
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_segments.go:876
+  risk: medium
+  detail: 'caller: concludeSessionOnDisk
+
+    name: WriteFile
+
+    marks session concluded on disk
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/flow_segments.go:896
+  risk: medium
+  detail: 'caller: incrementSessionOnDisk
+
+    name: WriteFile
+
+    increments session counter on disk
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:203
+  risk: high
+  detail: 'caller: createFlow
+
+    name: Exec
+
+    INSERT new flow record into SQLite
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:225
+  risk: medium
+  detail: 'caller: listFlowsByBusiness
+
+    name: Query
+
+    SELECT flows by business ID
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:255
+  risk: medium
+  detail: 'caller: getFlow
+
+    name: QueryRow
+
+    SELECT single flow by ID
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:283
+  risk: high
+  detail: 'caller: updateFlow
+
+    name: Exec
+
+    UPDATE flow record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:305
+  risk: high
+  detail: 'caller: deleteFlow
+
+    name: Exec
+
+    DELETE flow record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:310
+  risk: medium
+  detail: 'caller: updateFlowStatus
+
+    name: Exec
+
+    UPDATE flow status field
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:318
+  risk: medium
+  detail: 'caller: recordRun
+
+    name: Exec
+
+    INSERT flow run record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:331
+  risk: medium
+  detail: 'caller: recordArtifact
+
+    name: Exec
+
+    INSERT artifact reference
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:344
+  risk: medium
+  detail: 'caller: latestArtifactPath
+
+    name: QueryRow
+
+    SELECT latest artifact path for flow
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:368
+  risk: high
+  detail: 'caller: upsertInstallation
+
+    name: Exec
+
+    UPSERT flow installation record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:391
+  risk: medium
+  detail: 'caller: installation
+
+    name: QueryRow
+
+    SELECT installation record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:421
+  risk: medium
+  detail: 'caller: updateFlowStatusByManifestID
+
+    name: Query
+
+    SELECT flows by manifest ID
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_store.go:435
+  risk: medium
+  detail: 'caller: updateFlowStatusByManifestID
+
+    name: Exec
+
+    UPDATE flow status by manifest ID
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_templates.go:49
+  risk: high
+  detail: 'caller: createFlowTemplate
+
+    name: Exec
+
+    INSERT flow template record
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/flow_templates.go:70
+  risk: medium
+  detail: 'caller: listFlowTemplatesByBusiness
+
+    name: Query
+
+    SELECT flow templates for business
+
+    '
+- type: http
+  component: remora-flujo
+  location: api_rest/framework_session.go:183
+  risk: medium
+  detail: 'caller: getFrameworkSessionLiveEvents
+
+    name: Get
+
+    reads Accept header for SSE detection
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/framework_session.go:183
+  risk: medium
+  detail: 'caller: getFrameworkSessionLiveEvents
+
+    name: Query
+
+    SELECT live events for framework session
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:318
+  risk: low
+  detail: 'caller: envOr
+
+    name: Getenv
+
+    generic env var reader with fallback
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:354
+  risk: low
+  detail: 'caller: loadDotEnv
+
+    name: Getenv
+
+    loads .env file variables
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:365
+  risk: low
+  detail: 'caller: resolveRemoraRoot
+
+    name: Getenv
+
+    reads REMORA_ROOT for project root resolution
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:1097
+  risk: low
+  detail: 'caller: bootstrapSMTPFromEnvIfNeeded
+
+    name: Getenv
+
+    reads SMTP env vars for auto-bootstrap
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/main.go:1111
+  risk: high
+  detail: 'caller: bootstrapSMTPFromEnvIfNeeded
+
+    name: Command
+
+    exec.Command vault binary set credentials.smtp stores SMTP creds
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/main.go:1254
+  risk: high
+  detail: 'caller: handleSendEmail
+
+    name: Command
+
+    exec.Command mensajero binary delegates email sending
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:1129
+  risk: low
+  detail: 'caller: devModeEnabled
+
+    name: Getenv
+
+    reads REMORA_DEV_MODE flag
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:1313
+  risk: low
+  detail: 'caller: resolveMensajero
+
+    name: Getenv
+
+    reads REMORA_MENSAJERO_BIN path
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/main.go:1325
+  risk: low
+  detail: 'caller: resolveVaultBin
+
+    name: Getenv
+
+    reads REMORA_VAULT_BIN path
+
+    '
+- type: exec
+  component: remora-flujo
+  location: api_rest/main.go:1334
+  risk: high
+  detail: 'caller: vaultHasFromAPI
+
+    name: Command
+
+    exec.Command vault binary has queries vault for key existence
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/main.go:1391
+  risk: medium
+  detail: 'caller: updateRules
+
+    name: WriteFile
+
+    persists rules JSON to disk
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/multimodal.go:66
+  risk: low
+  detail: 'caller: modelSpecFor
+
+    name: Getenv
+
+    reads LLM provider API key for multimodal
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/multimodal.go:211
+  risk: medium
+  detail: 'caller: appendImageAnalysis
+
+    name: WriteFile
+
+    writes image analysis result to disk
+
+    '
+- type: http
+  component: remora-flujo
+  location: api_rest/streaming.go:38
+  risk: low
+  detail: 'caller: wantsSSE
+
+    name: Get
+
+    reads Accept header for SSE detection
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/streaming.go:101
+  risk: medium
+  detail: 'caller: tailLiveFile
+
+    name: Remove
+
+    removes live event file after SSE stream ends
+
+    '
+- type: http
+  component: remora-flujo
+  location: api_rest/tareas.go:90
+  risk: low
+  detail: 'caller: handleTasksList
+
+    name: Get
+
+    reads request headers for task list
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/tareas.go:90
+  risk: medium
+  detail: 'caller: handleTasksList
+
+    name: Query
+
+    SELECT tasks list from DB
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/tareas.go:326
+  risk: low
+  detail: 'caller: focoTaskStatePath
+
+    name: Getenv
+
+    reads REMORA_FOCO_TASK_STATE_PATH
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/tareas.go:390
+  risk: medium
+  detail: 'caller: saveFocoTaskPlan
+
+    name: WriteFile
+
+    saves foco task plan JSON to disk
+
+    '
+- type: sql
+  component: remora-flujo
+  location: api_rest/tareas.go:502
+  risk: medium
+  detail: 'caller: migrateLegacyTasksToFoco
+
+    name: Query
+
+    SELECT legacy tasks for migration
+
+    '
+- type: env
+  component: remora-flujo
+  location: api_rest/tareas.go:537
+  risk: low
+  detail: 'caller: legacyTasksDBPath
+
+    name: Getenv
+
+    reads TASKS_DB_PATH for legacy migration
+
+    '
+- type: env
+  component: remora-flujo
+  location: flujo/flow_workbench.go:382
+  risk: low
+  detail: 'caller: newFlowWorkbenchClient
+
+    name: Getenv
+
+    reads REMORA_API_URL for flujo CLI client
+
+    '
+- type: http
+  component: remora-flujo
+  location: flujo/flow_workbench.go:406
+  risk: medium
+  detail: 'caller: stream
+
+    name: NewRequest
+
+    streaming HTTP POST to remora-flujo API
+
+    '
+- type: http
+  component: remora-flujo
+  location: flujo/flow_workbench.go:420
+  risk: medium
+  detail: 'caller: stream
+
+    name: Do
+
+    executes streaming HTTP request
+
+    '
+- type: http
+  component: remora-flujo
+  location: flujo/flow_workbench.go:478
+  risk: medium
+  detail: 'caller: doJSON
+
+    name: NewRequest
+
+    JSON HTTP request builder for flujo CLI
+
+    '
+- type: http
+  component: remora-flujo
+  location: flujo/flow_workbench.go:488
+  risk: medium
+  detail: 'caller: doJSON
+
+    name: Do
+
+    executes JSON HTTP request from flujo CLI
+
+    '
+- type: file
+  component: remora-flujo
+  location: flujo/main.go:212
+  risk: medium
+  detail: 'caller: cmdReset
+
+    name: RemoveAll
+
+    removes all state files on reset
+
+    '
+- type: exec
+  component: remora-flujo
+  location: flujo/main.go:319
+  risk: high
+  detail: 'caller: echoReadyForAlfa
+
+    name: Command
+
+    exec.Command /bin/zsh frameworkecho readiness via shell
+
+    '
+- type: file
+  component: remora-flujo
+  location: flujo/main.go:907
+  risk: medium
+  detail: 'caller: removePaths
+
+    name: RemoveAll
+
+    removes multiple paths during cleanup
+
+    '
+- type: file
+  component: remora-flujo
+  location: framework_session/main.go:283
+  risk: medium
+  detail: 'caller: newLiveEventWriter
+
+    name: Create
+
+    creates live events file for SSE streaming
+
+    '
+- type: file
+  component: remora-flujo
+  location: framework_session/main.go:627
+  risk: medium
+  detail: 'caller: execute
+
+    name: WriteFile
+
+    writes framework session execution state
+
+    '
+- type: file
+  component: remora-flujo
+  location: framework_session/main.go:711
+  risk: medium
+  detail: 'caller: commitConfiguration
+
+    name: WriteFile
+
+    commits configuration to disk
+
+    '
+- type: env
+  component: remora-flujo
+  location: framework_session/main.go:989
+  risk: low
+  detail: 'caller: resolveRoot
+
+    name: Getenv
+
+    reads REMORA_ROOT for session root
+
+    '
+- type: env
+  component: remora-flujo
+  location: framework_session/main.go:1057
+  risk: low
+  detail: 'caller: specFor
+
+    name: Getenv
+
+    reads LLM spec env var for framework session
+
+    '
+- type: file
+  component: remora-flujo
+  location: handoff/questions_queue.go:118
+  risk: medium
+  detail: 'caller: SaveQuestionsQueue
+
+    name: WriteFile
+
+    saves questions queue state to disk
+
+    '
+- type: file
+  component: remora-flujo
+  location: handoff/state.go:106
+  risk: medium
+  detail: 'caller: Save
+
+    name: WriteFile
+
+    saves handoff state to disk
+
+    '
+- type: env
+  component: remora-flujo
+  location: llm/client.go:66
+  risk: high
+  detail: 'caller: New
+
+    name: Getenv
+
+    reads LLM provider API key (GROQ_API_KEY or MINIMAX_API_KEY)
+
+    '
+- type: http
+  component: remora-flujo
+  location: llm/client.go:192
+  risk: high
+  detail: 'caller: Complete
+
+    name: Do
+
+    outbound HTTP call to external LLM API
+
+    '
+- type: http
+  component: remora-flujo
+  location: llm/client.go:242
+  risk: high
+  detail: 'caller: Stream
+
+    name: Do
+
+    outbound streaming HTTP call to external LLM API
+
+    '
+- type: env
+  component: remora-flujo
+  location: nativeagent/agent.go:116
+  risk: low
+  detail: 'caller: resolveProvider
+
+    name: Getenv
+
+    reads REMORA_LLM_PROVIDER for nativeagent
+
+    '
+- type: http
+  component: remora-flujo
+  location: nativeagent/agent.go:435
+  risk: high
+  detail: 'caller: requestMiniMax
+
+    name: NewRequest
+
+    outbound POST to MiniMax LLM API
+
+    '
+- type: http
+  component: remora-flujo
+  location: nativeagent/agent.go:499
+  risk: high
+  detail: 'caller: requestGroq
+
+    name: NewRequest
+
+    outbound POST to Groq LLM API
+
+    '
+- type: http
+  component: remora-flujo
+  location: nativeagent/agent.go:717
+  risk: high
+  detail: 'caller: doRequest
+
+    name: Do
+
+    executes outbound LLM HTTP request
+
+    '
+- type: env
+  component: remora-flujo
+  location: nativeagent/agent.go:828
+  risk: low
+  detail: 'caller: firstEnv
+
+    name: Getenv
+
+    reads first non-empty env var from list
+
+    '
+- type: env
+  component: remora-flujo
+  location: nativeagent/agent.go:846
+  risk: low
+  detail: 'caller: loadDefaultEnvFiles
+
+    name: Getenv
+
+    loads default env file paths
+
+    '
+- type: env
+  component: remora-flujo
+  location: nativeagent/agent.go:894
+  risk: low
+  detail: 'caller: loadLocalEnv
+
+    name: Getenv
+
+    reads and sets local env variables
+
+    '
+- type: exec
+  component: remora-flujo
+  location: nativeagent/agent.go:1021
+  risk: critical
+  detail: 'caller: toolBash
+
+    name: Command
+
+    exec.Command /bin/zsh -lc arbitrary shell execution by LLM agent tool
+
+    '
+- type: file
+  component: remora-flujo
+  location: nativeagent/agent.go:1091
+  risk: high
+  detail: 'caller: toolWrite
+
+    name: WriteFile
+
+    LLM agent tool_write writes arbitrary files to disk
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/store.go:115
+  risk: medium
+  detail: 'caller: storeResources
+
+    name: Create
+
+    creates conversation resource files
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/store.go:164
+  risk: medium
+  detail: 'caller: saveConv
+
+    name: WriteFile
+
+    saves conversation JSON to disk
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/store.go:188
+  risk: medium
+  detail: 'caller: deleteConv
+
+    name: RemoveAll
+
+    removes conversation directory
+
+    '
+- type: file
+  component: remora-flujo
+  location: api_rest/store.go:214
+  risk: medium
+  detail: 'caller: saveMessages
+
+    name: WriteFile
+
+    saves conversation messages to disk
+
+    '
+- type: http
+  component: channel
+  location: adapter/adapter.go:137
+  risk: medium
+  detail: 'caller: call
+
+    name: Do
+
+    outbound HTTP call via adapter HTTPGet method
+
+    '
+- type: env
+  component: channel
+  location: channel/main.go:70
+  risk: low
+  detail: 'caller: envOr
+
+    name: Getenv
+
+    generic env var reader (CHANNEL_BASE_DIR etc.)
+
+    '
+- type: env
+  component: channel
+  location: channel/main.go:99
+  risk: low
+  detail: 'caller: loadDotEnv
+
+    name: Getenv
+
+    reads .env file variable
+
+    '
+- type: env
+  component: channel
+  location: channel/main.go:100
+  risk: low
+  detail: 'caller: loadDotEnv
+
+    name: Setenv
+
+    sets env var from .env file
+
+    '
+- type: http
+  component: channel
+  location: vault/main.go:97
+  risk: medium
+  detail: 'caller: cmdGet
+
+    name: Get
+
+    HTTP GET to retrieve secret from vault server
+
+    '
+- type: http
+  component: channel
+  location: credentials/smtp.go:50
+  risk: medium
+  detail: 'caller: LoadSMTP
+
+    name: Get
+
+    HTTP GET to load SMTP credentials from vault
+
+    '
+- type: exec
+  component: channel
+  location: internal/exec.go:26
+  risk: critical
+  detail: 'caller: ExecuteCommandWithEnv
+
+    name: CommandContext
+
+    exec.CommandContext executes whitelisted commands without shell
+
+    '
+- type: env
+  component: channel
+  location: internal/handler.go:36
+  risk: low
+  detail: 'caller: NewHandler
+
+    name: Getenv
+
+    reads CHANNEL_EXEC_TIMEOUT for command timeout
+
+    '
+- type: http
+  component: channel
+  location: internal/handler.go:74
+  risk: medium
+  detail: 'caller: Handle
+
+    name: Get
+
+    reads request headers (Authorization) for API key validation
+
+    '
+- type: file
+  component: channel
+  location: internal/handler.go:223
+  risk: high
+  detail: 'caller: writeFile
+
+    name: WriteFile
+
+    writes file to CHANNEL_BASE_DIR; path-validated by resolveWithinBase
+
+    '
+- type: file
+  component: channel
+  location: internal/handler.go:371
+  risk: high
+  detail: 'caller: editFile
+
+    name: WriteFile
+
+    edits/overwrites file within CHANNEL_BASE_DIR
+
+    '
+- type: http
+  component: channel
+  location: internal/handler.go:393
+  risk: medium
+  detail: 'caller: httpGet
+
+    name: Do
+
+    outbound HTTP GET for JSON-RPC http_get method
+
+    '
+- type: file
+  component: channel
+  location: internal/session.go:64
+  risk: medium
+  detail: 'caller: Append
+
+    name: OpenFile
+
+    appends to session log file
+
+    '
+- type: env
+  component: channel
+  location: profile/profile.go:56
+  risk: low
+  detail: 'caller: Load
+
+    name: Getenv
+
+    reads REMORA_PROFILE for active profile
+
+    '
+- type: env
+  component: channel
+  location: vault/vault.go:52
+  risk: low
+  detail: 'caller: DefaultBaseDir
+
+    name: Getenv
+
+    reads REMORA_VAULT_DIR for vault location
+
+    '
+- type: env
+  component: channel
+  location: vault/vault.go:122
+  risk: high
+  detail: 'caller: masterKey
+
+    name: Getenv
+
+    reads REMORA_VAULT_KEY master encryption key
+
+    '
+- type: file
+  component: channel
+  location: vault/vault.go:168
+  risk: high
+  detail: 'caller: Set
+
+    name: WriteFile
+
+    writes encrypted secret to vault on disk
+
+    '
+- type: file
+  component: channel
+  location: vault/vault.go:251
+  risk: high
+  detail: 'caller: Delete
+
+    name: Remove
+
+    removes secret from vault on disk
+
+    '
