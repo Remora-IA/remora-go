@@ -1,0 +1,9 @@
+# Built binaries
+echo-to-swarm
+doc-swarm
+
+# Paladin trace output (generated at runtime)
+temp/
+
+# Stigma store temp files (generated at runtime)
+*.stigma.json

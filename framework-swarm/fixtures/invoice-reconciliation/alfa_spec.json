@@ -1,0 +1,180 @@
+{
+  "version": "1.0",
+  "generated": "2026-05-01T12:00:00Z",
+  "source_tree": "fixtures/invoice-reconciliation/frameworkecho.json",
+  "project_id": "invoice-reconciliation-001",
+  "client_name": "Acme Financial Operations",
+  "automation_intent": "Automatizar la reconciliación de facturas: validar campos, cruzar con ERP, verificar cálculos, enrutar aprobaciones y registrar trazabilidad",
+  "export_ready": true,
+  "selected_opportunities": [
+    {
+      "id": "op_001",
+      "title": "Validar campos obligatorios al ingreso con rechazo automático e inmediato",
+      "parent_pain_id": "pn_001"
+    },
+    {
+      "id": "op_002",
+      "title": "Cruzar automáticamente con ERP y escalar proveedores desconocidos en tiempo real",
+      "parent_pain_id": "pn_002"
+    },
+    {
+      "id": "op_003",
+      "title": "Verificar automáticamente que líneas sumen el total con tolerancia de $0.01",
+      "parent_pain_id": "pn_003"
+    },
+    {
+      "id": "op_004",
+      "title": "Enrutar facturas >$10,000 automáticamente al nivel de aprobación correcto",
+      "parent_pain_id": "pn_004"
+    },
+    {
+      "id": "op_005",
+      "title": "Registrar trazabilidad completa de cada factura en log de auditoría inmutable",
+      "parent_pain_id": "pn_005"
+    }
+  ],
+  "confirmed_pains": [
+    {
+      "id": "pn_001",
+      "type": "PAIN",
+      "title": "Facturas incompletas ingresan al flujo y se detectan tarde",
+      "status": "VALIDATED"
+    },
+    {
+      "id": "pn_002",
+      "type": "PAIN",
+      "title": "Proveedores no registrados bloquean el flujo completo",
+      "status": "VALIDATED"
+    },
+    {
+      "id": "pn_003",
+      "type": "PAIN",
+      "title": "Los errores de cálculo no se detectan hasta la revisión contable final",
+      "status": "VALIDATED"
+    },
+    {
+      "id": "pn_004",
+      "type": "PAIN",
+      "title": "Las facturas de alto monto no tienen circuito de aprobación diferenciado",
+      "status": "VALIDATED"
+    },
+    {
+      "id": "pn_005",
+      "type": "PAIN",
+      "title": "Sin trazabilidad de aprobaciones para auditoría",
+      "status": "VALIDATED"
+    }
+  ],
+  "ideal_steps": [
+    {
+      "id": "step_01",
+      "name": "Validate Invoice Fields",
+      "description": "Check that each invoice has ID, vendor RUT, total amount, line items, and date. Reject immediately if incomplete.",
+      "inputs": ["raw_invoice_email"],
+      "outputs": ["validated_invoices", "rejected_invoices"],
+      "source_nodes": ["tk_001", "pn_001", "op_001"]
+    },
+    {
+      "id": "step_02",
+      "name": "Match Vendor Registry",
+      "description": "Cross-reference each invoice vendor against the ERP registry. Flag unknown vendors for immediate escalation.",
+      "inputs": ["validated_invoices"],
+      "outputs": ["vendor_match_result", "unknown_vendors"],
+      "source_nodes": ["tk_002", "pn_002", "op_002"]
+    },
+    {
+      "id": "step_03",
+      "name": "Verify Line Item Totals",
+      "description": "Sum all line items and verify they equal the invoice total within ±$0.01 tolerance. Reject if discrepancy exceeds tolerance.",
+      "inputs": ["vendor_matched_invoices"],
+      "outputs": ["balance_verified", "balance_errors"],
+      "source_nodes": ["tk_003", "pn_003", "op_003"]
+    },
+    {
+      "id": "step_04",
+      "name": "Route Approval Workflow",
+      "description": "Route each invoice to the correct approval tier: invoices >$10,000 to senior approvers, others to standard approvers.",
+      "inputs": ["balance_verified_invoices"],
+      "outputs": ["approval_routing", "approval_level"],
+      "source_nodes": ["pn_004", "op_004"]
+    },
+    {
+      "id": "step_05",
+      "name": "Record Audit Trail",
+      "description": "Write an immutable audit log entry for each processing event: receipt, validation, vendor check, balance check, routing decision.",
+      "inputs": ["all_events"],
+      "outputs": ["audit_log_entries", "audit_summary"],
+      "source_nodes": ["pn_005", "op_005"]
+    }
+  ],
+  "business_rules": [
+    {
+      "id": "br_01",
+      "name": "invoice-completeness-rule",
+      "description": "Every invoice must have ID, vendor ID, amount > 0, and at least one line item",
+      "when": "invoice received",
+      "then": "reject immediately if any required field is missing",
+      "importance": 1,
+      "source_nodes": ["tk_001"]
+    },
+    {
+      "id": "br_02",
+      "name": "vendor-registry-rule",
+      "description": "Every vendor ID must exist in the approved ERP registry",
+      "when": "invoice has vendor ID",
+      "then": "reject or escalate if vendor not found in registry",
+      "importance": 1,
+      "source_nodes": ["tk_002"]
+    },
+    {
+      "id": "br_03",
+      "name": "balance-tolerance-rule",
+      "description": "Sum of line items must equal invoice total within ±$0.01 tolerance",
+      "when": "line items extracted",
+      "then": "assert abs(sum(lines) - total) <= 0.01",
+      "importance": 1,
+      "source_nodes": ["tk_003"]
+    },
+    {
+      "id": "br_04",
+      "name": "senior-approval-rule",
+      "description": "Invoices with total amount > $10,000 require senior management approval",
+      "when": "invoice.amount > 10000",
+      "then": "route to senior approver tier",
+      "importance": 2,
+      "source_nodes": ["pn_004"]
+    },
+    {
+      "id": "br_05",
+      "name": "audit-trail-rule",
+      "description": "Every processing event must be recorded in the immutable audit log",
+      "when": "any processing event occurs",
+      "then": "append event with timestamp, actor, and outcome to audit log",
+      "importance": 2,
+      "source_nodes": ["pn_005"]
+    }
+  ],
+  "critical_variables": [
+    "invoice_id",
+    "vendor_id",
+    "total_amount",
+    "line_items_sum",
+    "vendor_match",
+    "amounts_balanced",
+    "approval_level",
+    "audit_entries"
+  ],
+  "success_criteria": [
+    "100% of invoices validated at ingestion — zero incomplete invoices advance",
+    "All vendor IDs cross-referenced against ERP in <1s per invoice",
+    "Zero arithmetic errors reach accounting review",
+    "Senior approvals routed within 1 hour of receipt",
+    "Full audit trail available for any invoice within 30 seconds"
+  ],
+  "edge_cases": [
+    "Invoice with line items that sum correctly but individual amounts are negative",
+    "Vendor with multiple ERP registrations (duplicate IDs)",
+    "Invoice amount exactly equal to $10,000 — boundary approval routing",
+    "Batch of 50+ invoices from the same vendor arriving simultaneously"
+  ]
+}
