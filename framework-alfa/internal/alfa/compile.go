@@ -165,9 +165,50 @@ func selectOpportunities(tree *EchoTree, requested string, allowDraft bool) ([]*
 				return drafts, nil
 			}
 		}
-		return nil, fmt.Errorf("no validated opportunities found")
+		return nil, fmt.Errorf("no validated opportunities found; %s", summarizeTreeForOperator(tree))
 	}
 	return nodes, nil
+}
+
+func summarizeTreeForOperator(tree *EchoTree) string {
+	counts := map[string]map[string]int{}
+	for _, node := range tree.Nodes {
+		if counts[node.Type] == nil {
+			counts[node.Type] = map[string]int{}
+		}
+		counts[node.Type][node.Status]++
+	}
+
+	order := []string{TypeAxiom, TypeTheory, TypeTask, TypePain, TypeOpportunity}
+	var parts []string
+	for _, t := range order {
+		if statuses, ok := counts[t]; ok {
+			var entries []string
+			for status, n := range statuses {
+				entries = append(entries, fmt.Sprintf("%d %s", n, status))
+			}
+			sort.Strings(entries)
+			parts = append(parts, fmt.Sprintf("%s: %s", t, strings.Join(entries, ", ")))
+		}
+	}
+
+	if len(parts) == 0 {
+		return "el árbol Echo está vacío. Echo debe capturar al menos un AXIOM antes de compilar"
+	}
+
+	missing := []string{}
+	for _, t := range []string{TypeOpportunity, TypePain, TypeTask} {
+		if _, ok := counts[t]; !ok {
+			missing = append(missing, t)
+		}
+	}
+
+	hint := "Echo debe avanzar hasta OPPORTUNITY (o PAIN validado si usas --allow-draft) para que Alfa pueda compilar"
+	if len(missing) > 0 {
+		hint = fmt.Sprintf("falta avanzar hasta %s. %s", strings.Join(missing, "/"), hint)
+	}
+
+	return fmt.Sprintf("estado actual del árbol — %s. %s", strings.Join(parts, "; "), hint)
 }
 
 func draftOpportunitiesFromPains(tree *EchoTree) []*Node {
