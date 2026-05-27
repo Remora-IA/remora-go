@@ -1,0 +1,284 @@
+{
+  "trace_id": "pal_1779863103403716362",
+  "version": "1.0",
+  "generated": "2026-05-27T06:25:03Z",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 55,
+  "total_spans": 9,
+  "total_errors": 0,
+  "bottlenecks": [
+    "doc-swarm-1779863103 (55ms)"
+  ],
+  "root": {
+    "name": "doc-swarm-1779863103",
+    "file": "swarm.go",
+    "line": 81,
+    "start_ns": 1779863103403716362,
+    "duration_ms": 55,
+    "vars": {
+      "collision_rate": "0.00%"
+    },
+    "children": [
+      {
+        "name": "agent.agent-alpha",
+        "file": "swarm.go",
+        "line": 93,
+        "start_ns": 1779863103405500108,
+        "duration_ms": 0,
+        "children": [
+          {
+            "name": "zone.echo",
+            "file": "agent.go",
+            "line": 65,
+            "start_ns": 1779863103406995949,
+            "duration_ms": 3,
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-alpha",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: framework-echo (tree)"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-alpha claiming zone echo (pain=0.88)"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone echo completed in 4ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-alpha-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-alpha"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "agent-alpha",
+            "summary": "worker agent"
+          },
+          {
+            "kind": "goal",
+            "summary": "navigate pressure field, work zones, leave pheromones"
+          }
+        ]
+      },
+      {
+        "name": "agent.agent-beta",
+        "file": "swarm.go",
+        "line": 93,
+        "start_ns": 1779863103405833179,
+        "duration_ms": 0,
+        "children": [
+          {
+            "name": "zone.bravo",
+            "file": "agent.go",
+            "line": 65,
+            "start_ns": 1779863103407120753,
+            "duration_ms": 1,
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-beta",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: framework-bravo"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-beta claiming zone bravo (pain=0.80)"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone bravo completed in 2ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-beta-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-beta"
+              }
+            ]
+          },
+          {
+            "name": "zone.alfa",
+            "file": "agent.go",
+            "line": 65,
+            "start_ns": 1779863103430454342,
+            "duration_ms": 4,
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-beta",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: framework-alfa"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-beta claiming zone alfa (pain=0.75)"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone alfa completed in 4ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-beta-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-beta"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "agent-beta",
+            "summary": "worker agent"
+          },
+          {
+            "kind": "goal",
+            "summary": "navigate pressure field, work zones, leave pheromones"
+          }
+        ]
+      },
+      {
+        "name": "agent.agent-gamma",
+        "file": "swarm.go",
+        "line": 93,
+        "start_ns": 1779863103406038166,
+        "duration_ms": 0,
+        "children": [
+          {
+            "name": "zone.paladin",
+            "file": "agent.go",
+            "line": 65,
+            "start_ns": 1779863103406741834,
+            "duration_ms": 3,
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-gamma",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: framework-paladin"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-gamma claiming zone paladin (pain=0.95)"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone paladin completed in 3ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-gamma-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-gamma"
+              }
+            ]
+          },
+          {
+            "name": "zone.charlie",
+            "file": "agent.go",
+            "line": 65,
+            "start_ns": 1779863103431540742,
+            "duration_ms": 5,
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-gamma",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: framework-charlie"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-gamma claiming zone charlie (pain=0.70)"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone charlie completed in 5ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-gamma-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-gamma"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "agent-gamma",
+            "summary": "worker agent"
+          },
+          {
+            "kind": "goal",
+            "summary": "navigate pressure field, work zones, leave pheromones"
+          }
+        ]
+      }
+    ],
+    "semantic": [
+      {
+        "kind": "actor",
+        "subject": "swarm",
+        "summary": "coordinator for 3 agents"
+      },
+      {
+        "kind": "goal",
+        "summary": "solve 5 zones via stigmergy"
+      },
+      {
+        "kind": "rule",
+        "subject": "no-central-coordinator",
+        "summary": "agents navigate independently via pressure fields and pheromones"
+      },
+      {
+        "kind": "check",
+        "subject": "all-zones-solved",
+        "summary": "rule evaluated",
+        "expected": "5",
+        "actual": "5",
+        "passed": true
+      }
+    ]
+  }
+}
