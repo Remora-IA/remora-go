@@ -38,12 +38,19 @@ func (s *StubClient) Complete(_ context.Context, req Request) (*Response, error)
 	return &Response{Text: fallback, StopReason: "end_turn"}, nil
 }
 
-// NewClientOrStub intenta crear un AnthropicClient real; si no hay
-// credenciales, devuelve un stub con las respuestas dadas. Es el helper
-// para MVPs: producción usa la API, desarrollo usa el stub, sin código
-// condicional en el consumidor.
+// NewClientOrStub intenta crear un cliente real en orden de preferencia:
+//  1. AnthropicClient si ANTHROPIC_API_KEY está seteada (más rápido, producción).
+//  2. ClaudeCLIClient si el binario `claude` está en PATH (usa Max plan OAuth,
+//     ideal para dev local sin costo marginal por mensaje).
+//  3. StubClient con las respuestas dadas (sin costo, determinístico).
+//
+// Es el helper para MVPs: el consumidor escribe el mismo código y el helper
+// decide qué backend usar según lo que esté disponible.
 func NewClientOrStub(stubResponses ...string) Client {
 	if c, err := NewAnthropic(); err == nil {
+		return c
+	}
+	if c, err := NewClaudeCLI(); err == nil {
 		return c
 	}
 	return NewStub(stubResponses...)
