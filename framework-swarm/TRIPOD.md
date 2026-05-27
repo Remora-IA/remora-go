@@ -3,6 +3,23 @@
 > "El trípode no es solo una arquitectura. Es un sistema de verificación:
 > el enjambre declara qué quería hacer, lo hace, y luego demuestra que lo hizo."
 
+## El why
+
+Remora es infraestructura para convertir cualquier tarea digital compleja
+en un enjambre verificable.
+
+No "cualquier negocio" — eso limita el imaginario a procesos corporativos.
+Cualquier **tarea digital**: extraer datos de WhatsApp y pasarlos a una planilla,
+analizar 100 documentos de jurisprudencia y construir un caso,
+procesar un backlog de cobranzas y detectar patrones de mora.
+
+El patrón que une todos esos casos:
+son tareas de múltiples pasos sobre información, donde un agente solo es lento
+y propenso a saltarse cosas, y un enjambre coordinado puede hacerlo en paralelo,
+sin duplicaciones, con evidencia de que no se omitió ningún paso.
+
+Para los guiones de cómo evolucionó el comportamiento de la librería: ver `GUIONES.md`.
+
 ---
 
 ## Resultados del Benchmark
