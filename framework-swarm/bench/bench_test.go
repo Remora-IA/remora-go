@@ -12,6 +12,13 @@ var allCases = []SwarmCase{
 	DocCase(),
 	InvoiceCase(),
 	TriageCase(),
+	HRCase(),
+	SupplyChainCase(),
+	DeploymentCase(),
+	DataQualityCase(),
+	ContractCase(),
+	ModerationCase(),
+	SupportCase(),
 }
 
 // TestTripod verifies that every registered SwarmCase passes its BravoScore
