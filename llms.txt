@@ -1,0 +1,41 @@
+# Remora
+
+Librería Go para que founders no-técnicos construyan productos con agentes de IA conversacionales que trabajen en equipo, sin reinventar primitivas.
+
+## Inicio rápido
+
+> Si sos una IA construyendo sobre Remora, leé [AGENTS.md](https://github.com/Remora-IA/remora-go/blob/main/AGENTS.md) primero.
+
+- [README.md](https://github.com/Remora-IA/remora-go/blob/main/README.md): narrativa conceptual de las dos capas (diseño / runtime).
+- [AGENTS.md](https://github.com/Remora-IA/remora-go/blob/main/AGENTS.md): instrucciones para IAs que construyen sobre Remora.
+
+## Frameworks runtime (usá estos para construir agentes)
+
+- [framework-llm](https://github.com/Remora-IA/remora-go/blob/main/framework-llm/README.md): wrapper LLM (Anthropic + stub).
+- [framework-agent](https://github.com/Remora-IA/remora-go/blob/main/framework-agent/README.md): primitiva Agent con Behavior, estado, traza.
+- [framework-channels](https://github.com/Remora-IA/remora-go/blob/main/framework-channels/README.md): transporte (console funcional, WhatsApp stub).
+- [framework-store](https://github.com/Remora-IA/remora-go/blob/main/framework-store/README.md): persistencia multi-tenant (memory + file).
+- [framework-paladin](https://github.com/Remora-IA/remora-go/blob/main/framework-paladin/README.md): traza semántica observable.
+
+## Frameworks de diseño (usá estos antes de codear, con tu cliente)
+
+- [framework-echo](https://github.com/Remora-IA/remora-go/blob/main/framework-echo/README.md): discovery del dolor real del cliente.
+- [framework-alfa](https://github.com/Remora-IA/remora-go/blob/main/framework-alfa/README.md): compilador de árbol Echo a spec ejecutable.
+- [framework-bravo](https://github.com/Remora-IA/remora-go/blob/main/framework-bravo/README.md): verificador de ejecución vs spec ideal.
+
+## Coordinación multi-agente
+
+- [framework-swarm](https://github.com/Remora-IA/remora-go/blob/main/framework-swarm/README.md): estigmergia bio-inspirada cuando hay N agentes que deben coordinarse.
+
+## Ejemplo de referencia
+
+- [examples/cobranza-conversacional](https://github.com/Remora-IA/remora-go/blob/main/examples/cobranza-conversacional/README.md): agente conversacional completo end-to-end. Carolina negocia cobranza con persistencia, escalación, traza. Punto de partida para cualquier agente conversacional con Remora.
+
+## Instalación
+
+```bash
+go get github.com/Remora-IA/remora-go/framework-agent
+go get github.com/Remora-IA/remora-go/framework-llm
+go get github.com/Remora-IA/remora-go/framework-channels
+go get github.com/Remora-IA/remora-go/framework-store
+```
