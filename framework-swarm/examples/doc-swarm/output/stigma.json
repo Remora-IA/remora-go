@@ -1,0 +1,82 @@
+[
+  {
+    "zone": "paladin",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-gamma",
+    "left_at": "2026-05-27T06:25:03.406519298Z",
+    "expires_at": "2026-05-27T06:35:03.406519298Z"
+  },
+  {
+    "zone": "echo",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-alpha",
+    "left_at": "2026-05-27T06:25:03.406834413Z",
+    "expires_at": "2026-05-27T06:35:03.406834413Z"
+  },
+  {
+    "zone": "bravo",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:25:03.407035662Z",
+    "expires_at": "2026-05-27T06:35:03.407035662Z"
+  },
+  {
+    "zone": "bravo",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:25:03.409249454Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "paladin",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-gamma",
+    "left_at": "2026-05-27T06:25:03.410075138Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "echo",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-alpha",
+    "left_at": "2026-05-27T06:25:03.411376778Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "alfa",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:25:03.430231439Z",
+    "expires_at": "2026-05-27T06:35:03.430231439Z"
+  },
+  {
+    "zone": "charlie",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-gamma",
+    "left_at": "2026-05-27T06:25:03.431343351Z",
+    "expires_at": "2026-05-27T06:35:03.431343351Z"
+  },
+  {
+    "zone": "alfa",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:25:03.434598294Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "charlie",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-gamma",
+    "left_at": "2026-05-27T06:25:03.437100231Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  }
+]
