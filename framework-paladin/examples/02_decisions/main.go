@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/remora-go/framework-paladin/paladin"
+	"github.com/Remora-IA/remora-go/framework-paladin/paladin"
 )
 
 // Ejemplo 02: Decisiones Lógicas y Ruteo

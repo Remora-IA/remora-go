@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/remora-go/framework-agent/agent"
+	"github.com/Remora-IA/remora-go/framework-agent/agent"
 )
 
 // ErrNotFound se devuelve cuando un conversation_id no existe.

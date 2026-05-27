@@ -1,0 +1,367 @@
+{
+  "trace_id": "pal_1779892093047119000",
+  "version": "1.0",
+  "generated": "2026-05-27T10:28:13-04:00",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 247,
+  "total_spans": 14,
+  "total_errors": 0,
+  "bottlenecks": [
+    "EcommercePedidos (247ms)",
+    "procesarPedido (240ms)",
+    "calcularEnvio (83ms)",
+    "actualizarStock (115ms)"
+  ],
+  "root": {
+    "name": "EcommercePedidos",
+    "file": "trace.go",
+    "line": 33,
+    "start_ns": 1779892093047119000,
+    "duration_ms": 247,
+    "vars": {
+      "ambiente": "produccion",
+      "pedido_cupon": "TECH15",
+      "pedido_items": 5,
+      "pedido_pais": "MX",
+      "resultado_envio_gratis": false,
+      "resultado_items_procesados": 5,
+      "resultado_total": 1171.96,
+      "total_productos_catalogo": 5,
+      "version": "2.1.0"
+    },
+    "children": [
+      {
+        "name": "procesarPedido",
+        "file": "main.go",
+        "line": 145,
+        "start_ns": 1779892093052108000,
+        "duration_ms": 240,
+        "vars": {
+          "descuento_total": 195,
+          "items_validos": 5,
+          "precio_con_descuento": 1002.983,
+          "subtotal_calculado": 1374.98
+        },
+        "children": [
+          {
+            "name": "calcularSubtotal",
+            "file": "main.go",
+            "line": 177,
+            "start_ns": 1779892093052613000,
+            "duration_ms": 10,
+            "vars": {
+              "items_validos": 5,
+              "subtotal_final": 1374.98
+            },
+            "children": [
+              {
+                "name": "procesarItem",
+                "file": "main.go",
+                "line": 199,
+                "start_ns": 1779892093052786000,
+                "duration_ms": 3,
+                "vars": {
+                  "cantidad_solicitada": 1,
+                  "line_total": 1200,
+                  "producto_id": "LAPTOP-01",
+                  "producto_nombre": "Laptop Pro 15",
+                  "producto_precio": 1200,
+                  "producto_stock": 10
+                },
+                "decisions": [
+                  {
+                    "what": "item_aceptado",
+                    "why": "Laptop Pro 15 × 1 = $1200.00"
+                  }
+                ]
+              },
+              {
+                "name": "procesarItem",
+                "file": "main.go",
+                "line": 199,
+                "start_ns": 1779892093056536000,
+                "duration_ms": 1,
+                "vars": {
+                  "cantidad_solicitada": 3,
+                  "line_total": 75,
+                  "producto_id": "MOUSE-01",
+                  "producto_nombre": "Mouse Inalámbrico",
+                  "producto_precio": 25,
+                  "producto_stock": 150
+                },
+                "decisions": [
+                  {
+                    "what": "item_aceptado",
+                    "why": "Mouse Inalámbrico × 3 = $75.00"
+                  }
+                ]
+              },
+              {
+                "name": "procesarItem",
+                "file": "main.go",
+                "line": 199,
+                "start_ns": 1779892093058009000,
+                "duration_ms": 1,
+                "vars": {
+                  "cantidad_solicitada": 2,
+                  "line_total": 39.98,
+                  "producto_id": "CAMISETA-01",
+                  "producto_nombre": "Camiseta Algodón",
+                  "producto_precio": 19.99,
+                  "producto_stock": 500
+                },
+                "decisions": [
+                  {
+                    "what": "item_aceptado",
+                    "why": "Camiseta Algodón × 2 = $39.98"
+                  }
+                ]
+              },
+              {
+                "name": "procesarItem",
+                "file": "main.go",
+                "line": 199,
+                "start_ns": 1779892093059627000,
+                "duration_ms": 0,
+                "vars": {
+                  "cantidad_solicitada": 1,
+                  "line_total": 35,
+                  "producto_id": "LIBRO-01",
+                  "producto_nombre": "Clean Code",
+                  "producto_precio": 35,
+                  "producto_stock": 45
+                },
+                "decisions": [
+                  {
+                    "what": "item_aceptado",
+                    "why": "Clean Code × 1 = $35.00"
+                  }
+                ]
+              },
+              {
+                "name": "procesarItem",
+                "file": "main.go",
+                "line": 199,
+                "start_ns": 1779892093060736000,
+                "duration_ms": 1,
+                "vars": {
+                  "cantidad_solicitada": 2,
+                  "line_total": 25,
+                  "producto_id": "HDMI-01",
+                  "producto_nombre": "Cable HDMI 2m",
+                  "producto_precio": 12.5,
+                  "producto_stock": 300
+                },
+                "decisions": [
+                  {
+                    "what": "item_aceptado",
+                    "why": "Cable HDMI 2m × 2 = $25.00"
+                  }
+                ]
+              }
+            ],
+            "decisions": [
+              {
+                "what": "subtotal calculado",
+                "why": "5 items válidos → $1374.98"
+              }
+            ]
+          },
+          {
+            "name": "aplicarCupon",
+            "file": "main.go",
+            "line": 229,
+            "start_ns": 1779892093063299000,
+            "duration_ms": 20,
+            "vars": {
+              "cupon_categoria": "electronica",
+              "cupon_codigo": "TECH15",
+              "cupon_porcentaje": 15,
+              "descuento_calculado": 195,
+              "precio_con_descuento": 1002.983,
+              "subtotal_original": 1374.98
+            },
+            "children": [
+              {
+                "name": "calcularDescuentoPorCategoria",
+                "file": "main.go",
+                "line": 261,
+                "start_ns": 1779892093080202000,
+                "duration_ms": 2,
+                "vars": {
+                  "categoria_objetivo": "electronica",
+                  "descuento_categoria": 195,
+                  "item_CAMISETA-01_aplica": false,
+                  "item_HDMI-01_aplica": true,
+                  "item_LAPTOP-01_aplica": true,
+                  "item_LIBRO-01_aplica": false,
+                  "item_MOUSE-01_aplica": true,
+                  "items_aplicables": 3,
+                  "total_categoria": 1300
+                },
+                "decisions": [
+                  {
+                    "what": "descuento_por_categoria_calculado",
+                    "why": "15.0% sobre $1300.00 (3 items de electronica)"
+                  }
+                ]
+              }
+            ],
+            "decisions": [
+              {
+                "what": "aplicar_descuento_por_categoria",
+                "why": "solo categoría 'electronica'"
+              },
+              {
+                "what": "precio_tras_descuento",
+                "why": "$1374.98 - $195.00 = $1002.98"
+              }
+            ]
+          },
+          {
+            "name": "calcularEnvio",
+            "file": "main.go",
+            "line": 298,
+            "start_ns": 1779892093084531000,
+            "duration_ms": 83,
+            "vars": {
+              "costo_base_envio": 8.5,
+              "costo_envio_final": 8.5,
+              "descuento_aplicado": 195,
+              "envio_gratis_evaluacion": true,
+              "pais_destino": "MX",
+              "precio_base_envio": 1002.983,
+              "umbral_envio_gratis": 100
+            },
+            "decisions": [
+              {
+                "what": "envio_gratis_aplicado",
+                "why": "$1002.98 \u003e $100.00"
+              },
+              {
+                "what": "ajuste_por_cupon",
+                "why": "se cobra envío porque se usó cupón"
+              }
+            ]
+          },
+          {
+            "name": "calcularImpuesto",
+            "file": "main.go",
+            "line": 343,
+            "start_ns": 1779892093168678000,
+            "duration_ms": 2,
+            "vars": {
+              "base_imponible": 1002.983,
+              "impuesto_calculado": 160.48,
+              "pais": "MX",
+              "tasa_impuesto": 0.16
+            },
+            "decisions": [
+              {
+                "what": "impuesto_aplicado",
+                "why": "$1002.98 × 16% = $160.48"
+              }
+            ]
+          },
+          {
+            "name": "calcularTotal",
+            "file": "main.go",
+            "line": 367,
+            "start_ns": 1779892093172435000,
+            "duration_ms": 2,
+            "vars": {
+              "costo_envio": 8.5,
+              "impuesto": 160.48,
+              "precio_con_descuento": 1002.983,
+              "total_final": 1171.96
+            },
+            "decisions": [
+              {
+                "what": "total_final_calculado",
+                "why": "$1002.98 + $8.50 + $160.48 = $1171.96"
+              }
+            ]
+          },
+          {
+            "name": "actualizarStock",
+            "file": "main.go",
+            "line": 384,
+            "start_ns": 1779892093175641000,
+            "duration_ms": 115,
+            "vars": {
+              "cantidad_a_descontar_0": 1,
+              "cantidad_a_descontar_1": 3,
+              "cantidad_a_descontar_2": 2,
+              "cantidad_a_descontar_3": 1,
+              "cantidad_a_descontar_4": 2,
+              "procesando_item_0": "LAPTOP-01",
+              "procesando_item_1": "MOUSE-01",
+              "procesando_item_2": "CAMISETA-01",
+              "procesando_item_3": "LIBRO-01",
+              "procesando_item_4": "HDMI-01",
+              "producto_afectado_0": "LAPTOP-01",
+              "producto_afectado_1": "MOUSE-01",
+              "producto_afectado_2": "CAMISETA-01",
+              "producto_afectado_3": "LIBRO-01",
+              "producto_afectado_4": "HDMI-01",
+              "stock_actualizado": true,
+              "stock_antes_0": 10,
+              "stock_antes_1": 150,
+              "stock_antes_2": 500,
+              "stock_antes_3": 45,
+              "stock_antes_4": 300,
+              "stock_despues_0": 9,
+              "stock_despues_1": 147,
+              "stock_despues_2": 498,
+              "stock_despues_3": 44,
+              "stock_despues_4": 298
+            },
+            "decisions": [
+              {
+                "what": "stock_actualizado_item_0",
+                "why": "LAPTOP-01: 10 → 9 (se procesaba LAPTOP-01)"
+              },
+              {
+                "what": "stock_actualizado_item_1",
+                "why": "MOUSE-01: 150 → 147 (se procesaba MOUSE-01)"
+              },
+              {
+                "what": "stock_actualizado_item_2",
+                "why": "CAMISETA-01: 500 → 498 (se procesaba CAMISETA-01)"
+              },
+              {
+                "what": "stock_actualizado_item_3",
+                "why": "LIBRO-01: 45 → 44 (se procesaba LIBRO-01)"
+              },
+              {
+                "what": "stock_actualizado_item_4",
+                "why": "HDMI-01: 300 → 298 (se procesaba HDMI-01)"
+              },
+              {
+                "what": "actualizacion_stock_finalizada",
+                "why": "se procesaron todos los items"
+              }
+            ]
+          }
+        ],
+        "decisions": [
+          {
+            "what": "inicio procesamiento",
+            "why": "pedido contiene 5 items, cupón por categoría y dirección MX"
+          },
+          {
+            "what": "pedido completado",
+            "why": "total final calculado en $1171.96 con 5 items procesados"
+          }
+        ]
+      }
+    ],
+    "decisions": [
+      {
+        "what": "pedido creado",
+        "why": "cliente en MX con cupón TECH15 para electrónica"
+      }
+    ]
+  }
+}

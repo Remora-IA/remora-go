@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/remora-go/framework-agent/agent"
+	"github.com/Remora-IA/remora-go/framework-agent/agent"
 )
 
 // CarolinaBehavior implementa agent.Behavior. Toda la lógica de negocio

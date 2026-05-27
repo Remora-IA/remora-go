@@ -1,6 +1,6 @@
 package main
 
-import "github.com/remora-go/framework-paladin/paladin"
+import "github.com/Remora-IA/remora-go/framework-paladin/paladin"
 
 func main() {
 	trace := paladin.NewTrace("semantic-handoff-demo")

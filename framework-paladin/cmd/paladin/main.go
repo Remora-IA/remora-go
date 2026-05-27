@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/remora-go/framework-paladin/paladin"
+	"github.com/Remora-IA/remora-go/framework-paladin/paladin"
 )
 
 func main() {

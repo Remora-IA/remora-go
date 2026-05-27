@@ -11,7 +11,7 @@ func TestAuditRepoFindsSemanticCoverage(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "main.go", `package main
 
-import "github.com/remora-go/framework-paladin/paladin"
+import "github.com/Remora-IA/remora-go/framework-paladin/paladin"
 
 func main() {
 	trace := paladin.NewTrace("demo")
@@ -46,7 +46,7 @@ func TestAuditRepoFlagsTechnicalOnlyTracing(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "main.go", `package main
 
-import "github.com/remora-go/framework-paladin/paladin"
+import "github.com/Remora-IA/remora-go/framework-paladin/paladin"
 
 func main() {
 	trace := paladin.NewTrace("demo")

@@ -17,8 +17,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/remora-go/framework-agent/agent"
-	"github.com/remora-go/framework-store/store"
+	"github.com/Remora-IA/remora-go/framework-agent/agent"
+	"github.com/Remora-IA/remora-go/framework-store/store"
 )
 
 type Store struct {

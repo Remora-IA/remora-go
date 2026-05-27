@@ -1,6 +1,6 @@
 package main
 
-import "github.com/remora-go/framework-llm/llm"
+import "github.com/Remora-IA/remora-go/framework-llm/llm"
 
 // stubResponses son las respuestas determinísticas que Carolina usa
 // cuando no hay ANTHROPIC_API_KEY. Permiten validar el flujo end-to-end

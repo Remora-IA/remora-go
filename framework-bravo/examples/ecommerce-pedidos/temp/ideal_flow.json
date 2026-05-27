@@ -1,0 +1,48 @@
+{
+  "trace_id": "ideal_1779892093048992000",
+  "generated": "2026-05-27T10:28:13-04:00",
+  "description": "Procesamiento de pedido con reglas de descuento, envío y stock",
+  "verbalization": "El flujo ideal es el siguiente:\nPrimero validamos que todos los items del carrito existan y tengan stock suficiente. Si alguno falla, lo rechazamos y seguimos con los demás.\nUna vez tenemos el subtotal, si hay cupón, aplicamos el descuento solo sobre los productos de la categoría que corresponde (en este caso electrónica).\nLuego calculamos envío: si el monto después del descuento supera los $100, el envío debe ser gratis, excepto si usamos cupón (en ese caso cobramos envío).\nDespués calculamos impuesto sobre el precio ya con descuento.\nFinalmente sumamos todo para obtener el total y actualizamos el stock del producto correcto, no del que esté en la posición del mapa.\n\nLos puntos críticos son: que el descuento por categoría funcione, que no se aplique doble descuento, que el envío gratis respete la regla del cupón, y que el stock se descuente del producto real pedido y no de uno aleatorio del mapa.",
+  "intent": "Procesar pedidos respetando estrictamente las reglas de cupones por categoría, política de envío según uso de cupón, y actualización correcta de inventario. Evitar errores silenciosos en descuentos y stock es prioridad máxima.",
+  "rules": [
+    {
+      "name": "Descuento por categoría",
+      "description": "El cupón TECH15 solo debe aplicarse a productos de categoría 'electronica'",
+      "then": "El descuento se calcula solo sobre laptop, mouse y hdmi. Total descuento ≈ $195",
+      "importance": 1
+    },
+    {
+      "name": "Sin doble descuento",
+      "description": "El descuento debe aplicarse exactamente una sola vez sobre el subtotal",
+      "then": "precio_con_descuento = subtotal - descuento_calculado. No multiplicar el subtotal",
+      "importance": 1
+    },
+    {
+      "name": "Envío y cupón son mutuamente exclusivos",
+      "description": "Si se usó cupón, NO debe aplicarse envío gratis aunque supere los $100",
+      "when": "cuando hay descuento \u003e 0",
+      "then": "costo_envio \u003e 0",
+      "importance": 1
+    },
+    {
+      "name": "Actualización correcta de stock",
+      "description": "El stock debe descontarse del producto realmente comprado, no según orden del mapa",
+      "then": "producto_id actualizado debe coincidir con el item procesado",
+      "importance": 1
+    }
+  ],
+  "critical_vars": [
+    "precio_con_descuento",
+    "costo_envio",
+    "descuento_calculado",
+    "producto_afectado",
+    "stock_despues"
+  ],
+  "critical_path": [
+    "procesarPedido",
+    "calcularSubtotal",
+    "aplicarCupon",
+    "calcularEnvio",
+    "actualizarStock"
+  ]
+}

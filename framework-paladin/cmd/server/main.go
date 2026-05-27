@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/remora-go/framework-paladin/paladin"
+	"github.com/Remora-IA/remora-go/framework-paladin/paladin"
 )
 
 const (

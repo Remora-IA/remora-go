@@ -6,11 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/remora-go/framework-agent/agent"
-	"github.com/remora-go/framework-llm/llm"
-	"github.com/remora-go/framework-paladin/paladin"
-	"github.com/remora-go/framework-store/store"
-	"github.com/remora-go/framework-store/store/memory"
+	"github.com/Remora-IA/remora-go/framework-agent/agent"
+	"github.com/Remora-IA/remora-go/framework-llm/llm"
+	"github.com/Remora-IA/remora-go/framework-paladin/paladin"
+	"github.com/Remora-IA/remora-go/framework-store/store"
+	"github.com/Remora-IA/remora-go/framework-store/store/memory"
 )
 
 // Cinturón de seguridad para Carolina end-to-end. Cubre:

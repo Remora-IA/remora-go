@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/remora-go/framework-channels/channels"
+	"github.com/Remora-IA/remora-go/framework-channels/channels"
 )
 
 // Channel implementa channels.Channel sobre stdin/stdout.

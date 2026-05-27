@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/remora-go/framework-llm/llm"
-	"github.com/remora-go/framework-paladin/paladin"
+	"github.com/Remora-IA/remora-go/framework-llm/llm"
+	"github.com/Remora-IA/remora-go/framework-paladin/paladin"
 )
 
 // State es el estado mutable de un agente. Opaco al runtime; el Behavior

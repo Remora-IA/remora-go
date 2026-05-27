@@ -1,3 +1,3 @@
-module github.com/remora-go/framework-channels
+module github.com/Remora-IA/remora-go/framework-channels
 
 go 1.24

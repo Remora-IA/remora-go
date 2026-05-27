@@ -32,7 +32,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/remora-go/framework-channels/channels"
+	"github.com/Remora-IA/remora-go/framework-channels/channels"
 )
 
 // ErrNotImplemented marca operaciones que requieren credenciales y

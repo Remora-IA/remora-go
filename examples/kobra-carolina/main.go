@@ -7,12 +7,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/remora-go/framework-agent/agent"
-	"github.com/remora-go/framework-channels/channels"
-	"github.com/remora-go/framework-channels/channels/console"
-	"github.com/remora-go/framework-paladin/paladin"
-	"github.com/remora-go/framework-store/store"
-	filestore "github.com/remora-go/framework-store/store/file"
+	"github.com/Remora-IA/remora-go/framework-agent/agent"
+	"github.com/Remora-IA/remora-go/framework-channels/channels"
+	"github.com/Remora-IA/remora-go/framework-channels/channels/console"
+	"github.com/Remora-IA/remora-go/framework-paladin/paladin"
+	"github.com/Remora-IA/remora-go/framework-store/store"
+	filestore "github.com/Remora-IA/remora-go/framework-store/store/file"
 )
 
 func main() {
