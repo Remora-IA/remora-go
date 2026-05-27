@@ -1,7 +1,7 @@
 package main
 
 // Debtor es el perfil del deudor que Carolina contacta.
-// En producción esto vendría de la BD del cliente (Somos Rentable).
+// En producción esto vendría de la BD del cliente (FinCrowd).
 type Debtor struct {
 	ID             string
 	Nombre         string
@@ -53,7 +53,7 @@ type PlanPago struct {
 }
 
 // CatalogoPlanes son los planes válidos que Carolina puede ofrecer.
-// En producción esto vendría de las reglas de negocio de Somos Rentable.
+// En producción esto vendría de las reglas de negocio de FinCrowd.
 func CatalogoPlanes(deuda int) []PlanPago {
 	return []PlanPago{
 		{Cuotas: 1, MontoCuotaCLP: int(float64(deuda) * 0.92), DescuentoPct: 8, Recargo: false},

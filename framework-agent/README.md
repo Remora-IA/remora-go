@@ -64,7 +64,7 @@ reply, _ := a.Turn(root, "hola")
 
 ## Primer consumidor
 
-[`examples/kobra-carolina`](../examples/kobra-carolina). Antes del refactor: 177 líneas en `carolina.go` con turn loop, paladin spans, llm wiring y lógica de Carolina mezclados. Después: 150 líneas de Behavior puro, runtime totalmente compartido.
+[`examples/cobranza-conversacional`](../examples/cobranza-conversacional). Antes del refactor: 177 líneas en `carolina.go` con turn loop, paladin spans, llm wiring y lógica de Carolina mezclados. Después: 150 líneas de Behavior puro, runtime totalmente compartido.
 
 ## Lo que NO hace todavía
 

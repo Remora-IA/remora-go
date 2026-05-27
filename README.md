@@ -7,7 +7,7 @@ Dos garantías:
 1. El enjambre se adapta al problema.
 2. El enjambre trabaja correctamente en equipo.
 
-Primer caso real: **Kobra-Carolina** — agente conversacional de cobranza por WhatsApp para Somos Rentable (Chile). Ver [examples/kobra-carolina](examples/kobra-carolina).
+Primer caso real: **Carolina** — agente conversacional de cobranza por WhatsApp para una fintech ejemplo (Chile). Ver [examples/cobranza-conversacional](examples/cobranza-conversacional).
 
 ## Cómo se usa Remora (workflow del founder)
 
@@ -55,7 +55,7 @@ Frameworks que NO son del trípode pero que aportan capacidades específicas cua
 
 ## Estado actual y deuda honesta
 
-- **Runtime funcional end-to-end**: validado con Kobra-Carolina. Puedes construir un agente conversacional persistente con consola hoy mismo.
+- **Runtime funcional end-to-end**: validado con Carolina. Puedes construir un agente conversacional persistente con consola hoy mismo.
 - **Capa de diseño parcialmente conectada**: Echo y Alfa existen como CLIs pero su output todavía requiere trabajo manual para llegar al system prompt de un agente. La integración natural sería un comando `alfa export-system-prompt --spec alfa_spec.json` que aún no existe.
 - **Bravo runtime de equipo**: Bravo verifica una ejecución; falta la capa que verifica que el output **colectivo** de un enjambre cumple la intención. Issue abierto.
 - **WhatsApp integration**: stub funcional. Para producción se necesita decidir Twilio vs Meta Cloud API + templates aprobados.
@@ -93,4 +93,4 @@ Ver [nuevo_mapa.md](nuevo_mapa.md) y los READMEs individuales para el racional d
 
 ## Para founders que llegan nuevos
 
-Empieza por leer [examples/kobra-carolina/README.md](examples/kobra-carolina/README.md). Está armado como referencia para que puedas construir tu propio Carolina-equivalente.
+Empieza por leer [examples/cobranza-conversacional/README.md](examples/cobranza-conversacional/README.md). Está armado como referencia para que puedas construir tu propio Carolina-equivalente.

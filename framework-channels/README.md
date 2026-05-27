@@ -38,4 +38,4 @@ Cada uno de esos pasos depende de decisiones del producto que no se toman en có
 
 ## Primer consumidor
 
-[`examples/kobra-carolina`](../examples/kobra-carolina) usa `console.Channel`. El día que Kobra tenga sus credenciales WhatsApp aprobadas, cambia una línea (`console.New(...)` por `whatsapp.New(cfg)`) y Carolina opera en producción.
+[`examples/cobranza-conversacional`](../examples/cobranza-conversacional) usa `console.Channel`. El día que tu proyecto tenga credenciales WhatsApp aprobadas, cambia una línea (`console.New(...)` por `whatsapp.New(cfg)`) y el agente opera en producción.

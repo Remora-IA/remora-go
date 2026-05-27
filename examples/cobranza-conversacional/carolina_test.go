@@ -73,7 +73,7 @@ func TestHappyPath_LlegaAAcuerdo(t *testing.T) {
 }
 
 func TestHostilidad_EscalaInmediato(t *testing.T) {
-	root, a, _, _, done := newTestSetup(t, "Hola Patricia, te escribo de Somos Rentable...")
+	root, a, _, _, done := newTestSetup(t, "Hola Patricia, te escribo de FinCrowd...")
 	defer done()
 
 	if _, err := a.Turn(root, ""); err != nil {

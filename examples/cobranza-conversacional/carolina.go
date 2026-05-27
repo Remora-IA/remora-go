@@ -31,7 +31,7 @@ func (c *CarolinaBehavior) InitialState() agent.State {
 }
 
 func (c *CarolinaBehavior) Name() string           { return "Carolina" }
-func (c *CarolinaBehavior) Responsibility() string { return "Negociadora conversacional Kobra" }
+func (c *CarolinaBehavior) Responsibility() string { return "Negociadora conversacional FinCrowd" }
 func (c *CarolinaBehavior) Goal(_ agent.State) string {
 	return "Avanzar la conversación hacia acuerdo de pago o escalar si no es viable"
 }
@@ -58,7 +58,7 @@ func (c *CarolinaBehavior) SystemPrompt(state agent.State) string {
 	propuestas, _ := state["propuestas_hechas"].(int)
 	rechazos, _ := state["rechazos_seguidos"].(int)
 
-	return fmt.Sprintf(`Eres Carolina, agente de cobranza conversacional de Kobra para el cliente Somos Rentable.
+	return fmt.Sprintf(`Eres Carolina, agente de cobranza conversacional de FinCrowd para el cliente FinCrowd.
 
 DEUDOR:
 - Nombre: %s

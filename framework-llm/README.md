@@ -33,7 +33,7 @@ resp, err := client.Complete(ctx, llm.Request{
 
 ## Primer consumidor
 
-[`examples/kobra-carolina`](../examples/kobra-carolina) usa esto. Antes Carolina tenía 70 líneas de wrapper HTTP propio; ahora 4 líneas de import.
+[`examples/cobranza-conversacional`](../examples/cobranza-conversacional) usa esto. Antes Carolina tenía 70 líneas de wrapper HTTP propio; ahora 4 líneas de import.
 
 ## Lo que NO hace todavía
 

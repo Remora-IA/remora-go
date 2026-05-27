@@ -59,11 +59,11 @@ st.Save(ctx, "SR-2024-0142", a.Snapshot())
 
 ## Comportamiento ante outcomes terminales
 
-Un snapshot con `Outcome != nil` significa que la conversación cerró (acuerdo, escalación, abandono). El consumidor debería rehusarse a abrir nuevos turnos sobre conversaciones terminales — ver `examples/kobra-carolina/main.go` para el patrón.
+Un snapshot con `Outcome != nil` significa que la conversación cerró (acuerdo, escalación, abandono). El consumidor debería rehusarse a abrir nuevos turnos sobre conversaciones terminales — ver `examples/cobranza-conversacional/main.go` para el patrón.
 
 ## Primer consumidor
 
-[`examples/kobra-carolina`](../examples/kobra-carolina). Demuestra:
+[`examples/cobranza-conversacional`](../examples/cobranza-conversacional). Demuestra:
 - Conversación que arranca, pausa al ENTER vacío (canal cerrado), persiste en `./conversations/<deudor_id>.json`.
 - Re-ejecución del binario retoma desde el snapshot.
 - Terceira ejecución, viendo `agreed`, no reabre.

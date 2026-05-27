@@ -19,7 +19,7 @@
 //
 //  4. Templates y opt-in: WhatsApp Business exige que el primer mensaje
 //     a un número que no inició la conversación use un template
-//     pre-aprobado. Para Kobra (donde Carolina inicia el contacto al
+//     pre-aprobado. Para casos donde el agente inicia el contacto al
 //     deudor) esto es load-bearing — el template tiene que estar listo.
 //
 // Hasta que estos 4 puntos se resuelvan, este paquete sirve solo para:

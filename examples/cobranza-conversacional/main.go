@@ -16,12 +16,12 @@ import (
 )
 
 func main() {
-	trace := paladin.NewTrace("KobraCarolina")
+	trace := paladin.NewTrace("FinCrowdCarolina")
 	defer trace.Flush()
 	root := trace.Start()
 	defer root.End()
 
-	root.Actor("Kobra-Carolina", "Negociadora conversacional para Somos Rentable")
+	root.Actor("Cobranza-Conversacional", "Negociadora conversacional para FinCrowd")
 	root.Goal("Acordar plan de pago con Patricia Morales o escalar a humano")
 	root.Var("debtor_id", DebtorSeed.ID)
 	root.Var("deuda_inicial_clp", DebtorSeed.DeudaCLP)
@@ -52,7 +52,7 @@ func main() {
 	ch := console.New("Patricia: ", "Carolina")
 	defer ch.Close()
 
-	fmt.Println("=== Kobra-Carolina MVP — simulación de WhatsApp ===")
+	fmt.Println("=== Cobranza-Conversacional MVP — simulación de WhatsApp ===")
 	fmt.Printf("Deudor: %s | Deuda: $%d CLP | Atraso: %d días\n",
 		debtor.Nombre, debtor.DeudaCLP, debtor.DiasAtraso)
 	fmt.Printf("Modo API: %s | Canal: console | Conversación: %s%s\n",

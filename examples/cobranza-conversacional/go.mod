@@ -1,4 +1,4 @@
-module github.com/Remora-IA/remora-go/examples/kobra-carolina
+module github.com/Remora-IA/remora-go/examples/cobranza-conversacional
 
 go 1.24.0
 
