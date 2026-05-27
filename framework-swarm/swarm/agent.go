@@ -22,9 +22,17 @@ type Agent struct {
 	// ID is the unique identifier for this agent within the swarm.
 	ID string
 
-	stigma *StigmaStore
-	work   WorkFunc
-	trace  *paladin.Context // Paladin semantic context for this agent
+	stigma     *StigmaStore
+	work       WorkFunc
+	trace      *paladin.Context // Paladin semantic context for this agent
+	currentCtx *paladin.Context // set during Work(), accessible via TraceCtx()
+}
+
+// TraceCtx returns the Paladin context for the zone currently being worked.
+// Only valid when called from within a WorkFunc. Use it to record semantic
+// events, vars, rules, and checks that Bravo will verify.
+func (a *Agent) TraceCtx() *paladin.Context {
+	return a.currentCtx
 }
 
 // newAgent creates a new swarm agent. Called by Swarm internally.
@@ -71,12 +79,22 @@ func (a *Agent) Work(ctx context.Context, zone Zone) (*Result, error) {
 			nil,
 		)
 	}
+	// Expose current span to WorkFunc via TraceCtx()
+	a.currentCtx = agentCtx
 
 	// Note: the "exploring" pheromone was already left atomically by Navigate via Claim.
 	// We don't leave a duplicate here.
 
 	// Execute the work
 	result, err := a.work(ctx, zone, a)
+
+	// Record any vars the WorkFunc returned — these go into the Paladin trace
+	// so the Bravo scorer can verify CriticalVars coverage.
+	if agentCtx != nil && result != nil {
+		for k, v := range result.Vars {
+			agentCtx.Var(k, v)
+		}
+	}
 	duration := time.Since(start)
 
 	if result == nil {

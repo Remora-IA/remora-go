@@ -1,0 +1,369 @@
+{
+  "trace_id": "pal_1779864411114420402",
+  "version": "1.0",
+  "generated": "2026-05-27T06:46:51Z",
+  "status": "completed",
+  "snapshot_reason": "trace completed",
+  "total_duration_ms": 51,
+  "total_spans": 9,
+  "total_errors": 0,
+  "bottlenecks": [
+    "invoice-swarm-1779864411 (51ms)"
+  ],
+  "root": {
+    "name": "invoice-swarm-1779864411",
+    "file": "swarm.go",
+    "line": 81,
+    "start_ns": 1779864411114420402,
+    "duration_ms": 51,
+    "vars": {
+      "collision_rate": "0.00%"
+    },
+    "children": [
+      {
+        "name": "agent.agent-alpha",
+        "file": "swarm.go",
+        "line": 93,
+        "start_ns": 1779864411115553941,
+        "duration_ms": 0,
+        "children": [
+          {
+            "name": "zone.validate_invoices",
+            "file": "agent.go",
+            "line": 73,
+            "start_ns": 1779864411116536139,
+            "duration_ms": 5,
+            "vars": {
+              "invoice_id": "INV-001,INV-002,INV-003,INV-004",
+              "validation_status": "4/4 valid"
+            },
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-alpha",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: Validate Invoices"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-alpha claiming zone validate_invoices (pain=0.95)"
+              },
+              {
+                "kind": "rule",
+                "subject": "invoice-completeness-rule",
+                "summary": "Facturas con todos los campos requeridos"
+              },
+              {
+                "kind": "check",
+                "subject": "required_fields",
+                "summary": "rule evaluated",
+                "expected": "all_present",
+                "actual": "4/4 present",
+                "passed": true
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone validate_invoices completed in 4ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-alpha-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-alpha"
+              }
+            ]
+          },
+          {
+            "name": "zone.route_approvals",
+            "file": "agent.go",
+            "line": 73,
+            "start_ns": 1779864411142999519,
+            "duration_ms": 1,
+            "vars": {
+              "approval_level": "1_senior_3_standard",
+              "approver_id": "auto-assigned"
+            },
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-alpha",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: Route Approvals"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-alpha claiming zone route_approvals (pain=0.70)"
+              },
+              {
+                "kind": "rule",
+                "subject": "approval-threshold-rule",
+                "summary": "\u003e$10k requiere aprobación senior"
+              },
+              {
+                "kind": "check",
+                "subject": "approval-routing",
+                "summary": "rule evaluated",
+                "expected": "\u003e10000=senior",
+                "actual": "INV-002=$15000→senior (1 senior total)",
+                "passed": true
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone route_approvals completed in 1ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-alpha-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-alpha"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "agent-alpha",
+            "summary": "worker agent"
+          },
+          {
+            "kind": "goal",
+            "summary": "navigate pressure field, work zones, leave pheromones"
+          }
+        ]
+      },
+      {
+        "name": "agent.agent-beta",
+        "file": "swarm.go",
+        "line": 93,
+        "start_ns": 1779864411115818890,
+        "duration_ms": 0,
+        "children": [
+          {
+            "name": "zone.match_vendors",
+            "file": "agent.go",
+            "line": 73,
+            "start_ns": 1779864411117042068,
+            "duration_ms": 2,
+            "vars": {
+              "vendor_match": "3/4 found"
+            },
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-beta",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: Match Vendors"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-beta claiming zone match_vendors (pain=0.80)"
+              },
+              {
+                "kind": "rule",
+                "subject": "vendor-registry-rule",
+                "summary": "Vendor debe existir en el registro aprobado"
+              },
+              {
+                "kind": "check",
+                "subject": "vendor-exists",
+                "summary": "rule evaluated",
+                "expected": "4/4",
+                "actual": "3/4",
+                "passed": false
+              },
+              {
+                "kind": "violation",
+                "subject": "vendor_registry",
+                "summary": "business flow mismatch",
+                "expected": "all vendors known",
+                "actual": "vendors desconocidos: [V-UNKNOWN]",
+                "passed": false
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone match_vendors completed in 2ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-beta-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-beta"
+              }
+            ]
+          },
+          {
+            "name": "zone.calculate_totals",
+            "file": "agent.go",
+            "line": 73,
+            "start_ns": 1779864411140809863,
+            "duration_ms": 1,
+            "vars": {
+              "amounts_balanced": true,
+              "line_items_sum": 32250
+            },
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-beta",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: Calculate Totals"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-beta claiming zone calculate_totals (pain=0.75)"
+              },
+              {
+                "kind": "rule",
+                "subject": "amounts-balance-rule",
+                "summary": "Suma de líneas debe igualar total de factura"
+              },
+              {
+                "kind": "check",
+                "subject": "amounts-balance",
+                "summary": "rule evaluated",
+                "expected": "balanced",
+                "actual": "balanced",
+                "passed": true
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone calculate_totals completed in 1ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-beta-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-beta"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "agent-beta",
+            "summary": "worker agent"
+          },
+          {
+            "kind": "goal",
+            "summary": "navigate pressure field, work zones, leave pheromones"
+          }
+        ]
+      },
+      {
+        "name": "agent.agent-gamma",
+        "file": "swarm.go",
+        "line": 93,
+        "start_ns": 1779864411116046543,
+        "duration_ms": 0,
+        "children": [
+          {
+            "name": "zone.extract_data",
+            "file": "agent.go",
+            "line": 73,
+            "start_ns": 1779864411116851807,
+            "duration_ms": 5,
+            "vars": {
+              "line_items_count": 7,
+              "total_amount": 32250,
+              "vendor_id": "V-ACME,V-GLOBEX,V-UNKNOWN,V-INITECH"
+            },
+            "semantic": [
+              {
+                "kind": "actor",
+                "subject": "agent-gamma",
+                "summary": "swarm agent"
+              },
+              {
+                "kind": "goal",
+                "summary": "process zone: Extract Data"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.exploring",
+                "summary": "agent agent-gamma claiming zone extract_data (pain=0.88)"
+              },
+              {
+                "kind": "event",
+                "subject": "data_extracted",
+                "summary": "total=$32250.00 vendors=4 items=7"
+              },
+              {
+                "kind": "event",
+                "subject": "stigma.solved",
+                "summary": "zone extract_data completed in 6ms"
+              },
+              {
+                "kind": "handoff",
+                "subject": "agent-gamma-\u003eswarm",
+                "summary": "zone released, pheromone left for peers",
+                "expected": "next_actor=swarm",
+                "actual": "from_actor=agent-gamma"
+              }
+            ]
+          }
+        ],
+        "semantic": [
+          {
+            "kind": "actor",
+            "subject": "agent-gamma",
+            "summary": "worker agent"
+          },
+          {
+            "kind": "goal",
+            "summary": "navigate pressure field, work zones, leave pheromones"
+          }
+        ]
+      }
+    ],
+    "semantic": [
+      {
+        "kind": "actor",
+        "subject": "swarm",
+        "summary": "coordinator for 3 agents"
+      },
+      {
+        "kind": "goal",
+        "summary": "solve 5 zones via stigmergy"
+      },
+      {
+        "kind": "rule",
+        "subject": "no-central-coordinator",
+        "summary": "agents navigate independently via pressure fields and pheromones"
+      },
+      {
+        "kind": "check",
+        "subject": "all-zones-solved",
+        "summary": "rule evaluated",
+        "expected": "5",
+        "actual": "5",
+        "passed": true
+      }
+    ]
+  }
+}

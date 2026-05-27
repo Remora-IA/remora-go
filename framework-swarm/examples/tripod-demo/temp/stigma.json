@@ -1,0 +1,82 @@
+[
+  {
+    "zone": "validate_invoices",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-alpha",
+    "left_at": "2026-05-27T06:46:51.116445944Z",
+    "expires_at": "2026-05-27T06:56:51.116445944Z"
+  },
+  {
+    "zone": "extract_data",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-gamma",
+    "left_at": "2026-05-27T06:46:51.116639529Z",
+    "expires_at": "2026-05-27T06:56:51.116639529Z"
+  },
+  {
+    "zone": "match_vendors",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:46:51.116904453Z",
+    "expires_at": "2026-05-27T06:56:51.116904453Z"
+  },
+  {
+    "zone": "match_vendors",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:46:51.11944264Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "validate_invoices",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-alpha",
+    "left_at": "2026-05-27T06:46:51.120636529Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "extract_data",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-gamma",
+    "left_at": "2026-05-27T06:46:51.123029981Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "calculate_totals",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:46:51.140653202Z",
+    "expires_at": "2026-05-27T06:56:51.140653202Z"
+  },
+  {
+    "zone": "calculate_totals",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-beta",
+    "left_at": "2026-05-27T06:46:51.142360129Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  },
+  {
+    "zone": "route_approvals",
+    "signal": "exploring",
+    "strength": 1,
+    "agent_id": "agent-alpha",
+    "left_at": "2026-05-27T06:46:51.142849612Z",
+    "expires_at": "2026-05-27T06:56:51.142849612Z"
+  },
+  {
+    "zone": "route_approvals",
+    "signal": "solved",
+    "strength": 1,
+    "agent_id": "agent-alpha",
+    "left_at": "2026-05-27T06:46:51.144280211Z",
+    "expires_at": "0001-01-01T00:00:00Z"
+  }
+]

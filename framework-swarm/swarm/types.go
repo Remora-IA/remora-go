@@ -15,6 +15,41 @@ package swarm
 
 import "time"
 
+// ─── Verification types (mirrors bravo.IdealFlow) ─────────────────────────────
+
+// IdealFlow is the contract that defines what a correct swarm run looks like.
+// It mirrors bravo.IdealFlow — when the full Alfa→Bravo pipeline is connected,
+// populate this from alfa.AlfaSpec.ToBravoIdealFlow() and save as ideal_flow.json.
+type IdealFlow struct {
+	Description  string       `json:"description"`
+	Intent       string       `json:"intent,omitempty"`
+	CriticalPath []string     `json:"critical_path"`  // normalised step names
+	CriticalVars []string     `json:"critical_vars"`  // var keys expected in trace
+	Rules        []VerifyRule `json:"rules,omitempty"`
+}
+
+// VerifyRule is a business rule the swarm must evidence in its Paladin trace.
+type VerifyRule struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	When        string `json:"when,omitempty"`
+	Then        string `json:"then"`
+	Importance  int    `json:"importance,omitempty"` // 1=critical, 2=important, 3=nice
+}
+
+// VerifyResult is the score produced by comparing the swarm's Paladin trace
+// against the IdealFlow. Score 0.0–1.0; values ≥ 0.8 indicate a validated tripod.
+type VerifyResult struct {
+	Score        float64  `json:"score"`
+	PathCoverage float64  `json:"path_coverage"` // % of CriticalPath steps found
+	VarCoverage  float64  `json:"var_coverage"`  // % of CriticalVars found
+	RuleCoverage float64  `json:"rule_coverage"` // % of Rules evidenced
+	Violations   int      `json:"violations"`    // semantic violations in trace
+	Passed       bool     `json:"passed"`
+	Threshold    float64  `json:"threshold"`
+	Details      []string `json:"details"`
+}
+
 // PheromoneType represents the kind of signal an agent leaves in a zone.
 type PheromoneType string
 
@@ -85,13 +120,16 @@ type ZonePressure struct {
 
 // Result is the output produced by one agent completing one zone.
 type Result struct {
-	ZoneID    string        `json:"zone_id"`
-	AgentID   string        `json:"agent_id"`
-	Success   bool          `json:"success"`
-	Output    string        `json:"output,omitempty"`
-	Error     string        `json:"error,omitempty"`
-	Duration  time.Duration `json:"duration"`
-	Artifacts []Artifact    `json:"artifacts,omitempty"`
+	ZoneID    string         `json:"zone_id"`
+	AgentID   string         `json:"agent_id"`
+	Success   bool           `json:"success"`
+	Output    string         `json:"output,omitempty"`
+	Error     string         `json:"error,omitempty"`
+	Duration  time.Duration  `json:"duration"`
+	Artifacts []Artifact     `json:"artifacts,omitempty"`
+	// Vars are automatically recorded in the Paladin trace by the agent.
+	// Include critical variables here so Bravo can verify them.
+	Vars      map[string]any `json:"vars,omitempty"`
 }
 
 // Artifact is a file or piece of content produced by an agent.
