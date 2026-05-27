@@ -18,12 +18,28 @@ go test ./bench/ -v -run TestTripodTable
 ║ doc-swarm            ║  1.00 ║ 100% ║ 100% ║  100% ║    0 ║   0% ║ ✅ PASS ║
 ║ invoice-processing   ║  0.85 ║ 100% ║ 100% ║  100% ║    1 ║   0% ║ ✅ PASS ║
 ║ bug-triage           ║  1.00 ║ 100% ║ 100% ║  100% ║    0 ║   0% ║ ✅ PASS ║
+║ hr-onboarding        ║  1.00 ║ 100% ║ 100% ║  100% ║    0 ║   0% ║ ✅ PASS ║
+║ supply-chain         ║  0.85 ║ 100% ║ 100% ║  100% ║    1 ║   0% ║ ✅ PASS ║
+║ deployment-pipeline  ║  0.85 ║ 100% ║ 100% ║  100% ║    1 ║   0% ║ ✅ PASS ║
+║ data-quality         ║  1.00 ║ 100% ║ 100% ║  100% ║    0 ║   0% ║ ✅ PASS ║
+║ contract-review      ║  0.85 ║ 100% ║ 100% ║  100% ║    1 ║   0% ║ ✅ PASS ║
+║ content-moderation   ║  1.00 ║ 100% ║ 100% ║  100% ║    0 ║   0% ║ ✅ PASS ║
+║ support-triage       ║  1.00 ║ 100% ║ 100% ║  100% ║    0 ║   0% ║ ✅ PASS ║
 ╚══════════════════════╩═══════╩══════╩══════╩═══════╩══════╩══════╩════════╝
 
-ok  github.com/remora-go/framework-swarm/bench  0.160s
+ok  github.com/remora-go/framework-swarm/bench  0.507s
 ```
 
-**3 dominios distintos. 3/3 PASS. ~50ms por enjambre. 0% colisiones.**
+**10 dominios distintos. 10/10 PASS. ~50ms por enjambre. 0% colisiones.**
+
+| Industria | Casos | BravoScore |
+|-----------|-------|-----------|
+| Técnico | doc-swarm, bug-triage, deployment-pipeline | 1.00, 1.00, 0.85 |
+| Financiero | invoice-processing, contract-review | 0.85, 0.85 |
+| RR.HH. | hr-onboarding | 1.00 |
+| Logística | supply-chain | 0.85 |
+| Datos | data-quality | 1.00 |
+| Contenido/Soporte | content-moderation, support-triage | 1.00, 1.00 |
 
 ---
 
@@ -144,23 +160,48 @@ var allCases = []SwarmCase{
 BenchmarkTripod/doc-swarm-4           3   51ms/op   1.000 bravo_score   0 collision_rate
 BenchmarkTripod/invoice-processing-4  3   49ms/op   0.850 bravo_score   0 collision_rate
 BenchmarkTripod/bug-triage-4          3   50ms/op   1.000 bravo_score   0 collision_rate
+BenchmarkTripod/hr-onboarding-4       3   50ms/op   1.000 bravo_score   0 collision_rate
+BenchmarkTripod/supply-chain-4        3   50ms/op   0.850 bravo_score   0 collision_rate
+BenchmarkTripod/deployment-pipeline-4 3   50ms/op   0.850 bravo_score   0 collision_rate
+BenchmarkTripod/data-quality-4        3   50ms/op   1.000 bravo_score   0 collision_rate
+BenchmarkTripod/contract-review-4     3   50ms/op   0.850 bravo_score   0 collision_rate
+BenchmarkTripod/content-moderation-4  3   50ms/op   1.000 bravo_score   0 collision_rate
+BenchmarkTripod/support-triage-4      3   50ms/op   1.000 bravo_score   0 collision_rate
 ```
 
-~50ms por enjambre de 3 agentes sobre 5 zonas.
+~50ms por enjambre de 3 agentes sobre 5 zonas, en 10 dominios distintos.
 Con WorkFuncs basadas en LLMs, el tiempo dominante será la latencia de inferencia.
+
+---
+
+## Pipeline completo Echo → Swarm
+
+El bridge `swarm/echo_bridge.go` cierra el loop discovery-first:
+
+```go
+// Sin hardcoding: zonas y spec vienen del cliente
+zones, _ := swarm.ZonesFromEchoFile("frameworkecho.json")
+flow,  _ := swarm.IdealFlowFromAlfaFile("alfa_spec.json")
+flow   =  swarm.IdealFlowForZones(flow, zones)
+
+s, _ := swarm.New(swarm.Config{AgentIDs: [...], Zones: zones, WorkFunc: myFn})
+result, _ := s.Run(ctx)
+score, _ := swarm.ScoreLatestTrace(flow, "temp/paladin/", 0.80)
+// score.Passed == true
+```
+
+Ver `examples/echo-to-swarm/` para el demo completo y `fixtures/invoice-reconciliation/`
+para un árbol Echo real con evidencia de cliente.
 
 ---
 
 ## Lo que aún falta
 
 1. **WorkFuncs con LLMs reales** — actualmente las funciones son deterministas.
-   El siguiente paso es conectar `nativeagent` (Groq/Claude) como WorkFunc.
+   El siguiente paso es conectar Claude como WorkFunc vía `ANTHROPIC_API_KEY`.
 
-2. **10 casos distintos** — con 3 casos probados, la arquitectura está validada.
-   Agregar 7 más siguiendo el patrón de arriba completa el proof of concept original.
-
-3. **Integración completa Echo → Alfa** — las zonas y el IdealFlow se construyen
-   manualmente en los casos de test. El pipeline real los genera desde el árbol Echo.
+2. **CLI remora-swarm** — `go run ./cmd/remora-swarm --echo file.json --alfa spec.json`
+   para lanzar enjambres desde la línea de comandos sin escribir código Go.
 
 ---
 
