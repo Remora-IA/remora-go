@@ -328,6 +328,7 @@ func calcularEnvio(parent *frameworkbravo.Context, precioConDescuento float64, p
 
 	if descuento > 0 {
 		costoFinal = costoBase
+		envioGratis = false
 		ctx.Decision("ajuste_por_cupon", "se cobra envío porque se usó cupón")
 	}
 
