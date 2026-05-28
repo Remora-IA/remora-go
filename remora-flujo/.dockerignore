@@ -1,0 +1,7 @@
+api_rest
+*.db
+.env*
+!.env.example
+framework_session_bin
+remora-flujo-api
+.git

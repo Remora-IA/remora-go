@@ -1,0 +1,66 @@
+{
+  "type": "priority_list",
+  "description": "Lista de deudores priorizados para atención del cobrador",
+  "render_hint": "cards_stacked",
+  "max_items": 10,
+  "item_schema": {
+    "rank": {
+      "type": "integer",
+      "display": "badge",
+      "color": {
+        "1-3": "red",
+        "4-7": "orange",
+        "8-10": "yellow"
+      }
+    },
+    "deudor": {
+      "type": "string",
+      "display": "title",
+      "clickable": true,
+      "action": "select_deudor"
+    },
+    "saldo_total": {
+      "type": "currency",
+      "currency": "CLP",
+      "display": "amount",
+      "format": "$#,##0"
+    },
+    "dias_mora_max": {
+      "type": "integer",
+      "display": "badge",
+      "color": {
+        "0-29": "green",
+        "30-59": "orange",
+        "60-89": "red",
+        "90+": "darkred"
+      },
+      "suffix": " días"
+    },
+    "score": {
+      "type": "integer",
+      "display": "progress_bar",
+      "max": 100,
+      "color": "blue"
+    },
+    "razon": {
+      "type": "string",
+      "display": "subtitle"
+    },
+    "accion_sugerida": {
+      "type": "string",
+      "display": "action_button",
+      "button_text": "Ejecutar",
+      "action": "generate_action"
+    }
+  },
+  "actions": {
+    "select_deudor": {
+      "type": "query_sabio",
+      "prompt_template": "Dame el 360° de {deudor}"
+    },
+    "generate_action": {
+      "type": "call_mecanico",
+      "prompt_template": "Generar recordatorio para {deudor}"
+    }
+  }
+}

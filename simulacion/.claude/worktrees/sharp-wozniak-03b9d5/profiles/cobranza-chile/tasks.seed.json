@@ -1,0 +1,74 @@
+{
+  "items": [
+    {
+      "rank": 1,
+      "client_id": "112",
+      "deudor": "Murazik, Krajcik and Gutkowski",
+      "saldo_total": 1750000,
+      "dias_mora_max": 35
+    },
+    {
+      "rank": 2,
+      "client_id": "119",
+      "deudor": "Von Group",
+      "saldo_total": 2000000,
+      "dias_mora_max": 40
+    },
+    {
+      "rank": 3,
+      "client_id": "123",
+      "deudor": "Schultz, Murphy and Johnston",
+      "saldo_total": 2250000,
+      "dias_mora_max": 45
+    },
+    {
+      "rank": 4,
+      "client_id": "124",
+      "deudor": "Windler-Abernathy",
+      "saldo_total": 2500000,
+      "dias_mora_max": 50
+    },
+    {
+      "rank": 5,
+      "client_id": "147",
+      "deudor": "Rath-Kuvalis",
+      "saldo_total": 2750000,
+      "dias_mora_max": 55
+    },
+    {
+      "rank": 6,
+      "client_id": "148",
+      "deudor": "Moen-Hartmann",
+      "saldo_total": 3000000,
+      "dias_mora_max": 60
+    },
+    {
+      "rank": 7,
+      "client_id": "153",
+      "deudor": "Lebsack-White",
+      "saldo_total": 3250000,
+      "dias_mora_max": 65
+    },
+    {
+      "rank": 8,
+      "client_id": "155",
+      "deudor": "Schimmel, Murazik and Gulgowski",
+      "saldo_total": 3500000,
+      "dias_mora_max": 70
+    },
+    {
+      "rank": 9,
+      "client_id": "163",
+      "deudor": "Kuvalis-Bradtke",
+      "saldo_total": 3750000,
+      "dias_mora_max": 75
+    },
+    {
+      "rank": 10,
+      "client_id": "164",
+      "deudor": "Lebsack Group",
+      "saldo_total": 4000000,
+      "dias_mora_max": 80
+    }
+  ]
+}

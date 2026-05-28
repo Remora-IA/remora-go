@@ -110,7 +110,7 @@ func main() {
 
 	channelURL := envOr("CHANNEL_URL", "http://localhost:8765")
 	apiKey := envOr("CHANNEL_API_KEY", "test-key-001")
-	port := envOr("API_REST_PORT", envOr("FLUJO_API_PORT", "8084"))
+	port := envOr("PORT", envOr("API_REST_PORT", envOr("FLUJO_API_PORT", "8084")))
 
 	// Auto-discovery de root antes de Channel para pasarle el baseDir
 	rootDir := resolveRemoraRoot()
@@ -267,6 +267,11 @@ func main() {
 	r.HandleFunc(apiBase+"/tasks/next", srv.handleTasksNext).Methods("GET", "OPTIONS")
 	r.HandleFunc(apiBase+"/tasks/{id}/event", srv.handleTaskEvent).Methods("POST", "OPTIONS")
 
+	// Notificaciones — cola de eventos para clientes externos (ej. Lau.ai).
+	r.HandleFunc(apiBase+"/businesses/{business_id}/notifications", srv.handleNotificationsList).Methods("GET", "OPTIONS")
+	r.HandleFunc(apiBase+"/businesses/{business_id}/notifications", srv.handleNotificationCreate).Methods("POST", "OPTIONS")
+	r.HandleFunc(apiBase+"/businesses/{business_id}/notifications/{notification_id}/ack", srv.handleNotificationAck).Methods("POST", "OPTIONS")
+
 	staticIndex := func(name string) ([]byte, error) {
 		if os.Getenv("REMORA_DEV_STATIC") == "1" {
 			return os.ReadFile(filepath.Join("cmd", "api_rest", "static", name))
@@ -293,6 +298,15 @@ func main() {
 		data, err := staticIndex("data.html")
 		if err != nil {
 			http.Error(w, "Data browser no encontrado", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+	}).Methods("GET")
+	r.HandleFunc("/lau-demo", func(w http.ResponseWriter, req *http.Request) {
+		data, err := staticIndex("lau-demo.html")
+		if err != nil {
+			http.Error(w, "Lau demo no encontrado", 500)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

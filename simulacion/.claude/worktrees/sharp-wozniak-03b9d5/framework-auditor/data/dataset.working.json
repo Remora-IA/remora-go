@@ -1,0 +1,3620 @@
+{
+  "auth_token": "277935a278cc2f682b160cf13947d7f4157efaa8e60a8f6c389bb5fda64",
+  "endpoints": {
+    "_charges_{ID}_billing_documents": [
+      {
+        "charge_id": "2",
+        "client_code": "000050",
+        "client_id": "50",
+        "created_at": "2021-06-21 14:11:29",
+        "date": "2021-06-21",
+        "id": "1",
+        "number": "-1",
+        "series_number": "001",
+        "updated_at": "2025-03-27 18:56:48"
+      }
+    ],
+    "_charges_{ID}_charge_note": {
+      "content": "PGh0bWwgeG1sbnM6bz0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6b2ZmaWNlIg0K\r\nICAgeG1sbnM6dz0idXJuOnNjaGVtYXMtbWljcm9zb2Z0LWNvbTpvZmZpY2U6d29yZCINCiAgIHht\r\nbG5zPSJodHRwOi8vd3d3LnczLm9yZy9UUi9SRUMtaHRtbDQwIj4NCjxoZWFkPg0KPG1ldGEgaHR0\r\ncC1lcXVpdj0iQ29udGVudC1UeXBlIiBjb250ZW50PSJ0ZXh0L2h0bWw7IGNoYXJzZXQ9d2luZG93\r\ncy0xMjUyIj4NCjxtZXRhIG5hbWU9IlByb2dJZCIgY29udGVudD0iV29yZC5Eb2N1bWVudCI+DQo8\r\nbWV0YSBuYW1lPSJHZW5lcmF0b3IiIGNvbnRlbnQ9IkxlbW9udGVjaCAwLjEiPg0KPG1ldGEgbmFt\r\nZT0iT3JpZ2luYXRvciIgY29udGVudD0iTGVtb250ZWNoIDAuMSI+DQo8IS0tW2lmICFtc29dPg0K\r\nPHN0eWxlPg0Kdlw6KiB7YmVoYXZpb3I6dXJsKCNkZWZhdWx0I1ZNTCk7fQ0Kb1w6KiB7YmVoYXZp\r\nb3I6dXJsKCNkZWZhdWx0I1ZNTCk7fQ0Kd1w6KiB7YmVoYXZpb3I6dXJsKCNkZWZhdWx0I1ZNTCk7\r\nfQ0KLnNoYXBlIHtiZWhhdmlvcjp1cmwoI2RlZmF1bHQjVk1MKTt9DQo8L3N0eWxlPg0KPCFbZW5k\r\naWZdLS0+DQo8IS0tW2lmIGd0ZSBtc28gOV0+PHhtbD4NCjx3OldvcmREb2N1bWVudD4NCjx3OlZp\r\nZXc+UHJpbnQ8L3c6Vmlldz4NCjx3Olpvb20+MTAwPC93Olpvb20+DQo8L3c6V29yZERvY3VtZW50\r\nPg0KPC94bWw+PCFbZW5kaWZdLS0+DQo8c3R5bGU+DQo8IS0tDQovKiBTdHlsZSBEZWZpbml0aW9u\r\ncyAqLw0KQHBhZ2UgR2VuZXJpY1NlY3Rpb24NCiAgIHtzaXplOiA2MTIuMDc2NXB0IDc5Mi4wOTkw\r\ncHQ7DQogICBtc28tcGFnZS1vcmllbnRhdGlvbjogcG9ydHJhaXQ7DQogICBtYXJnaW46IDEuNWNt\r\nIDIuMGNtIDIuMGNtIDIuMGNtOw0KICAgbXNvLWhlYWRlci1tYXJnaW46IDAsODhjbTsNCiAgIG1z\r\nby1mb290ZXItbWFyZ2luOiAwLDg4Y207DQogICBtc28tcGFwZXItc291cmNlOiAwOw0KfQ0KZGl2\r\nLkdlbmVyaWNTZWN0aW9uDQogIHtwYWdlOiBHZW5lcmljU2VjdGlvbjt9DQoNCkBwYWdlIEJvcnJh\r\nZG9yU2VjdGlvbg0KICAge3NpemU6IDYxMi4wNzY1cHQgNzkyLjA5OTBwdDsNCiAgIG1zby1wYWdl\r\nLW9yaWVudGF0aW9uOiBwb3J0cmFpdDsNCiAgIG1hcmdpbjogMS41Y20gMi4wY20gMi4wY20gMi4w\r\nY207DQogICBtc28taGVhZGVyLW1hcmdpbjogMCw4OGNtOw0KICAgbXNvLWZvb3Rlci1tYXJnaW46\r\nIDAsODhjbTsNCiAgIG1zby1wYXBlci1zb3VyY2U6IDA7DQogICBtc28taGVhZGVyOiB1cmwoJ2h0\r\ndHA6Ly9wYW5hbGJpdC50aGV0aW1lYmlsbGluZy5jb20vdGltZV90cmFja2luZy9hcHAvdGVtcGxh\r\ndGVzL2RlZmF1bHQvY3NzL3BpZV9kZV9wYWdpbmFfYm9ycmFkb3IucGhwP2lkX2Zvcm1hdG89MSZw\r\nYWdlX251bXM9MScpIGgxOw0KICAgbXNvLWZvb3RlcjogdXJsKCdodHRwOi8vcGFuYWxiaXQudGhl\r\ndGltZWJpbGxpbmcuY29tL3RpbWVfdHJhY2tpbmcvYXBwL3RlbXBsYXRlcy9kZWZhdWx0L2Nzcy9w\r\naWVfZGVfcGFnaW5hX2JvcnJhZG9yLnBocD9pZF9mb3JtYXRvPTEmcGFnZV9udW1zPTEmQ29icm8l\r\nNUJpZF9jb2JybyU1RD0yJkNvYnJvJTVCZmVjaGFfZW1pc2lvbiU1RD0yMDIxLTA2LTIyKzAwJTNB\r\nMDAlM0EwMCZDb2JybyU1QmNvZGlnb19pZGlvbWElNUQ9ZXMnKSBmMTsNCn0NCmRpdi5Cb3JyYWRv\r\nclNlY3Rpb24NCiAge3BhZ2U6IEJvcnJhZG9yU2VjdGlvbjt9DQoNCnAubm9ybWFsVGV4dCwgbGku\r\nbm9ybWFsVGV4dCwgZGl2Lm5vcm1hbFRleHR7DQogICBtc28tc3R5bGUtcGFyZW50OiAiIjsNCiAg\r\nIG1hcmdpbjogMGNtOw0KICAgbWFyZ2luLWJvdHRvbTogNnB0Ow0KICAgbXNvLXBhZ2luYXRpb246\r\nIHdpZG93LW9ycGhhbjsNCiAgIGZvbnQtc2l6ZTogMTJwdDsNCiAgIGZvbnQtZmFtaWx5OiAiQXJp\r\nYWwiOw0KICAgbXNvLWZhcmVhc3QtZm9udC1mYW1pbHk6ICJBcmlhbCI7DQp9DQoNCnRhYmxlLm5v\r\ncm1hbFRhYmxlew0KICAgbXNvLXRzdHlsZS1yb3diYW5kLXNpemU6IDA7DQogICBtc28tdHN0eWxl\r\nLWNvbGJhbmQtc2l6ZTogMDsNCiAgIGJvcmRlci1jb2xsYXBzZTogY29sbGFwc2U7DQogICBtc28t\r\nYm9yZGVyLWFsdDogc29saWQgd2luZG93dGV4dCAwLDVwdDsNCiAgIG1zby15ZnRpLXRibGxvb2s6\r\nIDQ4MDsNCiAgIG1zby1wYWRkaW5nLWFsdDogMGNtIDUsNHB0IDBjbSA1LDRwdDsNCiAgIG1zby1i\r\nb3JkZXItaW5zaWRlaDogMCw1cHQgc29saWQgd2luZG93dGV4dDsNCiAgIG1zby1ib3JkZXItaW5z\r\naWRldjogMCw1cHQgc29saWQgd2luZG93dGV4dDsNCiAgIG1zby1wYXJhLW1hcmdpbjogMGNtOw0K\r\nICAgbXNvLXBhcmEtbWFyZ2luLWJvdHRvbTogLjAwMDFwdDsNCiAgIG1zby1wYWdpbmF0aW9uOiB3\r\naWRvdy1vcnBoYW47DQogICBmb250LXNpemU6IDEycHQ7DQogICBmb250LWZhbWlseTogIkFyaWFs\r\nIjsNCn0NCnRhYmxlLm5vcm1hbFRhYmxlIHRkew0KICAgYm9yZGVyOiBzb2xpZCB3aW5kb3d0ZXh0\r\nIDEuMHB0Ow0KICAgYm9yZGVyLWxlZnQ6IG5vbmU7DQogICBtc28tYm9yZGVyLWxlZnQtYWx0OiBz\r\nb2xpZCB3aW5kb3d0ZXh0IC41cHQ7DQogICBtc28tYm9yZGVyLWFsdDogc29saWQgd2luZG93dGV4\r\ndCAuNXB0Ow0KICAgcGFkZGluZzogMGNtIDUuNHB0IDBjbSA1LjRwdDsNCn0NCg0KdGFibGUudGFi\r\nbGVXaXRob3V0R3JpZHsNCiAgIG1zby10c3R5bGUtcm93YmFuZC1zaXplOiAwOw0KICAgbXNvLXRz\r\ndHlsZS1jb2xiYW5kLXNpemU6IDA7DQogICBib3JkZXItY29sbGFwc2U6IGNvbGxhcHNlOw0KICAg\r\nYm9yZGVyOiBub25lOw0KICAgbXNvLWJvcmRlci1hbHQ6IG5vbmU7DQogICBtc28teWZ0aS10Ymxs\r\nb29rOiA0ODA7DQogICBtc28tcGFkZGluZy1hbHQ6IDBjbSA1LDRwdCAwY20gNSw0cHQ7DQogICBt\r\nc28tYm9yZGVyLWluc2lkZWg6IDAsNXB0IHNvbGlkIHdpbmRvd3RleHQ7DQogICBtc28tYm9yZGVy\r\nLWluc2lkZXY6IDAsNXB0IHNvbGlkIHdpbmRvd3RleHQ7DQogICBtc28tcGFyYS1tYXJnaW46IDBj\r\nbTsNCiAgIG1zby1wYXJhLW1hcmdpbi1ib3R0b206IC4wMDAxcHQ7DQogICBtc28tcGFnaW5hdGlv\r\nbjogd2lkb3ctb3JwaGFuOw0KICAgZm9udC1zaXplOiAxMnB0Ow0KICAgZm9udC1mYW1pbHk6ICJB\r\ncmlhbCI7DQp9DQoNClRBQkxFDQp7DQogIGJvcmRlci1jb2xsYXBzZTogY29sbGFwc2U7DQp9DQoN\r\nClREDQp7DQogIGZvbnQtZmFtaWx5OlRpbWVzIE5ldyBSb21hbjsNCiAgZm9udC1zaXplOiAxMHB0\r\nOw0KICBmb250LXdlaWdodDogbm9ybWFsOw0KfQ0KDQpIUi5zZXBhcmFkb3INCnsNCiAgbWFyZ2lu\r\nOiAwcHggMHB4IDdweCAwcHg7DQogIGNvbG9yOiAjMDAwMDAwOw0KfQ0KDQpURC5lbXByZXNhX3Rp\r\ndHVsbw0Kew0KICBmb250LWZhbWlseTpUaW1lcyBOZXcgUm9tYW47DQogIGZvbnQtc2l6ZTogMTRw\r\ndDsNCiAgZm9udC13ZWlnaHQ6IGJvbGQ7DQp9DQoNClNQQU4uZW1wcmVzYV9zdWJ0aXR1bG8NCnsN\r\nCiAgZm9udC1mYW1pbHk6VGltZXMgTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDEzcHQ7DQogIGZv\r\nbnQtd2VpZ2h0OiBib2xkOw0KfQ0KDQpTUEFOLmVtcHJlc2Ffc3VidGl0dWxvMg0Kew0KICBmb250\r\nLWZhbWlseTpUaW1lcyBOZXcgUm9tYW47DQogIGZvbnQtc2l6ZTogOXB0Ow0KZm9udC13ZWlnaHQ6\r\nIG5vcm1hbDsNCn0NCg0KU1BBTi5lbXByZXNhX3N1YnRpdHVsbzMNCnsNCiAgZm9udC1mYW1pbHk6\r\nVGltZXMgTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDEwcHQ7DQpmb250LXdlaWdodDogbm9ybWFs\r\nOw0KfQ0KDQpURC5lbXByZXNhX2xvZ28NCnsNCiAgZm9udC1mYW1pbHk6VGltZXMgTmV3IFJvbWFu\r\nOw0KICBmb250LXNpemU6IDhwdDsNCiAgdmVydGljYWwtYWxpZ246IHRvcDsNCn0NCg0KVEQuZW1w\r\ncmVzYV9kaXJlY2Npb24NCnsNCiAgZm9udC1mYW1pbHk6VGltZXMgTmV3IFJvbWFuOw0KICBmb250\r\nLXNpemU6IDZwdDsNCiAgdmVydGljYWwtYWxpZ246IHRvcDsNCn0NCg0KU1BBTi50aXR1bG9fc2Vj\r\nY2lvbg0Kew0KZm9udC1mYW1pbHk6VGltZXMgTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDEwcHQ7\r\nDQogIGZvbnQtd2VpZ2h0OiBib2xkOw0KfQ0KDQpTUEFOLnN1YnRpdHVsb19zZWNjaW9uDQp7DQpm\r\nb250LWZhbWlseTogVGltZXMgTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDEwcHQ7DQogIGZvbnQt\r\nd2VpZ2h0OiBib2xkOw0KfQ0KDQpUQUJMRS5hc3VudG9zIFREDQp7DQpmb250LWZhbWlseTogVGlt\r\nZXMgTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDEwcHQ7DQogIGZvbnQtd2VpZ2h0OiBib2xkOw0K\r\nICBtYXJnaW46IDBweDsNCiAgcGFkZGluZzogMHB4Ow0KfQ0KDQpUQUJMRS50YWJsYV9ub3JtYWwg\r\nVFIudHJfdGl0dWxvIFREDQp7DQpmb250LWZhbWlseTogVGltZXMgTmV3IFJvbWFuOw0KICBmb250\r\nLXNpemU6IDEwcHQ7DQogIGZvbnQtd2VpZ2h0OiBib2xkOw0KICBib3JkZXItYm90dG9tOiAxcHgg\r\nc29saWQgIzk5OTk5OTsNCiAgbWFyZ2luOiAwcHg7DQogIHBhZGRpbmc6IDBweDsNCn0NCg0KVFIu\r\ndHJfdGl0dWxvX2RldGFsbGVfcHJvZmVzaW9uYWwgVEQNCnsNCiAgZm9udC1mYW1pbHk6IFRpbWVz\r\nIE5ldyBSb21hbjsNCiAgZm9udC1zaXplOiA3cHQ7DQogIGZvbnQtd2VpZ2h0OiBib2xkOw0KICBi\r\nb3JkZXItYm90dG9tOiAxcHggc29saWQgIzk5OTk5OTsNCiAgbWFyZ2luOiAwcHg7DQogIHBhZGRp\r\nbmc6IDBweDsNCn0NCg0KVEFCTEUudGFibGFfbm9ybWFsIFRSLnRyX3RpdHVsb19kZXRhbGxlIFRE\r\nDQp7DQpmb250LWZhbWlseTogVGltZXMgTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDEwcHQ7DQog\r\nIGZvbnQtd2VpZ2h0OiBib2xkOw0KICBib3JkZXItYm90dG9tOiAxcHggc29saWQgIzk5OTk5OTsN\r\nCiAgbWFyZ2luOiAwcHg7DQogIHBhZGRpbmc6IDBweDsNCn0NCg0KVEFCTEUudGFibGFfbm9ybWFs\r\nIFRSLnRyX3RvdGFsIFREDQp7DQpmb250LWZhbWlseTogVGltZXMgTmV3IFJvbWFuOw0KICBmb250\r\nLXNpemU6IDEwcHQ7DQogIGZvbnQtd2VpZ2h0OiBib2xkOw0KICBib3JkZXItdG9wOiAxcHggc29s\r\naWQgIzk5OTk5OTsNCiAgbWFyZ2luOiAwcHg7DQogIHBhZGRpbmc6IDBweDsNCn0NClRBQkxFLnRh\r\nYmxhX25vcm1hbCBUUi50cl90b3RhbF9kZXRhbGxlIFREDQp7DQpmb250LWZhbWlseTogVGltZXMg\r\nTmV3IFJvbWFuOw0KICBmb250LXNpemU6IDhwdDsNCiAgZm9udC13ZWlnaHQ6IGJvbGQ7DQogIGJv\r\ncmRlci10b3A6IDFweCBzb2xpZCAjOTk5OTk5Ow0KICBtYXJnaW46IDBweDsNCiAgcGFkZGluZzog\r\nMHB4Ow0KfQ0KVEFCTEUudGFibGFfbm9ybWFsIFRSLnRyX3RvdGFsMiBURA0Kew0KZm9udC1mYW1p\r\nbHk6IFRpbWVzIE5ldyBSb21hbjsNCiAgZm9udC1zaXplOiAxMHB0Ow0KICBmb250LXdlaWdodDog\r\nYm9sZDsNCiAgbWFyZ2luOiAwcHg7DQogIHBhZGRpbmc6IDBweDsNCn0NCg0KVEFCTEUudGFibGFf\r\nbm9ybWFsIFRSLnRyX3RvdGFsMyBURA0Kew0KZm9udC1mYW1pbHk6IFRpbWVzIE5ldyBSb21hbjsN\r\nCiAgZm9udC13ZWlnaHQ6IGJvbGQ7DQogIGJvcmRlci10b3A6IDFweCBzb2xpZCAjOTk5OTk5Ow0K\r\nICBtYXJnaW46IDBweDsNCiAgcGFkZGluZzogMHB4Ow0KfQ0KDQpUQUJMRS50YWJsYV9ub3JtYWwg\r\nVFIudHJfZGF0b3MNCnsNCmZvbnQtZmFtaWx5OiBUaW1lcyBOZXcgUm9tYW47DQogIGZvbnQtc2l6\r\nZTogMTBwdDsNCiAgZm9udC13ZWlnaHQ6IG5vcm1hbDsNCiAgcGFkZGluZy1ib3R0b206NXB4Ow0K\r\nICB2ZXJ0aWNhbC1hbGlnbjp0b3A7DQp9DQpUQUJMRS50YWJsYV9ub3JtYWwgVFIudHJfZGF0b3Nf\r\nZGV0YWxsZSBURA0Kew0KZm9udC1mYW1pbHk6IFRpbWVzIE5ldyBSb21hbjsNCiAgZm9udC1zaXpl\r\nOiA4cHQ7DQogIGZvbnQtd2VpZ2h0OiBub3JtYWw7DQogIHBhZGRpbmctYm90dG9tOjVweDsNCiAg\r\ndmVydGljYWwtYWxpZ246dG9wOw0KfQ0KVEQuZmVjaGENCnsNCmZvbnQtZmFtaWx5OiBUaW1lcyBO\r\nZXcgUm9tYW47DQogIGZvbnQtc2l6ZTogMTBwdDsNCiAgZm9udC13ZWlnaHQ6IG5vcm1hbDsNCn0N\r\nCg0KLmRpdmlzb3INCnsNCgltYXJnaW46IDBweCAwcHggN3B4IDBweDsNCgljb2xvcjogIzAwMDAw\r\nMDsNCglwYWdlLWJyZWFrLWFmdGVyOmFsd2F5czsNCn0NCg0KQlIgDQp7DQogIGZvbnQtZmFtaWx5\r\nOiBUaW1lcyBOZXcgUm9tYW47DQogIGZvbnQtc2l6ZTogOHB0Ow0KICBmb250LXdlaWdodDogbm9y\r\nbWFsOw0KfQ0KLS0+DQo8L3N0eWxlPg0KPC9oZWFkPg0KPGJvZHkgbGFuZz0iRVMtQ0wiIHN0eWxl\r\nPSJ0YWItaW50ZXJ2YWw6IDM1LjRwdCI+DQo8ZGl2IGNsYXNzPSJHZW5lcmljU2VjdGlvbiI+DQoK\r\nCgo8aHIgc2l6ZT0iMiIgY2xhc3M9InNlcGFyYWRvciI+Cgo8c3BhbiBjbGFzcz0idGl0dWxvX3Nl\r\nY2Npb24iPlBhZGJlcmcgTHRkPC9zcGFuPjxicj4KCjx0YWJsZSBjbGFzcz0idGFibGFfbm9ybWFs\r\nIiB3aWR0aD0iNTAlIj4KICAgIDx0cj4KICAgICAgICA8dGQgd2lkdGg9IjMwJSI+UkZDPC90ZD4K\r\nICAgICAgICA8dGQgd2lkdGg9IjcwJSI+NTUxNTA0MzI8L3RkPgogICAgPC90cj4KICAgIDx0cj4K\r\nICAgICAgICA8dGQ+RGlyZWNjafNuPC90ZD4KICAgICAgICA8dGQ+Mzg1MiBCZXJuaWVyIFdlbGw8\r\nL3RkPgogICAgPC90cj4KICAgIDx0cj4KICAgICAgICA8dGQ+Q29udGFjdG88L3RkPgogICAgICAg\r\nIDx0ZD5Tb255YSBWb2xrbWFuIEN1bW1lcmF0YTwvdGQ+CiAgICA8L3RyPgogICAgPHRyPgogICAg\r\nICAgIDx0ZD5UZWzpZm9ubzwvdGQ+CiAgICAgICAgPHRkPis2NzU0MzE0OTgxNjEyPC90ZD4KICAg\r\nIDwvdHI+CjwvdGFibGU+CgoKCjxociBzaXplPSIyIiBjbGFzcz0ic2VwYXJhZG9yIj4KCjxzcGFu\r\nIGNsYXNzPSJ0aXR1bG9fc2VjY2lvbiI+RGV0YWxsZSBsaXF1aWRhY2nzbjwvc3Bhbj48YnI+Cgo8\r\ndGFibGUgY2xhc3M9InRhYmxhX25vcm1hbCIgd2lkdGg9IjEwMCUiPgogICAgPHRyPgogICAgICAg\r\nIDx0ZCB3aWR0aD0iNDUlIiB2YWxpZ249InRvcCI+Cgo8dGFibGUgIGNsYXNzPSJ0YWJsYV9ub3Jt\r\nYWwiIHdpZHRoPSIxMDAlIj4KICAgIDx0cj4KICAgICAgICA8dGQgd2lkdGg9IjUwJSIgYWxpZ249\r\nImxlZnQiPkZhY3R1cmE8L3RkPgogICAgICAgIDx0ZCB3aWR0aD0iNTAlIiBhbGlnbj0ibGVmdCI+\r\nRkEgLTEgPC90ZD4KICAgIDwvdHI+CiAgICA8dHI+CiAgICAgICAgPHRkIHdpZHRoPSI1MCUiIGFs\r\naWduPSJsZWZ0Ij48L3RkPgogICAgICAgIDx0ZCB3aWR0aD0iNTAlIiBhbGlnbj0ibGVmdCI+PC90\r\nZD4KICAgIDwvdHI+CiAgICA8dHI+CiAgICAgICAgPHRkIHdpZHRoPSI1MCUiIGFsaWduPSJsZWZ0\r\nIj5GZWNoYSBoYXN0YTwvdGQ+CiAgICAgICAgPHRkIHdpZHRoPSI1MCUiIGFsaWduPSJsZWZ0Ij4y\r\nMy8wNC8yMTwvdGQ+CiAgICA8L3RyPgogICAgPHRyPgogICAgICAgIDx0ZCBhbGlnbj0ibGVmdCI+\r\nPC90ZD4KICAgICAgICA8dGQgYWxpZ249ImxlZnQiPjwvdGQ+CiAgICA8L3RyPgogICAgPHRyPgog\r\nICAgICAgIDx0ZCBhbGlnbj0ibGVmdCI+Jm5ic3A7PC90ZD4KICAgICAgICA8dGQgYWxpZ249Imxl\r\nZnQiPjwvdGQ+CiAgICA8L3RyPgo8L3RhYmxlPgoKICAgICAgICA8L3RkPgogICAgICAgIDx0ZCB3\r\naWR0aD0iMTAlIj4mbmJzcDs8L3RkPgogICAgICAgIDx0ZCB3aWR0aD0iNDUlIiB2YWxpZ249InRv\r\ncCI+Cgo8dGFibGUgIGNsYXNzPSJ0YWJsYV9ub3JtYWwiIHdpZHRoPSIxMDAlIj4KICAgIDx0ciBj\r\nbGFzcz0idHJfZGF0b3MiPgogICAgICAgIDx0ZCB3aWR0aD0iNTAlIiBhbGlnbj0ibGVmdCI+VG90\r\nYWwgSG9yYXM8L3RkPgogICAgICAgIDx0ZCB3aWR0aD0iKiIgYWxpZ249InJpZ2h0Ij4zNzowMDwv\r\ndGQ+CiAgICA8L3RyPgogICAgCiAgICA8dHIgY2xhc3M9InRyX3RvdGFsMyI+CiAgICAgICAgPHRk\r\nIGFsaWduPSJsZWZ0Ij5Ib25vcmFyaW9zPC90ZD4KICAgICAgICA8dGQgYWxpZ249InJpZ2h0Ij48\r\nYj5VU0QmbmJzcDs0LDc0My4zMzwvYj48L3RkPgogICAgPC90cj4KICAgIAogICAgCiAgICA8dHIg\r\nY2xhc3M9InRyX2RhdG9zIj4KICAgICAgICA8dGQgYWxpZ249ImxlZnQiPkdhc3RvczwvdGQ+CiAg\r\nICAgICAgPHRkIGFsaWduPSJyaWdodCI+VVNEJm5ic3A7MC4wMDwvdGQ+CiAgICA8L3RyPgogICAg\r\nCQk8dHIgY2xhc3M9InRyX2RhdG9zIj4KICAgICAgICA8dGQgYWxpZ249ImxlZnQiPkltcHVlc3Rv\r\nICgxOC4wMCUpPC90ZD4KICAgICAgICA8dGQgYWxpZ249InJpZ2h0Ij5VU0QmbmJzcDs4NTMuODA8\r\nL3RkPgogICAgPC90cj4KCgogICAgPHRyIGNsYXNzPSJ0cl90b3RhbDMiPgogICAgICAgIDx0ZCBh\r\nbGlnbj0ibGVmdCI+VG90YWwgTGlxdWlkYWNp8248L3RkPgogICAgICAgIDx0ZCBhbGlnbj0icmln\r\naHQiPjxiPlVTRCZuYnNwOzUsNTk3LjEzPC9iPjwvdGQ+CiAgICA8L3RyPgogICAgCiAgICAKPC90\r\nYWJsZT4KCiAgICAgICAgPC90ZD4KICAgIDwvdHI+CjwvdGFibGU+CgoKCjxociBzaXplPSIyIiBj\r\nbGFzcz0ic2VwYXJhZG9yIj4KCgo8c3BhbiBjbGFzcz0ic3VidGl0dWxvX3NlY2Npb24iPjwvc3Bh\r\nbj48YnI+Cjx0YWJsZSBjbGFzcz0idGFibGFfbm9ybWFsIiB3aWR0aD0iMTAwJSI+CiAgICAKICAg\r\nIAogICAgCjwvdGFibGU+CgoKCgoKCgo8YnIgLz4KPHNwYW4gY2xhc3M9InN1YnRpdHVsb19zZWNj\r\naW9uIj5SZXN1bWVuIGRldGFsbGUgcHJvZmVzaW9uYWw8L3NwYW4+PGJyPgoKPHRhYmxlIGNsYXNz\r\nPSJ0YWJsYV9ub3JtYWwiIHdpZHRoPSIxMDAlIj4KCjx0ciBjbGFzcz0idHJfdGl0dWxvIj4KICAg\r\nIDx0ZCBhbGlnbj0ibGVmdCIgd2lkdGg9IjEyMCI+Tm9tYnJlPC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nbGVmdCIgd2lkdGg9IjEyMCI+Q0FURUdPUs1BPC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIiB3\r\naWR0aD0iODAiPjwvdGQ+CiAgICAKICAgIAogICAgCiAgICA8dGQgYWxpZ249ImNlbnRlciIgd2lk\r\ndGg9IjgwIj5IcnMuIFRhcmlmaWNhZGFzPC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIiB3aWR0\r\naD0iNjAiPlRBUklGQTwvdGQ+CiAgICA8dGQgYWxpZ249InJpZ2h0IiB3aWR0aD0iNzAiPklNUE9S\r\nVEU8L3RkPgo8L3RyPgoKCjx0ciBjbGFzcz0idHJfZGF0b3MiPgogICAgPHRkIGFsaWduPSJsZWZ0\r\nIj5DYXJsZXkgT3J0aXogKENhcmxleSBPcnRpeik8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5T\r\nb2NpbyBTZW5pb3I8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICAKICAgIAog\r\nICAgCiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTY6MTU8L3RkPgogICAgPHRkIGFsaWduPSJjZW50\r\nZXIiPjE0MC4wMDwvdGQ+CiAgICA8dGQgYWxpZ249InJpZ2h0Ij5VU0QmbmJzcDsyLDI3NS4wMDwv\r\ndGQ+CjwvdHI+Cgo8dHIgY2xhc3M9InRyX2RhdG9zIj4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+UnVz\r\nc2VsIEJlZG5hciAoUnVzc2VsIEJlZG5hcik8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Tb2Np\r\nbyBTZW5pb3I8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICAKICAgIAogICAg\r\nCiAgICA8dGQgYWxpZ249ImNlbnRlciI+OTo1MDwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+\r\nMTQwLjAwPC90ZD4KICAgIDx0ZCBhbGlnbj0icmlnaHQiPlVTRCZuYnNwOzEsMzc2LjY3PC90ZD4K\r\nPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Mb3JlbmEg\r\nVG9ycGh5IChjYW1yeW4wNSk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Bc29jaWFkbzwvdGQ+\r\nCiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIAogICAgCiAgICAKICAgIDx0ZCBhbGln\r\nbj0iY2VudGVyIj4xMDo1NTwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTAwLjAwPC90ZD4K\r\nICAgIDx0ZCBhbGlnbj0icmlnaHQiPlVTRCZuYnNwOzEsMDkxLjY3PC90ZD4KPC90cj4KCgo8dHIg\r\nY2xhc3M9InRyX3RvdGFsIj4KICAgIDx0ZD5Ub3RhbDwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4K\r\nICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgCiAgICAKICAgIAogICAgPHRkIGFsaWdu\r\nPSJjZW50ZXIiPjM3OjAwPC90ZD4KICAgIDx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJy\r\naWdodCI+VVNEJm5ic3A7NCw3NDMuMzM8L3RkPgo8L3RyPgoKCjwvdGFibGU+CgoKCjxociBzaXpl\r\nPSIyIiBjbGFzcz0ic2VwYXJhZG9yIj4KCjx0YWJsZSBjbGFzcz0iYXN1bnRvcyIgd2lkdGg9Ijcw\r\nJSI+CiAgICA8dHI+CiAgICAgICAgPHRkIHdpZHRoPSIyNSUiPkFzdW50bzwvdGQ+CiAgICAgICAg\r\nPHRkIHdpZHRoPSI3NSUiPjAwMDA1MC0wMDAxIC0gUHJvcGllZGFkIEludGVsZWN0dWFsPC90ZD4K\r\nICAgIDwvdHI+CiAgICA8dHI+CiAgICAgICAgPHRkPkNvbnRhY3RvPC90ZD4KICAgICAgICA8dGQ+\r\nSGFzc2FuIExvd2U8L3RkPgogICAgPC90cj4KICAgIDx0cj4KICAgICAgICA8dGQ+VGVs6WZvbm88\r\nL3RkPgogICAgICAgIDx0ZD4rMTA5ODc5NTUyNDgyMDwvdGQ+CiAgICA8L3RyPgo8L3RhYmxlPgo8\r\nc3BhbiBjbGFzcz0ic3VidGl0dWxvX3NlY2Npb24iPlNlcnZpY2lvcyBwcmVzdGFkb3M8L3NwYW4+\r\nPGJyPgo8YnI+Cjx0YWJsZSBjbGFzcz0idGFibGFfbm9ybWFsIiB3aWR0aD0iMTAwJSI+Cgo8dGhl\r\nYWQ+Cjx0ciBjbGFzcz0idHJfdGl0dWxvIj4KICAgIDx0ZCB3aWR0aD0iODAiIGFsaWduPSJjZW50\r\nZXIiPkZlY2hhPC90ZD4KICAgIDx0ZCB3aWR0aD0iMTAwIiBhbGlnbj0ibGVmdCI+UHJvZmVzaW9u\r\nYWw8L3RkPgogICAgPHRkIGNsYXNzPSJ0ZF9jYXRlZ29yaWEiIGFsaWduPSJsZWZ0Ij5DYXRlZ29y\r\n7WE8L3RkPgogICAgPHRkIHdpZHRoPSI1Ij4mbmJzcDs8L3RkPgogICAgPHRkIHdpZHRoPSIzMDAi\r\nIGFsaWduPSJsZWZ0Ij5EZXNjcmlwY2nzbjwvdGQ+CiAgICA8dGQgd2lkdGg9IjUiPiZuYnNwOzwv\r\ndGQ+CiAgICA8dGQgd2lkdGg9IjgwIiBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIHdpZHRo\r\nPSI4MCIgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCB3aWR0aD0iODAiIGFsaWduPSJjZW50\r\nZXIiPkhycy4gVGFyaWZpY2FkYXM8L3RkPgogICAgCiAgICAKPC90cj4KPC90aGVhZD4KCgo8dHIg\r\nY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFnZS1icmVhay1pbnNpZGU6YXZvaWQ7Ij4KICAgIDx0\r\nZCBhbGlnbj0iY2VudGVyIj4xMC8xMC8xOTwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlJ1c3Nl\r\nbCBCZWRuYXI8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Tb2NpbyBTZW5pb3I8L3RkPgoJCTx0\r\nZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Db252ZXJzYWNpJm9hY3V0ZTtuIGNv\r\nbiBHZXJlbnRlIEdlbmVyYWwgcGFyYSByZXZpc2FyIHRlbWFzIHJlbGFjaW9uYWRvcyBhbCBwcm95\r\nZWN0bzwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3Rk\r\nPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MDo0\r\nNTwvdGQ+CiAgICAKICAgIAo8L3RyPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIgc3R5bGU9InBhZ2Ut\r\nYnJlYWstaW5zaWRlOmF2b2lkOyI+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTQvMTAvMTk8L3Rk\r\nPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5SdXNzZWwgQmVkbmFyPC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nbGVmdCI+U29jaW8gU2VuaW9yPC90ZD4KCQk8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nbGVmdCI+UmV1bmkmb2FjdXRlO24gcmV2aXNpJm9hY3V0ZTtuIGRlIGRvY3VtZW50b3MgY29uIFQu\r\nQy48L3RkPgogICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4K\r\nICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjI6MzA8\r\nL3RkPgogICAgCiAgICAKPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJy\r\nZWFrLWluc2lkZTphdm9pZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjE0LzEwLzE5PC90ZD4K\r\nICAgIDx0ZCBhbGlnbj0ibGVmdCI+Y2FtcnluMDU8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5B\r\nc29jaWFkbzwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPkNvbnZl\r\ncnNhY2kmb2FjdXRlO24gY29uIGplZmUgZGUgcHJveWVjdG8gcGFyYSBwbGFudGVhciBzb2x1Y2lv\r\nbmVzIGRlbCBhc3VudG88L3RkPgogICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNl\r\nbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJj\r\nZW50ZXIiPjE6NTU8L3RkPgogICAgCiAgICAKPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0\r\neWxlPSJwYWdlLWJyZWFrLWluc2lkZTphdm9pZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjE1\r\nLzEwLzE5PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+UnVzc2VsIEJlZG5hcjwvdGQ+CiAgICA8\r\ndGQgYWxpZ249ImxlZnQiPlNvY2lvIFNlbmlvcjwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8\r\ndGQgYWxpZ249ImxlZnQiPkNvbmZpcm1hY2kmb2FjdXRlO24gdGVsZWYmb2FjdXRlO25pY2EgYWxj\r\nYW5jZSBjb250cmF0by48L3RkPgogICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNl\r\nbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJj\r\nZW50ZXIiPjA6MzU8L3RkPgogICAgCiAgICAKPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0\r\neWxlPSJwYWdlLWJyZWFrLWluc2lkZTphdm9pZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjE2\r\nLzEwLzE5PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+Q2FybGV5IE9ydGl6PC90ZD4KICAgIDx0\r\nZCBhbGlnbj0ibGVmdCI+U29jaW8gU2VuaW9yPC90ZD4KCQk8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0\r\nZCBhbGlnbj0ibGVmdCI+QXZhbmNlIGVuIGNvbnRyYXRvIE4mZGVnOyA5MC0zOTAuPC90ZD4KICAg\r\nIDx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxp\r\nZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4yOjIwPC90ZD4KICAgIAog\r\nICAgCjwvdHI+Cgo8dHIgY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFnZS1icmVhay1pbnNpZGU6\r\nYXZvaWQ7Ij4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4xNi8xMC8xOTwvdGQ+CiAgICA8dGQgYWxp\r\nZ249ImxlZnQiPkNhcmxleSBPcnRpejwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lvIFNl\r\nbmlvcjwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlJldW5pJm9h\r\nY3V0ZTtuIHJldmlzaSZvYWN1dGU7biBkZSBkb2N1bWVudG9zIGNvbiBULkMuPC90ZD4KICAgIDx0\r\nZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249\r\nImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4zOjM1PC90ZD4KICAgIAogICAg\r\nCjwvdHI+Cgo8dHIgY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFnZS1icmVhay1pbnNpZGU6YXZv\r\naWQ7Ij4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4xNi8xMC8xOTwvdGQ+CiAgICA8dGQgYWxpZ249\r\nImxlZnQiPkNhcmxleSBPcnRpejwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lvIFNlbmlv\r\ncjwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlJldmlzaSZvYWN1\r\ndGU7biBkZSBhbnRlY2VkZW50ZXMgcGFyYSBncnVwbyBqdWljaW9zLjwvdGQ+CiAgICA8dGQ+Jm5i\r\nc3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50\r\nZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTo1NTwvdGQ+CiAgICAKICAgIAo8L3Ry\r\nPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIgc3R5bGU9InBhZ2UtYnJlYWstaW5zaWRlOmF2b2lkOyI+\r\nCiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTYvMTAvMTk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0\r\nIj5SdXNzZWwgQmVkbmFyPC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+U29jaW8gU2VuaW9yPC90\r\nZD4KCQk8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+QW4mYWFjdXRlO2xpc2lz\r\nIHByb21lc2EgZGUgZXF1aXBvLiBSZXVuaSZvYWN1dGU7biBjb24gQ0wgeSBNQyBwYXJhIGRlZmlu\r\naXIgZXNjcml0dXJhLjwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2Vu\r\ndGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNl\r\nbnRlciI+MDoxMDwvdGQ+CiAgICAKICAgIAo8L3RyPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIgc3R5\r\nbGU9InBhZ2UtYnJlYWstaW5zaWRlOmF2b2lkOyI+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTYv\r\nMTAvMTk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5jYW1yeW4wNTwvdGQ+CiAgICA8dGQgYWxp\r\nZ249ImxlZnQiPkFzb2NpYWRvPC90ZD4KCQk8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nbGVmdCI+TGlzdGFkbyBkZSBkb2N1bWVudG9zIHkgZ2VzdGkmb2FjdXRlO24uIFJldW5pJm9hY3V0\r\nZTtuIGVxdWlwbyBDLkEuIDwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249\r\nImNlbnRlciI+MToyMDwvdGQ+CiAgICAKICAgIAo8L3RyPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIg\r\nc3R5bGU9InBhZ2UtYnJlYWstaW5zaWRlOmF2b2lkOyI+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+\r\nMTcvMTAvMTk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5DYXJsZXkgT3J0aXo8L3RkPgogICAg\r\nPHRkIGFsaWduPSJsZWZ0Ij5Tb2NpbyBTZW5pb3I8L3RkPgoJCTx0ZD4mbmJzcDs8L3RkPgogICAg\r\nPHRkIGFsaWduPSJsZWZ0Ij5BdmFuY2UgZW4gY29udHJhdG8gTiZkZWc7IDkwLTM5MC48L3RkPgog\r\nICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBh\r\nbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjI6MDU8L3RkPgogICAg\r\nCiAgICAKPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lk\r\nZTphdm9pZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjE3LzEwLzE5PC90ZD4KICAgIDx0ZCBh\r\nbGlnbj0ibGVmdCI+UnVzc2VsIEJlZG5hcjwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lv\r\nIFNlbmlvcjwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlJldW5p\r\nJm9hY3V0ZTtuIGRlIHJldmlzaSZvYWN1dGU7biBjb250cmF0b3MgbGFib3JhbGVzIHNlZyZ1YWN1\r\ndGU7biBub3JtYXRpdmEgdmlnZW50ZS48L3RkPgogICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQg\r\nYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRk\r\nIGFsaWduPSJjZW50ZXIiPjI6MzU8L3RkPgogICAgCiAgICAKPC90cj4KCjx0ciBjbGFzcz0idHJf\r\nZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lkZTphdm9pZDsiPgogICAgPHRkIGFsaWduPSJj\r\nZW50ZXIiPjE3LzEwLzE5PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+Y2FtcnluMDU8L3RkPgog\r\nICAgPHRkIGFsaWduPSJsZWZ0Ij5Bc29jaWFkbzwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8\r\ndGQgYWxpZ249ImxlZnQiPlBlcnNvbmVyJmlhY3V0ZTthIEp1ciZpYWN1dGU7ZGljYTogUGVyc29u\r\nZXImaWFjdXRlO2EgY29uIGRpc3RyaWJ1Y2kmb2FjdXRlO24uPC90ZD4KICAgIDx0ZD4mbmJzcDs8\r\nL3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+\r\nPC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4yOjE1PC90ZD4KICAgIAogICAgCjwvdHI+Cgo8\r\ndHIgY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFnZS1icmVhay1pbnNpZGU6YXZvaWQ7Ij4KICAg\r\nIDx0ZCBhbGlnbj0iY2VudGVyIj4xOC8xMC8xOTwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPkNh\r\ncmxleSBPcnRpejwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lvIFNlbmlvcjwvdGQ+CgkJ\r\nPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPkVzY3JpYmlyIGNvcnJlbyBlbGVj\r\ndHImb2FjdXRlO25pY28gYSBlcXVpcG8gZGUgdmVudGFzIHBhcmEgcmVkYWN0YXIgcHJvcHVlc3Rh\r\ncyBkZWwgY2FzbzwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVy\r\nIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRl\r\nciI+MzozNTwvdGQ+CiAgICAKICAgIAo8L3RyPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIgc3R5bGU9\r\nInBhZ2UtYnJlYWstaW5zaWRlOmF2b2lkOyI+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MjEvMTAv\r\nMTk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5SdXNzZWwgQmVkbmFyPC90ZD4KICAgIDx0ZCBh\r\nbGlnbj0ibGVmdCI+U29jaW8gU2VuaW9yPC90ZD4KCQk8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBh\r\nbGlnbj0ibGVmdCI+RXNjcmliaXIgY29ycmVvIGVsZWN0ciZvYWN1dGU7bmljbyBhIGNvbnRhZG9y\r\nIGNvbiByZXNwZWN0byBhIHByb2JsZW1hcyBkZWwgcHJveWVjdG88L3RkPgogICAgPHRkPiZuYnNw\r\nOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVy\r\nIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjA6MjA8L3RkPgogICAgCiAgICAKPC90cj4K\r\nCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lkZTphdm9pZDsiPgog\r\nICAgPHRkIGFsaWduPSJjZW50ZXIiPjIxLzEwLzE5PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+\r\nY2FtcnluMDU8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Bc29jaWFkbzwvdGQ+CgkJPHRkPiZu\r\nYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlJldW5pJm9hY3V0ZTtuIGNvbiBHRiwgSlUg\r\neSBKSVAuPC90ZD4KICAgIDx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwv\r\ndGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4x\r\nOjEwPC90ZD4KICAgIAogICAgCjwvdHI+Cgo8dHIgY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFn\r\nZS1icmVhay1pbnNpZGU6YXZvaWQ7Ij4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4yMi8xMC8xOTwv\r\ndGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPmNhbXJ5bjA1PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVm\r\ndCI+QXNvY2lhZG88L3RkPgoJCTx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5S\r\nZWRhY2NpJm9hY3V0ZTtuIGRlIGVzY3JpdG9zLjwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAg\r\nIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAg\r\nICA8dGQgYWxpZ249ImNlbnRlciI+MDozMDwvdGQ+CiAgICAKICAgIAo8L3RyPgoKPHRyIGNsYXNz\r\nPSJ0cl9kYXRvcyIgc3R5bGU9InBhZ2UtYnJlYWstaW5zaWRlOmF2b2lkOyI+CiAgICA8dGQgYWxp\r\nZ249ImNlbnRlciI+MjMvMTAvMTk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5SdXNzZWwgQmVk\r\nbmFyPC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+U29jaW8gU2VuaW9yPC90ZD4KCQk8dGQ+Jm5i\r\nc3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+QXNpZW50b3MgcmVnaXN0cm8gZGUgcmVkYWNj\r\naSZvYWN1dGU7biB5IHByZXBhcmFjaSZvYWN1dGU7bi48L3RkPgogICAgPHRkPiZuYnNwOzwvdGQ+\r\nCiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3Rk\r\nPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjA6MjU8L3RkPgogICAgCiAgICAKPC90cj4KCjx0ciBj\r\nbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lkZTphdm9pZDsiPgogICAgPHRk\r\nIGFsaWduPSJjZW50ZXIiPjIzLzEwLzE5PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+UnVzc2Vs\r\nIEJlZG5hcjwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lvIFNlbmlvcjwvdGQ+CgkJPHRk\r\nPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlBlcnNvbmVyJmlhY3V0ZTthIEp1ciZp\r\nYWN1dGU7ZGljYTogUGVyc29uZXImaWFjdXRlO2EgY29uIGRpc3RyaWJ1Y2kmb2FjdXRlO24uPC90\r\nZD4KICAgIDx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8\r\ndGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4xOjM1PC90ZD4K\r\nICAgIAogICAgCjwvdHI+Cgo8dHIgY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFnZS1icmVhay1p\r\nbnNpZGU6YXZvaWQ7Ij4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4yMy8xMC8xOTwvdGQ+CiAgICA8\r\ndGQgYWxpZ249ImxlZnQiPmNhbXJ5bjA1PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+QXNvY2lh\r\nZG88L3RkPgoJCTx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5SZXVuaSZvYWN1\r\ndGU7biBwYXJhIGRlZmluaXIgZXN0cmF0ZWdpYSB5IGdhbnR0IGRlbCBwcm95ZWN0by48L3RkPgog\r\nICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBh\r\nbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjI6MDU8L3RkPgogICAg\r\nCiAgICAKPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lk\r\nZTphdm9pZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjI1LzEwLzE5PC90ZD4KICAgIDx0ZCBh\r\nbGlnbj0ibGVmdCI+Y2FtcnluMDU8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Bc29jaWFkbzwv\r\ndGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlJldW5pJm9hY3V0ZTtu\r\nIGNvbiBDRCwgTFMgeSBSTSBwYXJhIHJldmlzYXIgZXN0YWRvIGFjdHVhbC48L3RkPgogICAgPHRk\r\nPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjA6NTU8L3RkPgogICAgCiAgICAK\r\nPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lkZTphdm9p\r\nZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjMwLzEwLzE5PC90ZD4KICAgIDx0ZCBhbGlnbj0i\r\nbGVmdCI+UnVzc2VsIEJlZG5hcjwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lvIFNlbmlv\r\ncjwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPkNvbnN0aXR1Y2km\r\nb2FjdXRlO24gZGUgU29jaWVkYWQgQW4mb2FjdXRlO25pbWEuPC90ZD4KICAgIDx0ZD4mbmJzcDs8\r\nL3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+\r\nPC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj4wOjA1PC90ZD4KICAgIAogICAgCjwvdHI+Cgo8\r\ndHIgY2xhc3M9InRyX2RhdG9zIiBzdHlsZT0icGFnZS1icmVhay1pbnNpZGU6YXZvaWQ7Ij4KICAg\r\nIDx0ZCBhbGlnbj0iY2VudGVyIj4zMC8xMC8xOTwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPmNh\r\nbXJ5bjA1PC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVmdCI+QXNvY2lhZG88L3RkPgoJCTx0ZD4mbmJz\r\ncDs8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5SZXVuaSZvYWN1dGU7biBjb24gamVmZSBkZSBw\r\ncm95ZWN0byBwYXJhIHJldmlzaSZvYWN1dGU7biBkZSBwcm95ZWN0bzwvdGQ+CiAgICA8dGQ+Jm5i\r\nc3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50\r\nZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MDo0NTwvdGQ+CiAgICAKICAgIAo8L3Ry\r\nPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIgc3R5bGU9InBhZ2UtYnJlYWstaW5zaWRlOmF2b2lkOyI+\r\nCiAgICA8dGQgYWxpZ249ImNlbnRlciI+MDEvMTEvMTk8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0\r\nIj5DYXJsZXkgT3J0aXo8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Tb2NpbyBTZW5pb3I8L3Rk\r\nPgoJCTx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5PcmllbnRhY2kmb2FjdXRl\r\nO24gYSBsYSBnZXJlbmNpYSBkZSBsYXMgaW1wbGljYWNpb25lcyBsZWdhbGVzLjwvdGQ+CiAgICA8\r\ndGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWdu\r\nPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MTo1MDwvdGQ+CiAgICAKICAg\r\nIAo8L3RyPgoKPHRyIGNsYXNzPSJ0cl9kYXRvcyIgc3R5bGU9InBhZ2UtYnJlYWstaW5zaWRlOmF2\r\nb2lkOyI+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+MDQvMTEvMTk8L3RkPgogICAgPHRkIGFsaWdu\r\nPSJsZWZ0Ij5DYXJsZXkgT3J0aXo8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5Tb2NpbyBTZW5p\r\nb3I8L3RkPgoJCTx0ZD4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJsZWZ0Ij5SZXZpc2kmb2Fj\r\ndXRlO24gY29udHJhdG8gNTAtNDMgY29uIG51ZXZhcyBtb2RpZmljYWNpb25lcy48L3RkPgogICAg\r\nPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+PC90ZD4KICAgIDx0ZCBhbGln\r\nbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjA6NTU8L3RkPgogICAgCiAg\r\nICAKPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiIHN0eWxlPSJwYWdlLWJyZWFrLWluc2lkZTph\r\ndm9pZDsiPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPjA2LzExLzE5PC90ZD4KICAgIDx0ZCBhbGln\r\nbj0ibGVmdCI+UnVzc2VsIEJlZG5hcjwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPlNvY2lvIFNl\r\nbmlvcjwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPkVsYWJvcmFj\r\naSZvYWN1dGU7biBkZSBjb250cmF0bywgcmVkYWNjaSZvYWN1dGU7biBkZSBsYXMgY2wmYWFjdXRl\r\nO3VzdWxhcy48L3RkPgogICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+\r\nPC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIj48L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIi\r\nPjA6NTA8L3RkPgogICAgCiAgICAKPC90cj4KCgo8dHIgY2xhc3M9InRyX3RvdGFsIj4KICAgIDx0\r\nZCBhbGlnbj0iY2VudGVyIj5Ub3RhbCBUcmFiYWpvczwvdGQ+CgkJPHRkPiZuYnNwOzwvdGQ+CgkJ\r\nPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAgIDx0ZD4mbmJzcDs8L3RkPgog\r\nICAgPHRkPiZuYnNwOzwvdGQ+CgkJPHRkIGFsaWduPSJjZW50ZXIiPjwvdGQ+CgkJPHRkIGFsaWdu\r\nPSJjZW50ZXIiPjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+Mzc6MDA8L3RkPgogICAgCiAg\r\nICAKPC90cj4KCgo8L3RhYmxlPgo8YnI+Cjxicj4KPHNwYW4gY2xhc3M9InRpdHVsb19zZWNjaW9u\r\nIj48L3NwYW4+PGJyPgoKPHRhYmxlIGNsYXNzPSJ0YWJsYV9ub3JtYWwiIHdpZHRoPSIxMDAlIj4K\r\nCgoKPC90YWJsZT4KCgoKPGhyIHNpemU9IjIiIGNsYXNzPSJzZXBhcmFkb3IiPgoKPGJyPgo8c3Bh\r\nbiBjbGFzcz0idGl0dWxvX3NlY2Npb24iPkdhc3Rvczwvc3Bhbj48YnI+Cjx0YWJsZSBjbGFzcz0i\r\ndGFibGFfbm9ybWFsIiB3aWR0aD0iMTAwJSI+Cjx0ciBjbGFzcz0idHJfdGl0dWxvIj4KICAgIDx0\r\nZCBhbGlnbj0iY2VudGVyIiB3aWR0aD0iNzAiPkZlY2hhPC90ZD4KICAgIDx0ZCBhbGlnbj0ibGVm\r\ndCI+RGVzY3JpcGNp8248L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiIHdpZHRoPSI4MCI+Jm5i\r\nc3A7PC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIiB3aWR0aD0iODAiPk1vbnRvIChVU0QpPC90\r\nZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIiB3aWR0aD0iODAiPk1vbnRvIEltcHVlc3RvIChVU0Qp\r\nPC90ZD4KICAgIDx0ZCBhbGlnbj0iY2VudGVyIiB3aWR0aD0iODAiPk1vbnRvIHRvdGFsIChVU0Qp\r\nPC90ZD4KPC90cj4KCjx0ciBjbGFzcz0idHJfZGF0b3MiPgogICAgPHRkIGFsaWduPSJjZW50ZXIi\r\nPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImxlZnQiPk5vIGhheSBnYXN0b3MgZW4gZXN0YSBs\r\naXF1aWRhY2nzbjwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+Jm5ic3A7PC90ZD4KICAgIDx0\r\nZCBhbGlnbj0iY2VudGVyIj4mbmJzcDs8L3RkPgogICAgPHRkIGFsaWduPSJjZW50ZXIiPiZuYnNw\r\nOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+Jm5ic3A7PC90ZD4KPC90cj4KCjx0ciBjbGFz\r\ncz0idHJfdG90YWwiPgogICAgPHRkPiZuYnNwOzwvdGQ+CiAgICA8dGQ+Jm5ic3A7PC90ZD4KICAg\r\nIDx0ZCBhbGlnbj0icmlnaHQiPiZuYnNwOzwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+VVNE\r\nJm5ic3A7MC4wMDwvdGQ+CiAgICA8dGQgYWxpZ249ImNlbnRlciI+VVNEJm5ic3A7MC4wMDwvdGQ+\r\nCiAgICA8dGQgYWxpZ249ImNlbnRlciI+VVNEJm5ic3A7MC4wMDwvdGQ+CjwvdHI+CgoKPC90YWJs\r\nZT4KCgoKCgoKCjwvZGl2Pg0KDQo8L2JvZHk+DQo8L2h0bWw+DQo=",
+      "extension": "doc",
+      "mimetype": "application/msword"
+    },
+    "_charges_{ID}_errands": [],
+    "_charges_{ID}_exchange_rates": [
+      {
+        "charge_id": "2",
+        "currency_id": "1",
+        "exchange_rate": "1"
+      },
+      {
+        "charge_id": "2",
+        "currency_id": "2",
+        "exchange_rate": "2.75"
+      },
+      {
+        "charge_id": "2",
+        "currency_id": "3",
+        "exchange_rate": "3.79"
+      }
+    ],
+    "_charges_{ID}_expenses": [],
+    "_charges_{ID}_projects": [
+      {
+        "active": "0",
+        "agreement_id": "58",
+        "client_code": "000050",
+        "client_id": "50",
+        "client_name": "Gibson, O'Connell and Leannon",
+        "code": "000050-0001",
+        "collectable": "1",
+        "created_at": "2015-01-07 18:37:56",
+        "currency_code": "USD",
+        "has_custom_agreement": "0",
+        "id": "49",
+        "inactive_at": "0000-00-00 00:00:00",
+        "language_code": "es",
+        "language_name": "Español",
+        "name": "Propiedad Intelectual",
+        "project_area_id": "11",
+        "project_sub_area_id": null,
+        "project_type_id": "1",
+        "responsible_user_ids": [
+          "3"
+        ],
+        "updated_at": "2019-01-04 18:54:55"
+      }
+    ],
+    "_charges_{ID}_time_entries": [
+      {
+        "activity_id": null,
+        "agreement_rate": {
+          "amount": "140",
+          "currency_id": "2"
+        },
+        "applicant": {
+          "lastname": null,
+          "name": null
+        },
+        "applicant_id": null,
+        "area_id": null,
+        "billable": "1",
+        "billable_duration": 45,
+        "charge_id": "2",
+        "client_id": "50",
+        "created_at": 1571096333,
+        "date": 1570683600,
+        "description": "Conversación con Gerente General para revisar temas relacionados al proyecto",
+        "duration": 45,
+        "errand_id": "0",
+        "id": "1262",
+        "metadata": null,
+        "project_id": "49",
+        "read_only": 1,
+        "requester": "",
+        "revised": "0",
+        "started_at": null,
+        "starts_at": null,
+        "string_created_at": "2019-10-14",
+        "string_date": "2019-10-10",
+        "task_id": null,
+        "timer_status": "0",
+        "user_id": "3",
+        "visible": "1"
+      },
+      {
+        "activity_id": null,
+        "agreement_rate": {
+          "amount": "100",
+          "currency_id": "2"
+        },
+        "applicant": {
+          "lastname": null,
+          "name": null
+        },
+        "applicant_id": null,
+        "area_id": null,
+        "billable": "1",
+        "billable_duration": 115,
+        "charge_id": "2",
+        "client_id": "50",
+        "created_at": 1571099529,
+        "date": 1571029200,
+        "description": "Conversación con jefe de proyecto para plantear soluciones del asunto",
+        "duration": 115,
+        "errand_id": "0",
+        "id": "1263",
+        "metadata": null,
+        "project_id": "49",
+        "read_only": 1,
+        "requester": "Oscar Montezuma",
+        "revised": "0",
+        "started_at": null,
+        "starts_at": null,
+        "string_created_at": "2019-10-14",
+        "string_date": "2019-10-14",
+        "task_id": null,
+        "timer_status": "0",
+        "user_id": "4",
+        "visible": "1"
+      },
+      {
+        "activity_id": null,
+        "agreement_rate": {
+          "amount": "140",
+          "currency_id": "2"
+        },
+        "applicant": {
+          "lastname": null,
+          "name": null
+        },
+        "applicant_id": null,
+        "area_id": null,
+        "billable": "1",
+        "billable_duration": 35,
+        "charge_id": "2",
+        "client_id": "50",
+        "created_at": 1571180473,
+        "date": 1571115600,
+        "description": "Confirmación telefónica alcance contrato.",
+        "duration": 35,
+        "errand_id": "0",
+        "id": "1274",
+        "metadata": null,
+        "project_id": "49",
+        "read_only": 1,
+        "requester": "",
+        "revised": "0",
+        "started_at": null,
+        "starts_at": null,
+        "string_created_at": "2019-10-15",
+        "string_date": "2019-10-15",
+        "task_id": null,
+        "timer_status": "0",
+        "user_id": "3",
+        "visible": "1"
+      }
+    ],
+    "_projects_{ID}_contacts": [],
+    "_projects_{ID}_payments": [],
+    "_users_{ID}_rates": [],
+    "_users_{ID}_time_entries": [],
+    "activities": [],
+    "advances": [
+      {
+        "amount": 100,
+        "client_code": "000239",
+        "client_id": "243",
+        "date": "2023-06-07",
+        "id": "3522",
+        "project_code": "000239-0001",
+        "project_id": "422",
+        "residue": 100
+      }
+    ],
+    "advances_detail": {
+      "advance_type_code": "T",
+      "amount": 100,
+      "bank_account_id": "0",
+      "bank_id": "0",
+      "cheque_number": "",
+      "client_code": "000239",
+      "client_id": "243",
+      "created_at": "2023-06-07 21:24:42",
+      "currency_id": "2",
+      "date": "2023-06-07",
+      "description": "Prueba",
+      "document_number": "",
+      "id": "3522",
+      "operation_number": "",
+      "pays_expenses": "1",
+      "pays_fees": "0",
+      "project_code": "000239-0001",
+      "project_id": "422",
+      "residue": 100,
+      "updated_at": "2023-06-07 21:24:46"
+    },
+    "agreements": [
+      {
+        "client_id": "1",
+        "code": "AGR-000001",
+        "id": "1",
+        "name": "Acuerdo con Gislason Ltd"
+      },
+      {
+        "client_id": "2",
+        "code": "AGR-000002",
+        "id": "2",
+        "name": "Acuerdo con O'Kon-Jenkins"
+      },
+      {
+        "client_id": "3",
+        "code": "AGR-000003",
+        "id": "3",
+        "name": "Acuerdo con Balistreri, Batz and Douglas"
+      }
+    ],
+    "areas": [
+      {
+        "created_at": "2020-08-12 15:03:31",
+        "id": "1",
+        "name": "Corporativo",
+        "touched_at": null,
+        "updated_at": null
+      },
+      {
+        "created_at": "2020-08-12 15:03:31",
+        "id": "2",
+        "name": "Contratación Estatal",
+        "touched_at": null,
+        "updated_at": null
+      },
+      {
+        "created_at": "2020-08-12 15:03:31",
+        "id": "3",
+        "name": "Financiero",
+        "touched_at": null,
+        "updated_at": null
+      }
+    ],
+    "areas_detail": {
+      "created_at": "2020-08-12 15:03:31",
+      "id": "1",
+      "name": "Corporativo",
+      "touched_at": null,
+      "updated_at": null
+    },
+    "bank_accounts": [
+      {
+        "address": "562 Smitham Lake",
+        "bank_id": "1",
+        "currency_id": "1",
+        "fax": null,
+        "id": "1",
+        "name": "Molestias Dicta Et Magnam.",
+        "number": "5553223851120210",
+        "phone_1": "+6387485525557",
+        "phone_2": "+6176934950390"
+      },
+      {
+        "address": "80619 Rocio Drive",
+        "bank_id": "1",
+        "currency_id": "2",
+        "fax": null,
+        "id": "2",
+        "name": "Qui Et Fuga Beatae Quis.",
+        "number": "5114868132149669",
+        "phone_1": "+6477523782930",
+        "phone_2": "+7998779793304"
+      },
+      {
+        "address": "445 Vern Branch Apt. 676",
+        "bank_id": "2",
+        "currency_id": "1",
+        "fax": null,
+        "id": "3",
+        "name": "Esse Saepe Velit Maxime.",
+        "number": "4485734209721273",
+        "phone_1": "+7780168748778",
+        "phone_2": "+9638380790032"
+      }
+    ],
+    "bank_accounts_detail": {
+      "address": "562 Smitham Lake",
+      "bank_id": "1",
+      "currency_id": "1",
+      "fax": null,
+      "id": "1",
+      "name": "Molestias Dicta Et Magnam.",
+      "number": "5553223851120210",
+      "phone_1": "+6387485525557",
+      "phone_2": "+6176934950390"
+    },
+    "banks": [
+      {
+        "id": "1",
+        "name": "Continental"
+      },
+      {
+        "id": "2",
+        "name": "Banco de la Nación"
+      }
+    ],
+    "billing_document_statuses": [
+      {
+        "code": "F",
+        "id": "1",
+        "name": "Facturado"
+      },
+      {
+        "code": "C",
+        "id": "2",
+        "name": "Cobrado"
+      },
+      {
+        "code": "O",
+        "id": "3",
+        "name": "Obsequio"
+      }
+    ],
+    "billing_document_statuses_detail": {
+      "code": "F",
+      "id": "1",
+      "name": "Facturado"
+    },
+    "billing_document_types": [
+      {
+        "code": "FA",
+        "id": "1",
+        "name": "Factura"
+      },
+      {
+        "code": "NC",
+        "id": "2",
+        "name": "Nota de crédito"
+      },
+      {
+        "code": "ND",
+        "id": "3",
+        "name": "Nota de débito"
+      }
+    ],
+    "billing_document_types_detail": {
+      "code": "FA",
+      "id": "1",
+      "name": "Factura"
+    },
+    "billing_documents": [
+      {
+        "charge_id": "2",
+        "client_code": "000050",
+        "client_id": "50",
+        "created_at": "2021-06-21 14:11:29",
+        "date": "2021-06-21",
+        "id": "1",
+        "number": "231",
+        "series_number": "001",
+        "updated_at": "2025-03-27 18:56:48"
+      },
+      {
+        "charge_id": "29",
+        "client_code": "000060",
+        "client_id": "60",
+        "created_at": "2021-08-20 16:31:05",
+        "date": "2021-08-23",
+        "id": "2",
+        "number": "217",
+        "series_number": "001",
+        "updated_at": "2025-03-27 18:56:48"
+      },
+      {
+        "charge_id": "43",
+        "client_code": "000063",
+        "client_id": "63",
+        "created_at": "2021-11-25 14:41:54",
+        "date": "2021-08-25",
+        "id": "3",
+        "number": "230",
+        "series_number": "001",
+        "updated_at": "2025-03-27 18:56:48"
+      }
+    ],
+    "billing_documents_detail": {
+      "accounting_entry_number": "1",
+      "accounting_month": "201503",
+      "agreement_id": "58",
+      "canceled": "0",
+      "canceled_at": null,
+      "charge_expenses_tax_percentage": "18.0",
+      "charge_id": "2",
+      "client_address": "956 Hauck Station",
+      "client_business_activity": "Enim",
+      "client_business_name": "Mueller Group",
+      "client_city": "Port Carroll",
+      "client_code": "000050",
+      "client_county": "West Sheldon",
+      "client_id": "50",
+      "client_is_active": "0",
+      "client_name": "Gibson, O'Connell and Leannon",
+      "client_national_id_document_type_id": null,
+      "client_national_id_document_type_name": null,
+      "client_national_id_number": "70769007",
+      "client_postal_code": "",
+      "client_region": null,
+      "comment": null,
+      "country_id": null,
+      "created_at": "2021-06-21 14:11:29",
+      "created_at_dte": null,
+      "currency_exchange_rate": "2.75",
+      "currency_id": "2",
+      "currency_symbol": "USD",
+      "date": "2021-06-21",
+      "dte_state": null,
+      "dte_state_description": null,
+      "dte_type_code": "10",
+      "dte_xml": null,
+      "due_date": "2021-06-22",
+      "expenses_tax": 0,
+      "expenses_with_tax_description": "Gastos c/ IGV",
+      "expenses_with_tax_subtotal": "0",
+      "expenses_with_tax_total": 0,
+      "expenses_without_tax_description": "Gastos s/ IGV",
+      "expenses_without_tax_subtotal": "0",
+      "extra_data": [],
+      "fees": "4743.33",
+      "fees_description": "Nihil Dolore Id Id Ut.",
+      "fees_discount": "0",
+      "fees_tax": "853.80",
+      "fees_total": "5597.13",
+      "id": "1",
+      "id_reference_code": "0",
+      "id_tax_code_expenses_with_tax": null,
+      "id_tax_code_expenses_without_tax": null,
+      "id_tax_code_fees": null,
+      "law_firm_id": "1",
+      "number": "-1",
+      "parent_id": null,
+      "payment_condition_id": "1",
+      "payment_condition_name": "CONTADO",
+      "processing": "0",
+      "project_code": "000050-0001",
+      "projects": [
+        "49"
+      ],
+      "reference_documents": null,
+      "responsible_user_id": null,
+      "retributions": [],
+      "series_number": "001",
+      "status": "ABIERTA",
+      "status_code": "C",
+      "status_id": "2",
+      "subtotal": "4743.33",
+      "subtotal_net": 4743.33,
+      "subtotal_without_discount": "4743.33",
+      "tax": "853.8",
+      "tax_percentage": "18",
+      "total": "5597.13",
+      "type_code": "FA",
+      "type_id": "1",
+      "type_motive": null,
+      "updated_at": "2025-03-27 18:56:48",
+      "url_pdf_dte": null
+    },
+    "charges": [
+      {
+        "agreement_id": "58",
+        "client_code": "000050",
+        "client_id": "50",
+        "created_at": "2021-06-22 14:06:31",
+        "date_from": null,
+        "date_to": "2021-04-23",
+        "description": "Periodo: Hasta: 31-01-2015",
+        "id": "2",
+        "state": "PAGADO",
+        "updated_at": "2021-06-22 14:16:05"
+      },
+      {
+        "agreement_id": "63",
+        "client_code": "000054",
+        "client_id": "54",
+        "created_at": "2021-06-23 14:13:55",
+        "date_from": null,
+        "date_to": "2021-06-23",
+        "description": "Periodo: Hasta: 01-04-2015",
+        "id": "3",
+        "state": "PAGADO",
+        "updated_at": "2022-01-27 12:42:14"
+      },
+      {
+        "agreement_id": "64",
+        "client_code": "000055",
+        "client_id": "55",
+        "created_at": "2021-07-12 16:51:09",
+        "date_from": null,
+        "date_to": "2021-07-12",
+        "description": "Periodo: Hasta: 20-04-2015",
+        "id": "18",
+        "state": "PAGADO",
+        "updated_at": "2022-01-17 16:56:09"
+      }
+    ],
+    "charges_detail": {
+      "@links": [
+        {
+          "href": "https://panalbit.thetimebilling.com/time_tracking/api/v2/charges/2/time_entries",
+          "rel": "time_entries"
+        }
+      ],
+      "agreement_amount": "0",
+      "agreement_id": "58",
+      "charge_agreement": {
+        "type": "TASA"
+      },
+      "charge_details": [
+        {
+          "description": "Honorarios",
+          "discount": 0,
+          "subtotal_amount": 4743.33,
+          "tax_percentage": 18,
+          "taxes": 853.8,
+          "total_amount": 5597.13
+        },
+        {
+          "description": "Gastos",
+          "subtotal_amount": 0,
+          "tax_percentage": 18,
+          "taxes": 0,
+          "total_amount": "0"
+        }
+      ],
+      "client_code": "000050",
+      "client_id": "50",
+      "created_at": "2021-06-22 14:06:31",
+      "currency": "USD",
+      "date_from": "0000-00-00",
+      "date_to": "2021-04-23",
+      "description": "Periodo: Hasta: 31-01-2015",
+      "discount": "0",
+      "has_expenses": "1",
+      "has_fees": "1",
+      "id": "2",
+      "last_state": "EMITIDO",
+      "pricing_method": "TASA",
+      "pricing_method_amount": "5597.1294",
+      "pricing_method_amount_currency_id": "1",
+      "pricing_total_currency_id": "2",
+      "projects": [
+        "49"
+      ],
+      "state": "PAGADO",
+      "statuses": [
+        {
+          "code": "issued",
+          "date": "2021-06-22 00:00:00"
+        },
+        {
+          "code": "billed",
+          "date": "2021-06-22 00:00:00"
+        },
+        {
+          "code": "sent to the client",
+          "date": "2021-06-22 14:12:13"
+        },
+        {
+          "code": "partial payment",
+          "date": "2021-06-22 00:00:00"
+        },
+        {
+          "code": "paid",
+          "date": "2021-06-22 00:00:00"
+        }
+      ],
+      "subtotal_amount": 4743.33,
+      "tax_percentage": "18.00",
+      "taxes": 853.8,
+      "total_amount": 5597.13,
+      "updated_at": "2021-06-22 14:16:05"
+    },
+    "client_groups": [
+      {
+        "client_code": null,
+        "client_id": null,
+        "country_id": null,
+        "id": "1",
+        "name": "STARSCAMP"
+      },
+      {
+        "client_code": null,
+        "client_id": null,
+        "country_id": null,
+        "id": "2",
+        "name": "AVI"
+      },
+      {
+        "client_code": null,
+        "client_id": null,
+        "country_id": null,
+        "id": "3",
+        "name": "COMPATEL"
+      }
+    ],
+    "client_groups_detail": {
+      "client_code": null,
+      "client_id": null,
+      "country_id": null,
+      "id": "1",
+      "name": "STARSCAMP"
+    },
+    "clients": [
+      {
+        "active": "0",
+        "agreement_start_date": "2014-07-23",
+        "code": "000001",
+        "created_at": "2014-07-23 16:54:11",
+        "group_id": null,
+        "id": "1",
+        "name": "Gislason Ltd",
+        "updated_at": "2019-01-04 18:54:32"
+      },
+      {
+        "active": "0",
+        "agreement_start_date": "2014-07-23",
+        "code": "000002",
+        "created_at": "2014-07-23 16:54:11",
+        "group_id": null,
+        "id": "2",
+        "name": "O'Kon-Jenkins",
+        "updated_at": "2019-01-04 18:54:32"
+      },
+      {
+        "active": "0",
+        "agreement_start_date": "2014-07-23",
+        "code": "000003",
+        "created_at": "2014-07-23 16:54:12",
+        "group_id": "1",
+        "id": "3",
+        "name": "Balistreri, Batz and Douglas",
+        "updated_at": "2019-01-04 18:54:32"
+      }
+    ],
+    "clients_detail": {
+      "active": "0",
+      "agreement_start_date": "2014-07-23",
+      "agrements": [
+        {
+          "id": "1"
+        }
+      ],
+      "code": "000001",
+      "created_at": "2014-07-23 16:54:11",
+      "default_agreement": {
+        "active": "1",
+        "address": "4763 Vandervort Coves",
+        "alerts": {
+          "amount_max": "0",
+          "amount_threshold": "0",
+          "hours_max": "0",
+          "hours_threshold": "0",
+          "notification_emails": ""
+        },
+        "applicant_data": {
+          "additional_contacts": [],
+          "address": "49147 Zelma Village\nMagalifort, DE 41306-2211",
+          "email": "hoppe.dixie@example.com",
+          "first_name": "Regan Reichert",
+          "full_name": "Regan Reichert",
+          "honorific": "Sr.",
+          "last_name": "Wilderman",
+          "phone": "+6045717758174"
+        },
+        "billing_data": {
+          "address": "4763 Vandervort Coves",
+          "bank_account_ids": [
+            "2"
+          ],
+          "business_activity": "",
+          "business_name": "Bode PLC",
+          "city": "Giamouth",
+          "country_id": "173",
+          "county": "New Javierstad",
+          "description": "",
+          "law_firm_id": "1",
+          "national_id_document_type": null,
+          "national_id_number": "34847416",
+          "phone": "+6350160322351",
+          "phone_prefix": "",
+          "postal_code": "99212-4397",
+          "region": "Maine"
+        },
+        "business_activity": "",
+        "business_name": "Bode PLC",
+        "charge_fees_and_expenses_separately": "0",
+        "city": "Giamouth",
+        "code": null,
+        "country": "Perú",
+        "email": "hoppe.dixie@example.com",
+        "has_expenses_taxes": "0",
+        "has_fees_taxes": "1",
+        "id": "1",
+        "iso2char_country_code": "PE",
+        "legal_entity": {
+          "address": null,
+          "business_activity": null,
+          "business_activity_id": null,
+          "business_name": null,
+          "city": null,
+          "country_id": null,
+          "county": null,
+          "id": null,
+          "national_id_document_type": null,
+          "national_id_number": null,
+          "phone": null,
+          "phone_prefix": null,
+          "postal_code": null,
+          "region": null
+        },
+        "legal_entity_id": null,
+        "letter": {
+          "detail_format_id": "1",
+          "format_id": null,
+          "language_code": "es",
+          "paper_size": "LETTER",
+          "show_applicant": "0",
+          "show_chargable_column": "0",
+          "show_charge_discount": "1",
+          "show_charge_expenses": "1",
+          "show_charge_modality": "1",
+          "show_charge_summary": "1",
+          "show_currency_exchange_rate": "0",
+          "show_debt": "1",
+          "show_details_by_hour": {
+            "category": "1",
+            "enabled": "1",
+            "income": "1",
+            "initials": "1",
+            "rate": "1"
+          },
+          "show_details_by_professional": {
+            "category": "1",
+            "enabled": "1",
+            "income": "1",
+            "initials": "1",
+            "rate": "1"
+          },
+          "show_expenses_concept": "1",
+          "show_letter": "1",
+          "show_non_chargable_errands": "0",
+          "show_non_visible_jobs": "0",
+          "show_page_number": "1",
+          "show_projects_breakdown": "0",
+          "show_proportional_rate": "0",
+          "show_worked_hours": "0"
+        },
+        "national_id": "34847416",
+        "national_id_document_type": null,
+        "phone": "+6045717758174",
+        "postal_code": "99212-4397",
+        "pricing_data": {
+          "details": "",
+          "discount": {
+            "amount": "0",
+            "method": "amount",
+            "percentage": "0"
+          },
+          "errands": {
+            "rate_currency_id": "2",
+            "rate_id": "1"
+          },
+          "expenses_currency_id": "1",
+          "method": "hourly",
+          "method_data": {
+            "hourly": {
+              "rate_amount": null,
+              "rate_currency_id": "2",
+              "rate_id": "1"
+            }
+          },
+          "total_currency_id": "2"
+        },
+        "responsible_users": [
+          {
+            "id": "3",
+            "notify_alerts": "1"
+          }
+        ]
+      },
+      "default_agreement_id": "1",
+      "extra_data": [],
+      "group": null,
+      "group_id": null,
+      "id": "1",
+      "name": "Gislason Ltd",
+      "responsible_user": {
+        "id": "3",
+        "lastname1": "Bednar",
+        "lastname2": "Panez",
+        "name": "Russel",
+        "national_id": "19069514",
+        "national_id_verification_number": "5",
+        "username": "Russel Bednar"
+      },
+      "responsible_user_id": "3",
+      "updated_at": "2019-01-04 18:54:32"
+    },
+    "codes": [
+      {
+        "code": "L110",
+        "description": "Fact Investigation/Development",
+        "group": "UTBMS_TASK",
+        "id": "1"
+      },
+      {
+        "code": "L120",
+        "description": "Analysis/Strategy",
+        "group": "UTBMS_TASK",
+        "id": "2"
+      },
+      {
+        "code": "L130",
+        "description": "Experts/Consultants",
+        "group": "UTBMS_TASK",
+        "id": "3"
+      }
+    ],
+    "contacts": [],
+    "countries": [
+      {
+        "alpha_2_code": "AF",
+        "alpha_3_code": "AFG",
+        "id": "1",
+        "name_es": "Afganistán",
+        "numeric_code": "4"
+      },
+      {
+        "alpha_2_code": "AX",
+        "alpha_3_code": "ALA",
+        "id": "2",
+        "name_es": "Islas Gland",
+        "numeric_code": "248"
+      },
+      {
+        "alpha_2_code": "AL",
+        "alpha_3_code": "ALB",
+        "id": "3",
+        "name_es": "Albania",
+        "numeric_code": "8"
+      }
+    ],
+    "countries_detail": {
+      "alpha_2_code": "AF",
+      "alpha_3_code": "AFG",
+      "id": "1",
+      "name_es": "Afganistán",
+      "numeric_code": "4"
+    },
+    "currencies": [
+      {
+        "billing_document_symbol": "PEN",
+        "code": "PEN",
+        "decimal_char": ".",
+        "exchange_rate": "1",
+        "id": "1",
+        "is_base_currency": null,
+        "name": "Sol",
+        "plural": "Soles",
+        "precision": "2",
+        "symbol": "S/.",
+        "thousand_char": ","
+      },
+      {
+        "billing_document_symbol": "USD",
+        "code": "USD",
+        "decimal_char": ".",
+        "exchange_rate": "3.33",
+        "id": "2",
+        "is_base_currency": "1",
+        "name": "Dólar",
+        "plural": "Dólares",
+        "precision": "2",
+        "symbol": "USD",
+        "thousand_char": ","
+      },
+      {
+        "billing_document_symbol": "EUR",
+        "code": "EUR",
+        "decimal_char": ",",
+        "exchange_rate": "3.79",
+        "id": "3",
+        "is_base_currency": null,
+        "name": "Euro",
+        "plural": "Euros",
+        "precision": "2",
+        "symbol": "E",
+        "thousand_char": "."
+      }
+    ],
+    "currencies_detail": {
+      "billing_document_symbol": "PEN",
+      "code": "PEN",
+      "decimal_char": ".",
+      "exchange_rate": "1",
+      "id": "1",
+      "is_base_currency": null,
+      "name": "Sol",
+      "plural": "Soles",
+      "precision": "2",
+      "symbol": "S/.",
+      "thousand_char": ","
+    },
+    "expenses": [
+      {
+        "client_id": "74",
+        "created_at": "2015-06-02 19:24:56",
+        "description": "Ut quis accusamus et nisi perferendis est beatae adipisci. Sit suscipit consequatur commodi distinctio quia culpa in.",
+        "id": "98",
+        "observations": null,
+        "project_id": "90",
+        "reviewed": "0",
+        "updated_at": "2019-01-04 18:59:27"
+      },
+      {
+        "client_id": "74",
+        "created_at": "2015-06-05 19:44:32",
+        "description": "Ut ut laudantium nihil est non et. Saepe numquam quo aut quam voluptatem. Dolorem laudantium qui earum sit pariatur.",
+        "id": "99",
+        "observations": null,
+        "project_id": "90",
+        "reviewed": "0",
+        "updated_at": "2019-01-04 18:59:27"
+      },
+      {
+        "client_id": "184",
+        "created_at": "2023-05-23 16:56:02",
+        "description": "GTO-000027 - Gasto de prueba. Almuerzo",
+        "id": "100",
+        "observations": null,
+        "project_id": "517",
+        "reviewed": "0",
+        "updated_at": null
+      }
+    ],
+    "expenses_categories": [
+      {
+        "id": "1",
+        "name": "Archivo Judicial"
+      },
+      {
+        "id": "2",
+        "name": "Bencina"
+      },
+      {
+        "id": "3",
+        "name": "CBR"
+      }
+    ],
+    "expenses_categories_detail": {
+      "id": "1",
+      "name": "Archivo Judicial"
+    },
+    "expenses_detail": {
+      "applicant": null,
+      "applicant_user_id": "4",
+      "chargable_amount": "5",
+      "charge_id": "99",
+      "charge_status": "PAGADO",
+      "client_code": "000074",
+      "client_id": "74",
+      "code": null,
+      "created_at": "2015-06-02 19:24:56",
+      "currency_id": "1",
+      "date": "2015-06-02 00:00:00",
+      "description": "Ut quis accusamus et nisi perferendis est beatae adipisci. Sit suscipit consequatur commodi distinctio quia culpa in.",
+      "document_number": null,
+      "drawdown": null,
+      "expense_account_code": null,
+      "expense_invoice_code": null,
+      "expense_name_id": "12",
+      "expense_type_id": null,
+      "has_taxes": "SI",
+      "id": "98",
+      "income": null,
+      "income_discount": null,
+      "invoice_date": null,
+      "is_chargable": "1",
+      "observations": null,
+      "outcome": "5",
+      "payment_status": null,
+      "project_area": {
+        "id": "2",
+        "name": "Asesoria General"
+      },
+      "project_code": "000074-0001",
+      "project_id": "90",
+      "provider_id": null,
+      "related_document_type_id": null,
+      "requester_user": {
+        "id": null,
+        "last_name": null,
+        "name": null
+      },
+      "reviewed": "0",
+      "tracking_number": null,
+      "transfer_order_number": null,
+      "updated_at": "2019-01-04 18:59:27",
+      "user_id": "4",
+      "vouchers": []
+    },
+    "languages": [
+      {
+        "code": "es",
+        "id": "1",
+        "name_es": "Español"
+      },
+      {
+        "code": "en",
+        "id": "2",
+        "name_es": "Inglés"
+      }
+    ],
+    "law_firms": [
+      {
+        "has_metadata": false,
+        "id": "1",
+        "name": "Zieme-Ledner"
+      },
+      {
+        "has_metadata": false,
+        "id": "2",
+        "name": "Zemlak-Bartoletti"
+      }
+    ],
+    "legal_entities": [],
+    "milestones": [
+      {
+        "agreement_id": "87",
+        "amount": "500",
+        "charge_id": "42",
+        "date": "2015-05-17",
+        "description": "Liquidación N° 2",
+        "id": "26"
+      },
+      {
+        "agreement_id": "109",
+        "amount": "500",
+        "charge_id": "73",
+        "date": "2015-05-13",
+        "description": "Liquidación N° 1",
+        "id": "178"
+      },
+      {
+        "agreement_id": "109",
+        "amount": "500",
+        "charge_id": "56",
+        "date": "2015-06-13",
+        "description": "Liquidación N° 2",
+        "id": "179"
+      }
+    ],
+    "milestones_detail": {
+      "agreement_id": "87",
+      "amount": "500",
+      "charge_id": "42",
+      "date": "2015-05-17",
+      "description": "Liquidación N° 2",
+      "details": null,
+      "has_expenses": "1",
+      "has_fees": "1",
+      "id": "26",
+      "notification_date": null,
+      "notified": "0"
+    },
+    "national_id_document_types": [
+      {
+        "dte_code": "6",
+        "id": "1",
+        "name": "RUC"
+      },
+      {
+        "dte_code": "4",
+        "id": "2",
+        "name": "Carnet de Extranjería"
+      },
+      {
+        "dte_code": "0",
+        "id": "3",
+        "name": "Otro - Documento Exterior"
+      }
+    ],
+    "payment_concepts": [
+      {
+        "id": "1",
+        "name": "Cobranza al 100%"
+      },
+      {
+        "id": "2",
+        "name": "Cobranza de detracción 12%"
+      },
+      {
+        "id": "3",
+        "name": "Comisión y gastos bancarios"
+      }
+    ],
+    "payment_conditions": [
+      {
+        "id": "1",
+        "name": "CONTADO"
+      },
+      {
+        "id": "3",
+        "name": "CC 15 días"
+      },
+      {
+        "id": "4",
+        "name": "CC 30 días"
+      }
+    ],
+    "payment_types": [
+      {
+        "code": "A",
+        "group": "T",
+        "name": "Amortización"
+      },
+      {
+        "code": "C",
+        "group": "T",
+        "name": "Cheque"
+      },
+      {
+        "code": "CP",
+        "group": "P",
+        "name": "Cheque"
+      }
+    ],
+    "payments": [
+      {
+        "amount": "1597.13",
+        "client_id": "50",
+        "created_at": "2020-01-03 14:14:48",
+        "currency_id": "2",
+        "date": "2020-01-03",
+        "id": "1",
+        "residue": "0",
+        "updated_at": "2020-01-03 14:14:48"
+      },
+      {
+        "amount": "2000",
+        "client_id": "50",
+        "created_at": "2020-01-03 14:15:14",
+        "currency_id": "2",
+        "date": "2020-01-03",
+        "id": "2",
+        "residue": "0",
+        "updated_at": "2020-01-03 14:15:14"
+      },
+      {
+        "amount": "2000",
+        "client_id": "50",
+        "created_at": "2020-01-03 14:16:01",
+        "currency_id": "2",
+        "date": "2020-01-03",
+        "id": "3",
+        "residue": "0",
+        "updated_at": "2020-01-03 14:16:01"
+      }
+    ],
+    "payments_detail": {
+      "amount": "1597.13",
+      "bank_account_currency_code": "PEN",
+      "bank_account_id": "1",
+      "bank_account_number": "5553223851120210",
+      "bank_name": "Continental",
+      "client_code": "000050",
+      "client_id": "50",
+      "client_name": "Gibson, O'Connell and Leannon",
+      "created_at": "2020-01-03 14:14:48",
+      "currency_code": "USD",
+      "currency_id": "2",
+      "date": "2020-01-03",
+      "description": "Pago de Factura # -1",
+      "expense_nettings": [
+        {
+          "amount": "1597.13",
+          "billing_document_id": "1",
+          "id": "1"
+        }
+      ],
+      "id": "1",
+      "name": "Pago de Factura # -1",
+      "payment_concept_id": "12",
+      "payment_concept_name": "Ajuste por tipo de cambio",
+      "payment_type_code": "EP",
+      "payment_type_number": "0",
+      "residue": "0",
+      "updated_at": "2020-01-03 14:14:48"
+    },
+    "project_areas": [
+      {
+        "breakdown": "0",
+        "id": "1",
+        "name": "Otra"
+      },
+      {
+        "breakdown": "0",
+        "id": "2",
+        "name": "Asesoria General"
+      },
+      {
+        "breakdown": "0",
+        "id": "3",
+        "name": "Corporativo"
+      }
+    ],
+    "project_sub_areas": [],
+    "project_types": [
+      {
+        "id": "1",
+        "name": "Contrato"
+      },
+      {
+        "id": "2",
+        "name": "Asesoría"
+      },
+      {
+        "id": "3",
+        "name": "Juicio"
+      }
+    ],
+    "projects": [
+      {
+        "active": "0",
+        "agreement_id": "8",
+        "client_code": "000008",
+        "client_id": "8",
+        "client_name": "Gislason-Bednar",
+        "code": "000008-0001",
+        "collectable": "1",
+        "created_at": "2014-07-23 16:54:56",
+        "currency_code": "USD",
+        "has_custom_agreement": "0",
+        "id": "1",
+        "inactive_at": null,
+        "language_code": "es",
+        "language_name": "Español",
+        "name": "Análisis Normativo",
+        "project_area_id": "2",
+        "project_sub_area_id": null,
+        "project_type_id": null,
+        "responsible_user_ids": [],
+        "updated_at": "2019-01-04 18:54:53"
+      },
+      {
+        "active": "0",
+        "agreement_id": "9",
+        "client_code": "000009",
+        "client_id": "9",
+        "client_name": "Runolfsson-Rutherford",
+        "code": "000009-0001",
+        "collectable": "1",
+        "created_at": "2014-07-23 16:54:57",
+        "currency_code": "USD",
+        "has_custom_agreement": "0",
+        "id": "2",
+        "inactive_at": null,
+        "language_code": "en",
+        "language_name": "Inglés",
+        "name": "Asesoría Laboral.",
+        "project_area_id": "2",
+        "project_sub_area_id": null,
+        "project_type_id": null,
+        "responsible_user_ids": [],
+        "updated_at": "2019-01-04 18:54:53"
+      },
+      {
+        "active": "0",
+        "agreement_id": "10",
+        "client_code": "000010",
+        "client_id": "10",
+        "client_name": "Ebert, Dicki and Morissette",
+        "code": "000010-0001",
+        "collectable": "1",
+        "created_at": "2014-07-23 16:54:57",
+        "currency_code": "USD",
+        "has_custom_agreement": "0",
+        "id": "3",
+        "inactive_at": null,
+        "language_code": "es",
+        "language_name": "Español",
+        "name": "Gestión de marcas.",
+        "project_area_id": "2",
+        "project_sub_area_id": null,
+        "project_type_id": null,
+        "responsible_user_ids": [],
+        "updated_at": "2019-01-04 18:54:53"
+      }
+    ],
+    "projects_detail": {
+      "active": "0",
+      "activities_are_mandatory": "0",
+      "agreement_id": "8",
+      "alerts": {
+        "amount_max": "0",
+        "amount_threshold": "0",
+        "hours_max": "0",
+        "hours_threshold": "0"
+      },
+      "applicant_email": "paucek.dane@example.org",
+      "applicant_full_name": "Joshua Schaefer",
+      "applicant_phone": "+4989728503796",
+      "client_code": "000008",
+      "client_id": "8",
+      "client_name": "Gislason-Bednar",
+      "code": "000008-0001",
+      "collectable": "1",
+      "commercial_business": {
+        "list": []
+      },
+      "commercial_business_detail": null,
+      "counterpart": null,
+      "created_at": "2014-07-23 16:54:56",
+      "description": "Modi perferendis dolores deserunt quos sed est. Porro esse architecto nulla. Quae quisquam at voluptate enim. Quidem unde hic sapiente ullam.",
+      "extra_data": [],
+      "has_custom_agreement": "0",
+      "id": "1",
+      "inactive_at": "0000-00-00 00:00:00",
+      "language_code": "es",
+      "language_id": "1",
+      "language_name": "Español",
+      "name": "Análisis Normativo",
+      "project_area": {
+        "id": "2",
+        "name": "Asesoria General"
+      },
+      "project_area_id": "2",
+      "project_sub_area": {
+        "custom": null,
+        "id": null,
+        "name": null
+      },
+      "project_sub_area_id": null,
+      "project_type_id": null,
+      "quoted_with": null,
+      "responsible_user_ids": [],
+      "updated_at": "2019-01-04 18:54:53"
+    },
+    "providers": [
+      {
+        "id": "1",
+        "identification": "",
+        "name": ""
+      }
+    ],
+    "providers_detail": {
+      "id": "1",
+      "identification": "",
+      "name": ""
+    },
+    "rates": [
+      {
+        "flat_amount": null,
+        "id": "1",
+        "is_default": "0",
+        "name": "Tarifa Promedio 120",
+        "saved": "1"
+      },
+      {
+        "flat_amount": "120",
+        "id": "2",
+        "is_default": "0",
+        "name": "Tarifa Flat por USD120.00",
+        "saved": "1"
+      },
+      {
+        "flat_amount": "120",
+        "id": "4",
+        "is_default": "0",
+        "name": "Tarifa Flat por USD120.00",
+        "saved": "1"
+      }
+    ],
+    "related_document_types": [
+      {
+        "id": "1",
+        "name": "Factura Asociada"
+      },
+      {
+        "id": "2",
+        "name": "Boleta Asociada"
+      },
+      {
+        "id": "3",
+        "name": "Recibo por honorarios"
+      }
+    ],
+    "retributions": [],
+    "time_entries": [
+      {
+        "billable_duration": "01:35:00",
+        "created_at": "2019-04-29 18:17:52",
+        "date": "2019-04-29",
+        "duration": "01:35:00",
+        "id": "1",
+        "notes": "Elaboración de los documentos legales.",
+        "project_code": "000029-0001",
+        "updated_at": "2021-08-09 20:21:59",
+        "user_id": "2"
+      },
+      {
+        "billable_duration": "02:00:00",
+        "created_at": "2019-04-29 18:19:16",
+        "date": "2019-04-25",
+        "duration": "02:00:00",
+        "id": "2",
+        "notes": "Nuevo contrato laboral según norma 15-21.",
+        "project_code": "000029-0001",
+        "updated_at": "2021-08-09 20:21:59",
+        "user_id": "2"
+      },
+      {
+        "billable_duration": "02:00:00",
+        "created_at": "2019-04-29 18:21:37",
+        "date": "2019-04-26",
+        "duration": "02:00:00",
+        "id": "3",
+        "notes": "Elaboración de contrato, redacción de las cláusulas.",
+        "project_code": "000029-0001",
+        "updated_at": "2021-08-09 20:21:59",
+        "user_id": "2"
+      }
+    ],
+    "time_entries_detail": {
+      "activity_code": null,
+      "amount": "220",
+      "applicant": {
+        "lastname": null,
+        "name": null
+      },
+      "applicant_id": null,
+      "billable": "0",
+      "billable_duration": "01:35:00",
+      "billed_amount": "0",
+      "charge_date": "2021-08-09 15:21:59",
+      "charge_id": "654",
+      "client_id": "29",
+      "cost": "140",
+      "created_at": "2019-04-29 18:17:52",
+      "currency_id": "2",
+      "date": "2019-04-29",
+      "duration": "01:35:00",
+      "errand_id": "0",
+      "id": "1",
+      "metadata": null,
+      "notes": "Elaboración de los documentos legales.",
+      "project_code": "000029-0001",
+      "project_id": "13",
+      "retainer_duration": "00:00:00",
+      "reviewed": "0",
+      "revised": "0",
+      "standard_amount": "140",
+      "started_at": null,
+      "starts_at": null,
+      "status": "PAGADO",
+      "task_code": null,
+      "time_entry_area_id": null,
+      "timer_status": "0",
+      "updated_at": "2021-08-09 20:21:59",
+      "user_category_id": "2",
+      "user_id": "2",
+      "visible": "0"
+    },
+    "user_areas": [
+      {
+        "id": "1",
+        "name": "Otra",
+        "related_id": null
+      },
+      {
+        "id": "2",
+        "name": "Corporativo",
+        "related_id": null
+      },
+      {
+        "id": "3",
+        "name": "Litigio",
+        "related_id": null
+      }
+    ],
+    "user_areas_detail": {
+      "id": "1",
+      "name": "Otra",
+      "related_id": null
+    },
+    "user_categories": [
+      {
+        "category_code": "PT",
+        "english_name": null,
+        "id": "1",
+        "name": "Socio",
+        "order": "1"
+      },
+      {
+        "category_code": "OT",
+        "english_name": null,
+        "id": "2",
+        "name": "Socio Senior",
+        "order": "0"
+      },
+      {
+        "category_code": "OT",
+        "english_name": null,
+        "id": "3",
+        "name": "Consultor",
+        "order": "0"
+      }
+    ],
+    "user_categories_detail": {
+      "category_code": "PT",
+      "english_name": null,
+      "id": "1",
+      "name": "Socio",
+      "order": "1"
+    },
+    "users": [
+      {
+        "active": "1",
+        "code": "99511620",
+        "cost_centre": "lemontech",
+        "email": "as@lemontech.com",
+        "firstname": "Admin",
+        "id": "1",
+        "lastname1": "Lemontech",
+        "lastname2": "LEM",
+        "name": "Admin Lemontech LEM",
+        "permissions": {
+          "activities": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "advanced_reporting": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "advances": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "agreements": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "applicants": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "applications": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "areas": [
+            "read",
+            "create",
+            "update"
+          ],
+          "bank_accounts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "banks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing": [
+            "create"
+          ],
+          "billing_document_statuses": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing_document_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing_documents": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "delete"
+          ],
+          "charges": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "client_groups": [
+            "read",
+            "create",
+            "update"
+          ],
+          "clients": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "codes": [
+            "read"
+          ],
+          "contacts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "countries": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "currencies": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "currencies_record": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "datastudio": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "errand_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "errands": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "expenses": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "expenses_categories": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "generators": [
+            "create",
+            "update",
+            "destroy"
+          ],
+          "holdings": [
+            "read"
+          ],
+          "languages": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "law_firms": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "legal_entities": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "logs": [
+            "read"
+          ],
+          "milestones": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "national_id_document_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_concepts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_conditions": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_sub_areas": [
+            "read"
+          ],
+          "payment_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payments": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "delete"
+          ],
+          "project_area_details": [
+            "read"
+          ],
+          "project_areas": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "project_sub_areas": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "project_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "projects": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "providers": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "rates": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "related_document_types": [
+            "read",
+            "create",
+            "update"
+          ],
+          "reports": [
+            "read"
+          ],
+          "retributions": [
+            "read"
+          ],
+          "reviews": [
+            "read"
+          ],
+          "roles": [
+            "read"
+          ],
+          "services": [
+            "read"
+          ],
+          "settings": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "tasks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "time_entries": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "review"
+          ],
+          "time_reviews": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "translations": [
+            "read"
+          ],
+          "user_areas": [
+            "read",
+            "create",
+            "update"
+          ],
+          "user_auth_tokens": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "user_categories": [
+            "read",
+            "create",
+            "update"
+          ],
+          "users": [
+            "read",
+            "update",
+            "create",
+            "destroy",
+            "read_others",
+            "update_others"
+          ],
+          "webhooks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ]
+        },
+        "phone": null,
+        "roles": [
+          {
+            "code": "DAT",
+            "name": "Admin. Datos"
+          },
+          {
+            "code": "ADM",
+            "name": "Administrador"
+          },
+          {
+            "code": "COB",
+            "name": "Cobranza"
+          },
+          {
+            "code": "OFI",
+            "name": "Oficina"
+          },
+          {
+            "code": "REP",
+            "name": "Reportes"
+          },
+          {
+            "code": "REV",
+            "name": "Revisor"
+          },
+          {
+            "code": "SADM",
+            "name": "Super Admin"
+          },
+          {
+            "code": "TAR",
+            "name": "Tarifa"
+          },
+          {
+            "code": "ALL",
+            "name": "Usuario base"
+          }
+        ],
+        "settings": {
+          "daily_alert": 1,
+          "days_track_expenses": 30,
+          "days_track_works": 2000,
+          "max_weekly_hours": 0,
+          "min_daily_hours": 0,
+          "min_weekly_hours": 0,
+          "receive_alerts": 0,
+          "weekly_alert": 0
+        },
+        "user_area_id": "1",
+        "user_category_id": "1",
+        "username": "lemontech",
+        "visible": "0"
+      },
+      {
+        "active": "0",
+        "code": "39488757",
+        "cost_centre": "",
+        "email": "mia.hahn@example.com",
+        "firstname": "Carley",
+        "id": "2",
+        "lastname1": "Ortiz",
+        "lastname2": "Urrutia",
+        "name": "Carley Ortiz Urrutia",
+        "permissions": {
+          "activities": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "advanced_reporting": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "advances": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "agreements": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "applicants": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "applications": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "areas": [
+            "read",
+            "create",
+            "update"
+          ],
+          "bank_accounts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "banks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing": [
+            "create"
+          ],
+          "billing_document_statuses": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing_document_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing_documents": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "delete"
+          ],
+          "charges": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "client_groups": [
+            "read",
+            "create",
+            "update"
+          ],
+          "clients": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "codes": [
+            "read"
+          ],
+          "contacts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "countries": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "currencies": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "currencies_record": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "datastudio": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "errand_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "errands": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "expenses": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "expenses_categories": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "generators": [
+            "create",
+            "update",
+            "destroy"
+          ],
+          "holdings": [
+            "read"
+          ],
+          "languages": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "law_firms": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "legal_entities": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "logs": [
+            "read"
+          ],
+          "milestones": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "national_id_document_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_concepts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_conditions": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_sub_areas": [
+            "read"
+          ],
+          "payment_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payments": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "delete"
+          ],
+          "project_area_details": [
+            "read"
+          ],
+          "project_areas": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "project_sub_areas": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "project_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "projects": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "providers": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "rates": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "related_document_types": [
+            "read",
+            "create",
+            "update"
+          ],
+          "reports": [
+            "read"
+          ],
+          "retributions": [
+            "read"
+          ],
+          "reviews": [
+            "read"
+          ],
+          "roles": [
+            "read"
+          ],
+          "services": [
+            "read"
+          ],
+          "settings": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "tasks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "time_entries": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "review"
+          ],
+          "time_reviews": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "translations": [
+            "read"
+          ],
+          "user_areas": [
+            "read",
+            "create",
+            "update"
+          ],
+          "user_auth_tokens": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "user_categories": [
+            "read",
+            "create",
+            "update"
+          ],
+          "users": [
+            "read",
+            "update",
+            "create",
+            "destroy",
+            "read_others",
+            "update_others"
+          ],
+          "webhooks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ]
+        },
+        "phone": "+7168338683274",
+        "roles": [
+          {
+            "code": "DAT",
+            "name": "Admin. Datos"
+          },
+          {
+            "code": "ADM",
+            "name": "Administrador"
+          },
+          {
+            "code": "COB",
+            "name": "Cobranza"
+          },
+          {
+            "code": "EDI",
+            "name": "Editar Biblioteca"
+          },
+          {
+            "code": "OFI",
+            "name": "Oficina"
+          },
+          {
+            "code": "SOC",
+            "name": "Perfil Comercial"
+          },
+          {
+            "code": "PRO",
+            "name": "Profesional"
+          },
+          {
+            "code": "REP",
+            "name": "Reportes"
+          },
+          {
+            "code": "LEE",
+            "name": "Revisar Biblioteca"
+          },
+          {
+            "code": "REV",
+            "name": "Revisor"
+          },
+          {
+            "code": "TAR",
+            "name": "Tarifa"
+          },
+          {
+            "code": "ALL",
+            "name": "Usuario base"
+          }
+        ],
+        "settings": {
+          "daily_alert": 1,
+          "days_track_expenses": 30,
+          "days_track_works": 30,
+          "max_weekly_hours": 0,
+          "min_daily_hours": 0,
+          "min_weekly_hours": 0,
+          "receive_alerts": 0,
+          "weekly_alert": 0
+        },
+        "user_area_id": "1",
+        "user_category_id": "2",
+        "username": "Carley Ortiz",
+        "visible": "1"
+      },
+      {
+        "active": "1",
+        "code": "19069514",
+        "cost_centre": "",
+        "email": "sconnelly@example.com",
+        "firstname": "Russel",
+        "id": "3",
+        "lastname1": "Bednar",
+        "lastname2": "Panez",
+        "name": "Russel Bednar Panez",
+        "permissions": {
+          "activities": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "advanced_reporting": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "advances": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "agreements": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "applicants": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "applications": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "areas": [
+            "read",
+            "create",
+            "update"
+          ],
+          "bank_accounts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "banks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing": [
+            "create"
+          ],
+          "billing_document_statuses": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing_document_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "billing_documents": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "delete"
+          ],
+          "charges": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "client_groups": [
+            "read",
+            "create",
+            "update"
+          ],
+          "clients": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "codes": [
+            "read"
+          ],
+          "contacts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "countries": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "currencies": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "currencies_record": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "datastudio": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "errand_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "errands": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "expenses": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "expenses_categories": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "generators": [
+            "create",
+            "update",
+            "destroy"
+          ],
+          "holdings": [
+            "read"
+          ],
+          "languages": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "law_firms": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "legal_entities": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "logs": [
+            "read"
+          ],
+          "milestones": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "national_id_document_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_concepts": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_conditions": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payment_sub_areas": [
+            "read"
+          ],
+          "payment_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "payments": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "delete"
+          ],
+          "project_area_details": [
+            "read"
+          ],
+          "project_areas": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "project_sub_areas": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "project_types": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "projects": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "providers": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "rates": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "related_document_types": [
+            "read",
+            "create",
+            "update"
+          ],
+          "reports": [
+            "read"
+          ],
+          "retributions": [
+            "read"
+          ],
+          "reviews": [
+            "read"
+          ],
+          "roles": [
+            "read"
+          ],
+          "services": [
+            "read"
+          ],
+          "settings": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "tasks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "time_entries": [
+            "read",
+            "create",
+            "update",
+            "destroy",
+            "review"
+          ],
+          "time_reviews": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "translations": [
+            "read"
+          ],
+          "user_areas": [
+            "read",
+            "create",
+            "update"
+          ],
+          "user_auth_tokens": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ],
+          "user_categories": [
+            "read",
+            "create",
+            "update"
+          ],
+          "users": [
+            "read",
+            "update",
+            "create",
+            "destroy",
+            "read_others",
+            "update_others"
+          ],
+          "webhooks": [
+            "read",
+            "create",
+            "update",
+            "destroy"
+          ]
+        },
+        "phone": "+4257232208106",
+        "roles": [
+          {
+            "code": "DAT",
+            "name": "Admin. Datos"
+          },
+          {
+            "code": "ADM",
+            "name": "Administrador"
+          },
+          {
+            "code": "COB",
+            "name": "Cobranza"
+          },
+          {
+            "code": "EDI",
+            "name": "Editar Biblioteca"
+          },
+          {
+            "code": "OFI",
+            "name": "Oficina"
+          },
+          {
+            "code": "SOC",
+            "name": "Perfil Comercial"
+          },
+          {
+            "code": "PRO",
+            "name": "Profesional"
+          },
+          {
+            "code": "REP",
+            "name": "Reportes"
+          },
+          {
+            "code": "LEE",
+            "name": "Revisar Biblioteca"
+          },
+          {
+            "code": "REV",
+            "name": "Revisor"
+          },
+          {
+            "code": "TAR",
+            "name": "Tarifa"
+          },
+          {
+            "code": "ALL",
+            "name": "Usuario base"
+          }
+        ],
+        "settings": {
+          "daily_alert": 1,
+          "days_track_expenses": 30,
+          "days_track_works": 30,
+          "max_weekly_hours": 0,
+          "min_daily_hours": 0,
+          "min_weekly_hours": 0,
+          "receive_alerts": 0,
+          "weekly_alert": 0
+        },
+        "user_area_id": "1",
+        "user_category_id": "2",
+        "username": "Russel Bednar",
+        "visible": "1"
+      }
+    ],
+    "users_detail": {
+      "active": "1",
+      "code": "99511620",
+      "cost_centre": "lemontech",
+      "email": "as@lemontech.com",
+      "firstname": "Admin",
+      "id": "1",
+      "lastname1": "Lemontech",
+      "lastname2": "LEM",
+      "name": "Admin Lemontech LEM",
+      "permissions": {
+        "activities": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "advanced_reporting": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "advances": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "agreements": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "applicants": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "applications": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "areas": [
+          "read",
+          "create",
+          "update"
+        ],
+        "bank_accounts": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "banks": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "billing": [
+          "create"
+        ],
+        "billing_document_statuses": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "billing_document_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "billing_documents": [
+          "read",
+          "create",
+          "update",
+          "destroy",
+          "delete"
+        ],
+        "charges": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "client_groups": [
+          "read",
+          "create",
+          "update"
+        ],
+        "clients": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "codes": [
+          "read"
+        ],
+        "contacts": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "countries": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "currencies": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "currencies_record": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "datastudio": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "errand_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "errands": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "expenses": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "expenses_categories": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "generators": [
+          "create",
+          "update",
+          "destroy"
+        ],
+        "holdings": [
+          "read"
+        ],
+        "languages": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "law_firms": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "legal_entities": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "logs": [
+          "read"
+        ],
+        "milestones": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "national_id_document_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payment_concepts": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payment_conditions": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payment_sub_areas": [
+          "read"
+        ],
+        "payment_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payments": [
+          "read",
+          "create",
+          "update",
+          "destroy",
+          "delete"
+        ],
+        "project_area_details": [
+          "read"
+        ],
+        "project_areas": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "project_sub_areas": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "project_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "projects": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "providers": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "rates": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "related_document_types": [
+          "read",
+          "create",
+          "update"
+        ],
+        "reports": [
+          "read"
+        ],
+        "retributions": [
+          "read"
+        ],
+        "reviews": [
+          "read"
+        ],
+        "roles": [
+          "read"
+        ],
+        "services": [
+          "read"
+        ],
+        "settings": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "tasks": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "time_entries": [
+          "read",
+          "create",
+          "update",
+          "destroy",
+          "review"
+        ],
+        "time_reviews": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "translations": [
+          "read"
+        ],
+        "user_areas": [
+          "read",
+          "create",
+          "update"
+        ],
+        "user_auth_tokens": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "user_categories": [
+          "read",
+          "create",
+          "update"
+        ],
+        "users": [
+          "read",
+          "update",
+          "create",
+          "destroy",
+          "read_others",
+          "update_others"
+        ],
+        "webhooks": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ]
+      },
+      "phone": null,
+      "roles": [
+        {
+          "code": "DAT",
+          "name": "Admin. Datos"
+        },
+        {
+          "code": "ADM",
+          "name": "Administrador"
+        },
+        {
+          "code": "COB",
+          "name": "Cobranza"
+        },
+        {
+          "code": "OFI",
+          "name": "Oficina"
+        },
+        {
+          "code": "REP",
+          "name": "Reportes"
+        },
+        {
+          "code": "REV",
+          "name": "Revisor"
+        },
+        {
+          "code": "SADM",
+          "name": "Super Admin"
+        },
+        {
+          "code": "TAR",
+          "name": "Tarifa"
+        },
+        {
+          "code": "ALL",
+          "name": "Usuario base"
+        }
+      ],
+      "settings": {
+        "daily_alert": 1,
+        "days_track_expenses": 30,
+        "days_track_works": 2000,
+        "max_weekly_hours": 0,
+        "min_daily_hours": 0,
+        "min_weekly_hours": 0,
+        "receive_alerts": 0,
+        "weekly_alert": 0
+      },
+      "user_area_id": "1",
+      "user_category_id": "1",
+      "username": "lemontech",
+      "visible": "0"
+    },
+    "users_me": {
+      "active": "1",
+      "code": "soporte@panalbit.com",
+      "cost_centre": "",
+      "email": "soporte@panalbit.com",
+      "firstname": "Soporte",
+      "id": "72",
+      "lastname1": "Panalbit",
+      "lastname2": "",
+      "name": "Soporte Panalbit",
+      "permissions": {
+        "activities": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "advanced_reporting": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "advances": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "agreements": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "applicants": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "applications": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "areas": [
+          "read",
+          "create",
+          "update"
+        ],
+        "bank_accounts": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "banks": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "billing": [
+          "create"
+        ],
+        "billing_document_statuses": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "billing_document_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "billing_documents": [
+          "read",
+          "create",
+          "update",
+          "destroy",
+          "delete"
+        ],
+        "charges": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "client_groups": [
+          "read",
+          "create",
+          "update"
+        ],
+        "clients": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "codes": [
+          "read"
+        ],
+        "contacts": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "countries": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "currencies": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "currencies_record": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "datastudio": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "errand_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "errands": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "expenses": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "expenses_categories": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "generators": [
+          "create",
+          "update",
+          "destroy"
+        ],
+        "holdings": [
+          "read"
+        ],
+        "languages": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "law_firms": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "legal_entities": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "logs": [
+          "read"
+        ],
+        "milestones": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "national_id_document_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payment_concepts": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payment_conditions": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payment_sub_areas": [
+          "read"
+        ],
+        "payment_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "payments": [
+          "read",
+          "create",
+          "update",
+          "destroy",
+          "delete"
+        ],
+        "project_area_details": [
+          "read"
+        ],
+        "project_areas": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "project_sub_areas": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "project_types": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "projects": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "providers": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "rates": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "related_document_types": [
+          "read",
+          "create",
+          "update"
+        ],
+        "reports": [
+          "read"
+        ],
+        "retributions": [
+          "read"
+        ],
+        "reviews": [
+          "read"
+        ],
+        "roles": [
+          "read"
+        ],
+        "services": [
+          "read"
+        ],
+        "settings": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "tasks": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "time_entries": [
+          "read",
+          "create",
+          "update",
+          "destroy",
+          "review"
+        ],
+        "time_reviews": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "translations": [
+          "read"
+        ],
+        "user_areas": [
+          "read",
+          "create",
+          "update"
+        ],
+        "user_auth_tokens": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ],
+        "user_categories": [
+          "read",
+          "create",
+          "update"
+        ],
+        "users": [
+          "read",
+          "update",
+          "create",
+          "destroy",
+          "read_others",
+          "update_others"
+        ],
+        "webhooks": [
+          "read",
+          "create",
+          "update",
+          "destroy"
+        ]
+      },
+      "phone": null,
+      "roles": [
+        {
+          "code": "DAT",
+          "name": "Admin. Datos"
+        },
+        {
+          "code": "ADM",
+          "name": "Administrador"
+        },
+        {
+          "code": "COB",
+          "name": "Cobranza"
+        },
+        {
+          "code": "COSTOS",
+          "name": "Costo profesional"
+        },
+        {
+          "code": "DMS",
+          "name": "DMS"
+        },
+        {
+          "code": "EDI",
+          "name": "Editar Biblioteca"
+        },
+        {
+          "code": "OFI",
+          "name": "Oficina"
+        },
+        {
+          "code": "SOC",
+          "name": "Perfil Comercial"
+        },
+        {
+          "code": "PRO",
+          "name": "Profesional"
+        },
+        {
+          "code": "REP",
+          "name": "Reportes"
+        },
+        {
+          "code": "LEE",
+          "name": "Revisar Biblioteca"
+        },
+        {
+          "code": "REV",
+          "name": "Revisor"
+        },
+        {
+          "code": "SEC",
+          "name": "Secretaría"
+        },
+        {
+          "code": "SASU",
+          "name": "Sólo Asuntos"
+        },
+        {
+          "code": "SADM",
+          "name": "Super Admin"
+        },
+        {
+          "code": "TAR",
+          "name": "Tarifa"
+        },
+        {
+          "code": "ALL",
+          "name": "Usuario base"
+        }
+      ],
+      "settings": {
+        "daily_alert": 0,
+        "days_track_expenses": 30,
+        "days_track_works": 30,
+        "max_weekly_hours": 0,
+        "min_daily_hours": 0,
+        "min_weekly_hours": 0,
+        "receive_alerts": 0,
+        "weekly_alert": 0
+      },
+      "user_area_id": "10",
+      "user_category_id": "8",
+      "username": "Soporte Panalbit",
+      "visible": "1"
+    },
+    "webhooks": [
+      {
+        "active": "1",
+        "events": "create,update,destroy",
+        "id": "1",
+        "last_failure_at": null,
+        "last_failure_content": null,
+        "last_status": "201",
+        "last_success_at": null,
+        "resource": "clients",
+        "target": "https://torrettiqa.sladesk.com/main/integrations/tb/webhooks/receive"
+      }
+    ]
+  },
+  "login": {
+    "user_id": "72"
+  }
+}

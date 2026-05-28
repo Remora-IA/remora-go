@@ -1,0 +1,622 @@
+meta:
+  project: remora-go-lite
+  built_at: "2026-05-17T10:30:00Z"
+  code_hash: "c19d061c8ecf5ff5"
+  run_id: "20260516202204"
+  components: [remora-cli, remora-flujo, channel]
+  total_functions: 89
+  total_features: 7
+
+features:
+  flow-workbench-cli:
+    description: "CLI principal para flujos: create, draft, inspect, simulate, debug (delegado)"
+    components: [remora-cli, remora-flujo]
+    entry_points:
+      - fn: handleFlowWorkbench
+        component: remora-cli
+        file: remora-cli/cmd/remora/flow_workbench.go
+        line: 237
+    call_chain:
+      - "remora-cli/handleFlowWorkbench → args[0]=='debug' → handleDebugCommand  [flow_workbench.go:237]"
+      - "remora-cli/handleFlowWorkbench → args[0]=='flow' → delegateToCanonicalFlowWorkbench  [flow_workbench.go:237]"
+      - "remora-cli/delegateToCanonicalFlowWorkbench → exec.Command('flujo', ...)  [flow_workbench.go:895]"
+      - "remora-flujo/flujo main → flowWorkbenchCommand"
+    files_involved:
+      - component: remora-cli
+        file: remora-cli/cmd/remora/flow_workbench.go
+        lines: "237-1565"
+      - component: remora-cli
+        file: remora-cli/cmd/remora/main.go
+        lines: "47-115"
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_run.go
+        lines: "10-80"
+    interfaces_crossed: [remora_cli_to_api_rest, remora_cli_to_flujo_cli]
+    axioms_enforced: [axiom-all-debug-routed-to-delegation]
+    unknowns: []
+
+  flow-debug-stepwise:
+    description: "Debug paso a paso de flujos con breakpoints y streaming SSE"
+    components: [remora-cli, remora-flujo]
+    entry_points:
+      - fn: handleDebugCommand (local) / flujo flow debug (delegado)
+        component: remora-cli
+        file: remora-cli/cmd/remora/flow_workbench.go
+        line: 274
+    call_chain:
+      - "remora-cli/handleDebugCommand → handleDebugFrameworks|Manifest|Validate|Simulate|Trace  [flow_workbench.go:274]"
+      - "remora-cli/handleDebugTrace → c.get('/flows/runs/...')  [flow_workbench.go:505]"
+      - "remora-cli/delegateToCanonicalFlowWorkbench → flujo flow debug → runFlowStream  [flow_workbench.go:880]"
+    files_involved:
+      - component: remora-cli
+        file: remora-cli/cmd/remora/flow_workbench.go
+        lines: "274-625"
+    interfaces_crossed: [remora_cli_to_api_rest]
+    axioms_enforced: []
+    unknowns:
+      - symbol: handleFlowDebug
+        reason: "Función prometida en usage (línea 920) pero NO EXISTE en remora-cli"
+        impact: "remora flow debug se delega a flujo CLI en lugar de ejecutarse localmente"
+
+  flow-execution:
+    description: "Ejecución de flujos: run, simulate, validate con providers y artifacts"
+    components: [remora-flujo]
+    entry_points:
+      - fn: runFlow
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_run.go
+        line: 10
+      - fn: validateFlow
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_backend.go
+        line: 530
+      - fn: simulateFlow
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_backend.go
+        line: 590
+    call_chain:
+      - "remora-flujo/runFlow → runFlowManifest → executeFlowNode  [flow_run.go:10]"
+      - "remora-flujo/executeFlowNode → findProviderForCapability → ch.ExecuteCommand  [flow_execution.go:15]"
+      - "remora-flujo/runFlowStream → SSE streaming  [flow_run.go:40]"
+    files_involved:
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_run.go
+        lines: "10-80"
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_runner.go
+        lines: "1-200"
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_execution.go
+        lines: "15-150"
+    interfaces_crossed: [remora_flujo_to_channel]
+    axioms_enforced: [axiom-all-flows-persist-artifacts]
+    unknowns: []
+
+  flow-channel-execution:
+    description: "Proxy de ejecución de comandos via channel - adapter seguro"
+    components: [remora-flujo, channel]
+    entry_points:
+      - fn: executeFlowNode
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_execution.go
+        line: 15
+    call_chain:
+      - "remora-flujo/executeFlowNode → resolvePortableCommandArgs → exec.Command(channel, ...)  [flow_channel.go:56]"
+      - "channel/main → ExecuteCommand → exec.CommandContext  [channel/cmd/channel/main.go:15]"
+      - "channel/ExecuteCommand → ValidateSecurity → IsCommandAllowed  [channel/internal/exec.go:14]"
+    files_involved:
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_channel.go
+        lines: "56-134"
+      - component: channel
+        file: channel/cmd/channel/main.go
+        lines: "15-76"
+      - component: channel
+        file: channel/internal/exec.go
+        lines: "14-22"
+      - component: channel
+        file: channel/internal/handler.go
+        lines: "29-192"
+    interfaces_crossed: []
+    axioms_enforced: [axiom-channel-whitelist-enforced]
+    unknowns: []
+
+  framework-drivers:
+    description: "Orquestación de drivers de frameworks (alfa, echo, foco, sabio, mecanico)"
+    components: [remora-flujo]
+    entry_points:
+      - fn: findProviderForCapability
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_execution.go
+        line: 15
+    call_chain:
+      - "remora-flujo/executeFlowNode → Driver.ExecuteCommand → exec.Command(frameworkX, ...)  [flow_execution.go:15]"
+      - "remora-flujo/drivers.go:resolveProvider → exec.Command(alfa|echo|...)  [drivers.go:358]"
+    files_involved:
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_execution.go
+        lines: "15-150"
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/drivers.go
+        lines: "358-400"
+    interfaces_crossed: []
+    axioms_enforced: []
+    unknowns: []
+
+  auth-and-business:
+    description: "Autenticación, membresías de negocio, y gestión de usuarios"
+    components: [remora-flujo]
+    entry_points:
+      - fn: handleAuthLogin
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/auth_handlers.go
+        line: 68
+      - fn: handleBusinessCreate
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/auth_handlers.go
+        line: 130
+    call_chain:
+      - "remora-flujo/handleAuthLogin → authStore.createSession"
+      - "remora-flujo/requireCurrentUser → validate token → return user"
+    files_involved:
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/auth_handlers.go
+        lines: "42-415"
+    interfaces_crossed: []
+    axioms_enforced: [axiom-auth-required-for-business-ops]
+    unknowns: []
+
+  data-mediation:
+    description: "Mediación de datos: contactos, SMTP, pipelines de artifact"
+    components: [remora-flujo, channel]
+    entry_points:
+      - fn: ensureDataPipeline
+        component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_data_pipeline.go
+        line: 20
+    call_chain:
+      - "remora-flujo/ensureDataPipeline → ensureContactDestinationPipeline → exec.Command(sabio, ...)  [flow_data_pipeline.go:39]"
+      - "remora-flujo/ensureSMTPCredentialsPipeline → verifySMTPCredentialsReal → exec.Command(vault, ...)  [flow_data_pipeline.go:255]"
+    files_involved:
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/flow_data_pipeline.go
+        lines: "20-338"
+      - component: remora-flujo
+        file: remora-flujo/cmd/api_rest/contactos.go
+        lines: "51-83"
+    interfaces_crossed: []
+    axioms_enforced: []
+    unknowns: []
+
+interfaces:
+  remora_cli_to_api_rest:
+    type: http
+    from:
+      component: remora-cli
+      file: remora-cli/cmd/remora/main.go
+      line: 71
+      code: "Client.get(path) / Client.post(path, body)"
+    to:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/*.go
+      line: 0
+      fn: "handle* handlers (HTTP)"
+    protocol: "REST over HTTP, JSON payloads, Bearer token auth"
+    verifiable: true
+    arg_mapping: "Client method → HTTP method, path → route, body → request body"
+
+  remora_cli_to_flujo_cli:
+    type: exec
+    from:
+      component: remora-cli
+      file: remora-cli/cmd/remora/flow_workbench.go
+      line: 895
+      code: "exec.Command(\"flujo\", \"flow\", args...)"
+    to:
+      component: remora-flujo
+      file: remora-flujo/cmd/flujo/main.go
+      line: 0
+      fn: main → flowWorkbenchCommand
+    protocol: "Args passthrough, stdin/stdout/stderr heredados"
+    verifiable: false
+    arg_mapping: "remora-cli args[1:] → flujo os.Args[1:]"
+
+  remora_flujo_to_channel:
+    type: exec
+    from:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/flow_channel.go
+      line: 56
+      code: "exec.Command(\"channel\", ...)"
+    to:
+      component: channel
+      file: channel/cmd/channel/main.go
+      line: 15
+      fn: main → ExecuteCommand
+    protocol: "JSON-RPC sobre stdin/stdout"
+    verifiable: true
+    arg_mapping: "command + args → JSONRPCRequest"
+
+  remora_flujo_to_vault:
+    type: exec
+    from:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/main.go
+      line: 1111
+      code: "exec.Command(\"vault\", \"set\" / \"has\", ...)"
+    to:
+      component: channel
+      file: channel/cmd/vault/main.go
+      line: 0
+      fn: main
+    protocol: "Args, exit code 0 = success"
+    verifiable: true
+    arg_mapping: "conv + key + stdin → vault store"
+
+  remora_flujo_to_framework_drivers:
+    type: exec
+    from:
+      component: remora-flujo
+      file: remora-flujo/cmd/api_rest/flow_execution.go
+      line: 15
+      code: "Driver.ExecuteCommand() → exec.Command(frameworkX, ...)"
+    to:
+      component: external
+      file: ""
+      line: 0
+      fn: "framework-{alfa,echo,foco,sabio,mecanico}"
+    protocol: "Args con parámetros, salida JSON"
+    verifiable: false
+    arg_mapping: "capability + params → framework args"
+
+functions:
+  handleFlowWorkbench:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 237
+    role: "Entry point del workbench - routing de subcomandos flow/debug"
+    feature: flow-workbench-cli
+    callers: [main]
+    callees: [handleDebugCommand, delegateToCanonicalFlowWorkbench]
+    interfaces_out: [remora_cli_to_flujo_cli]
+
+  handleDebugCommand:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 274
+    role: "Dispatcher de subcomandos debug: frameworks/manifest/commands/capabilities/trace/validate/simulate/dependencies"
+    feature: flow-debug-stepwise
+    callers: [handleFlowWorkbench]
+    callees: [handleDebugFrameworks, handleDebugManifest, handleDebugCommands, handleDebugCapabilities, handleDebugTrace, handleDebugValidate, handleDebugSimulate, handleDebugDependencies]
+    interfaces_out: [remora_cli_to_api_rest]
+
+  handleDebugFrameworks:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 310
+    role: "Lista frameworks disponibles del backend"
+    feature: flow-debug-stepwise
+    callers: [handleDebugCommand]
+    callees: [newClient]
+    interfaces_out: [remora_cli_to_api_rest]
+
+  handleDebugManifest:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 373
+    role: "Muestra manifest completo de un framework"
+    feature: flow-debug-stepwise
+    callers: [handleDebugCommand]
+    callees: [newClient]
+    interfaces_out: [remora_cli_to_api_rest]
+
+  handleDebugTrace:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 505
+    role: "Muestra timeline de ejecución de un run"
+    feature: flow-debug-stepwise
+    callers: [handleDebugCommand]
+    callees: [newClient]
+    interfaces_out: [remora_cli_to_api_rest]
+
+  handleDebugValidate:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 539
+    role: "Valida un flujo contra los frameworks instalados"
+    feature: flow-debug-stepwise
+    callers: [handleDebugCommand]
+    callees: [newClient]
+    interfaces_out: [remora_cli_to_api_rest]
+
+  handleDebugSimulate:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 572
+    role: "Simula dry-run de un flujo"
+    feature: flow-debug-stepwise
+    callers: [handleDebugCommand]
+    callees: [newClient]
+    interfaces_out: [remora_cli_to_api_rest]
+
+  delegateToCanonicalFlowWorkbench:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 880
+    role: "Delega ejecución a flujo CLI canónico via exec.Command"
+    feature: flow-workbench-cli
+    callers: [handleFlowWorkbench]
+    callees: [canonicalFlowWorkbenchCommand]
+    interfaces_out: [remora_cli_to_flujo_cli]
+
+  canonicalFlowWorkbenchCommand:
+    component: remora-cli
+    file: remora-cli/cmd/remora/flow_workbench.go
+    line: 895
+    role: "Construye comando exec para flujo canónico (go run ./cmd/flujo o fluxo en PATH)"
+    feature: flow-workbench-cli
+    callers: [delegateToCanonicalFlowWorkbench]
+    callees: []
+    interfaces_out: [remora_cli_to_flujo_cli]
+
+  newClient:
+    component: remora-cli
+    file: remora-cli/cmd/remora/main.go
+    line: 60
+    role: "Factory de Client HTTP apuntando a REMORA_API_URL"
+    feature: flow-workbench-cli
+    callers: [handleDebugFrameworks, handleDebugManifest, handleDebugTrace, handleDebugValidate, handleDebugSimulate, handleDebugDependencies, handleFlowCreate, handleFlowDraft, handleFlowInspect, handleFlowSimulate]
+    callees: []
+    interfaces_out: [remora_cli_to_api_rest]
+
+  Client.get:
+    component: remora-cli
+    file: remora-cli/cmd/remora/main.go
+    line: 71
+    role: "HTTP GET con Bearer auth"
+    feature: flow-workbench-cli
+    callers: [handleDebugFrameworks, handleDebugManifest, handleDebugTrace, handleDebugDependencies]
+    callees: []
+    interfaces_out: [remora_cli_to_api_rest]
+
+  Client.post:
+    component: remora-cli
+    file: remora-cli/cmd/remora/main.go
+    line: 93
+    role: "HTTP POST con Bearer auth y JSON body"
+    feature: flow-workbench-cli
+    callers: [handleDebugValidate, handleDebugSimulate, handleFlowCreate, handleFlowDraft, handleFlowSimulate]
+    callees: []
+    interfaces_out: [remora_cli_to_api_rest]
+
+  runFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_run.go
+    line: 10
+    role: "Entry point HTTP para ejecutar flujo completo"
+    feature: flow-execution
+    callers: []
+    callees: [runFlowManifest]
+    interfaces_out: [remora_flujo_to_channel]
+
+  runFlowStream:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_run.go
+    line: 40
+    role: "Ejecución con streaming SSE para debug en tiempo real"
+    feature: flow-execution
+    callers: []
+    callees: [runFlowManifest]
+    interfaces_out: [remora_flujo_to_channel]
+
+  executeFlowNode:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_execution.go
+    line: 15
+    role: "Ejecuta un nodo individual del flujo - trova provider, check preflight, resolve artifacts, execute action"
+    feature: flow-execution
+    callers: [runFlowManifest]
+    callees: [resolvePortableCommandArgs, recordNodeArtifacts]
+    interfaces_out: [remora_flujo_to_channel]
+
+  validateFlow:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_backend.go
+    line: 530
+    role: "Valida manifest de flujo contra frameworks"
+    feature: flow-execution
+    callers: []
+    callees: [validateFlowManifest]
+    interfaces_out: []
+
+  resolvePortableCommandArgs:
+    component: remora-flujo
+    file: remora-flujo/cmd/api_rest/flow_execution.go
+    line: 125
+    role: "Resuelve argumentos portables de comando (inputs/outputs/params)"
+    feature: flow-execution
+    callers: [executeFlowNode]
+    callees: []
+    interfaces_out: []
+
+  ExecuteCommand (channel):
+    component: channel
+    file: channel/internal/exec.go
+    line: 14
+    role: "Ejecuta comando del sistema con timeout y validación de seguridad"
+    feature: flow-channel-execution
+    callers: [ExecuteCommandWithEnv]
+    callees: [ValidateSecurity]
+    interfaces_out: []
+
+  ValidateSecurity (channel):
+    component: channel
+    file: channel/internal/security.go
+    line: 21
+    role: "Valida que comando y path estén en whitelist y sean seguros"
+    feature: flow-channel-execution
+    callers: [ExecuteCommand]
+    callees: [IsCommandAllowed, ValidatePath]
+    interfaces_out: []
+
+  IsCommandAllowed:
+    component: channel
+    file: channel/internal/whitelist.go
+    line: 97
+    role: "Verifica si comando está en lista blanca de comandos permitidos"
+    feature: flow-channel-execution
+    callers: [ValidateSecurity]
+    callees: []
+    interfaces_out: []
+
+  Handle (channel HTTP):
+    component: channel
+    file: channel/internal/handler.go
+    line: 50
+    role: "HTTP handler que recibe requests y los rutea a ExecuteCommand"
+    feature: flow-channel-execution
+    callers: []
+    callees: [ExecuteCommand]
+    interfaces_out: []
+
+axioms:
+  axiom-all-debug-routed-to-delegation:
+    description: "Todos los comandos 'remora flow ...' que no son debug puro se delegan automáticamente al flujo CLI canónico"
+    scope: remora-cli
+    cpgql_query: |
+      cpg.call.name("Command").where(_.argument.code("flujo")).code.l
+    status: clean
+    violations: []
+    auto_detected: true
+
+  axiom-all-debug-routed-to-delegation-v2:
+    description: "El caso 'args[0]==flow && args[1]==debug' NO está capturado localmente - se delega a flujo canónico"
+    scope: remora-cli
+    cpgql_query: |
+      cpg.method.name("handleFlowWorkbench").ast.isCall.code(".*debug.*").l
+    status: clean
+    violations: []
+    auto_detected: true
+
+  axiom-channel-whitelist-enforced:
+    description: "channel SIEMPRE valida comandos contra whitelist antes de ejecutar"
+    scope: channel
+    cpgql_query: |
+      cpg.method.name("ExecuteCommand").controlStructure.condition.code(".*IsCommandAllowed.*").l
+    status: clean
+    violations: []
+    auto_detected: true
+
+  axiom-all-flows-persist-artifacts:
+    description: "Todo flujo que ejecuta nodos persiste artifacts antes de completar"
+    scope: remora-flujo
+    cpgql_query: |
+      cpg.method.name("runFlowManifest").callee.name("recordNodeArtifacts").l
+    status: clean
+    violations: []
+    auto_detected: true
+
+  axiom-auth-required-for-business-ops:
+    description: "Todas las operaciones de negocio requieren autenticación válida"
+    scope: remora-flujo
+    cpgql_query: |
+      cpg.method.name("requireCurrentUser").callIn.ast.isControlStructure.code(".*401.*").l
+    status: clean
+    violations: []
+    auto_detected: true
+
+  axiom-handleflowdebug-missing:
+    description: "handleFlowDebug NO EXISTE en remora-cli - comando 'remora flow debug' se delega automáticamente"
+    scope: remora-cli
+    cpgql_query: |
+      cpg.method.name("handleFlowDebug").l
+    status: violated
+    violations:
+      - symbol: handleFlowDebug
+        file: remora-cli/cmd/remora/flow_workbench.go
+        line: 0
+        detail: "Función prometida en printFlowWorkbenchUsage() línea 920 pero no implementada"
+    auto_detected: true
+
+  axiom-client-stream-missing:
+    description: "Client.stream() NO EXISTE en remora-cli - streaming SSE no disponible localmente"
+    scope: remora-cli
+    cpgql_query: |
+      cpg.method.name("stream").where(_.receiver.typeFullName(".*Client.*")).l
+    status: violated
+    violations:
+      - symbol: Client.stream
+        file: remora-cli/cmd/remora/main.go
+        line: 0
+        detail: "Streaming SSE no disponible en CLI - existe en remora-flujo flowWorkbenchClient.stream()"
+    auto_detected: true
+
+gaps:
+  - symbol: handleFlowDebug
+    component: remora-cli
+    status: NO_EXISTE
+    detail: "Función prometida en printFlowWorkbenchUsage() línea 920 para 'remora flow debug --id <flow_id>'. El routing actual delega automáticamente a flujo CLI canónico."
+
+  - symbol: printFlowDebugUsage
+    component: remora-cli
+    status: NO_EXISTE
+    detail: "Función de usage para 'remora flow debug' - usar como template printDebugUsage() línea 259"
+
+  - symbol: Client.stream
+    component: remora-cli
+    status: NO_EXISTE
+    detail: "Método de streaming SSE - existe en remora-flujo flowWorkbenchClient.stream() para /flows/run/stream"
+
+  - symbol: flowDebugCmd (flag.FlagSet)
+    component: remora-cli
+    status: NO_EXISTE
+    detail: "FlagSet para parsear flags de debug: --id, --fixtures, --input, --step, --break-on"
+
+  - symbol: routing-case-flow-debug
+    component: remora-cli
+    status: NO_EXISTE
+    detail: "Caso en handleFlowWorkbench() para args[0]=='flow' && args[1]=='debug' - actualmente delega a canonical sin capturar"
+
+sinks:
+  - type: exec
+    component: remora-cli
+    location: remora-cli/cmd/remora/flow_workbench.go:895
+    risk: command-injection
+    detail: "exec.Command('flujo', 'flow', args...) - args del usuario se pasan directamente a comando shell"
+
+  - type: exec
+    component: remora-flujo
+    location: remora-flujo/cmd/api_rest/flow_channel.go:56
+    risk: command-injection
+    detail: "exec.Command('channel', ...) - comando validado pero ejecución shell"
+
+  - type: exec
+    component: remora-flujo
+    location: remora-flujo/cmd/api_rest/flow_channel.go:134
+    risk: command-injection
+    detail: "exec.Command('go', 'build', ...) - build dinámico"
+
+  - type: exec
+    component: channel
+    location: channel/internal/exec.go:14
+    risk: command-injection
+    detail: "exec.CommandContext() final - whitelist validado pero exec nativo"
+
+  - type: network
+    component: remora-cli
+    location: remora-cli/cmd/remora/main.go:71
+    risk: credential-exposure
+    detail: "HTTP requests con Bearer token - token en header Authorization"
+
+  - type: file
+    component: remora-flujo
+    location: remora-flujo/cmd/api_rest/flow_artifacts.go:328
+    risk: path-traversal
+    detail: "persistFlowArtifact - escritura de artifacts basada en runID/nodeID"
+
+  - type: env
+    component: remora-flujo
+    location: remora-flujo/cmd/api_rest/main.go:1111
+    risk: credential-handling
+    detail: "exec.Command('vault', 'set', ...) - manejo de credenciales via exec"

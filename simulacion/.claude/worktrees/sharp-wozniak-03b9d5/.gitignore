@@ -1,0 +1,124 @@
+# =============================================================================
+# Remora Go - .gitignore
+# =============================================================================
+# Regla general: en este repo se versiona SOLO codigo fuente y configuracion.
+# Todo lo demas (build artifacts, runtime state, secrets, logs) NO va al repo.
+#
+# Si tu archivo no esta tracked y "git status" lo muestra, agrega su patron
+# aqui en lugar de hacer "git add -f".
+# =============================================================================
+
+# --- macOS / editores -------------------------------------------------------
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# --- Build artifacts (binarios compilados) ----------------------------------
+# Los binarios se regeneran con `go build` o Cloud Build. NUNCA versionar.
+bin/
+**/bin/
+
+# Binarios por framework (mismo nombre que el paquete)
+channel/channel
+channel/channel-new
+channel/orchestrator
+channel/cmd/channel/channel
+channel/cmd/vault/vault
+framework-alfa/frameworkalfa
+framework-arquitecto/frameworkarquitecto
+framework-auditor/frameworkauditor
+framework-charlie/charlie
+framework-critico/frameworkcritico
+framework-echo/frameworkecho
+framework-excel/frameworkexcel
+framework-foco/foco
+framework-foco/frameworkfoco
+framework-foco/foco_state.json
+framework-gmail/framework-gmail
+framework-gmail/frameworkgmail
+framework-hosting/frameworkhosting
+framework-indexa/frameworkindexa
+framework-indexa/panalbit-sync
+framework-mecanico/frameworkmecanico
+framework-mecanico/mecanico
+framework-mensajero/frameworkmensajero
+framework-paladin/bin/
+framework-paladin/frameworkpaladin
+framework-pingpong/framework-pingpong
+framework-pingpong/pingpong
+framework-pingpong/two_sum
+framework-quine/quine
+framework-radar/frameworkradar
+framework-sabio/frameworksabio
+framework-tareas/frameworktareas
+remora-cli/remora
+remora-flujo/flujo
+remora-flujo/flujo_api
+remora-flujo/api_rest
+remora-flujo/flujo_test
+remora-flujo/framework_session
+remora-flujo/agentrpc
+remora-flujo/cmd/api_rest/api_rest
+remora-flujo/cmd/api_rest/channel
+remora-flujo/cmd/api_rest/flujo_api
+
+# Go build/test outputs
+*.test
+*.out
+coverage.out
+coverage.html
+
+# --- Runtime state (datos por instancia, no compartidos) --------------------
+# Cada framework escribe estado/cache aqui. Cada deploy parte limpio.
+temp/
+**/temp/
+
+# --- Logs y traces ----------------------------------------------------------
+# Regenerables. Nunca aportan valor versionarlos.
+trace_pal_*.json
+trace_gf_*.json
+*.log
+
+# Sessions del orquestador (logs por conversacion)
+sessions/
+
+# --- Secrets (NUNCA versionar) ----------------------------------------------
+# Variables de entorno: usar .env.example como template, nunca .env real.
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Credenciales encriptadas (incluso encriptadas, no van al repo)
+*.enc
+creds_*.enc
+
+# Vault local
+channel/vault_data/
+**/vault_data/
+
+# --- Bases de datos (data del cliente, no versionable) ----------------------
+# panalbit.db, profiles/*/data.db, etc. SQLite con datos reales del cliente.
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# --- Charlie internals ------------------------------------------------------
+framework-charlie/temp/
+framework-charlie/temp/applied.jsonl
+framework-charlie/temp/paladin/
+
+# --- Auditor / Mecanico working data ---------------------------------------
+framework-auditor/data/working.json
+framework-auditor/data/findings.json
+framework-mecanico/data/applied.jsonl
+framework-mecanico/data/proposals.json
+
+# --- Session state (datos de sesion activa, regenerables) -------------------
+framework-echo/frameworkecho.json
+framework-echo/frameworkecho_backup_*.json
+framework-bravo/examples/*/temp/

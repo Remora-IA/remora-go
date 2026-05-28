@@ -1,0 +1,53 @@
+flowchart LR
+  clients["clients<br/>Clientes/deudores"]
+  projects["projects<br/>Proyectos/casos"]
+  agreements["agreements<br/>Contratos/acuerdos"]
+  charges["charges<br/>Cargos/cobros"]
+  milestones["milestones<br/>Hitos de cobro"]
+  billing_documents["billing_documents<br/>Facturas/documentos"]
+  payments["payments<br/>Pagos"]
+  expenses["expenses<br/>Gastos"]
+  time_entries["time_entries<br/>Horas/trabajo"]
+  users["users<br/>Usuarios internos"]
+  currencies["currencies<br/>Monedas"]
+  project_areas["project_areas<br/>Áreas de proyecto"]
+  project_types["project_types<br/>Tipos de proyecto"]
+  user_areas["user_areas<br/>Áreas de usuario"]
+  user_categories["user_categories<br/>Categorías de usuario"]
+  client_groups["client_groups<br/>Grupos de clientes"]
+  banks["banks<br/>Bancos"]
+  bank_accounts["bank_accounts<br/>Cuentas bancarias"]
+  law_firms["law_firms<br/>Estudios jurídicos"]
+
+  clients -->|"id = client_id"| projects
+  clients -->|"id = client_id"| agreements
+  clients -->|"id = client_id"| charges
+  clients -->|"id = client_id"| billing_documents
+  clients -->|"id = client_id"| payments
+  clients -->|"id = client_id"| expenses
+  client_groups -->|"id = group_id"| clients
+
+  agreements -->|"id = agreement_id"| projects
+  agreements -->|"id = agreement_id"| charges
+  agreements -->|"id = agreement_id"| milestones
+
+  charges -->|"id = charge_id"| billing_documents
+  charges -->|"id = charge_id"| milestones
+
+  projects -->|"id = project_id"| expenses
+  projects -->|"code = project_code"| time_entries
+  project_areas -->|"id = project_area_id"| projects
+  project_types -->|"id = project_type_id"| projects
+  currencies -->|"code = currency_code"| projects
+
+  users -->|"id = user_id"| time_entries
+  user_areas -->|"id = user_area_id"| users
+  user_categories -->|"id = user_category_id"| users
+
+  currencies -->|"id = currency_id"| payments
+  banks -->|"id = bank_id"| bank_accounts
+  currencies -->|"id = currency_id"| bank_accounts
+
+  law_firms -.-|"sin relación visible en la DB actual"| clients
+  law_firms -.-|"sin relación visible en la DB actual"| projects
+  law_firms -.-|"sin relación visible en la DB actual"| charges

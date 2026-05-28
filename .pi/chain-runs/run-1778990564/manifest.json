@@ -1,0 +1,13 @@
+{
+  "runId": "run-1778990564",
+  "project": "remora-go-lite",
+  "codeHash": "5f3d64e50f60c935",
+  "components": ["remora-cli","remora-flujo","channel"],
+  "steps": {
+    "pi-cpg-builder": {
+      "status": "completed",
+      "step": "00",
+      "timestamp": "2026-05-17T04:02:44Z"
+    }
+  }
+}

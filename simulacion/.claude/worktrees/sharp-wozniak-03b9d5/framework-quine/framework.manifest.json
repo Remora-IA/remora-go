@@ -1,0 +1,62 @@
+{
+  "name": "quine",
+  "version": "0.1.0",
+  "description": "Generador y revisor de frameworks. Crea nuevos frameworks desde spec, los registra, y verifica calidad con checklists automáticos.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "quine", "./cmd/quine"]
+  },
+  "binary": {
+    "command": "./quine",
+    "args_prefix": []
+  },
+  "cwd": "framework-quine",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "commands": {
+    "create": {
+      "description": "Crea un nuevo framework desde spec",
+      "args": ["create", "--name", "{params.name}", "--role", "{params.role}"],
+      "params": ["name", "role"]
+    },
+    "review": {
+      "description": "Revisa calidad de un framework existente",
+      "args": ["review", "--name", "{params.name}"],
+      "params": ["name"]
+    },
+    "list": {
+      "description": "Lista frameworks existentes",
+      "args": ["list"],
+      "params": []
+    },
+    "spec": {
+      "description": "Genera spec para un framework",
+      "args": ["spec", "--name", "{params.name}"],
+      "params": ["name"]
+    },
+    "fix": {
+      "description": "Corrige problemas detectados por review",
+      "args": ["fix", "--name", "{params.name}", "--check", "{params.check}"],
+      "params": ["name", "check"]
+    }
+  },
+  "user_input": {
+    "supported": false
+  },
+  "capabilities_semantic": {
+    "tags": ["meta", "generator", "quality", "review"],
+    "intent_examples": [
+      "crear un nuevo framework",
+      "revisar la calidad de un framework",
+      "qué frameworks existen"
+    ],
+    "produces": ["framework_scaffold", "quality_report"],
+    "requires": []
+  }
+}

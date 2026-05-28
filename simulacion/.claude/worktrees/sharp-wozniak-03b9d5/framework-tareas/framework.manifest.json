@@ -1,0 +1,88 @@
+{
+  "name": "tareas",
+  "version": "0.1.0",
+  "description": "Task ledger canónico por perfil. Mantiene la tabla estándar tasks + task_events y expone capabilities task.list / task.next / task.create / task.complete / task.event. Es la verdad del estado del trabajo del día: Foco crea tasks al iniciar la jornada, los frameworks de acción (mensajero, etc.) emiten eventos al completar, y cualquier consumidor lee la próxima tarea sin acoplarse a quién la ejecuta.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-buildvcs=false", "-o", "frameworktareas", "./cmd/frameworktareas"]
+  },
+  "binary": {
+    "command": "./frameworktareas",
+    "args_prefix": []
+  },
+  "cwd": "framework-tareas",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "commands": {
+    "next-question": {
+      "description": "No conversa: idle por defecto",
+      "args": ["next-question", "--conv-id", "{params.conv_id}"],
+      "params": ["conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "ingest-answer": {
+      "description": "No-op por compatibilidad con el contrato conversacional",
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}", "--conv-id", "{params.conv_id}"],
+      "params": ["question_id", "answer", "conv_id"],
+      "defaults": {"conv_id": ""}
+    },
+    "list": {
+      "description": "Lista tareas del perfil. Filtros opcionales por status.",
+      "args": ["list", "--profile", "{params.profile}", "--status", "{params.status}"],
+      "params": ["profile", "status"],
+      "defaults": {"status": ""}
+    },
+    "next": {
+      "description": "Devuelve la próxima tarea pendiente (mayor prioridad).",
+      "args": ["next", "--profile", "{params.profile}"],
+      "params": ["profile"]
+    },
+    "create": {
+      "description": "Crea una tarea. Imprime JSON {success, id}.",
+      "args": ["create", "--profile", "{params.profile}", "--entity-type", "{params.entity_type}", "--entity-ref", "{params.entity_ref}", "--action", "{params.action}", "--priority", "{params.priority}", "--title", "{params.title}"],
+      "params": ["profile", "entity_type", "entity_ref", "action", "priority", "title"],
+      "defaults": {"priority": "100", "title": ""}
+    },
+    "complete": {
+      "description": "Marca una tarea como completada y emite evento.",
+      "args": ["complete", "--profile", "{params.profile}", "--id", "{params.id}", "--result-ref", "{params.result_ref}"],
+      "params": ["profile", "id", "result_ref"],
+      "defaults": {"result_ref": ""}
+    },
+    "event": {
+      "description": "Emite un evento sobre una tarea. Si kind=email_sent y la tarea está in_progress, la marca completed automáticamente.",
+      "args": ["event", "--profile", "{params.profile}", "--id", "{params.id}", "--actor", "{params.actor}", "--kind", "{params.kind}", "--data", "{params.data}"],
+      "params": ["profile", "id", "actor", "kind", "data"],
+      "defaults": {"data": "{}"}
+    },
+    "seed-from-foco": {
+      "description": "Crea tareas a partir de la priority_list de Foco (lee profiles/<perfil>/data o JSON externo).",
+      "args": ["seed-from-foco", "--profile", "{params.profile}", "--file", "{params.file}", "--limit", "{params.limit}"],
+      "params": ["profile", "file", "limit"],
+      "defaults": {"limit": "10"}
+    }
+  },
+  "user_input": {
+    "supported": false
+  },
+  "state": {
+    "dir": "data",
+    "files": ["tasks_*.db"]
+  },
+  "capabilities_semantic": {
+    "tags": ["tasks", "ledger", "workflow", "todo", "agenda"],
+    "intent_examples": [
+      "qué tareas tengo hoy",
+      "marcá esto como hecho",
+      "próxima gestión"
+    ],
+    "produces": ["task.list", "task.next", "task.create", "task.complete", "task.event"],
+    "requires": []
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "name": "auditor",
+  "version": "0.1.0",
+  "description": "Auditor proactivo de ERP. Lee datasets JSON mediados por Sabio, corre checks deterministas y emite findings accionables consumibles por framework-mecanico.",
+  "build": {
+    "command": "go",
+    "args": [
+      "build",
+      "-buildvcs=false",
+      "-o",
+      "frameworkauditor",
+      "./cmd/frameworkauditor"
+    ]
+  },
+  "binary": {
+    "command": "./frameworkauditor",
+    "args_prefix": []
+  },
+  "cwd": "framework-auditor",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "inputs": [
+    {
+      "name": "dataset",
+      "format": "external.api.dump.v1",
+      "path": "data/dataset.working.json",
+      "required": true,
+      "description": "Dump canónico del negocio producido por Sabio dataset.export"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "findings",
+      "format": "auditor.findings.v1",
+      "path": "data/findings.json",
+      "description": "Lista de hallazgos detectados en el último scan"
+    },
+    {
+      "name": "data_gaps",
+      "format": "data.gaps.v1",
+      "path": "data/findings.json",
+      "description": "Brechas de datos detectadas por Auditor y consumibles por Mecánico/Sabio"
+    }
+  ],
+  "commands": {
+    "reset": {
+      "description": "Restaura dataset.working.json desde dataset.golden.json y limpia findings",
+      "args": [
+        "reset"
+      ],
+      "params": []
+    },
+    "scan": {
+      "description": "Corre todos los checks sobre un dataset JSON mediado por Sabio, persiste findings.json y emite artifacts JSON",
+      "args": [
+        "scan",
+        "--source",
+        "{params.source}",
+        "--json"
+      ],
+      "params": [
+        "source"
+      ],
+      "defaults": {
+        "source": ""
+      }
+    },
+    "list": {
+      "description": "Imprime la lista de findings (texto plano)",
+      "args": [
+        "list"
+      ],
+      "params": []
+    },
+    "detail": {
+      "description": "Imprime el detalle de un finding por id",
+      "args": [
+        "detail",
+        "--id",
+        "{params.id}"
+      ],
+      "params": [
+        "id"
+      ]
+    },
+    "next-question": {
+      "description": "Devuelve el próximo mensaje del auditor para el user",
+      "args": [
+        "next-question"
+      ],
+      "params": []
+    },
+    "ingest-answer": {
+      "description": "Recibe respuesta del user y avanza el flujo",
+      "args": [
+        "ingest-answer",
+        "--question-id",
+        "{params.question_id}",
+        "--answer",
+        "{params.answer}"
+      ],
+      "params": [
+        "question_id",
+        "answer"
+      ]
+    }
+  },
+  "asks_human": {
+    "via": "user",
+    "path": "next-question",
+    "description": "El auditor habla primero al usuario reportando los hallazgos"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": [
+      "short_answer"
+    ],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": [
+      "text",
+      "conversation"
+    ]
+  },
+  "capabilities_semantic": {
+    "tags": [
+      "audit",
+      "erp",
+      "data-quality",
+      "rules"
+    ],
+    "intent_examples": [
+      "auditá el ERP",
+      "qué errores hay en mis datos",
+      "revisá la integridad de la base"
+    ],
+    "produces": [
+      "findings:erp_audit",
+      "data_gaps:data_quality"
+    ],
+    "requires": [
+      "dataset:json"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "data.quality.audit",
+      "description": "Detecta brechas de calidad de datos sobre external.api.dump.v1 mediado por Sabio, incluyendo contactos faltantes.",
+      "command": "scan",
+      "inputs": [
+        "external.api.dump.v1"
+      ],
+      "outputs": [
+        "auditor.findings.v1",
+        "data.gaps.v1"
+      ],
+      "requires": [
+        "external.api.dump.v1"
+      ],
+      "produces": [
+        "auditor.findings.v1",
+        "data.gaps.v1"
+      ],
+      "execution": "deterministic_data_quality_scan_sabio_dataset",
+      "policies": [
+        "no_external_side_effect",
+        "resolution_autonomous",
+        "safe_for_runtime"
+      ]
+    }
+  ]
+}

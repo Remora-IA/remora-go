@@ -1,0 +1,84 @@
+{
+  "version": 2,
+  "framework": "sabio",
+  "profile": "cobranza-chile",
+  "db": "data_sqlite_db",
+  "conversations": [
+    {
+      "id": "law_firms_regression",
+      "title": "Estudios jurídicos no son clientes",
+      "turns": [
+        { "role": "user", "content": "qué estudios juridicos tienes" },
+        { "role": "ideal", "content": "Tengo 2 estudios jurídicos en la base:\n\n| Estudio jurídico |\n|---|\n| Zieme-Ledner |\n| Zemlak-Bartoletti |\n\nNo estoy listando clientes ni deudores: respondí sobre la tabla de estudios jurídicos." }
+      ]
+    },
+    {
+      "id": "data_inventory",
+      "title": "Inventario de datos disponibles",
+      "turns": [
+        { "role": "user", "content": "qué datos tienes disponibles" },
+        { "role": "ideal", "content": "Tengo datos estructurados de cobranzas/timebilling en SQLite. Resumen disponible:\n\n| Entidad | Cantidad |\n|---|---:|\n| Clientes | 269 |\n| Estudios jurídicos | 2 |\n| Proyectos | 521 |\n| Cargos/cobros | 1518 |\n| Hitos de cobro | 308 |\n| Pagos | 1451 |\n| Facturas/documentos | 1579 |\n| Usuarios internos | 70 |\n\nLímite importante: en esta DB los clientes/deudores no tienen columna de email. Para contactos de deudores necesito otra capability de contactos." }
+      ]
+    },
+    {
+      "id": "client_counts_followups",
+      "title": "Conteos y follow-ups de clientes",
+      "turns": [
+        { "role": "user", "content": "cuántos clientes tengo" },
+        { "role": "ideal", "content": "Tenés 269 clientes en la base." },
+        { "role": "user", "content": "y activos?" },
+        { "role": "ideal", "content": "De esos 269 clientes, 63 están activos y 206 están inactivos." },
+        { "role": "user", "content": "muéstrame 5 con más proyectos" },
+        { "role": "ideal", "content": "Los 5 clientes con más proyectos son:\n\n| Cliente | Código | Proyectos |\n|---|---|---:|\n| Nicolas, Hickle and Conroy | 000060 | 18 |\n| Donnelly-Von | 000027 | 15 |\n| Dickens, O'Conner and Schulist | 000132 | 13 |\n| Kuvalis-Bradtke | 000161 | 10 |\n| Tillman-Crona | 000023 | 9 |" }
+      ]
+    },
+    {
+      "id": "murazik_no_unsolicited_action",
+      "title": "Cliente Murazik: informar datos sin inventar acción",
+      "turns": [
+        { "role": "user", "content": "qué sabes de Murazik, Krajcik and Gutkowski" },
+        { "role": "ideal", "content": "Encontré al cliente Murazik, Krajcik and Gutkowski.\n\n| Dato | Valor |\n|---|---|\n| Código | 000112 |\n| Estado | Activo |\n| Inicio de acuerdo | 16/11/2015 |\n| Proyectos | 1 |\n| Proyectos activos | 0 |\n\nSu proyecto registrado es Consultoría Regulatoria, código 000112-0002, en USD, dado de baja el 02/11/2018." },
+        { "role": "user", "content": "tiene deuda pendiente?" },
+        { "role": "ideal", "content": "No veo deuda pendiente para Murazik, Krajcik and Gutkowski en los cargos/hitos disponibles. Los cargos encontrados para ese cliente figuran como pagados y no aparecen hitos impagos con monto pendiente." },
+        { "role": "user", "content": "entonces mándale un recordatorio" },
+        { "role": "ideal", "content": "No puedo enviar recordatorios desde Sabio. Además, para este cliente no veo deuda pendiente en la DB. Si querés redactar o enviar un mensaje, falta delegar a otra capability como `message.draft` o `message.send`, y para destinatarios de deudores también haría falta `contact.lookup`." }
+      ]
+    },
+    {
+      "id": "priority_collection_list",
+      "title": "Priorización de cobranza cuando el usuario sí pide acción",
+      "turns": [
+        { "role": "user", "content": "a quién debería cobrar primero hoy" },
+        { "role": "ideal", "content": "**Para hoy**\n\nPrioridad por saldo pendiente registrado en cargos impagos:\n\n| # | Cliente | Código | Saldo | Mora aprox. |\n|---:|---|---|---:|---:|\n| 1 | Thiel-Effertz | 000182 | USD 7.500 | más de 2600 días |\n| 2 | Nicolas, Hickle and Conroy | 000060 | USD 3.640 | más de 3000 días |\n| 3 | Breitenberg, Stehr and Quitzon | 000224 | USD 2.750 | más de 2900 días |\n| 4 | Hermiston PLC | 000215 | USD 1.500 | más de 3000 días |\n| 5 | Sawayn-Jast | 000273 | USD 1.300 | más de 2700 días |\n\n---\n\n**Hacé ahora**\n\n1. Revisá Thiel-Effertz: es el mayor saldo pendiente registrado.\n2. Si vas a contactar, pedí contactos mediante `contact.lookup`; Sabio no tiene emails de deudores en esta DB." }
+      ]
+    },
+    {
+      "id": "thiel_360_followup",
+      "title": "Vista 360 de cliente con deuda real y follow-up",
+      "turns": [
+        { "role": "user", "content": "hazme una vista 360 de Thiel-Effertz" },
+        { "role": "ideal", "content": "**Para hoy**\n\n| Dato | Valor |\n|---|---|\n| Cliente | Thiel-Effertz |\n| Código | 000182 |\n| Estado | Activo |\n| Inicio de acuerdo | 11/04/2017 |\n| Proyectos | 5 en total, 2 activos |\n| Saldo pendiente registrado | USD 7.500 |\n| Mora aproximada | más de 2600 días |\n\n---\n\n**Hacé ahora**\n\n1. Priorizá revisión de Thiel-Effertz por ser el mayor saldo pendiente registrado.\n2. Antes de contactar, pedí datos de contacto con `contact.lookup`." },
+        { "role": "user", "content": "qué proyectos activos tiene" },
+        { "role": "ideal", "content": "Thiel-Effertz tiene 2 proyectos activos:\n\n| Código | Proyecto |\n|---|---|\n| 000182-0004 | Juicio de nulidad. |\n| 000182-0005 | Constitución de Sociedad |" }
+      ]
+    },
+    {
+      "id": "contacts_boundary",
+      "title": "Límite de contactos de deudores",
+      "turns": [
+        { "role": "user", "content": "dame los emails de los deudores con mayor deuda" },
+        { "role": "ideal", "content": "Puedo identificar los deudores con mayor saldo pendiente, pero esta DB no tiene emails de clientes/deudores. Solo veo emails de usuarios internos. Para obtener destinatarios reales falta `contact.lookup`." },
+        { "role": "user", "content": "pero veo emails en la base" },
+        { "role": "ideal", "content": "Sí, hay emails en la tabla de usuarios internos (`users`), no en clientes/deudores (`clients`). No debo usarlos como destinatarios de cobranza. Para emails de deudores necesito `contact.lookup`." }
+      ]
+    },
+    {
+      "id": "tables_for_collections",
+      "title": "Tablas relevantes para cobranza",
+      "turns": [
+        { "role": "user", "content": "qué tablas tienes para cobranza" },
+        { "role": "ideal", "content": "Para cobranza tengo estas tablas principales en SQLite:\n\n| Uso | Tablas |\n|---|---|\n| Clientes/deudores | clients |\n| Estudios jurídicos | law_firms |\n| Proyectos/asuntos | projects |\n| Cargos/cobros | charges, milestones |\n| Facturas/documentos | billing_documents, billing_document_statuses, billing_document_types |\n| Pagos | payments, payment_types, payment_conditions, payment_concepts |\n| Equipo interno | users, user_areas, user_categories |\n\nLímite: contactos externos de deudores no están en `clients`; para eso hace falta `contact.lookup`." }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rémora · Data Browser</title>
+  <style>
+    :root { color-scheme: light; --bg:#FAFAF8; --surface:#ffffff; --surface2:#F3F2EF; --border:rgba(17,17,16,.10); --text:#111110; --muted:#6B6A67; --accent:#2563eb; }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; overflow: hidden; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, sans-serif; }
+    .app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
+    aside { border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-width: 0; }
+    header { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 15px; margin: 0; letter-spacing: -0.02em; }
+    .back { color: var(--muted); text-decoration: none; font-size: 12px; }
+    .search { padding: 12px; border-bottom: 1px solid var(--border); }
+    input, select, button { font: inherit; }
+    .search input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); color: var(--text); outline: none; }
+    .tables { overflow: auto; padding: 8px; }
+    .table-item { width: 100%; border: 1px solid transparent; background: transparent; color: var(--text); display: flex; justify-content: space-between; gap: 10px; padding: 10px 11px; border-radius: 10px; cursor: pointer; text-align: left; }
+    .table-item:hover { background: var(--surface2); }
+    .table-item.active { background: rgba(37,99,235,.14); border-color: rgba(37,99,235,.4); }
+    .table-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+    .table-count { color: var(--muted); font-size: 12px; flex-shrink: 0; }
+    main { display: grid; grid-template-rows: 58px auto auto auto 1fr 46px; min-width: 0; height: 100vh; }
+    .toolbar { display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .title { font-weight: 700; font-size: 15px; }
+    .meta { color: var(--muted); font-size: 12px; }
+    .spacer { flex: 1; }
+    .toolbar button { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
+    .toolbar button:hover { border-color: var(--accent); }
+    .upload { display:flex; align-items:center; gap:8px; padding:10px 18px; border-bottom:1px solid var(--border); background:var(--surface); }
+    .upload input[type=file] { font-size:12px; max-width:520px; }
+    .upload-status { color:var(--muted); font-size:12px; }
+    .api-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .api-actions button { padding:7px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; }
+    .api-list { display:flex; gap:8px; flex-wrap:wrap; }
+    .api-chip { border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:6px 9px; font-size:12px; cursor:pointer; }
+    .api-chat-modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(17,17,16,.35); z-index:50; padding:20px; }
+    .api-chat-modal.visible { display:flex; }
+    .api-chat { width:min(760px, 100%); height:min(720px, 92vh); display:grid; grid-template-rows:auto 1fr auto; background:var(--surface); border:1px solid var(--border); border-radius:16px; box-shadow:0 24px 80px rgba(0,0,0,.20); overflow:hidden; }
+    .api-chat-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border); }
+    .api-chat-title { font-weight:800; font-size:15px; }
+    .api-chat-subtitle { color:var(--muted); font-size:12px; margin-top:3px; line-height:1.4; }
+    .api-chat-close { border:1px solid var(--border); background:var(--bg); border-radius:8px; padding:6px 9px; cursor:pointer; }
+    .api-chat-body { overflow:auto; padding:16px; display:flex; flex-direction:column; gap:10px; background:var(--bg); }
+    .api-msg { max-width:82%; padding:10px 12px; border-radius:13px; font-size:13px; line-height:1.5; white-space:pre-wrap; }
+    .api-msg.user { align-self:flex-end; background:rgba(37,99,235,.12); border:1px solid rgba(37,99,235,.25); }
+    .api-msg.assistant { align-self:flex-start; background:var(--surface); border:1px solid var(--border); }
+    .api-chat-foot { padding:12px; display:grid; gap:8px; border-top:1px solid var(--border); }
+    .api-chat-input-row { display:flex; gap:8px; }
+    .api-chat-input-row textarea { flex:1; min-height:54px; max-height:140px; resize:vertical; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--bg); color:var(--text); font:inherit; }
+    .api-chat-input-row button, .api-chat-approve { padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; }
+    .api-chat-approve { display:none; justify-self:start; background:var(--accent); border-color:var(--accent); color:#fff; }
+    .api-chat-approve.visible { display:inline-flex; }
+    .columns { display: flex; gap: 8px; padding: 10px 18px; border-bottom: 1px solid var(--border); overflow: auto; background: var(--surface); }
+    .col-chip { color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 9px; font-size: 12px; white-space: nowrap; }
+    .grid-wrap { overflow: auto; min-height: 0; }
+    table { border-collapse: separate; border-spacing: 0; min-width: 100%; font-size: 12px; }
+    th, td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 10px; max-width: 360px; vertical-align: top; }
+    th { position: sticky; top: 0; z-index: 2; background: var(--surface2); color: var(--text); font-weight: 650; text-align: left; white-space: nowrap; }
+    td { color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+    tbody tr:hover td { background: rgba(17,17,16,.035); }
+    .rownum { position: sticky; left: 0; z-index: 1; min-width: 58px; width: 58px; color: var(--muted); background: var(--surface); text-align: right; }
+    th.rownum { z-index: 3; background: var(--surface2); }
+    .footer { display: flex; align-items: center; gap: 10px; padding: 0 18px; border-top: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 12px; }
+    .footer button { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); cursor: pointer; }
+    .empty { display:flex; align-items:center; justify-content:center; color:var(--muted); height:100%; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <header><h1>Tablas</h1><a class="back" href="/">Chat</a></header>
+      <div class="search"><input id="table-filter" placeholder="Filtrar tablas..." /></div>
+      <div class="tables" id="tables"></div>
+    </aside>
+    <main>
+      <div class="toolbar">
+        <div>
+          <div class="title" id="title">Data Browser</div>
+          <div class="meta" id="meta">Selecciona una tabla</div>
+        </div>
+        <div class="spacer"></div>
+        <button id="refresh">Refrescar</button>
+      </div>
+      <div class="upload">
+        <input id="file" type="file" accept=".xls,.xlsx,.xlsm,.xlt,.xltx,.xltm,.csv,.tsv,.txt,.tab,.ods" />
+        <button id="upload">Subir datos</button>
+        <button id="show-api-connect" type="button">Conectar con API</button>
+        <span class="upload-status" id="upload-status">Formatos: Excel, CSV/TSV/TXT/TAB y ODS.</span>
+      </div>
+      <div class="api-list" id="api-list" style="padding:0 18px 8px;"></div>
+      <div class="columns" id="columns"></div>
+      <div class="grid-wrap" id="grid"><div class="empty">Selecciona una tabla para ver sus registros.</div></div>
+      <div class="footer">
+        <button id="prev">Anterior</button>
+        <button id="next">Siguiente</button>
+        <span id="page-info">0-0</span>
+        <span class="spacer"></span>
+        <span>Orden: últimos registros arriba cuando la tabla soporta rowid</span>
+      </div>
+    </main>
+  </div>
+  <div class="api-chat-modal" id="api-chat-modal">
+    <div class="api-chat">
+      <div class="api-chat-head">
+        <div>
+          <div class="api-chat-title">Indexa · Conectar con API</div>
+          <div class="api-chat-subtitle">Habla con Indexa. Pega documentación, URLs, ejemplos de respuesta o describe la API. Indexa preparará el plan técnico por ti.</div>
+        </div>
+        <button class="api-chat-close" id="api-chat-close" type="button">Cerrar</button>
+      </div>
+      <div class="api-chat-body" id="api-chat-body"></div>
+      <div class="api-chat-foot">
+        <button class="api-chat-approve" id="api-chat-approve" type="button">Aprobar plan y sincronizar</button>
+        <div class="api-chat-input-row">
+          <textarea id="api-chat-input" placeholder="Ej: La API está en https://api.mi-erp.com/v1. Docs: GET /clients devuelve { data: [...] }. Usa bearer token..."></textarea>
+          <button id="api-chat-send" type="button">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const API = '/api/v1';
+    const params = new URLSearchParams(window.location.search);
+    const businessID = params.get('business_id') || localStorage.getItem('remora_active_business_id') || '';
+    const state = { tables: [], table: null, offset: 0, limit: 100, count: 0, apiPlan: null };
+    const $ = id => document.getElementById(id);
+
+    async function api(path) {
+      const res = await fetch(API + path, { credentials: 'include' });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'API error');
+      return json.data;
+    }
+
+    function dataPath(path) {
+      return businessID ? `/businesses/${encodeURIComponent(businessID)}/data${path}` : `/data${path}`;
+    }
+
+    async function loadTables() {
+      const tables = await api(dataPath('/tables'));
+      state.tables = Array.isArray(tables) ? tables : [];
+      renderTables();
+      if (!state.table && state.tables.length) selectTable(state.tables[0].name);
+      if (!state.tables.length) $('grid').innerHTML = '<div class="empty">Todavía no hay datos. Sube un archivo para crear tablas.</div>';
+    }
+
+    async function loadAPIConnections() {
+      if (!businessID) return;
+      try {
+        const rawConns = await api(`/businesses/${encodeURIComponent(businessID)}/api-connections`);
+        const conns = Array.isArray(rawConns) ? rawConns : [];
+        $('api-list').innerHTML = conns.map(c => `
+          <button class="api-chip" data-id="${escapeHtml(c.id)}">${escapeHtml(c.name)} · ${escapeHtml(c.status)}${c.last_sync_at ? ' · sync OK' : ''}</button>
+        `).join('');
+        document.querySelectorAll('.api-chip').forEach(btn => btn.addEventListener('click', () => syncAPIConnection(btn.dataset.id)));
+      } catch (err) {
+        $('api-list').innerHTML = `<span class="upload-status">${escapeHtml(err.message)}</span>`;
+      }
+    }
+
+    function renderTables() {
+      const q = $('table-filter').value.toLowerCase();
+      $('tables').innerHTML = state.tables.filter(t => t.name.toLowerCase().includes(q)).map(t => `
+        <button class="table-item ${t.name === state.table ? 'active' : ''}" data-table="${escapeHtml(t.name)}">
+          <span class="table-name">${escapeHtml(t.name)}</span>
+          <span class="table-count">${t.count}</span>
+        </button>
+      `).join('');
+      document.querySelectorAll('.table-item').forEach(btn => btn.addEventListener('click', () => selectTable(btn.dataset.table)));
+    }
+
+    async function selectTable(name) {
+      state.table = name;
+      state.offset = 0;
+      renderTables();
+      await loadRows();
+    }
+
+    async function loadRows() {
+      if (!state.table) return;
+      $('grid').innerHTML = '<div class="empty">Cargando...</div>';
+      const data = await api(`${dataPath('/tables')}/${encodeURIComponent(state.table)}?limit=${state.limit}&offset=${state.offset}`);
+      state.count = data.count;
+      $('title').textContent = data.table;
+      $('meta').textContent = `${data.count} registros · ${data.columns.length} columnas`;
+      $('columns').innerHTML = data.columns.map(c => `<span class="col-chip">${escapeHtml(c)}</span>`).join('');
+      renderGrid(data);
+      $('page-info').textContent = `${Math.min(state.offset + 1, data.count)}-${Math.min(state.offset + data.rows.length, data.count)} de ${data.count}`;
+    }
+
+    function renderGrid(data) {
+      if (!data.rows.length) {
+        $('grid').innerHTML = '<div class="empty">No hay registros en esta página.</div>';
+        return;
+      }
+      $('grid').innerHTML = `
+        <table>
+          <thead><tr><th class="rownum">#</th>${data.columns.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
+          <tbody>${data.rows.map((row, idx) => `
+            <tr>
+              <td class="rownum">${data.offset + idx + 1}</td>
+              ${data.columns.map(c => `<td>${escapeHtml(row[c] ?? '')}</td>`).join('')}
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      `;
+    }
+
+    function escapeHtml(v) {
+      return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    function addAPIMessage(role, text) {
+      const div = document.createElement('div');
+      div.className = `api-msg ${role}`;
+      div.textContent = text;
+      $('api-chat-body').appendChild(div);
+      $('api-chat-body').scrollTop = $('api-chat-body').scrollHeight;
+    }
+
+    function planSourceSummary(plan) {
+      const sources = Array.isArray(plan?.sources) ? plan.sources : [];
+      if (!sources.length) return 'Fuentes leídas: usé solo el texto que pegaste en el chat.';
+      return `Fuentes leídas por Indexa:\n${sources.map(s => `- ${s.url}: ${s.status}${s.bytes ? ` (${s.bytes} bytes)` : ''}${s.error ? ` · ${s.error}` : ''}`).join('\n')}`;
+    }
+
+    function openAPIChat() {
+      $('api-chat-modal').classList.add('visible');
+      if (!$('api-chat-body').children.length) {
+        addAPIMessage('assistant', 'Soy Indexa. Pásame la documentación, URL de docs, ejemplos de respuestas o lo que tengas de la API. Yo preparo el plan de conexión y sincronización.');
+      }
+      $('api-chat-input').focus();
+    }
+
+    function closeAPIChat() { $('api-chat-modal').classList.remove('visible'); }
+
+    async function sendAPIChat() {
+      const text = $('api-chat-input').value.trim();
+      if (!text) return;
+      if (!businessID) {
+        addAPIMessage('assistant', 'No encontré negocio activo. Vuelve a Rémora e ingresa con una cuenta asociada a un negocio.');
+        return;
+      }
+      $('api-chat-input').value = '';
+      addAPIMessage('user', text);
+      state.apiDocs = [state.apiDocs || '', text].filter(Boolean).join('\n\n');
+      $('api-chat-send').disabled = true;
+      addAPIMessage('assistant', 'Estoy revisando la documentación con Indexa...');
+      try {
+        const res = await fetch(`${API}/businesses/${encodeURIComponent(businessID)}/api-connections/plan`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base_url: '', docs: state.apiDocs }),
+          credentials: 'include'
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'No pude generar el plan');
+        state.apiPlan = json.data || {};
+        const resources = Array.isArray(state.apiPlan.resources) ? state.apiPlan.resources : [];
+        const lines = resources.map(r => `- ${r.name || r.table_name}: GET ${r.path} → tabla ${r.table_name || r.name}`).join('\n');
+        const sourceLines = planSourceSummary(state.apiPlan);
+        const noteLines = Array.isArray(state.apiPlan.notes) && state.apiPlan.notes.length ? `\nNotas:\n${state.apiPlan.notes.map(n => `- ${n}`).join('\n')}\n` : '';
+        addAPIMessage('assistant', `Preparé un plan inicial.\n\n${sourceLines}\nFuente API: ${state.apiPlan.base_url || 'base URL no detectada'}\nRecursos detectados: ${resources.length}\n${lines || '- No detecté endpoints listables todavía.'}${noteLines}\nSi esto se ve correcto, presiona “Aprobar plan y sincronizar”. Si falta algo, respóndeme con más documentación o ejemplos.`);
+        if (resources.length) $('api-chat-approve').classList.add('visible');
+      } catch (err) {
+        addAPIMessage('assistant', `No pude preparar el plan todavía: ${err.message}\n\nPégame un ejemplo de endpoint y respuesta, por ejemplo: GET /clients devuelve {"data":[...]}.`);
+      } finally {
+        $('api-chat-send').disabled = false;
+      }
+    }
+
+    async function approveAPIPlan() {
+      const resources = Array.isArray(state.apiPlan?.resources) ? state.apiPlan.resources : [];
+      if (!resources.length) {
+        addAPIMessage('assistant', 'Todavía no tengo un plan aprobable. Pégame documentación o ejemplos de endpoints.');
+        return;
+      }
+      const details = extractAPIConnectionDetails(state.apiDocs || '', state.apiPlan);
+      const missing = missingConnectionDetails(details);
+      if (missing.length) {
+        addAPIMessage('assistant', `Para sincronizar sin ventanas emergentes me falta: ${missing.join(', ')}.\nRespóndeme con esos datos en el chat y vuelvo a preparar/aprobar el plan.`);
+        return;
+      }
+      $('api-chat-approve').disabled = true;
+      addAPIMessage('assistant', 'Guardando conexión y sincronizando...');
+      try {
+        const body = {
+          name: details.name,
+          base_url: details.baseURL,
+          auth_type: details.authType,
+          credentials: details.credentials,
+          resources
+        };
+        const res = await fetch(`${API}/businesses/${encodeURIComponent(businessID)}/api-connections`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'include'
+        });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'No se pudo guardar');
+        await syncAPIConnection(json.data.id);
+        addAPIMessage('assistant', 'Listo. La API quedó conectada y sincronizada. Ya puedes ver las tablas a la izquierda y Sabio podrá consultarlas.');
+      } catch (err) {
+        addAPIMessage('assistant', `No pude sincronizar: ${err.message}`);
+      } finally {
+        $('api-chat-approve').disabled = false;
+      }
+    }
+
+    async function syncAPIConnection(id) {
+      const res = await fetch(`${API}/businesses/${encodeURIComponent(businessID)}/api-connections/${encodeURIComponent(id)}/sync`, { method: 'POST', credentials: 'include' });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || 'No se pudo sincronizar');
+      if (json.data?.status === 'error') throw new Error(json.data.error || 'La sincronización falló');
+      state.table = null;
+      await loadTables();
+      await loadAPIConnections();
+      return json.data;
+    }
+
+    function extractAPIConnectionDetails(text, plan) {
+      const credentials = {};
+      const baseURL = chooseBaseURL(text, plan?.base_url);
+      const authOptions = Array.isArray(plan?.auth_types) ? plan.auth_types.map(normalizeAPIAuthType).filter(Boolean) : [];
+      const user = matchFirst(text, /\b(?:user|usuario|email)\s*[:=]?\s*([^\s]+)/i);
+      const password = matchFirst(text, /\b(?:pass|password|contraseña|clave)\s*[:=]?\s*(.+?)(?=\s+(?:user|usuario|email|api[_\s-]?key|apikey|bearer|token)\b|$)/i);
+      const apiKey = matchFirst(text, /\b(?:api[_\s-]?key|apikey)\s*[:=]?\s*([^\s]+)/i);
+      const bearer = matchFirst(text, /\b(?:bearer(?:\s+token)?|token)\s*[:=]\s*([^\s]+)/i);
+      let authType = authOptions[0] || 'none';
+      if (bearer) authType = 'bearer';
+      else if (user && password) authType = 'basic';
+      else if (apiKey) authType = 'api_key';
+      if (bearer) credentials.token = bearer;
+      if (apiKey) {
+        credentials.header = 'X-API-Key';
+        credentials.key = apiKey;
+      }
+      if (user) credentials.user = user;
+      if (password) credentials.password = password;
+      return {
+        name: plan?.name || inferAPIName(baseURL) || 'API externa',
+        baseURL,
+        authType: normalizeAPIAuthType(authType) || 'none',
+        credentials
+      };
+    }
+
+    function missingConnectionDetails(details) {
+      const missing = [];
+      if (!details.baseURL) missing.push('base URL');
+      if (details.authType === 'bearer' && !details.credentials.token) missing.push('bearer token');
+      if (details.authType === 'api_key' && !details.credentials.key) missing.push('API key');
+      if (details.authType === 'basic' && (!details.credentials.user || !details.credentials.password)) missing.push('usuario y password');
+      return missing;
+    }
+
+    function normalizeAPIAuthType(value) {
+      const key = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+      if (['bearer', 'bearer_token', 'token'].includes(key)) return 'bearer';
+      if (['api_key', 'apikey', 'x_api_key'].includes(key)) return 'api_key';
+      if (['basic', 'basic_auth'].includes(key)) return 'basic';
+      if (['none', 'no_auth'].includes(key)) return 'none';
+      return '';
+    }
+
+    function matchFirst(text, regex) {
+      const match = String(text || '').match(regex);
+      return match ? match[1].trim().replace(/[),.;]+$/, '') : '';
+    }
+
+    function cleanURL(value) {
+      return String(value || '').trim().replace(/[),.;]+$/, '');
+    }
+
+    function pickBestURL(text) {
+      const urls = (String(text || '').match(/https?:\/\/[^\s<>"']+/g) || []).map(cleanURL);
+      return urls.find(u => /\/api(\/|$)/i.test(u)) || urls.find(u => !/\/docs?/i.test(u)) || urls[0] || '';
+    }
+
+    function chooseBaseURL(text, plannedURL) {
+      const planned = cleanURL(plannedURL);
+      const fromText = pickBestURL(text);
+      if (!planned) return fromText;
+      if (/\/docs?(\/|#|$)/i.test(planned) && fromText) return fromText;
+      return planned;
+    }
+
+    function inferAPIName(baseURL) {
+      try {
+        const host = new URL(baseURL).hostname.replace(/^www\./, '');
+        return host ? host.split('.')[0].replace(/[-_]+/g, ' ') : '';
+      } catch (_) {
+        return '';
+      }
+    }
+
+    $('table-filter').addEventListener('input', renderTables);
+    $('refresh').addEventListener('click', () => state.table ? loadRows() : loadTables());
+    $('show-api-connect').addEventListener('click', openAPIChat);
+    $('api-chat-close').addEventListener('click', closeAPIChat);
+    $('api-chat-modal').addEventListener('click', e => { if (e.target === $('api-chat-modal')) closeAPIChat(); });
+    $('api-chat-send').addEventListener('click', sendAPIChat);
+    $('api-chat-approve').addEventListener('click', approveAPIPlan);
+    $('api-chat-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) sendAPIChat();
+    });
+    $('upload').addEventListener('click', async () => {
+      const file = $('file').files[0];
+      if (!file) return;
+      if (!businessID) {
+        $('upload-status').textContent = 'No encontré negocio activo.';
+        return;
+      }
+      $('upload').disabled = true;
+      $('upload-status').textContent = 'Subiendo e importando...';
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const res = await fetch(`${API}/businesses/${encodeURIComponent(businessID)}/data/upload`, { method: 'POST', body: form, credentials: 'include' });
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || 'No se pudo importar');
+        $('upload-status').textContent = `Importado: ${(json.data.tables || []).map(t => t.name).join(', ')}`;
+        state.table = null;
+        await loadTables();
+      } catch (err) {
+        $('upload-status').textContent = err.message;
+      } finally {
+        $('upload').disabled = false;
+      }
+    });
+    $('prev').addEventListener('click', () => { state.offset = Math.max(0, state.offset - state.limit); loadRows(); });
+    $('next').addEventListener('click', () => { if (state.offset + state.limit < state.count) { state.offset += state.limit; loadRows(); } });
+    loadTables().catch(err => { $('grid').innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`; });
+    loadAPIConnections();
+  </script>
+</body>
+</html>

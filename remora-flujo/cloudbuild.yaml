@@ -1,0 +1,212 @@
+# Cloud Build — remora-flujo
+# Delega al cloudbuild.yaml raíz del mono-repo pero con defaults de este servicio.
+# Uso: gcloud builds submit --config=remora-flujo/cloudbuild.yaml .
+#      (ejecutar desde la raíz del repo remora-go-lite)
+#
+# Para CI automático apuntá el trigger de Cloud Build a este archivo.
+
+substitutions:
+  _SERVICE_NAME: 'flujo-api'
+  _REGION: 'us-central1'
+  _PROJECT_ID: 'project-ceae5831-a2c9-49aa-b1c'
+  _CHANNEL_API_KEY: 'test-key-001'
+  _GEMINI_API_KEY: ''
+  _SHORT_SHA: 'latest'
+
+  # Auth0
+  _AUTH0_DOMAIN: 'remora-ia.us.auth0.com'
+  _AUTH0_CLIENT_ID: 'p6m3MHqoklOZkpCFGXF2owxIxtDwSJO6'
+  _AUTH0_AUDIENCE: 'https://remora-ia.us.auth0.com/api/v2/'
+
+options:
+  substitution_option: 'ALLOW_LOOSE'
+
+steps:
+  # ── Build binarios Go ───────────────────────────────────────────────────────
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd remora-flujo && go build -o cmd/api_rest/api_rest ./cmd/api_rest']
+    id: 'build-flujo-api'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd channel && go build -o /workspace/remora-flujo/cmd/api_rest/channel ./cmd/channel']
+    id: 'build-channel'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd channel && go build -o bin/vault ./cmd/vault']
+    id: 'build-vault'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-echo && go build -o frameworkecho ./cmd/frameworkecho']
+    id: 'build-echo'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-alfa && go build -o frameworkalfa ./cmd/frameworkalfa']
+    id: 'build-alfa'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-arquitecto && go build -o frameworkarquitecto ./cmd/frameworkarquitecto']
+    id: 'build-arquitecto'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-auditor && go build -o frameworkauditor ./cmd/frameworkauditor']
+    id: 'build-auditor'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-indexa && go build -o frameworkindexa ./cmd/frameworkindexa']
+    id: 'build-indexa'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-sabio && go build -o frameworksabio ./cmd/frameworksabio']
+    id: 'build-sabio'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-foco && go build -o foco ./cmd/foco']
+    id: 'build-foco'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-hosting && go build -o frameworkhosting ./cmd/frameworkhosting']
+    id: 'build-hosting'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-radar && go build -o frameworkradar ./cmd/frameworkradar']
+    id: 'build-radar'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-mensajero && go build -o frameworkmensajero ./cmd/frameworkmensajero']
+    id: 'build-mensajero'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-critico && go build -o frameworkcritico ./cmd/frameworkcritico']
+    id: 'build-critico'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-deployer && go build -o deployer ./cmd/deployer']
+    id: 'build-deployer'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-mecanico && go build -buildvcs=false -o frameworkmecanico ./cmd/frameworkmecanico']
+    id: 'build-mecanico'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-paladin && go build -o frameworkpaladin ./cmd/paladin']
+    id: 'build-paladin'
+    waitFor: ['-']
+
+  - name: 'golang:1.26-bookworm'
+    entrypoint: 'bash'
+    args: ['-c', 'cd framework-tareas && go build -o frameworktareas ./cmd/frameworktareas']
+    id: 'build-tareas'
+    waitFor: ['-']
+
+  # ── Build y push imagen Docker ──────────────────────────────────────────────
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}'
+      - '-t'
+      - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest'
+      - '-f'
+      - 'remora-flujo/cmd/api_rest/Dockerfile'
+      - '.'
+    id: 'build-docker'
+    waitFor:
+      - 'build-flujo-api'
+      - 'build-channel'
+      - 'build-vault'
+      - 'build-echo'
+      - 'build-alfa'
+      - 'build-arquitecto'
+      - 'build-auditor'
+      - 'build-indexa'
+      - 'build-sabio'
+      - 'build-foco'
+      - 'build-hosting'
+      - 'build-radar'
+      - 'build-mensajero'
+      - 'build-critico'
+      - 'build-deployer'
+      - 'build-mecanico'
+      - 'build-paladin'
+      - 'build-tareas'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}']
+    id: 'push-sha'
+    waitFor: ['build-docker']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest']
+    id: 'push-latest'
+    waitFor: ['build-docker']
+
+  # ── Deploy a Cloud Run (incluye Auth0 + todas las env vars) ────────────────
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - '${_SERVICE_NAME}'
+      - '--image=gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=8080'
+      - '--memory=1Gi'
+      - '--cpu=2'
+      - '--timeout=300s'
+      - '--max-instances=10'
+      - >-
+        --set-env-vars=PORT=8080,
+        CHANNEL_PORT=8765,
+        CHANNEL_URL=http://localhost:8765,
+        CHANNEL_BASE_DIR=/workspace,
+        REMORA_ROOT=/workspace,
+        REMORA_VAULT_DIR=/workspace/channel/vault_data,
+        CHANNEL_API_KEY=${_CHANNEL_API_KEY},
+        CHANNEL_API_KEYS=${_CHANNEL_API_KEY},
+        AUTH0_DOMAIN=${_AUTH0_DOMAIN},
+        AUTH0_CLIENT_ID=${_AUTH0_CLIENT_ID},
+        AUTH0_AUDIENCE=${_AUTH0_AUDIENCE}
+    id: 'deploy-cloud-run'
+    waitFor: ['push-sha', 'push-latest']
+
+images:
+  - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:${_SHORT_SHA}'
+  - 'gcr.io/${_PROJECT_ID}/${_SERVICE_NAME}:latest'

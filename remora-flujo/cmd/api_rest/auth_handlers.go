@@ -2,7 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -404,8 +408,29 @@ func (s *server) requireConversationAccess(w http.ResponseWriter, r *http.Reques
 	return true
 }
 
+// currentUser resuelve el usuario autenticado. Acepta JWT Auth0 (RS256) o token
+// de sesión local (opaco, legacy). Los JWT se identifican por tener 2 puntos.
 func (s *server) currentUser(r *http.Request) (*authUser, *authSession, error) {
-	return s.auth.userByToken(authTokenFromRequest(r))
+	raw := authTokenFromRequest(r)
+	if raw == "" {
+		return nil, nil, errors.New("sin sesión")
+	}
+	if strings.Count(raw, ".") == 2 {
+		sub, email, err := validateAuth0JWT(raw)
+		if err == nil {
+			user, err2 := s.auth.upsertAuth0User(sub, email, "")
+			if err2 != nil {
+				return nil, nil, fmt.Errorf("upsert Auth0 user: %w", err2)
+			}
+			syntheticSess := &authSession{
+				ID:        "auth0:" + sub,
+				UserID:    user.ID,
+				ExpiresAt: time.Now().Add(24 * time.Hour),
+			}
+			return user, syntheticSess, nil
+		}
+	}
+	return s.auth.userByToken(raw)
 }
 
 func authRequired() bool {

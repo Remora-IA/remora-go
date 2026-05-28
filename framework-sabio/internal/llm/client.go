@@ -1,22 +1,15 @@
-// Package llm es un cliente chat mínimo que reproduce las dos rutas
-// soportadas por remora-flujo/nativeagent:
+// Package llm es un cliente chat mínimo multi-proveedor.
 //
-//   - Groq    → POST https://api.groq.com/openai/v1/chat/completions  (OpenAI-compat)
-//   - MiniMax → POST https://api.minimax.io/anthropic/v1/messages     (Anthropic-compat)
+// Proveedores soportados (en orden de prioridad):
+//   - pi       → CLI 'pi' con --print (usa el plan del usuario, como pi-subagents)
+//   - Groq     → POST https://api.groq.com/openai/v1/chat/completions  (OpenAI-compat)
+//   - Anthropic→ POST https://api.anthropic.com/v1/messages (API directa)
+//   - MiniMax  → POST https://api.minimax.io/anthropic/v1/messages     (Anthropic-compat)
+//   - OpenRouter→ POST https://openrouter.ai/api/v1/chat/completions
 //
-// La selección de proveedor sigue las MISMAS reglas que nativeagent:
-//   1. REMORA_LLM_PROVIDER (groq|minimax)
-//   2. Si vacío: groq cuando hay GROQ_API_KEY/REMORA_GROQ_API_KEY, sino minimax
-//
-// Variables de entorno:
-//   GROQ_API_KEY o REMORA_GROQ_API_KEY
-//   REMORA_GROQ_MODEL (default meta-llama/llama-4-scout-17b-16e-instruct)
-//   MINIMAX_API_KEY o REMORA_MINIMAX_API_KEY
-//   REMORA_MINIMAX_MODEL (default MiniMax-M2.7)
-//
-// Sabio NO necesita tracing/paladin, function-calling ni soporte de
-// imágenes; por eso este cliente es una versión recortada en vez de
-// importar nativeagent (que arrastra remora-flujo entero).
+// Selección automática:
+//   1. REMORA_LLM_PROVIDER (pi|groq|anthropic|minimax|openrouter)
+//   2. Si vacío: pi (si 'pi' CLI está en PATH) → groq → anthropic → minimax
 package llm
 
 import (
@@ -27,20 +20,26 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
 
 const (
+	providerPi             = "pi"
 	providerGroq           = "groq"
 	providerMiniMax        = "minimax"
 	providerOpenRouter     = "openrouter"
+	providerAnthropic      = "anthropic"
 	groqAPIURL             = "https://api.groq.com/openai/v1/chat/completions"
 	minimaxAPIURL          = "https://api.minimax.io/anthropic/v1/messages"
 	openRouterAPIURL       = "https://openrouter.ai/api/v1/chat/completions"
+	anthropicAPIURL        = "https://api.anthropic.com/v1/messages"
 	defaultGroqModel       = "meta-llama/llama-4-scout-17b-16e-instruct"
 	defaultMiniMaxModel    = "MiniMax-M2.7"
 	defaultOpenRouterModel = "meta-llama/llama-4-scout-17b-16e-instruct"
+	defaultAnthropicModel  = "claude-haiku-4-20250414"
+	defaultPiModel         = "claude-haiku-4-5-20251001"
 	requestTimeout         = 90 * time.Second
 )
 
@@ -55,10 +54,14 @@ type Client struct {
 func NewClient() (*Client, error) {
 	provider := strings.ToLower(strings.TrimSpace(os.Getenv("REMORA_LLM_PROVIDER")))
 	if provider == "" {
-		if firstEnv("OPENROUTER_API_KEY") != "" {
+		if piCLIAvailable() {
+			provider = providerPi
+		} else if firstEnv("OPENROUTER_API_KEY") != "" {
 			provider = providerOpenRouter
 		} else if firstEnv("GROQ_API_KEY", "REMORA_GROQ_API_KEY") != "" {
 			provider = providerGroq
+		} else if firstEnv("ANTHROPIC_API_KEY", "REMORA_ANTHROPIC_API_KEY") != "" {
+			provider = providerAnthropic
 		} else {
 			provider = providerMiniMax
 		}
@@ -70,6 +73,9 @@ func NewClient() (*Client, error) {
 	}
 
 	switch provider {
+	case providerPi:
+		c.model = firstNonEmpty(os.Getenv("REMORA_PI_MODEL"), defaultPiModel)
+		c.apiKey = "pi-cli" // no API key needed, uses pi CLI
 	case providerOpenRouter:
 		c.apiKey = firstEnv("OPENROUTER_API_KEY")
 		if c.apiKey == "" {
@@ -82,6 +88,12 @@ func NewClient() (*Client, error) {
 			return nil, fmt.Errorf("falta GROQ_API_KEY/REMORA_GROQ_API_KEY")
 		}
 		c.model = firstNonEmpty(os.Getenv("REMORA_GROQ_MODEL"), defaultGroqModel)
+	case providerAnthropic:
+		c.apiKey = firstEnv("ANTHROPIC_API_KEY", "REMORA_ANTHROPIC_API_KEY")
+		if c.apiKey == "" {
+			return nil, fmt.Errorf("falta ANTHROPIC_API_KEY/REMORA_ANTHROPIC_API_KEY")
+		}
+		c.model = firstNonEmpty(os.Getenv("REMORA_ANTHROPIC_MODEL"), defaultAnthropicModel)
 	case providerMiniMax:
 		c.apiKey = firstEnv("MINIMAX_API_KEY", "REMORA_MINIMAX_API_KEY")
 		if c.apiKey == "" {
@@ -103,15 +115,70 @@ func (c *Client) Model() string { return c.model }
 // Generate manda system + user y retorna el texto del primer candidato.
 func (c *Client) Generate(ctx context.Context, system, user string) (string, error) {
 	switch c.provider {
+	case providerPi:
+		return c.generatePi(ctx, system, user)
 	case providerOpenRouter:
 		return c.generateOAICompat(ctx, openRouterAPIURL, system, user)
 	case providerGroq:
 		return c.generateOAICompat(ctx, groqAPIURL, system, user)
+	case providerAnthropic:
+		return c.generateAnthropic(ctx, system, user)
 	case providerMiniMax:
 		return c.generateMiniMax(ctx, system, user)
 	default:
 		return "", fmt.Errorf("proveedor no soportado: %s", c.provider)
 	}
+}
+
+// ---------- Pi CLI (usa el plan del usuario, como pi-subagents) ----------
+
+// claudeCLIPath busca el CLI de Claude Code: primero CLAUDE_CODE_EXECPATH
+// (que Claude Code seta automáticamente), luego 'claude' en PATH.
+func claudeCLIPath() string {
+	if p := os.Getenv("CLAUDE_CODE_EXECPATH"); p != "" {
+		return p
+	}
+	if p, err := exec.LookPath("claude"); err == nil {
+		return p
+	}
+	return ""
+}
+
+func piCLIAvailable() bool {
+	return claudeCLIPath() != ""
+}
+
+func (c *Client) generatePi(ctx context.Context, system, user string) (string, error) {
+	cliPath := claudeCLIPath()
+	if cliPath == "" {
+		return "", fmt.Errorf("claude CLI no encontrado (ni CLAUDE_CODE_EXECPATH ni claude en PATH)")
+	}
+
+	// Mismo patrón que cobranzas-gaas: claude -p prompt --model haiku --output-format text
+	args := []string{
+		"-p", user,
+		"--model", c.model,
+		"--output-format", "text",
+	}
+	if system != "" {
+		args = append(args, "--system-prompt", system)
+	}
+
+	cmd := exec.CommandContext(ctx, cliPath, args...)
+	cmd.Env = os.Environ() // hereda OAuth del plan Max
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("claude cli error: %w; stderr=%s", err, stderr.String())
+	}
+
+	result := strings.TrimSpace(stdout.String())
+	if result == "" {
+		return "", fmt.Errorf("claude cli: respuesta vacía; stderr=%s", stderr.String())
+	}
+	return result, nil
 }
 
 // ---------- Groq (OpenAI-compatible) ----------
@@ -198,6 +265,34 @@ type anthResp struct {
 	} `json:"error"`
 }
 
+func (c *Client) generateAnthropic(ctx context.Context, system, user string) (string, error) {
+	body, _ := json.Marshal(anthReq{
+		Model:  c.model,
+		System: system,
+		Messages: []anthMessage{
+			{Role: "user", Content: []anthBlock{{Type: "text", Text: user}}},
+		},
+		MaxTokens: 1024,
+	})
+	raw, status, err := c.do(ctx, anthropicAPIURL, body)
+	if err != nil {
+		return "", err
+	}
+	var parsed anthResp
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		return "", fmt.Errorf("anthropic parse (status %d): %w; body=%s", status, err, string(raw))
+	}
+	if parsed.Error != nil {
+		return "", fmt.Errorf("anthropic api error: %s (%s)", parsed.Error.Message, parsed.Error.Type)
+	}
+	for _, b := range parsed.Content {
+		if b.Type == "text" && b.Text != "" {
+			return b.Text, nil
+		}
+	}
+	return "", fmt.Errorf("anthropic: respuesta sin bloque text; body=%s", string(raw))
+}
+
 func (c *Client) generateMiniMax(ctx context.Context, system, user string) (string, error) {
 	body, _ := json.Marshal(anthReq{
 		Model:  c.model,
@@ -235,10 +330,12 @@ func (c *Client) do(ctx context.Context, url string, body []byte) ([]byte, int, 
 		return nil, 0, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	if c.provider == providerMiniMax {
+	if c.provider == providerMiniMax || c.provider == providerAnthropic {
 		req.Header.Set("x-api-key", c.apiKey)
 		req.Header.Set("anthropic-version", "2023-06-01")
-		req.Header.Set("anthropic-dangerous-direct-browser-access", "true")
+		if c.provider == providerMiniMax {
+			req.Header.Set("anthropic-dangerous-direct-browser-access", "true")
+		}
 	} else {
 		req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	}

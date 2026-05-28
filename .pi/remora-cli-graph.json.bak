@@ -1,0 +1,77 @@
+{
+  "project": "remora-go-lite",
+  "generatedAt": "2026-05-16T17:42:00Z",
+  "codeHash": "f9c0d20b4fdfa3d1",
+  "note": "Graph generated via manual analysis due to Joern workspace issue",
+  "entryPoints": [
+    {
+      "name": "main",
+      "file": "main.go",
+      "callee": "handleFlowWorkbench"
+    },
+    {
+      "name": "handleFlowWorkbench",
+      "file": "flow_workbench.go",
+      "line": 237,
+      "callees": ["handleDebugCommand", "delegateToCanonicalFlowWorkbench"]
+    },
+    {
+      "name": "handleDebugCommand",
+      "file": "flow_workbench.go",
+      "line": 274,
+      "callees": ["handleDebugFrameworks", "handleDebugManifest", "handleDebugCommands", "handleDebugCapabilities", "handleDebugTrace", "handleDebugValidate", "handleDebugSimulate", "handleDebugDependencies"]
+    }
+  ],
+  "methods": [
+    {"name": "main", "file": "main.go", "type": "entry"},
+    {"name": "handleFlowWorkbench", "file": "flow_workbench.go", "line": 237, "type": "handler"},
+    {"name": "printDebugUsage", "file": "flow_workbench.go", "line": 259, "type": "helper"},
+    {"name": "handleDebugCommand", "file": "flow_workbench.go", "line": 274, "type": "handler"},
+    {"name": "handleDebugFrameworks", "file": "flow_workbench.go", "line": 310, "type": "handler"},
+    {"name": "handleDebugManifest", "file": "flow_workbench.go", "line": 373, "type": "handler"},
+    {"name": "handleDebugCommands", "file": "flow_workbench.go", "line": 401, "type": "handler"},
+    {"name": "handleDebugCapabilities", "file": "flow_workbench.go", "line": 444, "type": "handler"},
+    {"name": "handleDebugTrace", "file": "flow_workbench.go", "line": 505, "type": "handler"},
+    {"name": "handleDebugValidate", "file": "flow_workbench.go", "line": 539, "type": "handler"},
+    {"name": "handleDebugSimulate", "file": "flow_workbench.go", "line": 572, "type": "handler"},
+    {"name": "handleDebugDependencies", "file": "flow_workbench.go", "line": 625, "type": "handler"},
+    {"name": "delegateToCanonicalFlowWorkbench", "file": "flow_workbench.go", "line": 880, "type": "delegator"},
+    {"name": "canonicalFlowWorkbenchCommand", "file": "flow_workbench.go", "line": 895, "type": "delegator"},
+    {"name": "printFlowWorkbenchUsage", "file": "flow_workbench.go", "line": 907, "type": "helper"},
+    {"name": "handleFlowCreate", "file": "flow_workbench.go", "line": 1114, "type": "handler"},
+    {"name": "handleFlowDraft", "file": "flow_workbench.go", "line": 1235, "type": "handler"},
+    {"name": "handleFlowInspect", "file": "flow_workbench.go", "line": 1312, "type": "handler"},
+    {"name": "handleFlowSimulate", "file": "flow_workbench.go", "line": 1330, "type": "handler"},
+    {"name": "newClient", "file": "main.go", "line": 60, "type": "factory"},
+    {"name": "Client.get", "file": "main.go", "line": 71, "type": "api"},
+    {"name": "Client.post", "file": "main.go", "line": 93, "type": "api"}
+  ],
+  "types": [
+    "Client", "FlowManifest", "FlowIntent", "FlowNode", "FlowEdge",
+    "FlowRunResult", "FlowRunStep", "FlowHandoff", "FlowValidation",
+    "FlowIssue", "FlowInput", "FrameworkInfo", "CapabilityInfo",
+    "FlowValidationResult", "SimulateResult"
+  ],
+  "sinks": [
+    {"type": "exec", "name": "flowWorkbenchExecCommand", "file": "flow_workbench.go", "line": 235},
+    {"type": "exec", "name": "exec.Command (via canonicalFlowWorkbenchCommand)", "file": "flow_workbench.go", "line": 895},
+    {"type": "http", "name": "Client.get", "file": "main.go", "line": 71},
+    {"type": "http", "name": "Client.post", "file": "main.go", "line": 93}
+  ],
+  "callGraph": {
+    "main": ["handleFlowWorkbench"],
+    "handleFlowWorkbench": ["handleDebugCommand", "delegateToCanonicalFlowWorkbench"],
+    "handleDebugCommand": ["handleDebugFrameworks", "handleDebugManifest", "handleDebugCommands", "handleDebugCapabilities", "handleDebugTrace", "handleDebugValidate", "handleDebugSimulate", "handleDebugDependencies"],
+    "delegateToCanonicalFlowWorkbench": ["canonicalFlowWorkbenchCommand"],
+    "handleFlowCreate": ["newClient", "Client.post", "fetchBusinessArtifacts", "promptFlowCreateAnswers"],
+    "handleFlowDraft": ["newClient", "Client.post"],
+    "handleFlowInspect": ["mustFetchFlowRecord"],
+    "handleFlowSimulate": ["mustFetchFlowRecord", "newClient", "Client.post"]
+  },
+  "gaps": {
+    "handleFlowDebug": {"status": "NO_EXISTE", "reason": "debug es LOCAL, no flow-debug"},
+    "handleFlowRun": {"status": "NO_EXISTE", "reason": "delegado via canonicalFlowWorkbenchCommand"},
+    "handleFlowCompile": {"status": "NO_EXISTE", "reason": "delegado via canonicalFlowWorkbenchCommand"},
+    "Client.stream": {"status": "NO_EXISTE", "reason": "no hay WebSocket"}
+  }
+}

@@ -1,0 +1,109 @@
+{
+  "run_id": "run-1778992200",
+  "code_hash": "5f3d64e50f60c935",
+  "project": "remora-go-lite",
+  "components": [
+    "remora-cli",
+    "remora-flujo",
+    "channel"
+  ],
+  "pipeline": "pipeline-base",
+  "steps": {
+    "00-pi-cpg-builder": {
+      "status": "completed",
+      "step": "00",
+      "timestamp": "2026-05-16T22:30:00Z"
+    },
+    "01-pi-detective": {
+      "status": "completed",
+      "step": "01",
+      "timestamp": "2026-05-17T00:10:00Z",
+      "components": [
+        "remora-cli",
+        "remora-flujo",
+        "channel"
+      ],
+      "output": ".pi/chain-runs/run-1778992200/01-pi-detective/output.md",
+      "gaps_count": 7,
+      "sinks_count": 232,
+      "method_count": {
+        "remora-cli": 180,
+        "remora-flujo": 1696,
+        "channel": 225
+      },
+      "binaries": {
+        "remora-cli": [
+          "remora",
+          "devcli"
+        ],
+        "remora-flujo": [
+          "api_rest",
+          "flujo",
+          "agentrpc",
+          "framework_session",
+          "llmtest",
+          "nativeagent",
+          "autonomia",
+          "handoff",
+          "llm",
+          "frontends"
+        ],
+        "channel": [
+          "channel",
+          "orchestrator",
+          "vault",
+          "alfa-runner",
+          "echo-runner",
+          "adapter",
+          "credentials",
+          "internal",
+          "profile",
+          "manifest"
+        ]
+      },
+      "frameworks_count": 21
+    },
+    "02-pi-pre-narrador": {
+      "status": "completed",
+      "step": "02",
+      "timestamp": "2026-05-17T00:00:00Z",
+      "output": ".pi/chain-runs/run-1778992200/02-pi-pre-narrador/output.md",
+      "surfaces_count": 4,
+      "flows_count": 7
+    },
+    "03-pi-indexer": {
+      "status": "completed",
+      "step": "03",
+      "timestamp": "2026-05-17T00:00:00Z",
+      "output": ".pi/chain-runs/run-1778992200/03-pi-indexer/output.md",
+      "gaps_count": 7,
+      "sinks_count": 12,
+      "cables_count": 5,
+      "semantic_index": ".pi/semantic-index.yaml"
+    },
+    "pi-pre-narrador": {
+      "status": "completed",
+      "step": "02",
+      "timestamp": "2026-05-17T17:26:43Z"
+    },
+    "pi-indexer": {
+      "status": "completed",
+      "step": "03",
+      "timestamp": "2026-05-18T01:50:08Z",
+      "index_path": ".pi/semantic-index.yaml",
+      "axiom_count": 99,
+      "components": [
+        "remora-cli",
+        "remora-flujo",
+        "channel"
+      ]
+    },
+    "pre-narrador": {
+      "status": "completed",
+      "step": "02",
+      "timestamp": "2026-05-18T00:39:13Z"
+    }
+  },
+  "status": "completed",
+  "completed_at": "2026-05-17T00:00:00Z"
+}

@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "business_id": "biz_-vvG6gwJyVXqvXgX",
+  "name": "PanalBit",
+  "domain": "cobranza legal / timebilling",
+  "why": "Ayudar a cobradores de estudios jurídicos a entender cartera, revisar clientes, priorizar cobros y preparar seguimiento usando datos verificables.",
+  "default_audience": "collector",
+  "default_mode": "collection_assistant",
+  "data_source": {
+    "kind": "sqlite",
+    "default_path": "../framework-indexa/data/panalbit.sqlite",
+    "semantic_catalog": "semantic/catalog.json",
+    "semantic_views": "semantic/views.sql",
+    "profile": "semantic/profile.json"
+  },
+  "audiences": {
+    "remora_admin": {
+      "label": "Administrador técnico de Remora",
+      "description": "Puede revisar estructura, calidad de datos, configuración semántica y evidencia técnica.",
+      "allowed_modes": [
+        "schema_debug",
+        "data_quality",
+        "business_config",
+        "portfolio_overview",
+        "client_360"
+      ],
+      "can_see_sql": true,
+      "answer_style": "preciso, técnico cuando haga falta, explícito sobre relaciones y límites"
+    },
+    "panalbit_admin": {
+      "label": "Administrador de Panalbit",
+      "description": "Puede revisar cartera completa, configuración semántica y calidad de datos del negocio.",
+      "allowed_modes": [
+        "portfolio_overview",
+        "client_360",
+        "collection_prioritization",
+        "data_quality"
+      ],
+      "can_see_sql": true,
+      "answer_style": "ejecutivo, orientado a cartera, con evidencia resumida"
+    },
+    "collector": {
+      "label": "Cobrador de estudio jurídico",
+      "description": "Usuario final que necesita entender cartera, clientes, cargos, pagos, documentos y priorización de cobranza.",
+      "allowed_modes": [
+        "portfolio_overview",
+        "client_360",
+        "collection_prioritization"
+      ],
+      "can_see_sql": false,
+      "answer_style": "directo, accionable, orientado a cobranza, sin jerga técnica"
+    },
+    "debtor_client": {
+      "label": "Cliente/deudor final",
+      "description": "Usuario que solo debe ver datos de su propia cuenta si existe un scope explícito.",
+      "allowed_modes": [
+        "own_account_summary"
+      ],
+      "can_see_sql": false,
+      "answer_style": "simple, transparente, limitado a su propia información"
+    }
+  },
+  "primary_entities": {
+    "portfolio_client": {
+      "table": "clients",
+      "label": "Cliente/deudor",
+      "scope_key": "id",
+      "display_column": "name"
+    },
+    "project": {
+      "table": "projects",
+      "label": "Proyecto/caso/asunto",
+      "scope_column": "client_id"
+    },
+    "charge": {
+      "table": "charges",
+      "label": "Cargo/cobro",
+      "scope_column": "client_id"
+    },
+    "billing_document": {
+      "table": "billing_documents",
+      "label": "Documento/factura",
+      "scope_column": "client_id"
+    },
+    "payment": {
+      "table": "payments",
+      "label": "Pago",
+      "scope_column": "client_id"
+    },
+    "expense": {
+      "table": "expenses",
+      "label": "Gasto",
+      "scope_column": "client_id"
+    }
+  },
+  "canonical_views": [
+    "vw_clients_overview",
+    "vw_collection_overview",
+    "vw_projects_overview",
+    "vw_time_entries_overview",
+    "vw_law_firms"
+  ],
+  "jobs_to_be_done": [
+    "Resumir la cartera de cobranza.",
+    "Priorizar clientes por saldo pendiente y mora.",
+    "Explicar la situación de un cliente específico.",
+    "Revisar cargos, hitos, documentos, pagos y proyectos asociados.",
+    "Declarar límites cuando la DB no trae una relación o dato."
+  ],
+  "suggested_questions": {
+    "portfolio_overview": [
+      "¿Cuáles son los clientes con mayor saldo pendiente?",
+      "¿Qué clientes tienen mayor mora?",
+      "¿Cuántos cargos impagos hay?",
+      "¿Cuánto se registró en pagos este mes?"
+    ],
+    "client_360": [
+      "Resumí la situación de cobranza de este cliente",
+      "¿Qué cargos siguen pendientes?",
+      "¿Qué documentos tiene?",
+      "¿Qué pagos registra?",
+      "¿Qué proyectos tiene asociados?"
+    ],
+    "schema_debug": [
+      "¿Qué tablas hay?",
+      "¿Cómo se relacionan pagos y facturas?",
+      "¿Hay relación entre estudios jurídicos y clientes?"
+    ]
+  },
+  "answer_policies": {
+    "default": "Responder orientado al trabajo del usuario, no a la estructura técnica.",
+    "unknown_data": "Si no hay evidencia en la DB, decirlo claramente y no inventar.",
+    "evidence_for_end_user": "Mostrar evidencia resumida; no mostrar SQL salvo que la audiencia tenga can_see_sql=true.",
+    "scope": "Si hay scope de cliente o cartera, responder únicamente dentro de ese scope."
+  },
+  "forbidden_claims": [
+    "No afirmar relación entre law_firms y clientes/proyectos/cargos.",
+    "No afirmar pagos aplicados a una factura individual: payments no tiene billing_document_id.",
+    "No inventar contactos, teléfonos, emails de clientes ni direcciones si no están en la DB.",
+    "No usar billing_documents.amount como saldo pendiente.",
+    "No exponer datos fuera del scope de sesión."
+  ],
+  "artifact_requirements": {
+    "contact.destination.v1": {
+      "fields": [
+        {
+          "table": "clients",
+          "field": "email",
+          "label": "Correo electronico del cliente/deudor",
+          "reason": "Para enviar comunicacion al destinatario"
+        }
+      ]
+    },
+    "message.draft.v1": {
+      "fields": [
+        {
+          "table": "clients",
+          "field": "name",
+          "label": "Nombre del cliente/deudor",
+          "reason": "Para personalizar el mensaje"
+        },
+        {
+          "table": "milestones",
+          "field": "amount",
+          "label": "Monto adeudado",
+          "reason": "Para indicar el saldo pendiente en el mensaje",
+          "derived": true
+        },
+        {
+          "table": "milestones",
+          "field": "date",
+          "label": "Dias de mora",
+          "reason": "Para indicar la antiguedad de la deuda",
+          "derived": true
+        },
+        {
+          "table": "billing_documents",
+          "field": "number",
+          "label": "Numero de factura",
+          "reason": "Para referenciar documentos en el mensaje",
+          "derived": true
+        }
+      ]
+    }
+  },
+  "scope_policies": {
+    "scope_entity": "portfolio_client",
+    "tables": {
+      "clients": {
+        "scope_column": "id"
+      },
+      "projects": {
+        "scope_column": "client_id"
+      },
+      "agreements": {
+        "scope_column": "client_id"
+      },
+      "charges": {
+        "scope_column": "client_id"
+      },
+      "billing_documents": {
+        "scope_column": "client_id"
+      },
+      "payments": {
+        "scope_column": "client_id"
+      },
+      "expenses": {
+        "scope_column": "client_id"
+      },
+      "milestones": {
+        "join_to_scope": "milestones.charge_id = charges.id AND charges.client_id IN (:allowed_client_ids)"
+      },
+      "time_entries": {
+        "join_to_scope": "time_entries.project_code = projects.code AND projects.client_id IN (:allowed_client_ids)"
+      }
+    }
+  }
+}

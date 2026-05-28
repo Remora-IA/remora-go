@@ -230,6 +230,9 @@ func (s *authStore) migrate() error {
 		`ALTER TABLE businesses ADD COLUMN country TEXT`,
 		`ALTER TABLE businesses ADD COLUMN owner_user_id TEXT`,
 		`ALTER TABLE business_memberships ADD COLUMN role TEXT NOT NULL DEFAULT 'staff'`,
+		// Auth0: columna para guardar el sub de Auth0 y hacer upsert de usuarios
+		`ALTER TABLE users ADD COLUMN auth0_sub TEXT`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_auth0_sub ON users (auth0_sub) WHERE auth0_sub IS NOT NULL`,
 	}
 	for _, stmt := range alterStmts {
 		if _, err := s.db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
@@ -692,6 +695,72 @@ func (s *authStore) acceptRemoraTeamInvite(userID, token, code string) (*authUse
 	}
 	user.CreatedAt, _ = time.Parse(time.RFC3339, created)
 	return &user, nil
+}
+
+// upsertAuth0User crea o actualiza el usuario local a partir de un JWT de Auth0.
+// El campo auth0_sub es la clave de deduplicación; el email se usa como fallback para
+// encontrar usuarios existentes que aún no tienen auth0_sub (migraciones).
+func (s *authStore) upsertAuth0User(auth0Sub, email, name string) (*authUser, error) {
+	if auth0Sub == "" {
+		return nil, errors.New("auth0_sub requerido")
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	if name == "" {
+		// nombre por defecto: parte local del email
+		if idx := strings.Index(email, "@"); idx > 0 {
+			name = email[:idx]
+		} else {
+			name = email
+		}
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	// 1. Buscar por auth0_sub
+	var user authUser
+	var created string
+	err := s.db.QueryRow(`SELECT id, email, name, role, created_at FROM users WHERE auth0_sub=?`, auth0Sub).
+		Scan(&user.ID, &user.Email, &user.Name, &user.Role, &created)
+	if err == nil {
+		// Encontrado — actualizar nombre/email si cambió
+		_, _ = s.db.Exec(`UPDATE users SET email=?, name=?, updated_at=? WHERE auth0_sub=?`,
+			email, name, now, auth0Sub)
+		user.CreatedAt, _ = time.Parse(time.RFC3339, created)
+		return &user, nil
+	}
+
+	// 2. Buscar por email (usuario previo sin auth0_sub — migración)
+	if email != "" {
+		err2 := s.db.QueryRow(`SELECT id, email, name, role, created_at FROM users WHERE lower(email)=lower(?) AND (auth0_sub IS NULL OR auth0_sub='')`, email).
+			Scan(&user.ID, &user.Email, &user.Name, &user.Role, &created)
+		if err2 == nil {
+			// Vincular auth0_sub al usuario existente
+			_, _ = s.db.Exec(`UPDATE users SET auth0_sub=?, name=?, updated_at=? WHERE id=?`,
+				auth0Sub, name, now, user.ID)
+			user.CreatedAt, _ = time.Parse(time.RFC3339, created)
+			return &user, nil
+		}
+	}
+
+	// 3. Crear nuevo usuario Auth0 (password_hash vacío — no usa password local)
+	newUser := &authUser{
+		ID:    "usr_" + randomToken(18),
+		Email: email,
+		Name:  name,
+		Role:  "user",
+	}
+	newUser.CreatedAt = time.Now().UTC()
+	_, err = s.db.Exec(
+		`INSERT INTO users (id, email, password_hash, name, role, auth0_sub, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?, ?)`,
+		newUser.ID, newUser.Email, newUser.Name, newUser.Role, auth0Sub, now, now,
+	)
+	if err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			// Raza de condición — reintento por sub
+			return s.upsertAuth0User(auth0Sub, email, name)
+		}
+		return nil, err
+	}
+	return newUser, nil
 }
 
 func authTokenFromRequest(r *http.Request) string {

@@ -1,0 +1,4693 @@
+{
+  "generatedAt": "2026-05-17T17:54:13.850477+00:00",
+  "count": 21,
+  "frameworks": [
+    {
+      "name": "alfa",
+      "version": "1.0.0",
+      "description": "Compilador semántico Echo→Bravo. Traduce árbol Echo a flujo ideal.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "frameworkalfa",
+          "./cmd/frameworkalfa"
+        ]
+      },
+      "binary": {
+        "command": "go",
+        "args_prefix": [
+          "run",
+          "./cmd/frameworkalfa"
+        ]
+      },
+      "cwd": "framework-alfa",
+      "inputs": [
+        {
+          "name": "echo_tree",
+          "format": "echo.tree.v1",
+          "required": true,
+          "description": "Árbol Echo validado (frameworkecho.json)"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "alfa_spec",
+          "format": "alfa.spec.v1",
+          "path": "framework-alfa/temp/alfa_spec.json",
+          "description": "Spec compilada con linaje OPPORTUNITY→PAIN→TASK→THEORY→AXIOM y open_questions"
+        },
+        {
+          "name": "ideal_flow",
+          "format": "alfa.ideal_flow.v1",
+          "path": "framework-alfa/temp/ideal_flow.json",
+          "description": "Flujo ideal listo para Bravo"
+        }
+      ],
+      "commands": {
+        "compile": {
+          "description": "Compila árbol Echo a alfa_spec.json",
+          "args": [
+            "compile",
+            "--echo-tree",
+            "{inputs.echo_tree}",
+            "--out",
+            "{outputs.alfa_spec}",
+            "--allow-draft={params.allow_draft}"
+          ],
+          "params": [
+            "allow_draft"
+          ],
+          "defaults": {
+            "allow_draft": "true"
+          }
+        },
+        "inspect": {
+          "args": [
+            "inspect",
+            "--spec",
+            "{outputs.alfa_spec}"
+          ]
+        },
+        "export-bravo": {
+          "args": [
+            "export-bravo",
+            "--spec",
+            "{outputs.alfa_spec}",
+            "--out",
+            "{outputs.ideal_flow}",
+            "--allow-draft={params.allow_draft}"
+          ],
+          "params": [
+            "allow_draft"
+          ],
+          "defaults": {
+            "allow_draft": "true"
+          }
+        },
+        "next-question": {
+          "args": [
+            "next-question",
+            "--spec",
+            "{outputs.alfa_spec}",
+            "--echo-tree",
+            "{inputs.echo_tree}"
+          ]
+        },
+        "ingest-answer": {
+          "args": [
+            "ingest-answer",
+            "--spec",
+            "{outputs.alfa_spec}",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "question_id",
+            "answer"
+          ]
+        }
+      },
+      "asks_human": {
+        "via": "open_questions_field",
+        "path": "{outputs.alfa_spec}.open_questions",
+        "description": "Si Alfa necesita info, escribe preguntas en open_questions[] para que Echo se las haga al humano"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "echo",
+        "modes": [
+          "short_answer",
+          "resource_upload"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-alfa",
+      "module_name": "framework-alfa"
+    },
+    {
+      "name": "arquitecto",
+      "version": "1.0.0",
+      "description": "Framework para comprender e indexar codebases Go. Mantiene modelo mental del repo y responde queries estructurales.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "frameworkarquitecto",
+          "./cmd/frameworkarquitecto"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkarquitecto",
+        "args_prefix": []
+      },
+      "cwd": "framework-arquitecto",
+      "outputs": [
+        {
+          "name": "repo_model",
+          "format": "arquitecto.model.v1",
+          "path": "framework-arquitecto/temp/repo_model.json",
+          "description": "Modelo indexado del repo: paquetes, interfaces, entrypoints, dependencias"
+        }
+      ],
+      "inputs": [],
+      "commands": {
+        "init": {
+          "description": "Inicializa una sesion de analisis",
+          "args": [
+            "init",
+            "--session-id",
+            "{params.session_id}",
+            "--repo-path",
+            "{params.repo_path}"
+          ],
+          "params": [
+            "session_id",
+            "repo_path"
+          ]
+        },
+        "index-repo": {
+          "description": "Indexa el repo completo o delta",
+          "args": [
+            "index-repo",
+            "--scope",
+            "{params.scope}"
+          ],
+          "params": [
+            "scope"
+          ],
+          "defaults": {
+            "scope": "delta"
+          }
+        },
+        "query-structure": {
+          "description": "Consulta el modelo indexado",
+          "args": [
+            "query-structure",
+            "--query",
+            "{params.query}",
+            "--format",
+            "{params.format}"
+          ],
+          "params": [
+            "query",
+            "format"
+          ],
+          "defaults": {
+            "format": "json"
+          }
+        },
+        "trace-flow": {
+          "description": "Traza flujo de ejecucion desde un entrypoint",
+          "args": [
+            "trace-flow",
+            "--entrypoint",
+            "{params.entrypoint}",
+            "--depth",
+            "{params.depth}"
+          ],
+          "params": [
+            "entrypoint",
+            "depth"
+          ],
+          "defaults": {
+            "depth": "5"
+          }
+        },
+        "status": {
+          "args": [
+            "status"
+          ]
+        },
+        "readiness": {
+          "args": [
+            "readiness"
+          ]
+        },
+        "next-question": {
+          "args": [
+            "next-question"
+          ]
+        },
+        "ingest-answer": {
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "question_id",
+            "answer"
+          ],
+          "defaults": {
+            "question_id": ""
+          }
+        }
+      },
+      "asks_human": {
+        "via": "questions_to_ask_field",
+        "description": "Cada nodo PENDING del arbol de analisis tiene preguntas para el humano"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer",
+          "resource_upload"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "code-analysis",
+          "repo-indexing",
+          "architecture"
+        ],
+        "intent_examples": [
+          "quiero entender como funciona este repo",
+          "que hace este paquete",
+          "como se relacionan estas funciones",
+          "cual es el flujo de ejecucion desde main",
+          "donde se usa esta interfaz",
+          "necesito refactorizar esta parte"
+        ],
+        "produces": [
+          "repo_model:arquitecto.model.v1",
+          "trace_report"
+        ],
+        "requires": []
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-arquitecto",
+      "module_name": "framework-arquitecto"
+    },
+    {
+      "name": "auditor",
+      "version": "0.1.0",
+      "description": "Auditor proactivo de ERP. Lee datasets JSON mediados por Sabio, corre checks deterministas y emite findings accionables consumibles por framework-mecanico.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkauditor",
+          "./cmd/frameworkauditor"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkauditor",
+        "args_prefix": []
+      },
+      "cwd": "framework-auditor",
+      "execution_mode": "sync_chain",
+      "requires_infra": [],
+      "inputs": [
+        {
+          "name": "dataset",
+          "format": "external.api.dump.v1",
+          "path": "data/dataset.working.json",
+          "required": true,
+          "description": "Dump canónico del negocio producido por Sabio dataset.export"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "findings",
+          "format": "auditor.findings.v1",
+          "path": "data/findings.json",
+          "description": "Lista de hallazgos detectados en el último scan"
+        },
+        {
+          "name": "data_gaps",
+          "format": "data.gaps.v1",
+          "path": "data/findings.json",
+          "description": "Brechas de datos detectadas por Auditor y consumibles por Mecánico/Sabio"
+        }
+      ],
+      "commands": {
+        "reset": {
+          "description": "Restaura dataset.working.json desde dataset.golden.json y limpia findings",
+          "args": [
+            "reset"
+          ],
+          "params": []
+        },
+        "scan": {
+          "description": "Corre todos los checks sobre un dataset JSON mediado por Sabio, persiste findings.json y emite artifacts JSON",
+          "args": [
+            "scan",
+            "--source",
+            "{params.source}",
+            "--json"
+          ],
+          "params": [
+            "source"
+          ],
+          "defaults": {
+            "source": ""
+          }
+        },
+        "list": {
+          "description": "Imprime la lista de findings (texto plano)",
+          "args": [
+            "list"
+          ],
+          "params": []
+        },
+        "detail": {
+          "description": "Imprime el detalle de un finding por id",
+          "args": [
+            "detail",
+            "--id",
+            "{params.id}"
+          ],
+          "params": [
+            "id"
+          ]
+        },
+        "next-question": {
+          "description": "Devuelve el próximo mensaje del auditor para el user",
+          "args": [
+            "next-question"
+          ],
+          "params": []
+        },
+        "ingest-answer": {
+          "description": "Recibe respuesta del user y avanza el flujo",
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "question_id",
+            "answer"
+          ]
+        }
+      },
+      "asks_human": {
+        "via": "user",
+        "path": "next-question",
+        "description": "El auditor habla primero al usuario reportando los hallazgos"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "audit",
+          "erp",
+          "data-quality",
+          "rules"
+        ],
+        "intent_examples": [
+          "auditá el ERP",
+          "qué errores hay en mis datos",
+          "revisá la integridad de la base"
+        ],
+        "produces": [
+          "findings:erp_audit",
+          "data_gaps:data_quality"
+        ],
+        "requires": [
+          "dataset:json"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "data.quality.audit",
+          "description": "Detecta brechas de calidad de datos sobre external.api.dump.v1 mediado por Sabio, incluyendo contactos faltantes.",
+          "command": "scan",
+          "inputs": [
+            "external.api.dump.v1"
+          ],
+          "outputs": [
+            "auditor.findings.v1",
+            "data.gaps.v1"
+          ],
+          "requires": [
+            "external.api.dump.v1"
+          ],
+          "produces": [
+            "auditor.findings.v1",
+            "data.gaps.v1"
+          ],
+          "execution": "deterministic_data_quality_scan_sabio_dataset",
+          "policies": [
+            "no_external_side_effect",
+            "resolution_autonomous",
+            "safe_for_runtime"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-auditor",
+      "module_name": "framework-auditor"
+    },
+    {
+      "name": "bravo",
+      "version": "0.1.0",
+      "description": "Verificador de flujos ideales vs trazas reales. Compara un IdealFlow declarado contra un Trace real para detectar desvíos, pasos faltantes o reordenados.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkbravo",
+          "./examples/prospectos-seguimiento"
+        ]
+      },
+      "binary": {
+        "command": "go",
+        "args_prefix": [
+          "run",
+          "./examples/prospectos-seguimiento"
+        ]
+      },
+      "cwd": "framework-bravo",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {},
+      "user_input": {
+        "supported": false
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "verification",
+          "trace",
+          "ideal-flow",
+          "qa"
+        ],
+        "intent_examples": [
+          "verificar que el flujo real coincide con el ideal",
+          "comparar traza vs flujo esperado"
+        ],
+        "produces": [
+          "verification_report"
+        ],
+        "requires": [
+          "ideal_flow",
+          "trace"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-bravo",
+      "module_name": "framework-bravo"
+    },
+    {
+      "name": "charlie",
+      "version": "0.1.0",
+      "description": "Gestión del ciclo de vida de repos Git: doctor, plan, backup, preflight, publish y release. Opera el repo actual o uno externo con --root.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "charlie",
+          "./cmd/charlie"
+        ]
+      },
+      "binary": {
+        "command": "./charlie",
+        "args_prefix": []
+      },
+      "cwd": "framework-charlie",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "doctor": {
+          "description": "Diagnóstico de salud del repo",
+          "args": [
+            "doctor"
+          ],
+          "params": []
+        },
+        "plan": {
+          "description": "Genera plan de release",
+          "args": [
+            "plan"
+          ],
+          "params": []
+        },
+        "preflight": {
+          "description": "Checks previos a publicar",
+          "args": [
+            "preflight"
+          ],
+          "params": []
+        },
+        "status": {
+          "description": "Estado actual del repo",
+          "args": [
+            "status"
+          ],
+          "params": []
+        },
+        "changelog": {
+          "description": "Genera changelog",
+          "args": [
+            "changelog"
+          ],
+          "params": []
+        },
+        "backup": {
+          "description": "Backup del estado actual",
+          "args": [
+            "backup"
+          ],
+          "params": []
+        }
+      },
+      "user_input": {
+        "supported": false
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "release",
+          "git",
+          "lifecycle",
+          "publish"
+        ],
+        "intent_examples": [
+          "preparar release",
+          "verificar estado del repo",
+          "generar changelog",
+          "versionar otro repo git con --root"
+        ],
+        "produces": [
+          "release_plan",
+          "changelog"
+        ],
+        "requires": []
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-charlie",
+      "module_name": "framework-charlie"
+    },
+    {
+      "name": "critico",
+      "version": "1.0.0",
+      "description": "Framework adversarial para evaluar propuestas de cambio en codebases. No dice 'si' por defecto.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "frameworkcritico",
+          "./cmd/frameworkcritico"
+        ]
+      },
+      "binary": {
+        "command": "go",
+        "args_prefix": [
+          "run",
+          "./cmd/frameworkcritico"
+        ]
+      },
+      "cwd": "framework-critico",
+      "outputs": [
+        {
+          "name": "evaluation",
+          "format": "critico.eval.v1",
+          "path": "framework-critico/temp/evaluation.json",
+          "description": "Evaluacion de propuesta: riesgos, contradicciones, asunciones no verificadas"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "repo_model",
+          "format": "arquitecto.model.v1",
+          "required": false,
+          "description": "Modelo indexado del repo desde Arquitecto"
+        }
+      ],
+      "commands": {
+        "init": {
+          "description": "Inicializa sesion de evaluacion",
+          "args": [
+            "init",
+            "--session-id",
+            "{params.session_id}"
+          ],
+          "params": [
+            "session_id"
+          ]
+        },
+        "evaluate": {
+          "description": "Evalua una propuesta contra el modelo del repo",
+          "args": [
+            "evaluate",
+            "--proposal",
+            "{params.proposal}",
+            "--context",
+            "{inputs.repo_model}",
+            "--severity",
+            "{params.severity}"
+          ],
+          "params": [
+            "proposal",
+            "severity"
+          ],
+          "defaults": {
+            "severity": "normal",
+            "repo_model": ""
+          }
+        },
+        "challenge": {
+          "description": "Cuestiona una asuncion especifica",
+          "args": [
+            "challenge",
+            "--assumption",
+            "{params.assumption}",
+            "--evidence",
+            "{params.evidence}"
+          ],
+          "params": [
+            "assumption",
+            "evidence"
+          ]
+        },
+        "status": {
+          "args": [
+            "status"
+          ]
+        },
+        "readiness": {
+          "args": [
+            "readiness"
+          ]
+        },
+        "next-question": {
+          "args": [
+            "next-question"
+          ]
+        },
+        "ingest-answer": {
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "question_id",
+            "answer"
+          ],
+          "defaults": {
+            "question_id": ""
+          }
+        }
+      },
+      "asks_human": {
+        "via": "questions_to_ask_field",
+        "description": "Critico pregunta por evidencia que contradiga o apoye una asuncion"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer",
+          "resource_upload"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "code-review",
+          "risk-analysis",
+          "adversarial"
+        ],
+        "intent_examples": [
+          "quiero refactorizar esto",
+          "quiero mover esta funcion",
+          "es seguro cambiar esto",
+          "que riesgos tiene esta propuesta",
+          "critica mi idea",
+          "que puede salir mal"
+        ],
+        "produces": [
+          "evaluation:critico.eval.v1"
+        ],
+        "requires": [
+          "repo_model:arquitecto.model.v1"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-critico",
+      "module_name": "framework-critico"
+    },
+    {
+      "name": "deployer",
+      "version": "0.1.0",
+      "description": "Deploya remora-go a Cloud Run dev. Nunca toca produccion. No hace commits.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "deployer",
+          "./cmd/deployer"
+        ]
+      },
+      "binary": {
+        "command": "go",
+        "args_prefix": [
+          "run",
+          "./cmd/deployer"
+        ]
+      },
+      "cwd": "framework-deployer",
+      "inputs": [],
+      "outputs": [],
+      "commands": {
+        "plan": {
+          "description": "Muestra el plan de deploy dev sin ejecutar",
+          "args": []
+        },
+        "apply": {
+          "description": "Deploya a flujo-api-dev",
+          "args": [
+            "--apply"
+          ]
+        }
+      },
+      "asks_human": {},
+      "user_input": {
+        "supported": false
+      },
+      "execution_mode": "async_trigger",
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "deploy",
+          "cloud-run",
+          "dev"
+        ],
+        "intent_examples": [
+          "deploy dev",
+          "desplegar a dev",
+          "actualizar flujo-api-dev"
+        ],
+        "produces": [
+          "deploy:dev"
+        ],
+        "requires": [
+          "repo:remora-go"
+        ]
+      },
+      "guards": {
+        "forbidden_targets": [
+          "prod",
+          "flujo-api"
+        ],
+        "side_effects": [
+          "gcloud builds submit",
+          "gcloud run deploy"
+        ],
+        "no_git_writes": true
+      },
+      "env_vars": {
+        "optional": [
+          "PROJECT_ID",
+          "REGION",
+          "DEV_SERVICE",
+          "REMORA_ROOT"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-deployer",
+      "module_name": "framework-deployer"
+    },
+    {
+      "name": "echo",
+      "version": "1.0.0",
+      "description": "Framework para guiar reuniones de descubrimiento de procesos",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "frameworkecho",
+          "./cmd/frameworkecho"
+        ]
+      },
+      "binary": {
+        "command": "go",
+        "args_prefix": [
+          "run",
+          "./cmd/frameworkecho"
+        ]
+      },
+      "cwd": "framework-echo",
+      "outputs": [
+        {
+          "name": "tree",
+          "format": "echo.tree.v1",
+          "path": "framework-echo/frameworkecho.json",
+          "description": "Árbol de conocimiento progresivo (AXIOM→THEORY→TASK→PAIN→OPPORTUNITY)"
+        }
+      ],
+      "inputs": [],
+      "commands": {
+        "init": {
+          "description": "Inicializa un proyecto",
+          "args": [
+            "init",
+            "--project-id",
+            "{params.project_id}",
+            "--client",
+            "{params.client}",
+            "--date",
+            "{params.date}"
+          ],
+          "params": [
+            "project_id",
+            "client",
+            "date"
+          ]
+        },
+        "add-axiom": {
+          "args": [
+            "add-axiom",
+            "--title",
+            "{params.title}",
+            "--evidence",
+            "{params.evidence}"
+          ],
+          "params": [
+            "title",
+            "evidence"
+          ]
+        },
+        "add-theory": {
+          "args": [
+            "add-theory",
+            "--parent",
+            "{params.parent}",
+            "--title",
+            "{params.title}",
+            "--evidence",
+            "{params.evidence}"
+          ],
+          "params": [
+            "parent",
+            "title",
+            "evidence"
+          ]
+        },
+        "add-task": {
+          "args": [
+            "add-task",
+            "--parent",
+            "{params.parent}",
+            "--title",
+            "{params.title}",
+            "--evidence",
+            "{params.evidence}"
+          ],
+          "params": [
+            "parent",
+            "title",
+            "evidence"
+          ]
+        },
+        "add-pain": {
+          "args": [
+            "add-pain",
+            "--parent",
+            "{params.parent}",
+            "--title",
+            "{params.title}",
+            "--evidence",
+            "{params.evidence}"
+          ],
+          "params": [
+            "parent",
+            "title",
+            "evidence"
+          ]
+        },
+        "add-opportunity": {
+          "args": [
+            "add-opportunity",
+            "--parent",
+            "{params.parent}",
+            "--title",
+            "{params.title}",
+            "--evidence",
+            "{params.evidence}"
+          ],
+          "params": [
+            "parent",
+            "title",
+            "evidence"
+          ]
+        },
+        "validate": {
+          "args": [
+            "validate",
+            "{params.node_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "node_id",
+            "answer"
+          ]
+        },
+        "show-tree": {
+          "args": [
+            "show-tree"
+          ]
+        },
+        "readiness": {
+          "args": [
+            "readiness"
+          ]
+        },
+        "next-questions": {
+          "args": [
+            "next-questions"
+          ]
+        },
+        "next-question": {
+          "args": [
+            "next-question"
+          ]
+        },
+        "ingest-answer": {
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "question_id",
+            "answer"
+          ],
+          "defaults": {
+            "question_id": ""
+          }
+        }
+      },
+      "asks_human": {
+        "via": "questions_to_ask_field",
+        "description": "Cada nodo PENDING tiene un array questions_to_ask con preguntas para el humano"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-echo",
+      "module_name": "framework-echo"
+    },
+    {
+      "name": "excel",
+      "version": "0.1.0",
+      "description": "Conector de archivos Excel. Lee, escribe y manipula hojas de cálculo (.xlsx). Expone operaciones CRUD sobre celdas, filas y hojas.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkexcel",
+          "./cmd/framework-excel"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkexcel",
+        "args_prefix": []
+      },
+      "cwd": "framework-excel",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {},
+      "user_input": {
+        "supported": false
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "excel",
+          "spreadsheet",
+          "data",
+          "csv"
+        ],
+        "intent_examples": [
+          "leer archivo excel",
+          "obtener datos de la hoja",
+          "escribir en una celda"
+        ],
+        "produces": [
+          "spreadsheet_data"
+        ],
+        "requires": [
+          "file:xlsx"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-excel",
+      "module_name": "framework-excel"
+    },
+    {
+      "name": "foco",
+      "version": "1.1.0-focus-task",
+      "description": "Foco operativo del día. Convierte prioridades, eventos y conversación en próximas tareas sin consultar bases de datos de negocio.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "foco",
+          "./cmd/foco"
+        ]
+      },
+      "binary": {
+        "command": "./foco",
+        "args_prefix": []
+      },
+      "cwd": "framework-foco",
+      "execution_mode": "sync_chain",
+      "requires_infra": [],
+      "action_bounds": [
+        {
+          "type": "proceed",
+          "description": "Avanzar con la tarea propuesta usando el canal o siguiente paso recomendado.",
+          "examples": [
+            "Enviar correo de cobranza",
+            "Contactar al deudor"
+          ]
+        },
+        {
+          "type": "escalate",
+          "description": "Profundizar, escalar o cambiar de estrategia antes de actuar.",
+          "examples": [
+            "Revisar evidencia",
+            "Escalar a revisión legal"
+          ]
+        },
+        {
+          "type": "postpone",
+          "description": "Postergar o saltar el caso actual para continuar con otra prioridad.",
+          "examples": [
+            "Dejar para después",
+            "Pasar al siguiente caso"
+          ]
+        }
+      ],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "conversation",
+          "task_prioritization",
+          "intent_routing"
+        ],
+        "fallback": {
+          "provider": "minimax",
+          "name": "MiniMax-Text-01",
+          "env_key": "MINIMAX_API_KEY"
+        }
+      },
+      "commands": {
+        "next-question": {
+          "description": "Devuelve la próxima pregunta o acción",
+          "args": [
+            "next-question",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "session-start": {
+          "description": "Inicia una sesión IA del framework leyendo INITIAL_PROMPT.md",
+          "args": [
+            "session-start",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "ingest-answer": {
+          "description": "Procesa la respuesta del usuario y genera prioridades",
+          "args": [
+            "ingest-answer",
+            "--conv-id",
+            "{params.conv_id}",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}",
+            "--history",
+            "{params.history}"
+          ],
+          "params": [
+            "conv_id",
+            "question_id",
+            "answer",
+            "history"
+          ],
+          "defaults": {
+            "conv_id": "",
+            "question_id": "",
+            "history": ""
+          }
+        },
+        "query": {
+          "description": "Modo CLI directo para testing",
+          "args": [
+            "query",
+            "--question",
+            "{params.question}"
+          ],
+          "params": [
+            "question"
+          ]
+        },
+        "priorities": {
+          "description": "Compatibilidad legacy: lee task ledger si existe. No consulta SQLite de negocio.",
+          "args": [
+            "priorities",
+            "--business-id",
+            "{params.business_id}",
+            "--profile",
+            "{params.profile}",
+            "--db",
+            "{params.db}"
+          ],
+          "params": [
+            "business_id",
+            "profile",
+            "db"
+          ],
+          "defaults": {
+            "business_id": "",
+            "profile": "",
+            "db": ""
+          }
+        },
+        "next-task": {
+          "description": "Convierte una prioridad seleccionada en la próxima tarea operativa. Respeta action.selection.v1 si está presente. Puede recibir strategy.recommendation.v1 para generar action_options dinámicas.",
+          "args": [
+            "next-task",
+            "--business-id",
+            "{params.business_id}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--deudor",
+            "{params.deudor}",
+            "--action-id",
+            "{params.action_id}",
+            "--action-label",
+            "{params.action_label}",
+            "--context-b64",
+            "{params.context_b64}",
+            "--strategy-path",
+            "{params.strategy_path}",
+            "--strategy-json",
+            "{params.strategy_json}",
+            "--conv-id",
+            "{params.conv_id}",
+            "--dry-run",
+            "{params.dry_run}",
+            "--priority-list-json",
+            "{params.priority_list_json}",
+            "--priority-list-path",
+            "{params.priority_list_path}"
+          ],
+          "params": [
+            "business_id",
+            "entity_ref",
+            "entity_type",
+            "deudor",
+            "action_id",
+            "action_label",
+            "context_b64",
+            "strategy_path",
+            "strategy_json",
+            "conv_id",
+            "dry_run",
+            "priority_list_json",
+            "priority_list_path"
+          ],
+          "defaults": {
+            "business_id": "",
+            "entity_ref": "",
+            "entity_type": "customer",
+            "deudor": "",
+            "action_id": "",
+            "action_label": "",
+            "context_b64": "",
+            "strategy_path": "",
+            "strategy_json": "",
+            "conv_id": "",
+            "dry_run": "false",
+            "priority_list_json": "",
+            "priority_list_path": ""
+          }
+        },
+        "complete-cycle": {
+          "description": "Consume flow.cycle.completed.v1 y marca la tarea/ciclo operativo como completado en Foco.",
+          "args": [
+            "complete-cycle",
+            "--task-id",
+            "{params.task_id}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--entity-name",
+            "{params.entity_name}",
+            "--cycle-kind",
+            "{params.cycle_kind}",
+            "--message-id",
+            "{params.message_id}",
+            "--to",
+            "{params.to}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "task_id",
+            "entity_ref",
+            "entity_name",
+            "cycle_kind",
+            "message_id",
+            "to",
+            "conv_id"
+          ],
+          "defaults": {
+            "task_id": "",
+            "entity_ref": "",
+            "entity_name": "",
+            "cycle_kind": "message_sent",
+            "message_id": "",
+            "to": "",
+            "conv_id": ""
+          }
+        }
+      },
+      "user_input": {
+        "supported": true,
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer",
+        "modes": [
+          "query"
+        ],
+        "ask_via": "cli"
+      },
+      "state": {
+        "dir": "temp/foco",
+        "files": [
+          "state.json",
+          "last_priority_list.json"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "focus",
+          "operational-prioritization",
+          "collections",
+          "daily-plan"
+        ],
+        "intent_examples": [
+          "qué hago hoy",
+          "cuál es la próxima tarea",
+          "en qué me enfoco ahora",
+          "con quién empiezo"
+        ],
+        "produces": [
+          "focus.next_task.v1",
+          "task.next",
+          "focus.cycle_status.v1",
+          "task.done"
+        ],
+        "requires": [
+          "collection.priority_list.v1"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "focus.entry_briefing",
+          "description": "Abre el flujo operativo hablando primero al usuario, resume el contexto disponible y ofrece opciones rápidas.",
+          "command": "session-start",
+          "inputs": [
+            "business.context.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "focus.briefing.v1",
+            "framework.question.v1",
+            "task.options.v1"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "focus.briefing.v1",
+            "framework.question.v1",
+            "task.options.v1"
+          ],
+          "execution": "operational_entry_briefing",
+          "policies": [
+            "trace_required",
+            "entrypoint",
+            "flow_state_scoped",
+            "framework_speaks_first"
+          ]
+        },
+        {
+          "id": "collection.priority_list",
+          "description": "Compatibilidad legacy: expone prioridades desde ledger conversacional si existe. Deprecated para scoring data-aware; usar radar.collection.priority_list.",
+          "command": "priorities",
+          "inputs": [
+            "business.context.v1"
+          ],
+          "outputs": [
+            "collection.priority_list.v1",
+            "collection.priority_item.v1",
+            "entity.ref.v1"
+          ],
+          "requires": [
+            "business.context.v1"
+          ],
+          "produces": [
+            "collection.priority_list.v1",
+            "collection.priority_item.v1",
+            "entity.ref.v1",
+            "data.priorities"
+          ],
+          "execution": "operational_ledger_priority_export",
+          "policies": [
+            "trace_required",
+            "business_context_required",
+            "deprecated_use_radar_for_data_scoring"
+          ]
+        },
+        {
+          "id": "focus.next_collection_task",
+          "description": "Convierte una lista priorizada en la próxima tarea operativa del cobrador.",
+          "command": "next-task",
+          "inputs": [
+            "collection.priority_list.v1",
+            "business.context.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "focus.next_task.v1",
+            "task.next",
+            "entity.ref.v1",
+            "action.options.v1"
+          ],
+          "requires": [
+            "collection.priority_list.v1"
+          ],
+          "produces": [
+            "focus.next_task.v1",
+            "task.next",
+            "entity.ref.v1",
+            "action.options.v1"
+          ],
+          "execution": "operational_focus_selection",
+          "policies": [
+            "trace_required",
+            "entrypoint",
+            "task_owner",
+            "flow_state_scoped"
+          ]
+        },
+        {
+          "id": "focus.conversation",
+          "description": "Mantiene una conversación de foco/priorización y convierte respuestas del usuario en próximas acciones.",
+          "command": "ingest-answer",
+          "inputs": [
+            "user.input.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "framework.question.v1",
+            "task.next"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "task.next"
+          ],
+          "execution": "stateful_conversation",
+          "policies": [
+            "trace_required",
+            "entrypoint",
+            "flow_state_scoped"
+          ]
+        },
+        {
+          "id": "focus.complete_cycle",
+          "description": "Cierra un ciclo operativo cuando un flujo emite flow.cycle.completed.v1 y actualiza el estado de la tarea en Foco.",
+          "command": "complete-cycle",
+          "inputs": [
+            "flow.cycle.completed.v1",
+            "task.next",
+            "entity.ref.v1"
+          ],
+          "outputs": [
+            "focus.cycle_status.v1",
+            "task.done"
+          ],
+          "requires": [
+            "flow.cycle.completed.v1"
+          ],
+          "produces": [
+            "focus.cycle_status.v1",
+            "task.done"
+          ],
+          "execution": "deterministic_cycle_completion_update",
+          "policies": [
+            "state_mutation",
+            "trace_required",
+            "task_owner",
+            "flow_state_scoped",
+            "idempotent"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-foco",
+      "module_name": "framework-foco"
+    },
+    {
+      "name": "gmail",
+      "version": "0.1.0",
+      "description": "Gestor de emails. Prepara borradores canónicos message.draft.v1 y gestiona operaciones de correo; el envío real sigue pasando por aprobación/credenciales.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkgmail",
+          "./cmd/framework-gmail"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkgmail",
+        "args_prefix": []
+      },
+      "cwd": "framework-gmail",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "send-email": {
+          "description": "Envía un email vía Gmail API",
+          "args": [
+            "send-email"
+          ],
+          "params": []
+        },
+        "get-unread-emails": {
+          "description": "Lista emails no leídos",
+          "args": [
+            "get-unread-emails"
+          ],
+          "params": []
+        },
+        "search-emails": {
+          "description": "Busca emails por query",
+          "args": [
+            "search-emails"
+          ],
+          "params": []
+        },
+        "list-labels": {
+          "description": "Lista labels de Gmail",
+          "args": [
+            "list-labels"
+          ],
+          "params": []
+        },
+        "list-drafts": {
+          "description": "Lista borradores",
+          "args": [
+            "list-drafts"
+          ],
+          "params": []
+        },
+        "create-draft": {
+          "description": "Genera un borrador canónico message.draft.v1 sin enviarlo",
+          "args": [
+            "create-draft",
+            "--recipient_id",
+            "{params.to}",
+            "--subject",
+            "{params.subject}",
+            "--message",
+            "{params.message}"
+          ],
+          "params": [
+            "to",
+            "subject",
+            "message"
+          ],
+          "defaults": {
+            "to": "",
+            "subject": "",
+            "message": ""
+          }
+        }
+      },
+      "user_input": {
+        "supported": false
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "gmail",
+          "email",
+          "oauth2",
+          "google"
+        ],
+        "intent_examples": [
+          "leer mis emails",
+          "enviar un correo",
+          "buscar emails de un cliente"
+        ],
+        "produces": [
+          "email.send",
+          "email.list",
+          "email.search",
+          "message.draft.v1",
+          "email.draft"
+        ],
+        "requires": [
+          "credentials.gmail_oauth2"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "message.draft.collection_email",
+          "description": "Prepara un borrador de email de cobranza a partir del contexto ya analizado, sin enviarlo.",
+          "command": "create-draft",
+          "inputs": [
+            "business.context.v1",
+            "entity_360.v1",
+            "collection.priority_item.v1"
+          ],
+          "outputs": [
+            "message.draft.v1"
+          ],
+          "requires": [
+            "business.context.v1",
+            "entity_360.v1"
+          ],
+          "produces": [
+            "message.draft.v1",
+            "message.draft"
+          ],
+          "execution": "template_draft_generation_no_send",
+          "policies": [
+            "approval_required_before_send",
+            "no_external_side_effect"
+          ]
+        },
+        {
+          "id": "email.send.gmail",
+          "description": "Envía un email usando Gmail API y credenciales OAuth2.",
+          "command": "send-email",
+          "inputs": [
+            "message.draft.v1",
+            "credentials.gmail_oauth2",
+            "business.context.v1"
+          ],
+          "outputs": [
+            "message.sent.v1",
+            "email.sent.v1"
+          ],
+          "requires": [
+            "message.draft.v1",
+            "credentials.gmail_oauth2"
+          ],
+          "produces": [
+            "message.sent.v1",
+            "email.sent.v1",
+            "email.send"
+          ],
+          "execution": "gmail_api_send",
+          "policies": [
+            "external_side_effect",
+            "approval_required",
+            "trace_required",
+            "audit_log_required"
+          ]
+        },
+        {
+          "id": "email.list.gmail_unread",
+          "description": "Lista correos no leídos usando Gmail API.",
+          "command": "get-unread-emails",
+          "inputs": [
+            "credentials.gmail_oauth2",
+            "business.context.v1"
+          ],
+          "outputs": [
+            "email.list.v1"
+          ],
+          "requires": [
+            "credentials.gmail_oauth2"
+          ],
+          "produces": [
+            "email.list.v1",
+            "email.list"
+          ],
+          "execution": "gmail_api_read",
+          "policies": [
+            "read_external_data",
+            "scope_required"
+          ]
+        },
+        {
+          "id": "email.search.gmail",
+          "description": "Busca correos por query usando Gmail API.",
+          "command": "search-emails",
+          "inputs": [
+            "credentials.gmail_oauth2",
+            "email.search_query.v1",
+            "business.context.v1"
+          ],
+          "outputs": [
+            "email.search_results.v1"
+          ],
+          "requires": [
+            "credentials.gmail_oauth2"
+          ],
+          "produces": [
+            "email.search_results.v1",
+            "email.search"
+          ],
+          "execution": "gmail_api_search",
+          "policies": [
+            "read_external_data",
+            "scope_required"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-gmail",
+      "module_name": "framework-gmail"
+    },
+    {
+      "name": "hosting",
+      "version": "0.1.0-poc",
+      "description": "Conecta al panel de hosting del usuario (cPanel UAPI) y opera sobre email/DNS/archivos vía HTTPS. POC: connect + list-emails.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkhosting",
+          "./cmd/frameworkhosting"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkhosting",
+        "args_prefix": []
+      },
+      "cwd": "framework-hosting",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "next-question": {
+          "description": "Devuelve el saludo inicial o la respuesta pendiente",
+          "args": [
+            "next-question",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "ingest-answer": {
+          "description": "Procesa input del usuario: 'conectar host user pass' | 'listar correos'",
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "question_id",
+            "answer",
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "connect": {
+          "description": "Verifica login al panel y guarda credenciales encriptadas",
+          "args": [
+            "connect",
+            "--host",
+            "{params.host}",
+            "--user",
+            "{params.user}",
+            "--pass",
+            "{params.pass}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "host",
+            "user",
+            "pass",
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "list-emails": {
+          "description": "Lista cuentas de email del dominio (Email/list_pops)",
+          "args": [
+            "list-emails",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "provision-smtp": {
+          "description": "Crea un buzón email vía cPanel UAPI y persiste credenciales.smtp en el vault compartido",
+          "args": [
+            "provision-smtp",
+            "--mailbox",
+            "{params.mailbox}",
+            "--domain",
+            "{params.domain}",
+            "--password",
+            "{params.password}",
+            "--default-to",
+            "{params.default_to}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "mailbox",
+            "domain",
+            "password",
+            "default_to",
+            "conv_id"
+          ],
+          "defaults": {
+            "password": "",
+            "default_to": "",
+            "conv_id": ""
+          }
+        },
+        "import-smtp": {
+          "description": "Importa credenciales SMTP existentes (sin tocar cPanel) y las guarda en el vault como credentials.smtp",
+          "args": [
+            "import-smtp",
+            "--host",
+            "{params.host}",
+            "--port",
+            "{params.port}",
+            "--user",
+            "{params.user}",
+            "--pass",
+            "{params.pass}",
+            "--from",
+            "{params.from}",
+            "--default-to",
+            "{params.default_to}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "host",
+            "port",
+            "user",
+            "pass",
+            "from",
+            "default_to",
+            "conv_id"
+          ],
+          "defaults": {
+            "port": "587",
+            "from": "",
+            "default_to": "",
+            "conv_id": ""
+          }
+        },
+        "has-smtp": {
+          "description": "Verifica que credentials.smtp exista, sea legible y permita login SMTP real con el mismo scope que usará Mensajero",
+          "args": [
+            "has-smtp",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "verify-smtp": {
+          "description": "Lee credenciales SMTP del vault y hace login real al servidor para verificar que funcionan. No envía emails.",
+          "args": [
+            "verify-smtp",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "discover-cpanel": {
+          "description": "Dado un dominio, prueba endpoints estándar de cPanel y devuelve el mejor candidato",
+          "args": [
+            "discover-cpanel",
+            "--domain",
+            "{params.domain}"
+          ],
+          "params": [
+            "domain"
+          ],
+          "defaults": {}
+        },
+        "delete-smtp": {
+          "description": "Elimina credentials.smtp del vault para la conversación/perfil",
+          "args": [
+            "delete-smtp",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "genkey": {
+          "description": "Genera una clave AES-256 para HOSTING_VAULT_KEY",
+          "args": [
+            "genkey"
+          ],
+          "params": []
+        }
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "state": {
+        "dir": "temp",
+        "files": [
+          "state.json",
+          "creds_*.enc"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "hosting",
+          "cpanel",
+          "email",
+          "dns"
+        ],
+        "intent_examples": [
+          "conectar a mi hosting",
+          "listar las cuentas de correo",
+          "qué emails tengo en mi dominio"
+        ],
+        "produces": [
+          "email_account_list",
+          "credentials.smtp",
+          "credentials.cpanel"
+        ],
+        "requires": [
+          "credentials.cpanel"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "credentials.cpanel.connect",
+          "description": "Verifica acceso a cPanel y guarda credenciales cPanel cifradas para la conversación/perfil.",
+          "command": "connect",
+          "inputs": [
+            "credentials.cpanel.input.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "credentials.cpanel"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "credentials.cpanel"
+          ],
+          "execution": "vault_write_after_remote_login_check",
+          "policies": [
+            "secret_write",
+            "vault_scoped",
+            "vault_scoped",
+            "vault_scoped",
+            "approval_required",
+            "audit_log_required"
+          ]
+        },
+        {
+          "id": "credentials.smtp.provision",
+          "description": "Crea o prepara una casilla SMTP en hosting/cPanel y persiste credentials.smtp en el vault.",
+          "command": "provision-smtp",
+          "inputs": [
+            "credentials.cpanel",
+            "smtp.provision_request.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "credentials.smtp"
+          ],
+          "requires": [
+            "credentials.cpanel"
+          ],
+          "produces": [
+            "credentials.smtp"
+          ],
+          "execution": "cpanel_uapi_mailbox_provision_and_vault_write",
+          "policies": [
+            "external_side_effect",
+            "secret_write",
+            "vault_scoped",
+            "approval_required",
+            "audit_log_required"
+          ]
+        },
+        {
+          "id": "credentials.smtp.import",
+          "description": "Importa credenciales SMTP existentes al vault sin crear recursos en el hosting.",
+          "command": "import-smtp",
+          "inputs": [
+            "credentials.smtp.input.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "credentials.smtp"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "credentials.smtp"
+          ],
+          "execution": "vault_secret_import",
+          "policies": [
+            "secret_write",
+            "approval_required",
+            "audit_log_required"
+          ]
+        },
+        {
+          "id": "credentials.smtp.check",
+          "description": "Verifica si credentials.smtp está realmente lista para enviar: existe en el vault, se puede leer y permite login SMTP real.",
+          "command": "has-smtp",
+          "inputs": [
+            "session.context.v1"
+          ],
+          "outputs": [
+            "credentials.status.v1"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "credentials.status.v1"
+          ],
+          "execution": "vault_capability_check",
+          "policies": [
+            "safe_for_runtime",
+            "resolution_interactive",
+            "vault_scoped",
+            "no_external_side_effect",
+            "external_network_access"
+          ]
+        },
+        {
+          "id": "credentials.smtp.verify",
+          "description": "Hace login real al servidor SMTP con las credenciales del vault para verificar que funcionan.",
+          "command": "verify-smtp",
+          "inputs": [
+            "credentials.smtp",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "credentials.smtp.verification.v1"
+          ],
+          "requires": [
+            "credentials.smtp"
+          ],
+          "produces": [
+            "credentials.smtp.verification.v1"
+          ],
+          "execution": "smtp_login_verify",
+          "policies": [
+            "external_network_access",
+            "no_side_effect",
+            "vault_scoped"
+          ]
+        },
+        {
+          "id": "credentials.smtp.delete",
+          "description": "Elimina credentials.smtp del vault para la conversación/perfil.",
+          "command": "delete-smtp",
+          "inputs": [
+            "session.context.v1"
+          ],
+          "outputs": [
+            "credentials.deleted.v1"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "credentials.deleted.v1"
+          ],
+          "execution": "vault_capability_delete",
+          "policies": [
+            "secret_write",
+            "approval_required"
+          ]
+        },
+        {
+          "id": "email.account.list",
+          "description": "Lista cuentas de email disponibles en el hosting/cPanel conectado.",
+          "command": "list-emails",
+          "inputs": [
+            "credentials.cpanel",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "email_account_list.v1"
+          ],
+          "requires": [
+            "credentials.cpanel"
+          ],
+          "produces": [
+            "email_account_list.v1",
+            "email_account_list"
+          ],
+          "execution": "cpanel_uapi_read",
+          "policies": [
+            "read_external_data",
+            "secret_required"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-hosting",
+      "module_name": "framework-hosting"
+    },
+    {
+      "name": "indexa",
+      "version": "0.1.0",
+      "description": "Ingesta data desde un dump JSON de una API externa, genera embeddings y persiste en un vector store consultable por framework-sabio.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkindexa",
+          "./cmd/frameworkindexa"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkindexa",
+        "args_prefix": []
+      },
+      "cwd": "framework-indexa",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "inputs": [
+        {
+          "name": "source_json",
+          "format": "external.api.dump.v1",
+          "path": "{params.source}",
+          "required": true,
+          "description": "Dump JSON de la API origen"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "vector_store",
+          "format": "indexa.store.v1",
+          "path": "data/store.json",
+          "required": false,
+          "description": "Archivo de persistencia del vector store local"
+        }
+      ],
+      "commands": {
+        "init": {
+          "description": "Inicializa el store",
+          "args": [
+            "init"
+          ],
+          "params": []
+        },
+        "index": {
+          "description": "Indexa un dump JSON en el store",
+          "args": [
+            "index",
+            "--source",
+            "{params.source}"
+          ],
+          "params": [
+            "source"
+          ]
+        },
+        "status": {
+          "description": "Muestra documentos por endpoint",
+          "args": [
+            "status"
+          ],
+          "params": []
+        },
+        "api-plan": {
+          "description": "Usa IA para proponer un ConnectorSpec desde documentación de una API REST",
+          "args": [
+            "api-plan",
+            "--docs-file",
+            "{params.docs_file}",
+            "--base-url",
+            "{params.base_url}",
+            "--out",
+            "{params.out}"
+          ],
+          "params": [
+            "docs_file",
+            "base_url",
+            "out"
+          ]
+        }
+      },
+      "asks_human": {
+        "via": "",
+        "path": "",
+        "description": "Indexa no pide input al usuario; se invoca por trigger externo"
+      },
+      "user_input": {
+        "supported": false
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "ingest",
+          "embeddings",
+          "rag"
+        ],
+        "intent_examples": [
+          "indexar la base de timebilling",
+          "cargar todos los clientes y proyectos al store",
+          "actualizar el índice con los datos más recientes"
+        ],
+        "produces": [
+          "data_indexed:timebilling"
+        ],
+        "requires": [
+          "api_dump:json"
+        ]
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-indexa",
+      "module_name": "framework-indexa"
+    },
+    {
+      "name": "mecanico",
+      "version": "0.1.0",
+      "description": "Agente reparador. Toma findings y brechas de datos producidos por Auditor, propone planes de remediación, aplica fixes solo con confirmación y puede preparar borradores operativos para resolver acciones aprobadas. No envía comunicaciones.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkmecanico",
+          "./cmd/frameworkmecanico"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkmecanico",
+        "args_prefix": []
+      },
+      "cwd": "framework-mecanico",
+      "execution_mode": "sync_chain",
+      "requires_infra": [],
+      "inputs": [
+        {
+          "name": "findings",
+          "format": "auditor.findings.v1",
+          "path": "../framework-auditor/data/findings.json",
+          "required": true,
+          "description": "Salida del último scan del auditor, incluyendo data.gaps.v1 cuando corresponde"
+        },
+        {
+          "name": "dataset",
+          "format": "external.api.dump.v1",
+          "path": "../framework-auditor/data/dataset.working.json",
+          "required": true,
+          "description": "Dataset mutable que el mecánico modifica al aplicar fixes"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "proposals",
+          "format": "mecanico.proposals.v1",
+          "path": "data/proposals.json",
+          "description": "Propuestas de fix pendientes de aprobación"
+        },
+        {
+          "name": "applied_log",
+          "format": "mecanico.applied.v1",
+          "path": "data/applied.jsonl",
+          "description": "Audit-trail de fixes aplicados"
+        }
+      ],
+      "commands": {
+        "propose": {
+          "description": "Genera propuesta de fix para un finding (no ejecuta). Prefiere findings/dataset por ruta; mantiene JSON inline como fallback.",
+          "args": [
+            "propose",
+            "--finding-id",
+            "{params.finding_id}",
+            "--findings-path",
+            "{params.findings_path}",
+            "--findings-json",
+            "{params.findings_json}",
+            "--dataset-path",
+            "{params.dataset_path}",
+            "--dataset-json",
+            "{params.dataset_json}"
+          ],
+          "params": [
+            "finding_id",
+            "findings_path",
+            "findings_json",
+            "dataset_path",
+            "dataset_json"
+          ],
+          "defaults": {
+            "findings_path": "",
+            "findings_json": "",
+            "dataset_path": "",
+            "dataset_json": ""
+          }
+        },
+        "propose-all-auto": {
+          "description": "Genera propuestas para todos los findings auto-corregibles. Puede recibir findings/dataset como JSON inline o por ruta de archivo.",
+          "args": [
+            "propose-all-auto",
+            "--findings-json",
+            "{params.findings_json}",
+            "--findings-path",
+            "{params.findings_path}",
+            "--dataset-json",
+            "{params.dataset_json}",
+            "--dataset-path",
+            "{params.dataset_path}"
+          ],
+          "params": [
+            "findings_json",
+            "findings_path",
+            "dataset_json",
+            "dataset_path"
+          ],
+          "defaults": {
+            "findings_json": "",
+            "findings_path": "",
+            "dataset_json": "",
+            "dataset_path": ""
+          }
+        },
+        "list-proposals": {
+          "description": "Lista propuestas pendientes",
+          "args": [
+            "list-proposals"
+          ],
+          "params": []
+        },
+        "apply": {
+          "description": "Aplica un fix propuesto al dataset.working.json. Prefiere dataset por ruta; mantiene JSON inline como fallback.",
+          "args": [
+            "apply",
+            "--proposal-id",
+            "{params.proposal_id}",
+            "--dataset-path",
+            "{params.dataset_path}",
+            "--dataset-json",
+            "{params.dataset_json}"
+          ],
+          "params": [
+            "proposal_id",
+            "dataset_path",
+            "dataset_json"
+          ],
+          "defaults": {
+            "dataset_path": "",
+            "dataset_json": ""
+          }
+        },
+        "apply-all": {
+          "description": "Aplica TODAS las propuestas pendientes (usar con precaución). Puede recibir dataset como JSON inline o por ruta de archivo.",
+          "args": [
+            "apply-all",
+            "--dataset-json",
+            "{params.dataset_json}",
+            "--dataset-path",
+            "{params.dataset_path}"
+          ],
+          "params": [
+            "dataset_json",
+            "dataset_path"
+          ],
+          "defaults": {
+            "dataset_json": "",
+            "dataset_path": ""
+          }
+        },
+        "reset": {
+          "description": "Limpia propuestas y log de aplicados",
+          "args": [
+            "reset"
+          ],
+          "params": []
+        },
+        "next-question": {
+          "description": "Próxima pregunta/mensaje al user",
+          "args": [
+            "next-question"
+          ],
+          "params": []
+        },
+        "ingest-answer": {
+          "description": "Recibe respuesta del user y avanza el flujo",
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}"
+          ],
+          "params": [
+            "question_id",
+            "answer"
+          ]
+        },
+        "draft-email": {
+          "description": "Genera un borrador de email de cobranza como artifact message.draft.v1; no envía. Si action_id=skip_case, omite el draft.",
+          "args": [
+            "draft-email",
+            "--deudor",
+            "{params.deudor}",
+            "--tono",
+            "{params.tono}",
+            "--saldo",
+            "{params.saldo}",
+            "--dias-mora",
+            "{params.dias_mora}",
+            "--to",
+            "{params.to}",
+            "--action-id",
+            "{params.action_id}"
+          ],
+          "params": [
+            "deudor",
+            "tono",
+            "saldo",
+            "dias_mora",
+            "to",
+            "action_id"
+          ],
+          "defaults": {
+            "tono": "formal",
+            "saldo": "0",
+            "dias_mora": "0",
+            "to": "",
+            "action_id": ""
+          }
+        },
+        "resolve-gaps": {
+          "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano. Filtra por scope_tables si se proveen.",
+          "args": [
+            "resolve-gaps",
+            "--data-gaps-path",
+            "{params.data_gaps_path}",
+            "--data-gaps-json",
+            "{params.data_gaps_json}",
+            "--findings-path",
+            "{params.findings_path}",
+            "--findings-json",
+            "{params.findings_json}",
+            "--entity-ref-path",
+            "{params.entity_ref_path}",
+            "--entity-ref-json",
+            "{params.entity_ref_json}",
+            "--scope-tables-path",
+            "{params.scope_tables_path}",
+            "--scope-tables-json",
+            "{params.scope_tables_json}"
+          ],
+          "params": [
+            "data_gaps_path",
+            "data_gaps_json",
+            "findings_path",
+            "findings_json",
+            "entity_ref_path",
+            "entity_ref_json",
+            "scope_tables_path",
+            "scope_tables_json"
+          ],
+          "defaults": {
+            "data_gaps_path": "",
+            "data_gaps_json": "",
+            "findings_path": "",
+            "findings_json": "",
+            "entity_ref_path": "",
+            "entity_ref_json": "",
+            "scope_tables_path": "",
+            "scope_tables_json": ""
+          }
+        }
+      },
+      "asks_human": {
+        "via": "user",
+        "path": "next-question",
+        "description": "Mecánico pregunta al user antes de aplicar cualquier fix"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "fix",
+          "remediation",
+          "erp",
+          "data-quality",
+          "draft",
+          "message-draft",
+          "collection-email"
+        ],
+        "intent_examples": [
+          "arreglá los errores",
+          "corregí los datos faltantes",
+          "aplicá los fixes auto-corregibles",
+          "prepará un borrador de cobranza",
+          "redactá email de cobranza",
+          "generá mensaje para el deudor"
+        ],
+        "produces": [
+          "fixes_applied:dataset",
+          "message.draft.v1",
+          "message.draft"
+        ],
+        "requires": [
+          "findings:erp_audit"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "action.fix.propose",
+          "description": "Genera una propuesta de remediación para un finding sin aplicarla.",
+          "command": "propose",
+          "inputs": [
+            "auditor.findings.v1",
+            "finding.id",
+            "data.gaps.v1"
+          ],
+          "outputs": [
+            "mecanico.proposal.v1"
+          ],
+          "requires": [
+            "auditor.findings.v1"
+          ],
+          "produces": [
+            "mecanico.proposal.v1",
+            "action.fix_proposed"
+          ],
+          "execution": "deterministic_or_llm_assisted_fix_proposal",
+          "policies": [
+            "no_external_side_effect",
+            "resolution_hybrid",
+            "approval_required_before_apply"
+          ]
+        },
+        {
+          "id": "action.fix.propose_all_auto",
+          "description": "Genera propuestas para todos los findings auto-corregibles del Auditor sin aplicarlas.",
+          "command": "propose-all-auto",
+          "inputs": [
+            "auditor.findings.v1",
+            "data.gaps.v1"
+          ],
+          "outputs": [
+            "mecanico.proposals.v1"
+          ],
+          "requires": [
+            "auditor.findings.v1"
+          ],
+          "produces": [
+            "mecanico.proposals.v1",
+            "mecanico.proposal.v1",
+            "action.fix_proposed"
+          ],
+          "execution": "deterministic_or_llm_assisted_bulk_fix_proposal",
+          "policies": [
+            "no_external_side_effect",
+            "approval_required_before_apply"
+          ]
+        },
+        {
+          "id": "action.fix.apply",
+          "description": "Aplica una propuesta aprobada sobre el dataset de trabajo y registra audit trail.",
+          "command": "apply",
+          "inputs": [
+            "mecanico.proposal.v1",
+            "external.api.dump.v1"
+          ],
+          "outputs": [
+            "mecanico.applied.v1"
+          ],
+          "requires": [
+            "mecanico.proposal.v1"
+          ],
+          "produces": [
+            "mecanico.applied.v1",
+            "action.fix_applied"
+          ],
+          "execution": "approved_dataset_mutation",
+          "policies": [
+            "state_mutation",
+            "approval_required",
+            "long_running",
+            "long_running",
+            "audit_log_required"
+          ]
+        },
+        {
+          "id": "action.fix.apply_all",
+          "description": "Aplica todas las propuestas aprobadas sobre el dataset mediado por Sabio y devuelve el dataset actualizado.",
+          "command": "apply-all",
+          "inputs": [
+            "mecanico.proposals.v1",
+            "external.api.dump.v1",
+            "dataset.raw.v1"
+          ],
+          "outputs": [
+            "mecanico.applied.v1",
+            "dataset.raw.v1",
+            "external.api.dump.v1"
+          ],
+          "requires": [
+            "external.api.dump.v1"
+          ],
+          "produces": [
+            "mecanico.applied.v1",
+            "action.fix_applied",
+            "dataset.raw.v1",
+            "external.api.dump.v1"
+          ],
+          "execution": "approved_bulk_dataset_mutation",
+          "policies": [
+            "state_mutation",
+            "approval_required",
+            "audit_log_required"
+          ]
+        },
+        {
+          "id": "message.draft.collection_email",
+          "description": "Prepara un borrador de email de cobranza para la entidad priorizada usando datos y destinatario disponibles; no envía.",
+          "command": "draft-email",
+          "inputs": [
+            "entity.ref.v1",
+            "collection.priority_item.v1",
+            "contact.destination.v1",
+            "business.context.v1"
+          ],
+          "outputs": [
+            "message.draft.v1"
+          ],
+          "requires": [
+            "entity.ref.v1",
+            "contact.destination.v1"
+          ],
+          "produces": [
+            "message.draft.v1",
+            "message.draft"
+          ],
+          "execution": "deterministic_collection_email_draft",
+          "policies": [
+            "no_external_side_effect",
+            "approval_required_before_send",
+            "trace_required"
+          ]
+        },
+        {
+          "id": "action.fix.resolve_gaps_conversational",
+          "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano (contacto, credenciales, etc). No aplica fixes automáticos; solo pregunta.",
+          "command": "resolve-gaps",
+          "inputs": [
+            "data.gaps.v1",
+            "auditor.findings.v1",
+            "entity.ref.v1"
+          ],
+          "outputs": [
+            "mecanico.resolution_plan.v1",
+            "framework.question.v1"
+          ],
+          "requires": [
+            "data.gaps.v1"
+          ],
+          "produces": [
+            "mecanico.resolution_plan.v1",
+            "framework.question.v1"
+          ],
+          "execution": "conversational_gap_resolution",
+          "policies": [
+            "no_external_side_effect",
+            "human_input_required",
+            "trace_required"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-mecanico",
+      "module_name": "framework-mecanico"
+    },
+    {
+      "name": "mensajero",
+      "version": "0.1.0",
+      "description": "Envía mensajes salientes por cualquier canal (email/sms/whatsapp). Es agnóstico al negocio: recibe un draft (subject+body+to+channel) y credenciales canónicas del vault, y ejecuta el envío. No genera contenido (eso es trabajo de redactor/mecánico) ni gestiona credenciales (eso es trabajo de hosting u otros provisioners).",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworkmensajero",
+          "./cmd/frameworkmensajero"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkmensajero",
+        "args_prefix": []
+      },
+      "cwd": "framework-mensajero",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "next-question": {
+          "description": "Devuelve confirmación de envíos pendientes (idle por defecto)",
+          "args": [
+            "next-question",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "ingest-answer": {
+          "description": "No-op por compatibilidad con el contrato conversacional",
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "question_id",
+            "answer",
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "can-send": {
+          "description": "Verifica si el consumer puede leer y usar la capability del canal en el mismo scope/runtime que usará send. Imprime JSON {available, present, readable, complete, missing_capability?, provider_hint?}",
+          "args": [
+            "can-send",
+            "--channel",
+            "{params.channel}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "channel",
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "send": {
+          "description": "Envía un mensaje. Lee credenciales.{channel} del vault. Imprime JSON {success, message_id?, error?}.",
+          "args": [
+            "send",
+            "--channel",
+            "{params.channel}",
+            "--to",
+            "{params.to}",
+            "--subject",
+            "{params.subject}",
+            "--body-b64",
+            "{params.body_b64}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "channel",
+            "to",
+            "subject",
+            "body_b64",
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": "",
+            "subject": "",
+            "to": ""
+          }
+        }
+      },
+      "user_input": {
+        "supported": false
+      },
+      "state": {
+        "dir": "temp",
+        "files": [
+          "state_*.json",
+          "sent_*.jsonl"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "messaging",
+          "send",
+          "smtp",
+          "email",
+          "outbound"
+        ],
+        "intent_examples": [
+          "enviar este email",
+          "mandar el mensaje",
+          "send the draft"
+        ],
+        "produces": [
+          "message.sent",
+          "action.email_send"
+        ],
+        "requires": [
+          "credentials.smtp"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "message.can_send",
+          "description": "Verifica si el canal de envío tiene credenciales disponibles para la conversación/perfil.",
+          "command": "can-send",
+          "inputs": [
+            "message.channel.v1",
+            "session.context.v1"
+          ],
+          "outputs": [
+            "message.send_readiness.v1"
+          ],
+          "requires": [
+            "session.context.v1"
+          ],
+          "produces": [
+            "message.send_readiness.v1"
+          ],
+          "execution": "vault_capability_check",
+          "policies": [
+            "safe_for_runtime",
+            "no_external_side_effect",
+            "vault_scoped"
+          ]
+        },
+        {
+          "id": "message.send",
+          "description": "Envía un mensaje saliente ya redactado por el canal solicitado usando credenciales canónicas del vault.",
+          "command": "send",
+          "inputs": [
+            "message.draft.v1",
+            "credentials.smtp",
+            "contact.destination.v1",
+            "business.context.v1"
+          ],
+          "outputs": [
+            "message.sent.v1"
+          ],
+          "requires": [
+            "message.draft.v1",
+            "credentials.smtp",
+            "contact.destination.v1"
+          ],
+          "produces": [
+            "message.sent.v1",
+            "message.sent",
+            "action.email_send"
+          ],
+          "execution": "external_channel_send",
+          "policies": [
+            "external_side_effect",
+            "approval_required",
+            "trace_required",
+            "cycle_terminal",
+            "vault_scoped",
+            "audit_log_required"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-mensajero",
+      "module_name": "framework-mensajero"
+    },
+    {
+      "name": "paladin",
+      "version": "1.0.0",
+      "description": "Framework de tracing semantico para Go. Audita repos, explica traces, compara ideal vs real.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "frameworkpaladin",
+          "./cmd/paladin"
+        ]
+      },
+      "binary": {
+        "command": "go",
+        "args_prefix": [
+          "run",
+          "./cmd/paladin"
+        ]
+      },
+      "cwd": "framework-paladin",
+      "execution_mode": "async_trigger",
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "outputs": [
+        {
+          "name": "audit_report",
+          "format": "paladin.audit.v1",
+          "path": "framework-paladin/temp/audit_result.json",
+          "description": "Reporte de auditoria de cobertura semantica"
+        }
+      ],
+      "inputs": [],
+      "commands": {
+        "audit": {
+          "description": "Audita un repo evaluando uso de Paladin",
+          "args": [
+            "audit",
+            "{params.path}"
+          ],
+          "params": [
+            "path"
+          ],
+          "defaults": {
+            "path": "."
+          }
+        },
+        "explain": {
+          "description": "Explica un trace semantico",
+          "args": [
+            "explain",
+            "{params.trace_path}"
+          ],
+          "params": [
+            "trace_path"
+          ]
+        },
+        "status": {
+          "args": [
+            "status"
+          ]
+        },
+        "readiness": {
+          "args": [
+            "readiness"
+          ]
+        }
+      },
+      "user_input": {
+        "supported": false,
+        "ask_via": "",
+        "modes": [],
+        "next_question_cmd": "",
+        "ingest_answer_cmd": ""
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "tracing",
+          "audit",
+          "semantic-analysis"
+        ],
+        "intent_examples": [
+          "audita este repo",
+          "explica este trace",
+          "que reglas fallaron",
+          "quien hace handoffs",
+          "hay violaciones en el flujo"
+        ],
+        "produces": [
+          "audit_report:paladin.audit.v1",
+          "trace_explanation"
+        ],
+        "requires": []
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-paladin",
+      "module_name": "framework-paladin"
+    },
+    {
+      "name": "pingpong",
+      "version": "0.1.0",
+      "description": "Tutor 80/20 para aprender haciendo. Guía al usuario paso a paso por ejercicios de código con next/check/accept y verificación de compilación en cada step.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "pingpong",
+          "./cmd/framework-pingpong"
+        ]
+      },
+      "binary": {
+        "command": "./pingpong",
+        "args_prefix": []
+      },
+      "cwd": "framework-pingpong",
+      "execution_mode": "sync_chain",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "next": {
+          "description": "Devuelve el próximo paso/substep del ejercicio",
+          "args": [
+            "next"
+          ],
+          "params": []
+        },
+        "review": {
+          "description": "Revisa el paso actual y lo auto-acepta si hay evidencia suficiente",
+          "args": [
+            "review"
+          ],
+          "params": []
+        },
+        "check": {
+          "description": "Verifica el estado actual del código del usuario",
+          "args": [
+            "check"
+          ],
+          "params": []
+        },
+        "accept": {
+          "description": "Marca el step/substep actual como completado",
+          "args": [
+            "accept"
+          ],
+          "params": []
+        },
+        "init": {
+          "description": "Inicializa un ejercicio nuevo",
+          "args": [
+            "init"
+          ],
+          "params": []
+        },
+        "verify": {
+          "description": "Verifica compilación del archivo actual",
+          "args": [
+            "verify"
+          ],
+          "params": []
+        },
+        "peek": {
+          "description": "Muestra contenido del archivo sin modificar",
+          "args": [
+            "peek"
+          ],
+          "params": []
+        },
+        "clean": {
+          "description": "Borra líneas específicas de un archivo",
+          "args": [
+            "clean",
+            "--file",
+            "{params.file}",
+            "--from",
+            "{params.from}",
+            "--to",
+            "{params.to}"
+          ],
+          "params": [
+            "file",
+            "from",
+            "to"
+          ]
+        }
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer"
+        ],
+        "next_question_cmd": "next",
+        "ingest_answer_cmd": "review"
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "tutor",
+          "learning",
+          "code",
+          "exercises",
+          "80-20"
+        ],
+        "intent_examples": [
+          "quiero practicar Go",
+          "siguiente paso del ejercicio",
+          "verificar mi código"
+        ],
+        "produces": [
+          "exercise_step",
+          "verification_result"
+        ],
+        "requires": []
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-pingpong",
+      "module_name": "framework-pingpong"
+    },
+    {
+      "name": "quine",
+      "version": "0.1.0",
+      "description": "Generador y revisor de frameworks. Crea nuevos frameworks desde spec, los registra, y verifica calidad con checklists automáticos.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "quine",
+          "./cmd/quine"
+        ]
+      },
+      "binary": {
+        "command": "./quine",
+        "args_prefix": []
+      },
+      "cwd": "framework-quine",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "create": {
+          "description": "Crea un nuevo framework desde spec",
+          "args": [
+            "create",
+            "--name",
+            "{params.name}",
+            "--role",
+            "{params.role}"
+          ],
+          "params": [
+            "name",
+            "role"
+          ]
+        },
+        "review": {
+          "description": "Revisa calidad de un framework existente",
+          "args": [
+            "review",
+            "--name",
+            "{params.name}"
+          ],
+          "params": [
+            "name"
+          ]
+        },
+        "list": {
+          "description": "Lista frameworks existentes",
+          "args": [
+            "list"
+          ],
+          "params": []
+        },
+        "spec": {
+          "description": "Genera spec para un framework",
+          "args": [
+            "spec",
+            "--name",
+            "{params.name}"
+          ],
+          "params": [
+            "name"
+          ]
+        },
+        "fix": {
+          "description": "Corrige problemas detectados por review",
+          "args": [
+            "fix",
+            "--name",
+            "{params.name}",
+            "--check",
+            "{params.check}"
+          ],
+          "params": [
+            "name",
+            "check"
+          ]
+        }
+      },
+      "user_input": {
+        "supported": false
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "meta",
+          "generator",
+          "quality",
+          "review"
+        ],
+        "intent_examples": [
+          "crear un nuevo framework",
+          "revisar la calidad de un framework",
+          "qué frameworks existen"
+        ],
+        "produces": [
+          "framework_scaffold",
+          "quality_report"
+        ],
+        "requires": []
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-quine",
+      "module_name": "framework-quine"
+    },
+    {
+      "name": "radar",
+      "version": "0.1.0",
+      "description": "Radar analítico data-aware. Calcula scoring, prioridad y esquema de análisis desde datos declarados del negocio sin ejecutar ni sugerir acciones operativas.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-o",
+          "frameworkradar",
+          "./cmd/frameworkradar"
+        ]
+      },
+      "binary": {
+        "command": "./frameworkradar",
+        "args_prefix": []
+      },
+      "cwd": "framework-radar",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "commands": {
+        "prioritize": {
+          "description": "Calcula entidades de cobranza priorizadas desde dataset.raw.v1 mediado por Sabio y semantic pack del negocio.",
+          "args": [
+            "prioritize",
+            "--business-id",
+            "{params.business_id}",
+            "--semantic-pack",
+            "{params.semantic_pack}",
+            "--dataset-artifact",
+            "{params.dataset_artifact}",
+            "--context-b64",
+            "{params.context_b64}"
+          ],
+          "params": [
+            "business_id",
+            "semantic_pack",
+            "dataset_artifact",
+            "context_b64"
+          ],
+          "defaults": {
+            "business_id": "",
+            "semantic_pack": "",
+            "dataset_artifact": "",
+            "context_b64": ""
+          }
+        },
+        "configure-analysis": {
+          "description": "Diseña y persiste el esquema/configuración de análisis desde el semantic pack del negocio.",
+          "args": [
+            "configure-analysis",
+            "--business-id",
+            "{params.business_id}",
+            "--semantic-pack",
+            "{params.semantic_pack}",
+            "--context-b64",
+            "{params.context_b64}"
+          ],
+          "params": [
+            "business_id",
+            "semantic_pack",
+            "context_b64"
+          ],
+          "defaults": {
+            "business_id": "",
+            "semantic_pack": "",
+            "context_b64": ""
+          }
+        },
+        "deep-dive": {
+          "description": "Analiza en profundidad el caso priorizado y formula el plan analítico antes de cualquier acción operativa.",
+          "args": [
+            "deep-dive",
+            "--business-id",
+            "{params.business_id}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--semantic-pack",
+            "{params.semantic_pack}",
+            "--priority-list-path",
+            "{params.priority_list_path}",
+            "--priority-list-json",
+            "{params.priority_list_json}",
+            "--strategy-path",
+            "{params.strategy_path}",
+            "--strategy-json",
+            "{params.strategy_json}",
+            "--context-b64",
+            "{params.context_b64}"
+          ],
+          "params": [
+            "business_id",
+            "entity_ref",
+            "entity_type",
+            "semantic_pack",
+            "priority_list_path",
+            "priority_list_json",
+            "strategy_path",
+            "strategy_json",
+            "context_b64"
+          ],
+          "defaults": {
+            "business_id": "",
+            "entity_ref": "",
+            "entity_type": "customer",
+            "semantic_pack": "",
+            "priority_list_path": "",
+            "priority_list_json": "",
+            "strategy_path": "",
+            "strategy_json": "",
+            "context_b64": ""
+          }
+        },
+        "analyze-followup": {
+          "description": "Recibe un follow-up del usuario dentro de la sesión analítica activa y responde con análisis adicional, delegando a Sabio/Auditor si hace falta.",
+          "args": [
+            "analyze-followup",
+            "--business-id",
+            "{params.business_id}",
+            "--input",
+            "{params.input}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--semantic-pack",
+            "{params.semantic_pack}",
+            "--previous-analysis-path",
+            "{params.previous_analysis_path}",
+            "--previous-analysis-json",
+            "{params.previous_analysis_json}",
+            "--delegation-results-path",
+            "{params.delegation_results_path}",
+            "--delegation-results-json",
+            "{params.delegation_results_json}",
+            "--priority-list-path",
+            "{params.priority_list_path}",
+            "--priority-list-json",
+            "{params.priority_list_json}",
+            "--turn-count",
+            "{params.turn_count}",
+            "--llm-followup-path",
+            "{params.llm_followup_path}",
+            "--llm-followup-json",
+            "{params.llm_followup_json}",
+            "--context-b64",
+            "{params.context_b64}"
+          ],
+          "params": [
+            "business_id",
+            "input",
+            "entity_ref",
+            "entity_type",
+            "semantic_pack",
+            "previous_analysis_path",
+            "previous_analysis_json",
+            "delegation_results_path",
+            "delegation_results_json",
+            "priority_list_path",
+            "priority_list_json",
+            "turn_count",
+            "llm_followup_path",
+            "llm_followup_json",
+            "context_b64"
+          ],
+          "defaults": {
+            "business_id": "",
+            "input": "",
+            "entity_ref": "",
+            "entity_type": "customer",
+            "semantic_pack": "",
+            "previous_analysis_path": "",
+            "previous_analysis_json": "",
+            "delegation_results_path": "",
+            "delegation_results_json": "",
+            "priority_list_path": "",
+            "priority_list_json": "",
+            "turn_count": "0",
+            "llm_followup_path": "",
+            "llm_followup_json": "",
+            "context_b64": ""
+          }
+        }
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "radar",
+          "collections",
+          "priority-scoring",
+          "readonly-data"
+        ],
+        "intent_examples": [
+          "a quién cobrar primero",
+          "prioriza cartera de cobranza",
+          "calcula lista de deudores",
+          "radar de clientes cobrables"
+        ],
+        "produces": [
+          "collection.priority_list.v1",
+          "collection.priority_item.v1",
+          "entity.ref.v1",
+          "risk.score.v1",
+          "strategy.recommendation.v1",
+          "data.gaps.v1",
+          "data.request.v1",
+          "analysis.schema.v1",
+          "analysis.plan.v1",
+          "analysis.proposal.v1"
+        ],
+        "requires": [
+          "dataset.raw.v1",
+          "business.semantic_pack.v1"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "analysis.deep_dive",
+          "description": "Toma control del tramo analítico del caso seleccionado y explicita la evidencia/delegación necesaria antes de actuar.",
+          "command": "deep-dive",
+          "inputs": [
+            "collection.priority_list.v1",
+            "entity.ref.v1",
+            "strategy.recommendation.v1",
+            "business.semantic_pack.v1"
+          ],
+          "outputs": [
+            "analysis.case_review.v1",
+            "answer.grounded.v1"
+          ],
+          "requires": [
+            "collection.priority_list.v1",
+            "entity.ref.v1"
+          ],
+          "produces": [
+            "analysis.case_review.v1",
+            "answer.grounded.v1"
+          ],
+          "execution": "selected_case_analytical_takeover",
+          "policies": [
+            "readonly_dataset",
+            "trace_required",
+            "business_context_required",
+            "owner_takeover"
+          ],
+          "session": {
+            "conversational": true,
+            "followup_command": "analyze-followup",
+            "continue_signals": [
+              "profundiza",
+              "explica",
+              "por qué",
+              "compara",
+              "detalle",
+              "riesgo",
+              "mora",
+              "evidencia",
+              "más",
+              "amplía",
+              "qué pasaría",
+              "alternativa",
+              "y si"
+            ],
+            "operational_signals": [
+              "avanza",
+              "actuar",
+              "con eso basta",
+              "redacta",
+              "manda",
+              "envía",
+              "usa lo que tenemos",
+              "gestionar",
+              "cobrar",
+              "contactar"
+            ],
+            "exit_signals": [
+              "siguiente caso",
+              "siguiente cliente",
+              "skip",
+              "saltar",
+              "posponer",
+              "déjalo",
+              "dejalo",
+              "otro caso",
+              "no analizar"
+            ],
+            "allowed_delegates": [
+              "data.entity_360",
+              "data.query.sql",
+              "data.quality.audit"
+            ],
+            "max_turns": 10
+          }
+        },
+        {
+          "id": "analysis.configure",
+          "description": "Formula una forma configurable de analizar los registros usando configuración semántica del negocio, sin acceso directo a SQLite.",
+          "command": "configure-analysis",
+          "inputs": [
+            "business.context.v1",
+            "business.semantic_pack.v1"
+          ],
+          "outputs": [
+            "analysis.schema.v1",
+            "analysis.plan.v1",
+            "analysis.proposal.v1"
+          ],
+          "requires": [
+            "business.semantic_pack.v1"
+          ],
+          "produces": [
+            "analysis.schema.v1",
+            "analysis.plan.v1",
+            "analysis.proposal.v1"
+          ],
+          "execution": "analysis_schema_generation_from_semantic_pack",
+          "policies": [
+            "trace_required",
+            "install_once",
+            "human_acceptance_before_continue",
+            "human_acceptance_before_prioritization"
+          ]
+        },
+        {
+          "id": "collection.priority_list",
+          "description": "Calcula entidades de cobranza priorizadas desde dataset.raw.v1 mediado por Sabio.",
+          "command": "prioritize",
+          "inputs": [
+            "business.context.v1",
+            "dataset.raw.v1",
+            "business.semantic_pack.v1"
+          ],
+          "outputs": [
+            "collection.priority_list.v1",
+            "collection.priority_item.v1",
+            "entity.ref.v1",
+            "risk.score.v1",
+            "strategy.recommendation.v1",
+            "data.gaps.v1",
+            "data.request.v1",
+            "analysis.schema.v1",
+            "analysis.plan.v1"
+          ],
+          "requires": [
+            "dataset.raw.v1",
+            "business.semantic_pack.v1"
+          ],
+          "produces": [
+            "collection.priority_list.v1",
+            "collection.priority_item.v1",
+            "entity.ref.v1",
+            "risk.score.v1",
+            "strategy.recommendation.v1",
+            "data.gaps.v1",
+            "data.request.v1",
+            "analysis.schema.v1",
+            "analysis.plan.v1"
+          ],
+          "execution": "deterministic_business_priority_scoring",
+          "policies": [
+            "readonly_dataset",
+            "trace_required",
+            "business_context_required",
+            "no_silent_fallback"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-radar",
+      "module_name": "framework-radar"
+    },
+    {
+      "name": "sabio",
+      "version": "0.1.0",
+      "description": "Experto en datos indexados. Responde preguntas del usuario usando SQLite como fuente declarada de verdad, sin fallback silencioso a stores legacy.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworksabio",
+          "./cmd/frameworksabio"
+        ]
+      },
+      "binary": {
+        "command": "./frameworksabio",
+        "args_prefix": []
+      },
+      "cwd": "framework-sabio",
+      "execution_mode": "sync_chain",
+      "requires_infra": [],
+      "inputs": [
+        {
+          "name": "data_sqlite_db",
+          "format": "data.sqlite_db.v1",
+          "path": "temp/business_data/default.db",
+          "required": true,
+          "description": "Base SQLite producida por framework-indexa; fuente primaria de verdad para Sabio"
+        }
+      ],
+      "outputs": [],
+      "commands": {
+        "next-question": {
+          "description": "Devuelve la próxima respuesta lista (o saludo inicial)",
+          "args": [
+            "next-question"
+          ],
+          "params": []
+        },
+        "ingest-answer": {
+          "description": "Recibe la pregunta del user, consulta SQLite con semántica de negocio y deja respuesta lista. Acepta historial y contexto runtime opcional (base64-url-safe JSON).",
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}",
+            "--history",
+            "{params.history}",
+            "--business-id",
+            "{params.business_id}",
+            "--context-b64",
+            "{params.context_b64}"
+          ],
+          "params": [
+            "question_id",
+            "answer",
+            "history",
+            "business_id",
+            "context_b64"
+          ],
+          "defaults": {
+            "history": "",
+            "business_id": "",
+            "context_b64": ""
+          }
+        },
+        "query": {
+          "description": "Modo CLI directo (sin state) para consultar datos con business pack y contexto runtime opcional",
+          "args": [
+            "query",
+            "--question",
+            "{params.question}",
+            "--db",
+            "{params.db}",
+            "--business-id",
+            "{params.business_id}",
+            "--context-b64",
+            "{params.context_b64}",
+            "--capability",
+            "{params.capability}",
+            "--semantic-capability",
+            "{params.semantic_capability}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--analysis-intent",
+            "{params.analysis_intent}",
+            "--metrics",
+            "{params.metrics}",
+            "--peer-strategy",
+            "{params.peer_strategy}"
+          ],
+          "params": [
+            "question",
+            "db",
+            "business_id",
+            "context_b64",
+            "capability",
+            "semantic_capability",
+            "entity_ref",
+            "entity_type",
+            "analysis_intent",
+            "metrics",
+            "peer_strategy"
+          ],
+          "defaults": {
+            "business_id": "",
+            "db": "",
+            "context_b64": "",
+            "capability": "",
+            "semantic_capability": "",
+            "entity_ref": "",
+            "entity_type": "",
+            "analysis_intent": "",
+            "metrics": "",
+            "peer_strategy": ""
+          }
+        },
+        "explain-capabilities": {
+          "description": "Explica el WHY, audiencia, modos, límites y preguntas sugeridas de Sabio para el negocio/contexto activo",
+          "args": [
+            "explain-capabilities",
+            "--business-id",
+            "{params.business_id}",
+            "--context-b64",
+            "{params.context_b64}"
+          ],
+          "params": [
+            "business_id",
+            "context_b64"
+          ],
+          "defaults": {
+            "business_id": "",
+            "context_b64": ""
+          }
+        },
+        "inspect-source": {
+          "description": "Perfila una DB SQLite y genera profile.json con tablas, columnas, muestras y relaciones candidatas",
+          "args": [
+            "inspect-source",
+            "--db",
+            "{params.db}",
+            "--out",
+            "{params.out}"
+          ],
+          "params": [
+            "db",
+            "out"
+          ],
+          "defaults": {
+            "db": "",
+            "out": "semantic/profile.json"
+          }
+        },
+        "validate-business-config": {
+          "description": "Valida que el business pack activo referencie tablas/columnas existentes y políticas coherentes",
+          "args": [
+            "validate-business-config",
+            "--business-id",
+            "{params.business_id}",
+            "--db",
+            "{params.db}"
+          ],
+          "params": [
+            "business_id",
+            "db"
+          ],
+          "defaults": {
+            "business_id": "",
+            "db": ""
+          }
+        },
+        "reset": {
+          "description": "Limpia el state (saludo + respuesta pendiente)",
+          "args": [
+            "reset"
+          ],
+          "params": []
+        },
+        "contact-lookup": {
+          "description": "Busca el contacto preferido de una entidad por canal usando el store canónico de contactos de Sabio.",
+          "args": [
+            "contact-lookup",
+            "--profile",
+            "{params.profile}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--channel",
+            "{params.channel}"
+          ],
+          "params": [
+            "profile",
+            "entity_type",
+            "entity_ref",
+            "channel"
+          ],
+          "defaults": {
+            "profile": "",
+            "channel": "email"
+          }
+        },
+        "contact-store": {
+          "description": "Inserta o actualiza un contacto para una entidad y canal en el store canónico de Sabio.",
+          "args": [
+            "contact-store",
+            "--profile",
+            "{params.profile}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--channel",
+            "{params.channel}",
+            "--value",
+            "{params.value}",
+            "--source",
+            "{params.source}"
+          ],
+          "params": [
+            "profile",
+            "entity_type",
+            "entity_ref",
+            "channel",
+            "value",
+            "source"
+          ],
+          "defaults": {
+            "profile": "",
+            "channel": "email",
+            "source": "manual"
+          }
+        },
+        "contact-list-missing": {
+          "description": "Lista entidades de un tipo que no tienen contacto en el canal pedido.",
+          "args": [
+            "contact-list-missing",
+            "--profile",
+            "{params.profile}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--channel",
+            "{params.channel}"
+          ],
+          "params": [
+            "profile",
+            "entity_type",
+            "channel"
+          ],
+          "defaults": {
+            "profile": "",
+            "entity_type": "client",
+            "channel": "email"
+          }
+        },
+        "contact-import-csv": {
+          "description": "Importa contactos desde CSV con headers entity_type,entity_ref,channel,value[,source].",
+          "args": [
+            "contact-import-csv",
+            "--profile",
+            "{params.profile}",
+            "--file",
+            "{params.file}"
+          ],
+          "params": [
+            "profile",
+            "file"
+          ],
+          "defaults": {
+            "profile": ""
+          }
+        },
+        "contact-init": {
+          "description": "Inicializa el store canónico de contactos de Sabio para el perfil activo.",
+          "args": [
+            "contact-init",
+            "--profile",
+            "{params.profile}"
+          ],
+          "params": [
+            "profile"
+          ],
+          "defaults": {
+            "profile": ""
+          }
+        },
+        "dataset-export": {
+          "description": "Exporta el contenido de la base SQLite a un artifact JSON dataset.raw.v1 para consumo por frameworks downstream (ej: Radar, Auditor, Mecánico).",
+          "args": [
+            "dataset-export",
+            "--db",
+            "{params.db}",
+            "--semantic-pack",
+            "{params.semantic_pack}",
+            "--out",
+            "{params.out}"
+          ],
+          "params": [
+            "db",
+            "semantic_pack",
+            "out"
+          ],
+          "defaults": {
+            "db": "",
+            "semantic_pack": "",
+            "out": ""
+          }
+        }
+      },
+      "asks_human": {
+        "via": "user",
+        "path": "next-question",
+        "description": "Sabio pregunta directamente al usuario qué quiere consultar"
+      },
+      "user_input": {
+        "supported": true,
+        "ask_via": "",
+        "modes": [
+          "short_answer"
+        ],
+        "next_question_cmd": "next-question",
+        "ingest_answer_cmd": "ingest-answer"
+      },
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "sqlite",
+          "data-expert",
+          "qa",
+          "cobranzas",
+          "contacts",
+          "contact-lookup",
+          "contact-store"
+        ],
+        "intent_examples": [
+          "cuántos clientes tengo",
+          "qué proyectos están activos",
+          "muéstrame los pagos pendientes",
+          "información sobre el cliente",
+          "gestionar:",
+          "analizar al cliente",
+          "trabajar sobre el deudor",
+          "vista 360 del cliente",
+          "buscar email de cliente",
+          "guardar contacto de deudor",
+          "importar contactos desde CSV"
+        ],
+        "produces": [
+          "answer_with_citations",
+          "entity_360.v1",
+          "answer.grounded.v1",
+          "contact.destination.v1",
+          "contact.record.v1",
+          "contact.import_report.v1"
+        ],
+        "requires": [
+          "data_indexed:timebilling"
+        ]
+      },
+      "capabilities": [
+        {
+          "id": "data.entity_360",
+          "description": "Genera una vista 360 de una entidad/deudor usando SQLite, business pack, contexto runtime y evidencia trazable.",
+          "command": "query",
+          "inputs": [
+            "entity.ref.v1",
+            "business.context.v1",
+            "data.sqlite_db.v1",
+            "business.semantic_pack.v1",
+            "session.context"
+          ],
+          "outputs": [
+            "entity_360.v1",
+            "answer.grounded.v1"
+          ],
+          "requires": [
+            "entity.ref.v1",
+            "data.sqlite_db.v1",
+            "business.semantic_pack.v1"
+          ],
+          "produces": [
+            "entity_360.v1",
+            "answer.grounded.v1"
+          ],
+          "execution": "llm_planned_readonly_sqlite_with_business_context",
+          "policies": [
+            "trace_required",
+            "evidence_required",
+            "readonly_sql",
+            "business_context_required",
+            "scope_aware",
+            "no_silent_fallback"
+          ]
+        },
+        {
+          "id": "data.inventory",
+          "description": "Describe qué fuentes, tablas y entidades de datos tiene disponibles Sabio sin inferir acciones operativas.",
+          "command": "query",
+          "inputs": [
+            "user.question",
+            "data.sqlite_db.v1"
+          ],
+          "outputs": [
+            "data.inventory.v1",
+            "answer.grounded.v1"
+          ],
+          "requires": [
+            "data.sqlite_db.v1"
+          ],
+          "produces": [
+            "data.inventory.v1",
+            "answer.grounded.v1"
+          ],
+          "execution": "deterministic_sqlite_schema",
+          "policies": [
+            "trace_required",
+            "evidence_required",
+            "overlay_presentation_only"
+          ]
+        },
+        {
+          "id": "data.entity.list",
+          "description": "Lista entidades disponibles en la base estructurada, por ejemplo clientes, estudios jurídicos o usuarios.",
+          "command": "query",
+          "inputs": [
+            "user.question",
+            "data.sqlite_db.v1"
+          ],
+          "outputs": [
+            "entity_list.v1",
+            "answer.grounded.v1"
+          ],
+          "requires": [
+            "data.sqlite_db.v1"
+          ],
+          "produces": [
+            "entity_list.v1",
+            "answer.grounded.v1"
+          ],
+          "execution": "deterministic_or_parametric_sqlite",
+          "policies": [
+            "trace_required",
+            "evidence_required",
+            "readonly_sql",
+            "overlay_presentation_only"
+          ]
+        },
+        {
+          "id": "data.query.sql",
+          "description": "Responde preguntas sobre datos estructurados usando SQL read-only planificado por LLM sobre SQLite.",
+          "command": "query",
+          "inputs": [
+            "user.question",
+            "data.sqlite_db.v1"
+          ],
+          "outputs": [
+            "answer.grounded.v1"
+          ],
+          "requires": [
+            "data.sqlite_db.v1"
+          ],
+          "produces": [
+            "answer.grounded.v1"
+          ],
+          "execution": "llm_planned_readonly_sqlite",
+          "policies": [
+            "trace_required",
+            "evidence_required",
+            "readonly_sql",
+            "no_silent_fallback",
+            "overlay_presentation_only"
+          ]
+        },
+        {
+          "id": "business.capabilities.explain",
+          "description": "Declara qué puede responder Sabio para un negocio, audiencia y scope de sesión sin depender de memoria o skills externos.",
+          "command": "explain-capabilities",
+          "inputs": [
+            "business.id",
+            "session.context"
+          ],
+          "outputs": [
+            "business_capabilities.v1",
+            "suggested_questions.v1"
+          ],
+          "requires": [
+            "business.semantic_pack.v1"
+          ],
+          "produces": [
+            "business_capabilities.v1"
+          ],
+          "execution": "deterministic_business_pack_read",
+          "policies": [
+            "no_llm_required",
+            "safe_for_runtime"
+          ]
+        },
+        {
+          "id": "data.source.inspect",
+          "description": "Genera un perfil estructural de una fuente SQLite para iniciar o actualizar una capa semántica de negocio.",
+          "command": "inspect-source",
+          "inputs": [
+            "data.sqlite_db.v1"
+          ],
+          "outputs": [
+            "data.profile.v1"
+          ],
+          "requires": [
+            "data.sqlite_db.v1"
+          ],
+          "produces": [
+            "data.profile.v1"
+          ],
+          "execution": "deterministic_sqlite_profile",
+          "policies": [
+            "readonly",
+            "admin_only"
+          ]
+        },
+        {
+          "id": "business.semantic.validate",
+          "description": "Valida determinísticamente un business pack contra la DB real antes de activarlo o usarlo en runtime.",
+          "command": "validate-business-config",
+          "inputs": [
+            "business.semantic_pack.v1",
+            "data.sqlite_db.v1"
+          ],
+          "outputs": [
+            "business_config_validation.v1"
+          ],
+          "requires": [
+            "business.semantic_pack.v1",
+            "data.sqlite_db.v1"
+          ],
+          "produces": [
+            "business_config_validation.v1"
+          ],
+          "execution": "deterministic_business_config_validation",
+          "policies": [
+            "no_llm_required",
+            "admin_only"
+          ]
+        },
+        {
+          "id": "data.query.scoped",
+          "description": "Responde preguntas usando SQLite, catálogo semántico, business pack y contexto runtime de audiencia/scope.",
+          "command": "query",
+          "inputs": [
+            "user.question",
+            "data.sqlite_db.v1",
+            "business.semantic_pack.v1",
+            "session.context"
+          ],
+          "outputs": [
+            "answer.grounded.v1"
+          ],
+          "requires": [
+            "data.sqlite_db.v1",
+            "business.semantic_pack.v1"
+          ],
+          "produces": [
+            "answer.grounded.v1"
+          ],
+          "execution": "llm_planned_readonly_sqlite_with_business_context",
+          "policies": [
+            "trace_required",
+            "evidence_required",
+            "readonly_sql",
+            "business_context_required",
+            "scope_aware",
+            "no_silent_fallback"
+          ]
+        },
+        {
+          "id": "contact.lookup",
+          "description": "Busca el contacto preferido de una entidad de negocio para un canal.",
+          "command": "contact-lookup",
+          "inputs": [
+            "entity.ref.v1",
+            "contact.channel.v1",
+            "profile.context"
+          ],
+          "outputs": [
+            "contact.lookup.v1",
+            "contact.destination.v1"
+          ],
+          "requires": [
+            "entity.ref.v1"
+          ],
+          "produces": [
+            "contact.lookup.v1",
+            "contact.destination.v1"
+          ],
+          "execution": "deterministic_sqlite_contact_lookup",
+          "policies": [
+            "no_llm_required",
+            "no_contact_fabrication",
+            "resolution_autonomous",
+            "profile_scoped"
+          ]
+        },
+        {
+          "id": "contact.store",
+          "description": "Inserta o actualiza un contacto para una entidad y canal.",
+          "command": "contact-store",
+          "inputs": [
+            "entity.ref.v1",
+            "contact.channel.v1",
+            "contact.value.v1",
+            "profile.context"
+          ],
+          "outputs": [
+            "contact.record.v1"
+          ],
+          "requires": [
+            "entity.ref.v1",
+            "contact.value.v1"
+          ],
+          "produces": [
+            "contact.record.v1"
+          ],
+          "execution": "deterministic_sqlite_contact_upsert",
+          "policies": [
+            "no_llm_required",
+            "profile_scoped",
+            "operator_authorized_write"
+          ]
+        },
+        {
+          "id": "contact.import",
+          "description": "Importa contactos desde un CSV curado por staff o por el negocio autorizado.",
+          "command": "contact-import-csv",
+          "inputs": [
+            "contact.csv.v1",
+            "profile.context"
+          ],
+          "outputs": [
+            "contact.import_report.v1"
+          ],
+          "requires": [
+            "contact.csv.v1"
+          ],
+          "produces": [
+            "contact.import_report.v1"
+          ],
+          "execution": "deterministic_csv_contact_import",
+          "policies": [
+            "no_llm_required",
+            "profile_scoped",
+            "operator_authorized_write"
+          ]
+        },
+        {
+          "id": "dataset.export",
+          "description": "Exporta el contenido de la base SQLite a un artifact JSON dataset.raw.v1 para consumo por frameworks downstream (ej: Radar, Auditor, Mecánico).",
+          "command": "dataset-export",
+          "inputs": [
+            "data.sqlite_db.v1",
+            "business.semantic_pack.v1"
+          ],
+          "outputs": [
+            "dataset.raw.v1",
+            "external.api.dump.v1"
+          ],
+          "requires": [
+            "data.sqlite_db.v1"
+          ],
+          "produces": [
+            "dataset.raw.v1",
+            "external.api.dump.v1"
+          ],
+          "execution": "deterministic_sqlite_readonly_export",
+          "policies": [
+            "readonly_sql",
+            "no_external_side_effect",
+            "business_sqlite_param",
+            "data_mediator",
+            "safe_for_runtime"
+          ]
+        }
+      ],
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-sabio",
+      "module_name": "framework-sabio"
+    },
+    {
+      "name": "tareas",
+      "version": "0.1.0",
+      "description": "Task ledger canónico por perfil. Mantiene la tabla estándar tasks + task_events y expone capabilities task.list / task.next / task.create / task.complete / task.event. Es la verdad del estado del trabajo del día: Foco crea tasks al iniciar la jornada, los frameworks de acción (mensajero, etc.) emiten eventos al completar, y cualquier consumidor lee la próxima tarea sin acoplarse a quién la ejecuta.",
+      "build": {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "-o",
+          "frameworktareas",
+          "./cmd/frameworktareas"
+        ]
+      },
+      "binary": {
+        "command": "./frameworktareas",
+        "args_prefix": []
+      },
+      "cwd": "framework-tareas",
+      "execution_mode": "async_trigger",
+      "requires_infra": [],
+      "model": {
+        "provider": "groq",
+        "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "env_key": "GROQ_API_KEY",
+        "capabilities": [
+          "text",
+          "conversation"
+        ]
+      },
+      "commands": {
+        "next-question": {
+          "description": "No conversa: idle por defecto",
+          "args": [
+            "next-question",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "ingest-answer": {
+          "description": "No-op por compatibilidad con el contrato conversacional",
+          "args": [
+            "ingest-answer",
+            "--question-id",
+            "{params.question_id}",
+            "--answer",
+            "{params.answer}",
+            "--conv-id",
+            "{params.conv_id}"
+          ],
+          "params": [
+            "question_id",
+            "answer",
+            "conv_id"
+          ],
+          "defaults": {
+            "conv_id": ""
+          }
+        },
+        "list": {
+          "description": "Lista tareas del perfil. Filtros opcionales por status.",
+          "args": [
+            "list",
+            "--profile",
+            "{params.profile}",
+            "--status",
+            "{params.status}"
+          ],
+          "params": [
+            "profile",
+            "status"
+          ],
+          "defaults": {
+            "status": ""
+          }
+        },
+        "next": {
+          "description": "Devuelve la próxima tarea pendiente (mayor prioridad).",
+          "args": [
+            "next",
+            "--profile",
+            "{params.profile}"
+          ],
+          "params": [
+            "profile"
+          ]
+        },
+        "create": {
+          "description": "Crea una tarea. Imprime JSON {success, id}.",
+          "args": [
+            "create",
+            "--profile",
+            "{params.profile}",
+            "--entity-type",
+            "{params.entity_type}",
+            "--entity-ref",
+            "{params.entity_ref}",
+            "--action",
+            "{params.action}",
+            "--priority",
+            "{params.priority}",
+            "--title",
+            "{params.title}"
+          ],
+          "params": [
+            "profile",
+            "entity_type",
+            "entity_ref",
+            "action",
+            "priority",
+            "title"
+          ],
+          "defaults": {
+            "priority": "100",
+            "title": ""
+          }
+        },
+        "complete": {
+          "description": "Marca una tarea como completada y emite evento.",
+          "args": [
+            "complete",
+            "--profile",
+            "{params.profile}",
+            "--id",
+            "{params.id}",
+            "--result-ref",
+            "{params.result_ref}"
+          ],
+          "params": [
+            "profile",
+            "id",
+            "result_ref"
+          ],
+          "defaults": {
+            "result_ref": ""
+          }
+        },
+        "event": {
+          "description": "Emite un evento sobre una tarea. Si kind=email_sent y la tarea está in_progress, la marca completed automáticamente.",
+          "args": [
+            "event",
+            "--profile",
+            "{params.profile}",
+            "--id",
+            "{params.id}",
+            "--actor",
+            "{params.actor}",
+            "--kind",
+            "{params.kind}",
+            "--data",
+            "{params.data}"
+          ],
+          "params": [
+            "profile",
+            "id",
+            "actor",
+            "kind",
+            "data"
+          ],
+          "defaults": {
+            "data": "{}"
+          }
+        },
+        "seed-from-foco": {
+          "description": "Crea tareas a partir de la priority_list de Foco (lee profiles/<perfil>/data o JSON externo).",
+          "args": [
+            "seed-from-foco",
+            "--profile",
+            "{params.profile}",
+            "--file",
+            "{params.file}",
+            "--limit",
+            "{params.limit}"
+          ],
+          "params": [
+            "profile",
+            "file",
+            "limit"
+          ],
+          "defaults": {
+            "limit": "10"
+          }
+        }
+      },
+      "user_input": {
+        "supported": false
+      },
+      "state": {
+        "dir": "data",
+        "files": [
+          "tasks_*.db"
+        ]
+      },
+      "capabilities_semantic": {
+        "tags": [
+          "tasks",
+          "ledger",
+          "workflow",
+          "todo",
+          "agenda"
+        ],
+        "intent_examples": [
+          "qué tareas tengo hoy",
+          "marcá esto como hecho",
+          "próxima gestión"
+        ],
+        "produces": [
+          "task.list",
+          "task.next",
+          "task.create",
+          "task.complete",
+          "task.event"
+        ],
+        "requires": []
+      },
+      "dir": "/Users/alcless_a1234_cursor/remora-go-lite/framework-tareas",
+      "module_name": "framework-tareas"
+    }
+  ]
+}

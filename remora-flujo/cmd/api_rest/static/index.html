@@ -431,6 +431,237 @@
       opacity: 1;
     }
 
+    /* ─── NODE ARTIFACT BADGES ─── */
+    .node-artifacts {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 3px;
+      max-width: 160px;
+      margin-top: -4px;
+      transition: opacity 0.3s ease;
+    }
+    .node-artifact-badge {
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      padding: 2px 6px;
+      border-radius: 999px;
+      white-space: nowrap;
+      line-height: 1.3;
+      border: 1px solid;
+      animation: artifact-appear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    @keyframes artifact-appear {
+      from { opacity: 0; transform: scale(0.6); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    .node-artifact-badge.produced {
+      color: #16a34a;
+      border-color: rgba(22,163,74,0.3);
+      background: rgba(22,163,74,0.1);
+    }
+    .node-artifact-badge.consumed {
+      color: #2563eb;
+      border-color: rgba(37,99,235,0.25);
+      background: rgba(37,99,235,0.08);
+    }
+    .node-artifact-badge.missing {
+      color: #d97706;
+      border-color: rgba(217,119,6,0.3);
+      background: rgba(217,119,6,0.1);
+    }
+    .node-artifact-badge.preview {
+      color: var(--text-dim);
+      border-color: var(--border);
+      background: transparent;
+      border-style: dashed;
+      opacity: 0.6;
+    }
+    .node.dimmed .node-artifacts { opacity: 0.4; }
+    .node.active .node-artifacts { opacity: 1; }
+    .node-artifact-badge.clickable { cursor: pointer; }
+    .node-artifact-badge.clickable:hover { filter: brightness(1.25); transform: scale(1.08); }
+
+    /* ─── ARTIFACT INSPECTOR PANEL ─── */
+    .artifact-inspector {
+      position: fixed;
+      top: 0; right: 0;
+      width: 340px; height: 100vh;
+      background: rgba(var(--surface-rgb, 24,24,27), 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-left: 1px solid var(--border);
+      z-index: 200;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      font-family: inherit;
+      color: var(--text);
+      overflow: hidden;
+    }
+    .artifact-inspector.open { transform: translateX(0); }
+    .artifact-inspector-close {
+      position: absolute;
+      top: 12px; right: 12px;
+      background: none; border: none;
+      color: var(--text-muted);
+      font-size: 22px; cursor: pointer;
+      width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .artifact-inspector-close:hover { background: var(--border); color: var(--text); }
+    .artifact-inspector-header {
+      padding: 20px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .artifact-inspector-header h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .artifact-inspector-header .artifact-type-tech {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    .artifact-inspector-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 20px;
+    }
+    .artifact-inspector-section {
+      margin-bottom: 16px;
+    }
+    .artifact-inspector-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .artifact-inspector-section-value {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .artifact-inspector-status {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid;
+    }
+    .artifact-inspector-status.produced { color: #16a34a; border-color: rgba(22,163,74,0.3); background: rgba(22,163,74,0.1); }
+    .artifact-inspector-status.consumed { color: #2563eb; border-color: rgba(37,99,235,0.25); background: rgba(37,99,235,0.08); }
+    .artifact-inspector-status.missing  { color: #d97706; border-color: rgba(217,119,6,0.3); background: rgba(217,119,6,0.1); }
+    .artifact-inspector-json-toggle {
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 4px 0;
+      font-family: inherit;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .artifact-inspector-json-toggle:hover { color: var(--text); }
+    .artifact-inspector-json {
+      margin-top: 8px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 8px;
+      padding: 12px;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .artifact-inspector-json pre {
+      margin: 0;
+      font-size: 11px;
+      line-height: 1.5;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .artifact-inspector-json .json-key { color: #93c5fd; }
+    .artifact-inspector-json .json-string { color: #86efac; }
+    .artifact-inspector-json .json-number { color: #fde68a; }
+    .artifact-inspector-json .json-bool { color: #c4b5fd; }
+    .artifact-inspector-json .json-null { color: #a1a1aa; }
+
+    /* ─── FLOW TIMELINE BAR ─── */
+    .flow-timeline-bar {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 48px;
+      background: rgba(var(--surface-rgb, 24,24,27), 0.85);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      z-index: 180;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    .flow-timeline-bar.hidden {
+      transform: translateY(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .flow-timeline-steps {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      align-items: center;
+      flex: 1;
+      padding: 4px 0;
+      scrollbar-width: thin;
+    }
+    .flow-timeline-steps::-webkit-scrollbar { height: 3px; }
+    .flow-timeline-steps::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+    .flow-timeline-pill {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: rgba(var(--surface-rgb, 24,24,27), 0.6);
+      color: var(--text);
+      transition: background 0.2s, border-color 0.2s, transform 0.15s;
+      white-space: nowrap;
+    }
+    .flow-timeline-pill:hover {
+      background: var(--border);
+      transform: scale(1.04);
+    }
+    .flow-timeline-pill .pill-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .flow-timeline-pill.active {
+      border-color: currentColor;
+    }
+    .flow-timeline-pill.active .pill-dot {
+      animation: pill-pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pill-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
     .node-speech-bubble {
       position: absolute;
       bottom: 92px;
@@ -2435,6 +2666,9 @@
     .flow-chat-test-safe-banner { font-size: 12px; font-weight: 600; color: #16a34a; background: rgba(22,163,74,0.08); border-bottom: 1px solid rgba(22,163,74,0.15); padding: 7px 16px; letter-spacing: 0.01em; }
     .flows-action-group-label { font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); padding: 4px 2px 2px; }
     .flow-semantic-card.cycle { border-color: rgba(22,163,74,0.22); background: rgba(22,163,74,0.07); }
+    .flow-semantic-card.data { border-color: rgba(139,92,246,0.22); background: rgba(139,92,246,0.06); }
+    .flow-semantic-card.data .flow-semantic-label { color: #7c3aed; }
+    .data-source-tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; background: rgba(139,92,246,0.12); color: #7c3aed; margin-right: 4px; }
     .flow-semantic-label { font-size: 10px; font-weight: 900; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
     .flow-semantic-value { font-size: 14px; font-weight: 750; color: var(--text); line-height: 1.35; }
     .flow-semantic-sub { font-size: 12px; color: var(--text-muted); line-height: 1.35; margin-top: 2px; }
@@ -2778,8 +3012,219 @@
     .fw-gap-card { border:1px solid rgba(245,158,11,0.3); border-radius:12px; padding:12px 14px; background:rgba(245,158,11,0.05); margin-top:4px; }
     .fw-gap-title { font-size:12px; font-weight:700; color:#d97706; margin-bottom:4px; }
     .fw-gap-item { font-size:12px; color:var(--text-muted); padding:2px 0; }
+
+    /* ─── Product Mode ─── */
+    /* Hides developer-facing UI, shows clean product experience */
+    [data-mode="product"] #btn-rules,
+    [data-mode="product"] #model-indicator,
+    [data-mode="product"] #add-node-btn,
+    [data-mode="product"] #reasoning-panel,
+    [data-mode="product"] #launcher-remora-admin-btn,
+    [data-mode="product"] .model-badge,
+    [data-mode="product"] #launcher-staff-panel-btn { display: none !important; }
+
+    [data-mode="product"] .launcher-screen .launcher-subtitle { display: none; }
+    [data-mode="product"] .launcher-screen .launcher-title::after {
+      content: " — Tu asistente de negocio";
+      font-size: 0.5em; font-weight: 400; color: var(--text-muted);
+    }
+    [data-mode="product"] .launcher-options { display: none; }
+    [data-mode="product"] .launcher-auth-required { display: none; }
+
+    /* Mode toggle button */
+    .mode-toggle {
+      position: fixed; bottom: 16px; left: 16px; z-index: 999;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--surface2); border: 1px solid var(--border);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      color: var(--text-muted); transition: all 0.2s;
+    }
+    .mode-toggle:hover { border-color: var(--border-hover); color: var(--text); }
+    .mode-toggle svg { width: 16px; height: 16px; }
+
+    /* Product mode: reemplaza el launcher con una pantalla de login limpia */
+    [data-mode="product"] .launcher-subtitle { display: none !important; }
+    [data-mode="product"] .launcher-title {
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+    [data-mode="product"] .launcher-title::after {
+      display: block;
+      content: "Tu asistente de gestión";
+      font-size: 15px;
+      font-weight: 400;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+    [data-mode="product"] .launcher-account {
+      max-width: 380px;
+      margin: 0 auto;
+    }
+    [data-mode="product"] .launcher-account-status {
+      font-size: 13px;
+    }
+    [data-mode="product"] .launcher-auth-required { display: none !important; }
+    [data-mode="product"] .launcher-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+/* ─── Cobranzas Dashboard ─── */
+#cb-dashboard {
+  display: none; flex-direction: column;
+  height: calc(100vh - 60px); overflow: hidden;
+  background: var(--bg); position: absolute;
+  inset: 0; top: 60px;
+}
+#cb-dashboard.visible { display: flex; }
+
+.cb-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px 32px; border-bottom: 1px solid var(--border);
+  background: var(--surface); flex-shrink: 0;
+}
+.cb-title { font-size: 17px; font-weight: 700; color: var(--text); }
+.cb-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.cb-header-actions { margin-left: auto; display: flex; gap: 8px; }
+.cb-btn { padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); color: var(--text); transition: all 0.2s; }
+.cb-btn:hover { border-color: var(--border-hover); }
+.cb-btn.primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+.cb-btn.primary:hover { opacity: 0.85; }
+
+.cb-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px 32px; background: var(--surface2); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.cb-kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.cb-kpi-label { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.cb-kpi-value { font-size: 26px; font-weight: 700; color: var(--text); line-height: 1; }
+.cb-kpi-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.cb-kpi-card.danger .cb-kpi-value { color: #ef4444; }
+.cb-kpi-card.warning .cb-kpi-value { color: #d97706; }
+.cb-skeleton { background: var(--surface2) !important; border-radius: 6px; height: 28px; width: 70px; display: inline-block; animation: cb-pulse 1.4s ease-in-out infinite; color: transparent !important; }
+@keyframes cb-pulse { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+.cb-body { flex: 1; display: flex; overflow: hidden; }
+.cb-table-panel { flex: 2; display: flex; flex-direction: column; border-right: 1px solid var(--border); overflow: hidden; }
+.cb-filters { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.cb-search { flex: 1; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 13px; outline: none; }
+.cb-search:focus { border-color: var(--border-hover); }
+.cb-select { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 12px; cursor: pointer; outline: none; }
+.cb-table-wrap { flex: 1; overflow-y: auto; }
+.cb-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cb-table th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; }
+.cb-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+.cb-row { cursor: pointer; transition: background 0.12s; }
+.cb-row:hover { background: var(--surface2); }
+.cb-mora-badge { display: inline-block; border-radius: 6px; padding: 2px 7px; font-size: 11px; font-weight: 700; }
+.cb-mora-badge.low { background: rgba(22,163,74,0.12); color: #16a34a; }
+.cb-mora-badge.mid { background: rgba(217,119,6,0.12); color: #d97706; }
+.cb-mora-badge.high { background: rgba(239,68,68,0.12); color: #ef4444; }
+.cb-pagination { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+
+.cb-sidebar { width: 240px; flex-shrink: 0; padding: 16px; overflow-y: auto; background: var(--surface); display: flex; flex-direction: column; gap: 8px; }
+.cb-sidebar-title { font-size: 11px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.cb-action-card { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.18s; }
+.cb-action-card:hover { border-color: var(--accent,#2563EB); background: var(--accent-light,#EEF3FF); }
+.cb-action-text { font-size: 12px; color: var(--text); font-weight: 500; line-height: 1.4; }
+.cb-action-link { font-size: 11px; color: var(--accent,#2563EB); font-weight: 600; margin-top: 4px; }
+
+/* ─── Guest / Demo mode ─── */
+.cb-demo-banner {
+  display: none; align-items: center; gap: 10px;
+  padding: 9px 16px; background: var(--accent-light, #EEF3FF);
+  border-bottom: 1px solid rgba(37,99,235,0.15);
+  font-size: 12px; color: var(--accent, #2563EB); flex-shrink: 0;
+}
+.cb-demo-banner.visible { display: flex; }
+.cb-demo-banner strong { font-weight: 700; }
+.cb-demo-banner-login { margin-left: auto; font-weight: 700; cursor: pointer; text-decoration: underline; background: none; border: none; color: var(--accent,#2563EB); font-size: 12px; }
+
+[data-mode="product"] .launcher-guest-btn {
+  display: inline-block;
+}
+.launcher-guest-btn {
+  display: none;
+  background: none; border: none;
+  color: var(--text-muted); font-size: 13px;
+  cursor: pointer; padding: 6px 0; text-decoration: underline;
+  transition: color 0.15s;
+}
+.launcher-guest-btn:hover { color: var(--text); }
+
+/* ─── Cobranzas Chat ─── */
+#cb-chat-view {
+  display: none; flex-direction: column;
+  height: calc(100vh - 60px); position: absolute;
+  inset: 0; top: 60px; background: var(--bg);
+}
+#cb-chat-view.visible { display: flex; }
+.cb-chat-header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+.cb-chat-title { font-size: 14px; font-weight: 700; color: var(--text); }
+.cb-chat-back { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 13px; font-weight: 600; padding: 6px 10px; border-radius: 7px; transition: all 0.15s; }
+.cb-chat-back:hover { background: var(--surface2); color: var(--text); }
+.cb-chat-body { flex: 1; display: flex; overflow: hidden; }
+.cb-chat-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.cb-chat-history { flex: 1; overflow-y: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.cb-msg { display: flex; gap: 10px; max-width: 86%; }
+.cb-msg.assistant { align-self: flex-start; }
+.cb-msg.user { align-self: flex-end; flex-direction: row-reverse; }
+.cb-msg-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--sabio-color,hsl(40,70%,50%)); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; flex-shrink: 0; margin-top: 2px; }
+.cb-msg-body { display: flex; flex-direction: column; gap: 4px; }
+.cb-msg-text { padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.55; }
+.cb-msg.assistant .cb-msg-text { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 2px 12px 12px 12px; }
+.cb-msg.user .cb-msg-text { background: var(--text); color: var(--bg); border-radius: 12px 2px 12px 12px; }
+.cb-evidence-btn { align-self: flex-start; background: none; border: 1px solid var(--border); color: var(--text-muted); font-size: 11px; padding: 3px 8px; border-radius: 5px; cursor: pointer; transition: all 0.15s; margin-top: 2px; }
+.cb-evidence-btn:hover { border-color: var(--border-hover); color: var(--text); }
+
+.cb-loading-row { display: flex; gap: 10px; align-self: flex-start; }
+.cb-loading-bubble { padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 2px 12px 12px 12px; font-size: 12px; color: var(--text-muted); min-width: 160px; }
+.cb-loading-bar-wrap { height: 3px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin: 8px 0 4px; }
+.cb-loading-bar { height: 100%; width: 0; background: var(--sabio-color,hsl(40,70%,50%)); animation: cb-progress 90s linear forwards; }
+@keyframes cb-progress { to { width: 95%; } }
+
+.cb-suggestions { padding: 0 24px 12px; display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+.cb-chat-input-row { display: flex; gap: 8px; padding: 14px 24px; border-top: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
+.cb-chat-input { flex: 1; padding: 9px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: 13px; resize: none; outline: none; font-family: inherit; }
+.cb-chat-input:focus { border-color: var(--border-hover); }
+
+.cb-evidence-panel { width: 0; overflow: hidden; border-left: 1px solid var(--border); background: var(--surface); transition: width 0.25s; display: flex; flex-direction: column; }
+.cb-evidence-panel.open { width: 300px; }
+.cb-evidence-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.cb-evidence-title { font-size: 12px; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.05em; }
+.cb-evidence-close { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text-muted); line-height: 1; }
+.cb-evidence-body { flex: 1; overflow-y: auto; padding: 14px 16px; font-size: 12px; color: var(--text); }
+.cb-evidence-sql-label { font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
+.cb-evidence-pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-family: monospace; font-size: 11px; white-space: pre-wrap; overflow-x: auto; margin-bottom: 14px; color: var(--text); }
+.cb-evidence-rows-label { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+
+/* ─── Modal Deudor ─── */
+.cb-debtor-overlay { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.25s; }
+.cb-debtor-overlay.visible { opacity: 1; visibility: visible; }
+.cb-debtor-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: min(900px, 95vw); height: min(80vh, 640px); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,0.3); transform: scale(0.96); transition: transform 0.25s; }
+.cb-debtor-overlay.visible .cb-debtor-modal { transform: scale(1); }
+.cb-debtor-header { display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.cb-debtor-avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--sabio-color,hsl(40,70%,50%)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; flex-shrink: 0; }
+.cb-debtor-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.cb-debtor-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.cb-debtor-close { margin-left: auto; background: none; border: none; font-size: 22px; color: var(--text-muted); cursor: pointer; line-height: 1; padding: 4px 8px; border-radius: 6px; }
+.cb-debtor-close:hover { background: var(--surface2); }
+.cb-debtor-body { flex: 1; display: flex; overflow: hidden; }
+.cb-debtor-facts { width: 300px; flex-shrink: 0; padding: 20px 22px; border-right: 1px solid var(--border); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+.cb-fact-group {}
+.cb-fact-label { font-size: 10px; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 3px; }
+.cb-fact-value { font-size: 14px; font-weight: 600; color: var(--text); }
+.cb-fact-value.large { font-size: 22px; }
+.cb-risk-badge { margin-top: 4px; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; border: 1px solid; }
+.cb-risk-badge.low { background: rgba(22,163,74,0.1); color: #16a34a; border-color: rgba(22,163,74,0.2); }
+.cb-risk-badge.mid { background: rgba(217,119,6,0.1); color: #d97706; border-color: rgba(217,119,6,0.2); }
+.cb-risk-badge.danger { background: rgba(239,68,68,0.1); color: #ef4444; border-color: rgba(239,68,68,0.2); }
+.cb-debtor-chat { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.cb-debtor-chat-history { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.cb-debtor-chips { padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 6px; border-top: 1px solid var(--border); flex-shrink: 0; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+  <script src="https://cdn.auth0.com/js/auth0-spa-js/2.1/auth0-spa-js.production.js"></script>
 </head>
 <body>
 
@@ -2858,6 +3303,7 @@
       </div>
     </div>
     <div class="launcher-auth-required" id="launcher-auth-required">Inicia sesión o crea una cuenta para conectar frameworks con un negocio.</div>
+    <button class="launcher-guest-btn" id="launcher-guest-btn">Continuar como invitado →</button>
     <div class="launcher-options">
       <div class="launcher-card" id="launcher-single" title="Probar un framework de forma aislada">
         <div class="launcher-card-icon">
@@ -2964,6 +3410,165 @@
 
 </div>
 
+<!-- Cobranzas Dashboard -->
+<div id="cb-dashboard">
+  <div class="cb-header">
+    <div>
+      <div class="cb-title" id="cb-biz-name">Cartera de Cobranzas</div>
+      <div class="cb-subtitle" id="cb-biz-sub">Cargando datos...</div>
+    </div>
+    <div class="cb-header-actions">
+      <button class="cb-btn primary" id="cb-analyze-btn">Analizar con IA ↗</button>
+      <button class="cb-btn" id="cb-back-to-dev-btn">Vista completa</button>
+    </div>
+  </div>
+  <div class="cb-demo-banner" id="cb-demo-banner">
+    <span>👁 <strong>Modo demo</strong> — estás viendo datos de ejemplo. <span id="cb-demo-biz-name">Cartera de cobranzas de muestra.</span></span>
+    <button class="cb-demo-banner-login" id="cb-demo-login-btn">Inicia sesión para ver tus datos reales →</button>
+  </div>
+  <div class="cb-kpis">
+    <div class="cb-kpi-card">
+      <div class="cb-kpi-label">Deudores activos</div>
+      <div class="cb-kpi-value cb-skeleton" id="kpi-count">—</div>
+      <div class="cb-kpi-sub" id="kpi-count-sub"></div>
+    </div>
+    <div class="cb-kpi-card">
+      <div class="cb-kpi-label">Deuda total</div>
+      <div class="cb-kpi-value cb-skeleton" id="kpi-total">—</div>
+      <div class="cb-kpi-sub" id="kpi-total-sub"></div>
+    </div>
+    <div class="cb-kpi-card warning">
+      <div class="cb-kpi-label">Mora crítica +90 días</div>
+      <div class="cb-kpi-value cb-skeleton" id="kpi-mora90">—</div>
+      <div class="cb-kpi-sub" id="kpi-mora90-sub"></div>
+    </div>
+    <div class="cb-kpi-card danger">
+      <div class="cb-kpi-label">Sin contacto reciente</div>
+      <div class="cb-kpi-value cb-skeleton" id="kpi-nocontact">—</div>
+      <div class="cb-kpi-sub" id="kpi-nocontact-sub"></div>
+    </div>
+  </div>
+  <div class="cb-body">
+    <div class="cb-table-panel">
+      <div class="cb-filters">
+        <input class="cb-search" id="cb-search" placeholder="Buscar por nombre o RUT...">
+        <select class="cb-select" id="cb-filter-mora">
+          <option value="">Cualquier mora</option>
+          <option value="low">Mora baja (&lt;30 días)</option>
+          <option value="mid">Mora media (30-90)</option>
+          <option value="high">Mora crítica (&gt;90)</option>
+        </select>
+      </div>
+      <div class="cb-table-wrap">
+        <table class="cb-table">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Deuda total</th>
+              <th>Mora</th>
+              <th>Última gestión</th>
+              <th>Tipo</th>
+            </tr>
+          </thead>
+          <tbody id="cb-tbody">
+            <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">Cargando cartera...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cb-pagination">
+        <span id="cb-page-info">—</span>
+        <div style="display:flex;gap:6px;">
+          <button class="cb-btn" id="cb-prev-btn">← Anterior</button>
+          <button class="cb-btn" id="cb-next-btn">Siguiente →</button>
+        </div>
+      </div>
+    </div>
+    <div class="cb-sidebar">
+      <div class="cb-sidebar-title">Acciones rápidas</div>
+      <div class="cb-action-card" data-query="¿Cuáles son los 5 deudores con más días de mora? Dame nombre, dias_mora y resultado_gestion.">
+        <div class="cb-action-text">Deudores con mora más alta</div>
+        <div class="cb-action-link">Analizar →</div>
+      </div>
+      <div class="cb-action-card" data-query="¿Cuáles tienen resultado_gestion que indique promesa incumplida o No contesta? Ordena por deuda_total.">
+        <div class="cb-action-text">Promesas incumplidas</div>
+        <div class="cb-action-link">Analizar →</div>
+      </div>
+      <div class="cb-action-card" data-query="¿Qué tipo_deuda concentra más cuotas_impagas en total? Agrupa por tipo_deuda y suma cuotas_impagas.">
+        <div class="cb-action-text">Tipo de deuda más problemático</div>
+        <div class="cb-action-link">Analizar →</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cobranzas Chat View -->
+<div id="cb-chat-view">
+  <div class="cb-chat-header">
+    <button class="cb-chat-back" id="cb-chat-back">← Cartera</button>
+    <div class="cb-chat-title">Sabio — Análisis de cartera</div>
+  </div>
+  <div class="cb-chat-body">
+    <div class="cb-chat-panel">
+      <div class="cb-chat-history" id="cb-chat-history"></div>
+      <div class="cb-suggestions" id="cb-chat-suggestions">
+        <button class="suggested-chip" data-q="¿Cuántos deudores llevan más de 90 días en mora y cuánto deben en total?">+90 días de mora</button>
+        <button class="suggested-chip" data-q="¿Cuáles tienen promesa incumplida? Ordénalos por deuda_total descendente.">Promesas incumplidas</button>
+        <button class="suggested-chip" data-q="¿Qué tipo_deuda concentra más cuotas_impagas?">Por tipo de deuda</button>
+        <button class="suggested-chip" data-q="Dame el promedio de dias_mora por tipo_deuda.">Mora por tipo</button>
+        <button class="suggested-chip" data-q="¿Cuáles son los 3 deudores con mayor deuda_total? Dame nombre y montos.">Top 3 deudores</button>
+      </div>
+      <div class="cb-chat-input-row">
+        <textarea class="cb-chat-input" id="cb-chat-input" rows="1" placeholder="Pregunta sobre tu cartera..."></textarea>
+        <button class="cb-btn primary" id="cb-chat-send">Enviar</button>
+      </div>
+    </div>
+    <div class="cb-evidence-panel" id="cb-evidence-panel">
+      <div class="cb-evidence-header">
+        <span class="cb-evidence-title">Evidencia</span>
+        <button class="cb-evidence-close" id="cb-evidence-close">×</button>
+      </div>
+      <div class="cb-evidence-body" id="cb-evidence-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Deudor Individual -->
+<div class="cb-debtor-overlay" id="cb-debtor-overlay">
+  <div class="cb-debtor-modal">
+    <div class="cb-debtor-header">
+      <div class="cb-debtor-avatar" id="cb-debtor-avatar">?</div>
+      <div>
+        <div class="cb-debtor-name" id="cb-debtor-name">—</div>
+        <div class="cb-debtor-sub" id="cb-debtor-sub">—</div>
+      </div>
+      <button class="cb-debtor-close" id="cb-debtor-close">×</button>
+    </div>
+    <div class="cb-debtor-body">
+      <div class="cb-debtor-facts" id="cb-debtor-facts"></div>
+      <div class="cb-debtor-chat">
+        <div class="cb-debtor-chat-history" id="cb-debtor-chat-history"></div>
+        <div class="cb-debtor-chips" id="cb-debtor-chips"></div>
+        <div class="cb-chat-input-row">
+          <textarea class="cb-chat-input" id="cb-debtor-input" rows="1" placeholder="Pregunta sobre este deudor..."></textarea>
+          <button class="cb-btn primary" id="cb-debtor-send">Enviar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mode toggle (product/developer) -->
+<button class="mode-toggle" id="mode-toggle" title="Cambiar modo">
+  <!-- wrench icon = developer, briefcase icon = product -->
+  <svg class="icon-dev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+  </svg>
+  <svg class="icon-product" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+  </svg>
+</button>
+
 <!-- Theme toggle -->
 <button class="theme-toggle" id="theme-toggle" title="Cambiar tema">
   <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -3004,20 +3609,31 @@
       <h2 id="auth-title">Ingresar a Rémora</h2>
       <p>Usa tu cuenta para cargar tu negocio, audiencia y permisos.</p>
     </div>
-    <div class="auth-tabs">
+    <!-- Auth0: botón principal -->
+    <div style="margin: 20px 0 8px;">
+      <button class="modal-btn confirm" id="auth0-login-btn" type="button"
+        style="width:100%;justify-content:center;gap:10px;padding:12px 16px;font-size:15px;">
+        Continuar con Auth0
+      </button>
+    </div>
+    <div class="auth-status" id="auth-status"></div>
+    <!-- Tabs y form legacy ocultos — mantienen IDs para no romper el JS existente -->
+    <div class="auth-tabs" style="display:none;">
       <button class="auth-tab active" id="auth-login-tab" type="button">Ingresar</button>
       <button class="auth-tab" id="auth-register-tab" type="button">Crear cuenta</button>
     </div>
-    <form class="auth-form" id="auth-form">
-      <input id="auth-name" type="text" placeholder="Nombre" autocomplete="name" style="display: none;">
-      <input id="auth-email" type="email" placeholder="Email" autocomplete="email" required>
-      <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password" required>
-      <div class="auth-status" id="auth-status"></div>
+    <form class="auth-form" id="auth-form" style="display:none;">
+      <input id="auth-name" type="text" placeholder="Nombre" autocomplete="name">
+      <input id="auth-email" type="email" placeholder="Email" autocomplete="email">
+      <input id="auth-password" type="password" placeholder="Password" autocomplete="current-password">
       <div class="model-modal-footer" style="padding: 0; margin-top: 4px;">
         <button class="modal-btn cancel" id="auth-cancel" type="button">Cancelar</button>
         <button class="modal-btn confirm" id="auth-submit" type="submit">Ingresar</button>
       </div>
     </form>
+    <div class="model-modal-footer" style="padding: 0; margin-top: 4px;">
+      <button class="modal-btn cancel" id="auth-cancel-visible" type="button">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -3343,6 +3959,50 @@
 
 <script>
 // ============================================
+// AUTH0 SETUP
+// ============================================
+const AUTH0_DOMAIN = 'remora-ia.us.auth0.com';
+const AUTH0_CLIENT_ID = 'p6m3MHqoklOZkpCFGXF2owxIxtDwSJO6';
+
+let auth0Client = null;
+
+async function initAuth0() {
+  auth0Client = await auth0.createAuth0Client({
+    domain: AUTH0_DOMAIN,
+    clientId: AUTH0_CLIENT_ID,
+    authorizationParams: {
+      redirect_uri: window.location.origin + window.location.pathname
+    },
+    cacheLocation: 'localstorage'
+  });
+
+  // Manejar callback después de redirect de Auth0
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('code') || params.has('error')) {
+    try {
+      await auth0Client.handleRedirectCallback();
+    } catch (e) {
+      console.warn('Auth0 handleRedirectCallback error:', e);
+    }
+    // Limpiar la URL sin recargar la página
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+}
+
+async function getAuth0Token() {
+  if (!auth0Client) return null;
+  try {
+    const isAuthenticated = await auth0Client.isAuthenticated();
+    if (!isAuthenticated) return null;
+    return await auth0Client.getTokenSilently();
+  } catch (e) {
+    console.warn('getAuth0Token error:', e);
+    return null;
+  }
+}
+
+// ============================================
 // CONSTANTS & STATE
 // ============================================
 const API_ORIGIN = window.location.protocol === 'file:' ? 'http://localhost:8084' : window.location.origin;
@@ -3359,9 +4019,12 @@ let authState = {
   pendingRemoraInviteToken: new URLSearchParams(window.location.search).get('remora_invite') || ''
 };
 
-function apiFetch(url, options = {}) {
+async function apiFetch(url, options = {}) {
   const headers = { ...(options.headers || {}) };
-  if (authState.token) headers.Authorization = `Bearer ${authState.token}`;
+  // Preferir token Auth0 si está disponible; fallback a token local legacy
+  const auth0Token = await getAuth0Token();
+  const token = auth0Token || authState.token;
+  if (token) headers.Authorization = `Bearer ${token}`;
   return fetch(url, { ...options, headers, credentials: 'include' });
 }
 
@@ -3926,9 +4589,13 @@ async function restoreModalState() {
 // --- MODAL ---
 async function showFlowsModal() {
   const bid = flowsBusinessID();
-  if (!bid) { alert('Selecciona un negocio primero.'); return; }
-  flowsModalTitle.textContent = `Flujos de ${flowsBusinessName()}`;
-  flowsModalSubtitle.textContent = 'Diseña automatizaciones y pruébalas completas de forma segura. La operación real se ejecuta desde la vista de nodos.';
+  if (!bid) {
+    flowsModalTitle.textContent = 'Flujos';
+    flowsModalSubtitle.textContent = 'Crea un negocio para guardar y ejecutar flujos reales. Por ahora podés explorar la interfaz.';
+  } else {
+    flowsModalTitle.textContent = `Flujos de ${flowsBusinessName()}`;
+    flowsModalSubtitle.textContent = 'Diseña automatizaciones y pruébalas completas de forma segura. La operación real se ejecuta desde la vista de nodos.';
+  }
   clearBuilderCompileTimer();
   flowsState = { caps: [], flows: [], selectedFlow: null, builder: newFlowBuilderState(), detail: { validation: null, simulation: null, runResult: null } };
   showFlowsView('library');
@@ -3964,6 +4631,11 @@ flowsTabRun.addEventListener('click', () => { showFlowsView('execution'); render
 // --- LIBRARY ---
 async function loadFlowsLibrary() {
   const bid = flowsBusinessID();
+  if (!bid) {
+    flowsState.flows = [];
+    flowsLibraryList.innerHTML = '<div class="composer-empty">Crea un negocio para ver y guardar flujos aquí.</div>';
+    return;
+  }
   flowsLibraryList.innerHTML = '<div class="composer-empty">Cargando flujos...</div>';
   try {
     const res = await apiFetch(`${API_BASE}/businesses/${encodeURIComponent(bid)}/flows`).then(r => r.json());
@@ -6480,11 +7152,23 @@ function canvasSelectionSummary(action) {
 }
 
 function canvasStepStartSummary(step) {
-  if (!step || !step.segment_mode) return `Ejecutando ${capSemanticName(step)}...`;
-  const owner = frameworkDisplayName(step.segment_owner || step.framework || 'framework');
-  const actor = frameworkDisplayName(step.framework || 'framework');
-  if (step.segment_role === 'owner') return `${owner} conduce el tramo ${segmentModeLabel(step.segment_mode)}.`;
-  return `${owner} delega ${capSemanticName(step)} a ${actor}.`;
+  let base;
+  if (!step || !step.segment_mode) {
+    base = `Ejecutando ${capSemanticName(step)}...`;
+  } else {
+    const owner = frameworkDisplayName(step.segment_owner || step.framework || 'framework');
+    const actor = frameworkDisplayName(step.framework || 'framework');
+    base = step.segment_role === 'owner'
+      ? `${owner} conduce el tramo ${segmentModeLabel(step.segment_mode)}.`
+      : `${owner} delega ${capSemanticName(step)} a ${actor}.`;
+  }
+  // Show what data this step will consume
+  const consumes = step && (step.requires || step.inputs || []);
+  if (consumes && consumes.length) {
+    const labels = consumes.slice(0, 4).map(a => artifactShortLabel(a));
+    base += `\n\nDatos que usa: ${labels.join(', ')}`;
+  }
+  return base;
 }
 
 function canvasStepCompleteSummary(step) {
@@ -6540,6 +7224,81 @@ function manifestIntentPayload(manifest) {
   return intent && Object.keys(intent).some(k => intent[k] && (!Array.isArray(intent[k]) || intent[k].length)) ? intent : null;
 }
 
+function renderDataProvenanceCard(result) {
+  if (!result || !result.derivation) return '';
+  const grounding = result.derivation.grounding || {};
+  const sources = grounding.artifact_sources || {};
+  const dbPath = sources['data.sqlite_db.v1'] || '';
+  const packPath = sources['business.semantic_pack.v1'] || '';
+  if (!dbPath) return '';
+
+  // Extract readable table name from the timeline
+  let tableName = '';
+  let rowCount = '';
+  const timeline = result.timeline || [];
+  for (const step of timeline) {
+    const payload = step.payload || {};
+    if (payload.table_name) tableName = payload.table_name;
+    if (payload.row_count) rowCount = String(payload.row_count);
+  }
+
+  // Try to get table name and count from artifacts
+  const priorityList = artifactPayload(result, 'collection.priority_list.v1');
+  const schema = artifactPayload(result, 'analysis.schema.v1');
+  if (!tableName && schema && schema.analysis_schema) {
+    tableName = schema.analysis_schema.entity_table || '';
+  }
+  if (!tableName) {
+    const artifacts = result.artifacts || {};
+    for (const [key, art] of Object.entries(artifacts)) {
+      const p = (typeof art === 'object' && art !== null) ? (art.Payload || art.payload || art) : {};
+      if (p.table_name) { tableName = p.table_name; break; }
+      if (p.entity_table) { tableName = p.entity_table; break; }
+    }
+  }
+  if (!rowCount && priorityList && priorityList.count) {
+    rowCount = String(priorityList.count);
+  }
+
+  // Extract from db path: temp/business_data/biz_xxx.db
+  const dbFile = dbPath.split('/').pop() || '';
+  const isBusinessDB = dbPath.includes('business_data/');
+  const sourceLabel = isBusinessDB ? 'Datos subidos por ti' : 'Base de datos local';
+
+  // Humanize table name
+  let tableLabel = tableName;
+  if (tableName) {
+    tableLabel = tableName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    // Remove duplicate prefix (cartera_cobranzas_cartera_cobranzas → Cartera Cobranzas)
+    const parts = tableLabel.split(' ');
+    if (parts.length >= 4) {
+      const half = Math.floor(parts.length / 2);
+      const first = parts.slice(0, half).join(' ');
+      const second = parts.slice(half).join(' ');
+      if (first === second) tableLabel = first;
+    }
+  }
+
+  let details = `<span class="data-source-tag">${escapeHtml(sourceLabel)}</span>`;
+  if (tableLabel) details += ` ${escapeHtml(tableLabel)}`;
+  if (rowCount) details += ` · ${escapeHtml(rowCount)} registros`;
+
+  let sub = '';
+  if (packPath) {
+    sub = 'Configuración semántica activa';
+  }
+  const missingArtifacts = grounding.missing_artifacts || [];
+  if (missingArtifacts.length) {
+    sub += (sub ? ' · ' : '') + `Faltan: ${missingArtifacts.map(a => escapeHtml(artifactShortLabel(a))).join(', ')}`;
+  }
+
+  return `<div class="flow-semantic-card data">
+    <div class="flow-semantic-label">Datos</div>
+    <div class="flow-semantic-value">${details}</div>
+    ${sub ? `<div class="flow-semantic-sub">${sub}</div>` : ''}
+  </div>`;
+}
+
 function renderFlowSemanticArtifacts(result, manifest, opts = {}) {
   const cards = [];
   const intent = artifactPayload(result, 'flow.intent.v1') || manifestIntentPayload(manifest);
@@ -6559,6 +7318,8 @@ function renderFlowSemanticArtifacts(result, manifest, opts = {}) {
       ${intent.success_criteria ? `<div class="flow-semantic-sub">Éxito: ${escapeHtml(intent.success_criteria)}</div>` : ''}
     </div>`);
   }
+  const provenanceCard = renderDataProvenanceCard(result);
+  if (provenanceCard) cards.push(provenanceCard);
   if (work) {
     const entity = work.entity_name || work.entity_ref || 'caso actual';
     const task = work.task_title || work.task_id || 'tarea priorizada';
@@ -8736,12 +9497,12 @@ function showBusinessWorkspace() {
 }
 
 launcherSingle.addEventListener('click', () => {
-  if (!requireAuthForWork()) return;
+  if (!authState.user) { showAuthModal('login'); return; }
   showSingleFwModal();
 });
 
 launcherFlow.addEventListener('click', () => {
-  if (!requireAuthForWork()) return;
+  if (!authState.user) { showAuthModal('login'); return; }
   showFlowsModal();
 });
 
@@ -8838,9 +9599,39 @@ let livePollLastCount = 0;
 
 // Theme toggle
 themeBtn.addEventListener('click', () => {
-  document.documentElement.dataset.theme = 
+  document.documentElement.dataset.theme =
     document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
 });
+
+// Mode toggle (product / developer)
+const modeToggle = document.getElementById('mode-toggle');
+const savedMode = localStorage.getItem('remora-mode') || 'product';
+document.documentElement.dataset.mode = savedMode;
+updateModeIcons(savedMode);
+
+modeToggle.addEventListener('click', () => {
+  const current = document.documentElement.dataset.mode;
+  const next = current === 'product' ? 'developer' : 'product';
+  document.documentElement.dataset.mode = next;
+  localStorage.setItem('remora-mode', next);
+  updateModeIcons(next);
+  // Auto-navigate to workspace in product mode after auth
+  if (next === 'product' && authState.user && authState.activeBusinessId) {
+    showBusinessWorkspace();
+  }
+});
+
+function updateModeIcons(mode) {
+  const devIcon = modeToggle.querySelector('.icon-dev');
+  const prodIcon = modeToggle.querySelector('.icon-product');
+  if (mode === 'product') {
+    devIcon.style.display = 'block'; prodIcon.style.display = 'none';
+    modeToggle.title = 'Modo producto — click para modo developer';
+  } else {
+    devIcon.style.display = 'none'; prodIcon.style.display = 'block';
+    modeToggle.title = 'Modo developer — click para modo producto';
+  }
+}
 
 function activeMembership() {
   return authState.memberships.find(m => m.business_id === authState.activeBusinessId) || authState.memberships[0] || null;
@@ -8892,14 +9683,15 @@ function renderAuthState() {
     launcherLogoutBtn.style.display = 'inline-flex';
     launcherScreen.classList.remove('auth-locked');
     launcherAuthRequired.style.display = 'none';
-    if (!isRemoraStaff()) { showBusinessWorkspace(); setTimeout(() => restoreModalState(), 50); }
+    const isProductMode = document.documentElement.dataset.mode === 'product';
+    if (!isRemoraStaff() || isProductMode) { showBusinessWorkspace(); setTimeout(() => restoreModalState(), 50); setTimeout(() => tryRestoreLastFlow(), 100); }
     else businessFlowPanel.classList.remove('visible');
   } else if (authState.user) {
     authUserLabel.textContent = `${authState.user.email} · sin negocio`;
     authUserLabel.classList.add('authenticated');
     authOpenBtn.style.display = 'none';
     authLogoutBtn.style.display = 'flex';
-    launcherAccountStatus.textContent = 'Tu cuenta no pertenece a ningún negocio. Crea un negocio para configurar datos y habilitar los frameworks.';
+    launcherAccountStatus.textContent = 'Podés explorar el canvas y probar flujos. Para ejecutar con datos reales, crea un negocio.';
     launcherAccountStatus.classList.remove('authenticated');
     launcherLoginBtn.style.display = 'none';
     launcherRegisterBtn.style.display = 'none';
@@ -8907,9 +9699,15 @@ function renderAuthState() {
     launcherStaffPanelBtn.style.display = 'none';
     launcherRemoraAdminBtn.style.display = isRemoraStaff() ? 'inline-flex' : 'none';
     launcherLogoutBtn.style.display = 'inline-flex';
-    launcherScreen.classList.add('auth-locked');
-    launcherAuthRequired.style.display = 'block';
+    launcherScreen.classList.remove('auth-locked');
+    launcherAuthRequired.style.display = 'none';
     businessFlowPanel.classList.remove('visible');
+    // Sin negocio: mostrar cards de exploración independientemente del modo
+    const launcherOpts = document.querySelector('.launcher-options');
+    if (launcherOpts) launcherOpts.style.display = 'flex';
+    launcherSingle.style.display = 'block';
+    launcherFlow.style.display = 'block';
+    setTimeout(() => tryRestoreLastFlow(), 100);
   } else {
     authUserLabel.textContent = 'Sin sesión';
     authUserLabel.classList.remove('authenticated');
@@ -8965,13 +9763,39 @@ function hideAuthModal() {
 }
 
 async function loadAuthMe() {
+  // Inicializar Auth0 primero (incluye manejo del redirect callback)
   try {
-    const res = await apiFetch(`${API_BASE}/auth/me`);
-    const json = await res.json();
-    if (json.success) setAuthState(json.data);
-    else if (res.status === 401) clearAuthState();
+    await initAuth0();
   } catch (e) {
-    console.error('Failed to load auth session:', e);
+    console.warn('Auth0 init error:', e);
+  }
+
+  // Si Auth0 tiene sesión, obtener token y cargar /auth/me
+  try {
+    const auth0Token = await getAuth0Token();
+    if (auth0Token) {
+      const res = await apiFetch(`${API_BASE}/auth/me`);
+      const json = await res.json();
+      if (json.success) {
+        setAuthState(json.data);
+        renderAuthState();
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Auth0 session check error:', e);
+  }
+
+  // Fallback: token local legacy
+  if (authState.token) {
+    try {
+      const res = await apiFetch(`${API_BASE}/auth/me`);
+      const json = await res.json();
+      if (json.success) setAuthState(json.data);
+      else if (res.status === 401) clearAuthState();
+    } catch (e) {
+      console.error('Failed to load auth session:', e);
+    }
   }
   renderAuthState();
 }
@@ -9241,13 +10065,56 @@ async function submitInviteForm(e) {
   }
 }
 
-async function logout() {
+function tryRestoreLastFlow() {
   try {
-    await apiFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
-  } catch (e) {
-    console.error('Failed to logout:', e);
+    const saved = localStorage.getItem('remora_last_flow');
+    if (!saved) return;
+    const meta = JSON.parse(saved);
+    // Only restore if saved within last 4 hours
+    if (Date.now() - meta.savedAt > 4 * 60 * 60 * 1000) {
+      localStorage.removeItem('remora_last_flow');
+      return;
+    }
+    if (!meta.id) return;
+    const bizId = meta.business_id;
+    if (!bizId) return;
+    fetch(`${API_BASE}/flows/${meta.id}`, {
+      headers: { 'Authorization': 'Bearer ' + (authState.token || '') }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.success && data?.data?.manifest) {
+        openFlowInNodeView(data.data);
+      }
+    }).catch(() => {});
+  } catch(e) {}
+}
+
+async function logout() {
+  // Cerrar sesión local legacy si la hay
+  if (authState.token) {
+    try {
+      await apiFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+    } catch (e) {
+      console.error('Failed local logout:', e);
+    }
   }
+  localStorage.removeItem('remora_last_flow');
   clearAuthState();
+
+  // Cerrar sesión Auth0 si está activo
+  if (auth0Client) {
+    try {
+      const isAuthenticated = await auth0Client.isAuthenticated();
+      if (isAuthenticated) {
+        await auth0Client.logout({
+          logoutParams: { returnTo: window.location.origin }
+        });
+        return; // Auth0 redirige, no necesitamos continuar
+      }
+    } catch (e) {
+      console.warn('Auth0 logout error:', e);
+    }
+  }
+
   renderAuthState();
   showLauncher();
 }
@@ -9289,6 +10156,32 @@ authModal.addEventListener('click', (e) => {
   if (e.target === authModal) hideAuthModal();
 });
 authForm.addEventListener('submit', submitAuthForm);
+
+// Auth0 — botón principal en el modal
+const auth0LoginBtn = document.getElementById('auth0-login-btn');
+if (auth0LoginBtn) {
+  auth0LoginBtn.addEventListener('click', async () => {
+    if (!auth0Client) { console.warn('Auth0 client no inicializado'); return; }
+    auth0LoginBtn.disabled = true;
+    auth0LoginBtn.textContent = 'Redirigiendo...';
+    try {
+      await auth0Client.loginWithRedirect({
+        authorizationParams: {
+          redirect_uri: window.location.origin + window.location.pathname
+        }
+      });
+    } catch (e) {
+      console.error('Auth0 loginWithRedirect error:', e);
+      auth0LoginBtn.disabled = false;
+      auth0LoginBtn.textContent = 'Continuar con Auth0';
+    }
+  });
+}
+
+// Botón cancelar visible (el del form legacy está oculto)
+const authCancelVisible = document.getElementById('auth-cancel-visible');
+if (authCancelVisible) authCancelVisible.addEventListener('click', hideAuthModal);
+
 loadAuthMe().then(() => {
   if (authState.pendingInviteToken || authState.pendingRemoraInviteToken) showInviteModal();
 });
@@ -9325,6 +10218,7 @@ function createNodeElement(id, name, type, x, y) {
       ${FRAMEWORK_ICONS[type] || FRAMEWORK_ICONS.echo}
     </div>
     <span class="node-label">${name}</span>
+    <div class="node-artifacts" id="artifacts-${id}"></div>
     <div class="node-speech-bubble" id="speech-${id}"></div>
   `;
   return node;
@@ -9585,7 +10479,13 @@ function computeCanvasRuntimeGraph(result = null) {
   const manifest = canvasFlowState && canvasFlowState.manifest;
   if (!manifest) return { nodes: [], edges: [] };
   const phase = canvasFlowState.phase || 'operative';
-  const baseNodes = (manifest.nodes || []).filter(node => phase === 'bootstrap' ? node.role === 'bootstrap' : node.role !== 'bootstrap');
+  const allManifestNodes = manifest.nodes || [];
+  const hasBootstrapNodes = allManifestNodes.some(n => n.role === 'bootstrap');
+  const baseNodes = allManifestNodes.filter(node =>
+    phase === 'bootstrap'
+      ? (hasBootstrapNodes ? node.role === 'bootstrap' : true)
+      : node.role !== 'bootstrap'
+  );
   const dynamicNodes = ((result && result.dynamic_nodes) || []).filter(node => {
     if (!node) return false;
     if (node.role === 'resolution' && !canvasNeedsInput().some(item => canvasInteractionNodeId(item) === frameworkType(item.framework || node.framework || node.id))) return false;
@@ -9673,6 +10573,30 @@ function syncCanvasGraph(result = null) {
   });
   canvasFlowState.connectionEdges = graph.edges;
   drawConnections(graph.edges);
+
+  // Pre-execution preview: show expected artifacts as dashed badges when no result yet
+  if (!result && !canvasFlowState.lastFlowData) {
+    const manifestNodes = (canvasFlowState.manifest && canvasFlowState.manifest.nodes) || [];
+    const producesByFramework = new Map();
+    const requiresByFramework = new Map();
+    manifestNodes.forEach(mNode => {
+      const fwId = frameworkType(mNode.framework || mNode.id || '');
+      if (!fwId) return;
+      const prod = [...(mNode.produces || [])];
+      const req = [...(mNode.requires || [])];
+      if (!producesByFramework.has(fwId)) producesByFramework.set(fwId, new Set());
+      if (!requiresByFramework.has(fwId)) requiresByFramework.set(fwId, new Set());
+      prod.forEach(a => producesByFramework.get(fwId).add(a));
+      req.forEach(a => requiresByFramework.get(fwId).add(a));
+    });
+    graph.nodes.forEach(node => {
+      const prod = [...(producesByFramework.get(node.id) || [])];
+      const req = [...(requiresByFramework.get(node.id) || [])];
+      if (prod.length || req.length) {
+        previewNodeArtifacts(node.id, prod, req);
+      }
+    });
+  }
 }
 
 function drawConnections(edges = null) {
@@ -9748,6 +10672,324 @@ function setNodeSpeech(nodeId, header, content, actionOptions = []) {
   }
 }
 
+// ─── NODE ARTIFACT BADGES ───
+// Maps full artifact type to a short human label for cobranzas/business context
+function artifactShortLabel(artifactType) {
+  const map = {
+    'entity.ref.v1': 'Deudor',
+    'collection.priority_item.v1': 'Prioridad',
+    'focus.next_task.v1': 'Tarea',
+    'task.next': 'Tarea',
+    'entity_360.v1': 'Perfil 360',
+    'answer.grounded.v1': 'Análisis',
+    'contact.destination.v1': 'Contacto',
+    'message.draft.v1': 'Borrador',
+    'message.channel.v1': 'Canal',
+    'message.sent.v1': 'Enviado',
+    'cycle.result.v1': 'Ciclo',
+    'flow.cycle.completed.v1': 'Ciclo OK',
+    'focus.cycle_status.v1': 'Estado',
+    'task.done': 'Hecho',
+    'data.gaps.v1': 'Gaps',
+    'auditor.findings.v1': 'Hallazgos',
+    'action.options.v1': 'Opciones',
+    'action.selection.v1': 'Selección',
+    'work.context.v1': 'Contexto',
+    'flow.intent.v1': 'Propósito',
+    'credentials.smtp': 'SMTP',
+  };
+  if (map[artifactType]) return map[artifactType];
+  // Fallback: take the first segment, capitalize
+  const short = (artifactType || '').replace(/\.v\d+$/, '').split('.').pop() || artifactType;
+  return short.charAt(0).toUpperCase() + short.slice(1);
+}
+
+function updateNodeArtifacts(nodeId, produced, consumed, missing) {
+  const container = document.getElementById(`artifacts-${nodeId}`);
+  if (!container) return;
+  const badges = [];
+  for (const a of (produced || [])) {
+    badges.push(`<span class="node-artifact-badge produced clickable" title="Produce: ${escapeHtml(a)}" onclick="openArtifactInspector('${escapeHtml(a)}','produced')">${escapeHtml(artifactShortLabel(a))}</span>`);
+  }
+  for (const a of (consumed || [])) {
+    badges.push(`<span class="node-artifact-badge consumed clickable" title="Usa: ${escapeHtml(a)}" onclick="openArtifactInspector('${escapeHtml(a)}','consumed')">${escapeHtml(artifactShortLabel(a))}</span>`);
+  }
+  for (const a of (missing || [])) {
+    badges.push(`<span class="node-artifact-badge missing clickable" title="Falta: ${escapeHtml(a)}" onclick="openArtifactInspector('${escapeHtml(a)}','missing')">${escapeHtml(artifactShortLabel(a))}</span>`);
+  }
+  container.innerHTML = badges.join('');
+}
+
+function previewNodeArtifacts(nodeId, produces, requires) {
+  const container = document.getElementById(`artifacts-${nodeId}`);
+  if (!container) return;
+  const badges = [];
+  for (const a of (produces || [])) {
+    badges.push(`<span class="node-artifact-badge preview" title="Producirá: ${escapeHtml(a)}">${escapeHtml(artifactShortLabel(a))}</span>`);
+  }
+  for (const a of (requires || [])) {
+    badges.push(`<span class="node-artifact-badge preview" title="Requerirá: ${escapeHtml(a)}">${escapeHtml(artifactShortLabel(a))}</span>`);
+  }
+  container.innerHTML = badges.join('');
+}
+
+// ─── ARTIFACT INSPECTOR ───
+function openArtifactInspector(artifactType, category) {
+  const panel = document.getElementById('artifact-inspector');
+  if (!panel) return;
+  const headerEl = panel.querySelector('.artifact-inspector-header');
+  const bodyEl = panel.querySelector('.artifact-inspector-body');
+  const humanLabel = artifactLabel(artifactType);
+  const shortLabel = artifactShortLabel(artifactType);
+
+  // Look up full artifact data from flow state
+  const artifacts = (canvasFlowState && canvasFlowState.lastFlowData && canvasFlowState.lastFlowData.artifacts) || {};
+  const artData = artifacts[artifactType] || null;
+
+  const statusLabels = { produced: 'Producido', consumed: 'Consumido', missing: 'Faltante' };
+
+  headerEl.innerHTML = `
+    <h3>${escapeHtml(shortLabel)}</h3>
+    <div class="artifact-type-tech">${escapeHtml(artifactType)}</div>
+  `;
+
+  let bodyHtml = '';
+
+  // Status
+  bodyHtml += `<div class="artifact-inspector-section">
+    <div class="artifact-inspector-section-label">Estado</div>
+    <div class="artifact-inspector-section-value">
+      <span class="artifact-inspector-status ${escapeHtml(category)}">${escapeHtml(statusLabels[category] || category)}</span>
+    </div>
+  </div>`;
+
+  // Human description
+  if (humanLabel && humanLabel !== artifactType) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Descripción</div>
+      <div class="artifact-inspector-section-value">${escapeHtml(humanLabel)}</div>
+    </div>`;
+  }
+
+  // Source node
+  if (artData && artData.source) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Origen</div>
+      <div class="artifact-inspector-section-value">${escapeHtml(artData.source)}${artData.node ? ' (' + escapeHtml(artData.node) + ')' : ''}</div>
+    </div>`;
+  }
+
+  // Timestamp
+  if (artData && artData.created_at) {
+    const ts = new Date(artData.created_at);
+    const formatted = isNaN(ts.getTime()) ? artData.created_at : ts.toLocaleString();
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Timestamp</div>
+      <div class="artifact-inspector-section-value">${escapeHtml(formatted)}</div>
+    </div>`;
+  }
+
+  // Path
+  if (artData && artData.path) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Path</div>
+      <div class="artifact-inspector-section-value" style="font-family:'SF Mono','Fira Code',monospace;font-size:11px;">${escapeHtml(artData.path)}</div>
+    </div>`;
+  }
+
+  // JSON payload
+  if (artData && artData.payload !== undefined && artData.payload !== null) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Payload</div>
+      <button class="artifact-inspector-json-toggle" onclick="this.nextElementSibling.classList.toggle('hidden');this.querySelector('.toggle-arrow').textContent=this.nextElementSibling.classList.contains('hidden')?'▶':'▼'">
+        <span class="toggle-arrow">▶</span> Ver JSON
+      </button>
+      <div class="artifact-inspector-json hidden">
+        <pre>${formatArtifactPayload(artData.payload)}</pre>
+      </div>
+    </div>`;
+  } else if (!artData) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-value" style="color:var(--text-muted);font-style:italic;">Sin datos de artefacto disponibles aún.</div>
+    </div>`;
+  }
+
+  bodyEl.innerHTML = bodyHtml;
+  panel.classList.add('open');
+}
+
+function closeArtifactInspector() {
+  const panel = document.getElementById('artifact-inspector');
+  if (panel) panel.classList.remove('open');
+}
+
+function formatArtifactPayload(payload) {
+  let jsonStr;
+  try {
+    jsonStr = typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+    // Try to re-format if it was a flat string of JSON
+    if (typeof payload === 'string') {
+      jsonStr = JSON.stringify(JSON.parse(payload), null, 2);
+    }
+  } catch (e) {
+    return escapeHtml(String(payload));
+  }
+  // Syntax-highlight the JSON
+  return escapeHtml(jsonStr).replace(
+    /("(?:\\.|[^"\\])*")\s*:/g,
+    '<span class="json-key">$1</span>:'
+  ).replace(
+    /:\s*("(?:\\.|[^"\\])*")/g,
+    ': <span class="json-string">$1</span>'
+  ).replace(
+    /:\s*(\d+(?:\.\d+)?)/g,
+    ': <span class="json-number">$1</span>'
+  ).replace(
+    /:\s*(true|false)/g,
+    ': <span class="json-bool">$1</span>'
+  ).replace(
+    /:\s*(null)/g,
+    ': <span class="json-null">$1</span>'
+  );
+}
+
+// ─── FLOW TIMELINE BAR ───
+let flowTimelineSteps = [];
+
+function updateFlowTimeline(steps) {
+  flowTimelineSteps = steps || [];
+  const bar = document.getElementById('flow-timeline-bar');
+  const container = bar ? bar.querySelector('.flow-timeline-steps') : null;
+  if (!bar || !container) return;
+
+  if (flowTimelineSteps.length === 0) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+
+  container.innerHTML = flowTimelineSteps.map((step, idx) => {
+    const fw = step.framework || step.node || '';
+    const color = frameworkColor(fw);
+    const label = escapeHtml(artifactShortLabel(fw) || fw);
+    const isActive = step.status === 'running' || step.status === 'started';
+    const pillClass = isActive ? 'flow-timeline-pill active' : 'flow-timeline-pill';
+    return `<div class="${pillClass}" onclick="showTimelineStepDetail(${idx})" title="${escapeHtml(step.capability || step.role || '')}">
+      <span class="pill-dot" style="background:${color}"></span>
+      ${label}
+    </div>`;
+  }).join('');
+
+  // Auto-scroll to the latest step
+  container.scrollLeft = container.scrollWidth;
+}
+
+function addFlowTimelineStep(step) {
+  // Check if step already exists (by index or matching node+capability)
+  const existingIdx = flowTimelineSteps.findIndex(s =>
+    s.node === step.node && s.capability === step.capability && s.framework === step.framework
+  );
+  if (existingIdx >= 0) {
+    flowTimelineSteps[existingIdx] = step;
+  } else {
+    flowTimelineSteps.push(step);
+  }
+  updateFlowTimeline(flowTimelineSteps);
+}
+
+function resetFlowTimeline() {
+  flowTimelineSteps = [];
+  updateFlowTimeline([]);
+}
+
+function showTimelineStepDetail(stepIndex) {
+  const step = flowTimelineSteps[stepIndex];
+  if (!step) return;
+
+  const panel = document.getElementById('artifact-inspector');
+  if (!panel) return;
+  const headerEl = panel.querySelector('.artifact-inspector-header');
+  const bodyEl = panel.querySelector('.artifact-inspector-body');
+
+  const fw = step.framework || step.node || '';
+  const color = frameworkColor(fw);
+  const statusLabels = { completed: 'Completado', running: 'Ejecutando...', started: 'Iniciando...', skipped: 'Omitido', failed: 'Error' };
+
+  headerEl.innerHTML = `
+    <h3 style="display:flex;align-items:center;gap:6px;">
+      <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;"></span>
+      ${escapeHtml(fw)}
+    </h3>
+    <div class="artifact-type-tech">${escapeHtml(step.capability || step.role || 'step ' + (stepIndex + 1))}</div>
+  `;
+
+  let bodyHtml = '';
+
+  // Status
+  const statusText = statusLabels[step.status] || step.status || 'desconocido';
+  bodyHtml += `<div class="artifact-inspector-section">
+    <div class="artifact-inspector-section-label">Estado</div>
+    <div class="artifact-inspector-section-value">${escapeHtml(statusText)}</div>
+  </div>`;
+
+  // Human summary
+  if (step.human_summary) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Resumen</div>
+      <div class="artifact-inspector-section-value">${escapeHtml(step.human_summary)}</div>
+    </div>`;
+  }
+
+  // Duration
+  if (step.duration_ms) {
+    const secs = (step.duration_ms / 1000).toFixed(1);
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Duración</div>
+      <div class="artifact-inspector-section-value">${escapeHtml(secs)}s</div>
+    </div>`;
+  }
+
+  // Timing
+  if (step.started_at || step.finished_at) {
+    const started = step.started_at ? new Date(step.started_at).toLocaleTimeString() : '';
+    const finished = step.finished_at ? new Date(step.finished_at).toLocaleTimeString() : '';
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Tiempo</div>
+      <div class="artifact-inspector-section-value">${started ? escapeHtml(started) : ''}${started && finished ? ' → ' : ''}${finished ? escapeHtml(finished) : ''}</div>
+    </div>`;
+  }
+
+  // Produced artifacts
+  const produced = step.artifact_types || step.produces || step.outputs || [];
+  if (produced.length) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Produce</div>
+      <div class="artifact-inspector-section-value">${produced.map(a => `<span class="artifact-inspector-status produced" style="margin:2px 4px 2px 0;cursor:pointer;" onclick="openArtifactInspector('${escapeHtml(a)}','produced')">${escapeHtml(artifactShortLabel(a))}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  // Consumed/required artifacts
+  const consumed = step.requires || step.inputs || [];
+  if (consumed.length) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Requiere</div>
+      <div class="artifact-inspector-section-value">${consumed.map(a => `<span class="artifact-inspector-status consumed" style="margin:2px 4px 2px 0;cursor:pointer;" onclick="openArtifactInspector('${escapeHtml(a)}','consumed')">${escapeHtml(artifactShortLabel(a))}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  // Missing artifacts
+  const missing = step.missing_artifacts || [];
+  if (missing.length) {
+    bodyHtml += `<div class="artifact-inspector-section">
+      <div class="artifact-inspector-section-label">Faltantes</div>
+      <div class="artifact-inspector-section-value">${missing.map(a => `<span class="artifact-inspector-status missing" style="margin:2px 4px 2px 0;">${escapeHtml(artifactShortLabel(a))}</span>`).join('')}</div>
+    </div>`;
+  }
+
+  bodyEl.innerHTML = bodyHtml;
+  panel.classList.add('open');
+}
+
 function selectCanvasAction(nodeId, idx) {
   const options = (window.__canvasActionOptions || {})[nodeId] || [];
   const opt = options[idx];
@@ -9775,7 +11017,9 @@ async function runCanvasFlowWithSelection(selection) {
     payload.input = canvasFlowState.lastInput;
   }
   payload.initial_artifacts['action.selection.v1'] = selection;
+  resetFlowTimeline();
   deactivateAllNodes();
+  document.querySelectorAll('[id^="artifacts-"]').forEach(el => el.innerHTML = '');
   setNodeActive('user', true);
   showCanvasThought('Rémora', 'Continuando flujo con la acción seleccionada...');
   await nextPaint();
@@ -9815,6 +11059,9 @@ async function runCanvasFlowWithSelection(selection) {
           setNodeSpeaking(nid, true);
           showCanvasThought(speakerForStep(step), canvasStepStartSummary(step));
           setNodeSpeech(nid, speakerForStep(step), 'Procesando...');
+          const requires = step.requires || step.inputs || [];
+          if (requires.length) updateNodeArtifacts(nid, [], requires, []);
+          addFlowTimelineStep(Object.assign({}, step, { status: 'running' }));
         }
         if (event === 'step_complete') {
           const step = data.step || {};
@@ -9823,6 +11070,7 @@ async function runCanvasFlowWithSelection(selection) {
           if (!nid) continue;
           setNodeSpeaking(nid, false);
           applyCanvasStepCompletionVisual(step, nid);
+          addFlowTimelineStep(Object.assign({}, step, { status: step.status || 'completed' }));
         }
         if (event === 'flow_complete') {
           deactivateAllNodes();
@@ -9874,6 +11122,14 @@ function applyCanvasStepCompletionVisual(step, fallbackNodeId) {
   const body = deferSkippedSpeaker ? canvasDeferredSkippedSummary(step) : extractHumanSummaryFromStdout(step);
   showCanvasThought(header, thought);
   setNodeSpeech(preferredNodeId, header, body, deferSkippedSpeaker ? [] : (step.action_options || []));
+
+  // Update artifact badges on the node — show what data this agent produced, used, and is missing
+  const produced = step.artifact_types || step.produces || step.outputs || [];
+  const consumed = step.requires || step.inputs || [];
+  const missing = step.missing_artifacts || [];
+  if (produced.length || consumed.length || missing.length) {
+    updateNodeArtifacts(preferredNodeId, produced, consumed, missing);
+  }
 }
 
 function deactivateAllNodes() {
@@ -9922,6 +11178,16 @@ function openFlowInNodeView(flow) {
       <button class="modal-btn confirm" onclick="runCanvasFlowReal()">Ejecutar operación real</button>
     </div>`);
   }
+
+  // Persist to localStorage for reload recovery
+  try {
+    localStorage.setItem('remora_last_flow', JSON.stringify({
+      id: flow.id,
+      name: flow.name,
+      business_id: flow.manifest?.business_id || flow.business_id || '',
+      savedAt: Date.now()
+    }));
+  } catch(e) {}
 }
 
 function transitionToOperativePhase() {
@@ -9963,7 +11229,9 @@ async function runCanvasFlowReal() {
   if (canvasFlowState.lastInput) {
     payload.input = canvasFlowState.lastInput;
   }
+  resetFlowTimeline();
   deactivateAllNodes();
+  document.querySelectorAll('[id^="artifacts-"]').forEach(el => el.innerHTML = '');
   setNodeActive('user', true);
   showCanvasThought('Rémora', 'Iniciando operación real... conectando con Channel y preparando frameworks.');
   await nextPaint();
@@ -10003,6 +11271,12 @@ async function runCanvasFlowReal() {
           setNodeSpeaking(nodeId, true);
           showCanvasThought(speakerForStep(step), canvasStepStartSummary(step));
           setNodeSpeech(nodeId, speakerForStep(step), 'Procesando...');
+          // Show what data this agent needs (before it starts working)
+          const requires = step.requires || step.inputs || [];
+          if (requires.length) {
+            updateNodeArtifacts(nodeId, [], requires, []);
+          }
+          addFlowTimelineStep(Object.assign({}, step, { status: 'running' }));
         }
         if (event === 'step_complete') {
           const step = data.step || {};
@@ -10011,6 +11285,7 @@ async function runCanvasFlowReal() {
           if (!nodeId) continue;
           setNodeSpeaking(nodeId, false);
           applyCanvasStepCompletionVisual(step, nodeId);
+          addFlowTimelineStep(Object.assign({}, step, { status: step.status || 'completed' }));
         }
         if (event === 'flow_complete') {
           deactivateAllNodes();
@@ -11300,6 +12575,549 @@ rulesModal.addEventListener('click', (e) => {
 rulesDescription.addEventListener('input', () => {
   rulesModified = true;
 });
+
+// ============================================
+// COBRANZAS DASHBOARD
+// ============================================
+
+let cbAllRows = [];
+let cbFilteredRows = [];
+let cbPage = 0;
+const CB_PAGE_SIZE = 20;
+let cbActiveEvidenceData = null;
+let cbDebtorRow = null;
+let cbMainConvId = null;
+let cbDebtorConvId = null;
+
+function cbFmtMoney(n) {
+  return '$' + Number(n).toLocaleString('es-CL');
+}
+
+function cbMoraBadge(dias) {
+  const d = parseInt(dias) || 0;
+  if (d > 90) return `<span class="cb-mora-badge high">${d} días</span>`;
+  if (d > 30) return `<span class="cb-mora-badge mid">${d} días</span>`;
+  return `<span class="cb-mora-badge low">${d} días</span>`;
+}
+
+function cbRiskLevel(diasMora) {
+  const d = parseInt(diasMora) || 0;
+  if (d > 90) return { label: 'Riesgo CRÍTICO', cls: 'danger' };
+  if (d > 60) return { label: 'Riesgo ALTO', cls: 'mid' };
+  if (d > 30) return { label: 'Riesgo MEDIO', cls: 'mid' };
+  return { label: 'Riesgo BAJO', cls: 'low' };
+}
+
+function cbInitials(name) {
+  return (name || '?').split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
+function showCbDashboard() {
+  document.getElementById('cb-dashboard').classList.add('visible');
+  document.getElementById('cb-chat-view').classList.remove('visible');
+  document.getElementById('nodes-canvas').style.display = 'none';
+  document.getElementById('launcher-screen').style.display = 'none';
+  if (typeof businessFlowPanel !== 'undefined') businessFlowPanel.classList.remove('visible');
+  cbLoadData();
+}
+
+function hideCbDashboard() {
+  document.getElementById('cb-dashboard').classList.remove('visible');
+  document.getElementById('cb-chat-view').classList.remove('visible');
+}
+
+async function cbLoadData() {
+  const bizId = authState && authState.activeBusinessId;
+  if (!bizId) return;
+
+  // Try to get tables first, then load the cobranzas table
+  try {
+    const resp = await fetch(`/api/v1/businesses/${bizId}/data/tables`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('remora_token') || ''}` }
+    });
+    if (!resp.ok) {
+      await cbLoadViaFlow(bizId);
+      return;
+    }
+    const data = await resp.json();
+    const tables = data.tables || data.data || [];
+    if (!tables.length) return;
+
+    // Find cobranzas table or use first
+    const tbl = tables.find(t => (typeof t === 'string' ? t : t.name || '').includes('cobr')) || tables[0];
+    const tblName = typeof tbl === 'string' ? tbl : (tbl.name || tbl);
+
+    const tResp = await fetch(`/api/v1/businesses/${bizId}/data/tables/${encodeURIComponent(tblName)}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('remora_token') || ''}` }
+    });
+    if (!tResp.ok) {
+      await cbLoadViaFlow(bizId);
+      return;
+    }
+    const tData = await tResp.json();
+    const rows = tData.rows || tData.data || [];
+    if (rows.length) {
+      cbAllRows = rows;
+      cbComputeKPIs(rows);
+      cbApplyFilters();
+      document.getElementById('cb-biz-sub').textContent = `${rows.length} registros · ${tblName}`;
+      return;
+    }
+  } catch(e) { /* fallback to flow */ }
+
+  await cbLoadViaFlow(bizId);
+}
+
+async function cbLoadViaFlow(bizId) {
+  // Use Sabio via flow to get data summary
+  const payload = {
+    flow: {
+      name: 'cb-summary',
+      steps: [{ framework: 'sabio', action: 'query', params: {
+        question: 'Dame todos los registros de la cartera de cobranzas: nombre, deuda_total, dias_mora, resultado_gestion, tipo_deuda, rut, telefono, email, cuotas_impagas, monto_cuota, fecha_vencimiento, ultima_gestion. Responde con los datos JSON.',
+        business_id: bizId
+      }}]
+    },
+    input: 'resumen cartera',
+    business_id: bizId
+  };
+  try {
+    const resp = await fetch('/api/v1/flows/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('remora_token') || ''}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    const answer = data?.artifacts?.sabio?.answer || data?.artifacts?.sabio?.text || '';
+    // Parse JSON from answer if present
+    try {
+      const match = answer.match(/\[[\s\S]*\]/);
+      if (match) {
+        const rows = JSON.parse(match[0]);
+        cbAllRows = rows;
+        cbComputeKPIs(rows);
+        cbApplyFilters();
+      }
+    } catch(e) {}
+  } catch(e) {}
+}
+
+function cbComputeKPIs(rows) {
+  const count = rows.length;
+  const total = rows.reduce((s, r) => s + (parseFloat(r.deuda_total || r['Deuda total'] || 0)), 0);
+  const mora90 = rows.filter(r => parseInt(r.dias_mora || r['Días mora'] || 0) > 90).length;
+  const noContact = rows.filter(r => {
+    const g = (r.resultado_gestion || r['Resultado gestión'] || '').toLowerCase();
+    return g.includes('no contesta') || g.includes('sin contacto') || g.includes('no responde');
+  }).length;
+
+  const kpiCount = document.getElementById('kpi-count');
+  const kpiTotal = document.getElementById('kpi-total');
+  const kpiMora = document.getElementById('kpi-mora90');
+  const kpiNo = document.getElementById('kpi-nocontact');
+
+  kpiCount.classList.remove('cb-skeleton'); kpiCount.textContent = count;
+  kpiTotal.classList.remove('cb-skeleton'); kpiTotal.textContent = cbFmtMoney(total);
+  kpiMora.classList.remove('cb-skeleton'); kpiMora.textContent = mora90;
+  kpiNo.classList.remove('cb-skeleton'); kpiNo.textContent = noContact;
+
+  document.getElementById('kpi-count-sub').textContent = 'deudores registrados';
+  document.getElementById('kpi-total-sub').textContent = 'en cobranza activa';
+  document.getElementById('kpi-mora90-sub').textContent = `${Math.round(mora90/count*100)||0}% del total`;
+  document.getElementById('kpi-nocontact-sub').textContent = 'requieren recontacto';
+}
+
+function cbGetField(row, ...keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+  }
+  return '—';
+}
+
+function cbRenderTable() {
+  const tbody = document.getElementById('cb-tbody');
+  const start = cbPage * CB_PAGE_SIZE;
+  const slice = cbFilteredRows.slice(start, start + CB_PAGE_SIZE);
+  if (!slice.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted)">Sin resultados</td></tr>';
+    return;
+  }
+  tbody.innerHTML = slice.map((row, i) => {
+    const nombre = cbGetField(row, 'nombre', 'Nombre', 'name');
+    const deuda = cbGetField(row, 'deuda_total', 'Deuda total', 'monto');
+    const dias = cbGetField(row, 'dias_mora', 'Días mora', 'dias');
+    const gestion = cbGetField(row, 'resultado_gestion', 'Resultado gestión', 'resultado');
+    const tipo = cbGetField(row, 'tipo_deuda', 'Tipo deuda', 'tipo');
+    const idx = start + i;
+    return `<tr class="cb-row" data-idx="${idx}">
+      <td><strong>${nombre}</strong></td>
+      <td>${cbFmtMoney(deuda)}</td>
+      <td>${cbMoraBadge(dias)}</td>
+      <td style="color:var(--text-muted);font-size:12px">${gestion}</td>
+      <td style="font-size:12px">${tipo}</td>
+    </tr>`;
+  }).join('');
+
+  // Row click → open debtor modal
+  tbody.querySelectorAll('.cb-row').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const idx = parseInt(tr.dataset.idx);
+      cbOpenDebtor(cbFilteredRows[idx]);
+    });
+  });
+
+  const total = cbFilteredRows.length;
+  document.getElementById('cb-page-info').textContent =
+    `${start + 1}–${Math.min(start + CB_PAGE_SIZE, total)} de ${total}`;
+  document.getElementById('cb-prev-btn').disabled = cbPage === 0;
+  document.getElementById('cb-next-btn').disabled = start + CB_PAGE_SIZE >= total;
+}
+
+function cbApplyFilters() {
+  const search = (document.getElementById('cb-search')?.value || '').toLowerCase();
+  const moraFilter = document.getElementById('cb-filter-mora')?.value || '';
+  cbFilteredRows = cbAllRows.filter(row => {
+    const nombre = (cbGetField(row, 'nombre', 'Nombre', 'name') + '').toLowerCase();
+    const rut = (cbGetField(row, 'rut', 'RUT') + '').toLowerCase();
+    if (search && !nombre.includes(search) && !rut.includes(search)) return false;
+    if (moraFilter) {
+      const d = parseInt(cbGetField(row, 'dias_mora', 'Días mora') || 0);
+      if (moraFilter === 'low' && d >= 30) return false;
+      if (moraFilter === 'mid' && (d < 30 || d > 90)) return false;
+      if (moraFilter === 'high' && d <= 90) return false;
+    }
+    return true;
+  });
+  cbPage = 0;
+  cbRenderTable();
+}
+
+// Filter/pagination events
+document.getElementById('cb-search')?.addEventListener('input', cbApplyFilters);
+document.getElementById('cb-filter-mora')?.addEventListener('change', cbApplyFilters);
+document.getElementById('cb-prev-btn')?.addEventListener('click', () => { cbPage--; cbRenderTable(); });
+document.getElementById('cb-next-btn')?.addEventListener('click', () => { cbPage++; cbRenderTable(); });
+
+// Sidebar action cards
+document.querySelectorAll('.cb-action-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const q = card.dataset.query;
+    if (q) cbOpenChat(q);
+  });
+});
+
+// Analyze button
+document.getElementById('cb-analyze-btn')?.addEventListener('click', () => cbOpenChat(''));
+
+// Back to full view
+document.getElementById('cb-back-to-dev-btn')?.addEventListener('click', () => {
+  hideCbDashboard();
+  document.getElementById('nodes-canvas').style.display = '';
+  if (typeof showBusinessWorkspace === 'function') showBusinessWorkspace();
+});
+
+// ============================================
+// ─── GUEST / DEMO MODE ───
+const CB_DEMO_DATA = [
+  { rut:'12345678-9', nombre:'Pedro González Muñoz', deuda_total:'1450000', dias_mora:'45', ultima_gestion:'2026-04-15', resultado_gestion:'No contesta', telefono:'+56912345678', email:'pgonzalez@mail.cl', tipo_deuda:'Crédito consumo', cuotas_impagas:'3', monto_cuota:'483333', fecha_vencimiento:'2026-03-10' },
+  { rut:'98765432-1', nombre:'María Isabel Contreras', deuda_total:'3200000', dias_mora:'120', ultima_gestion:'2026-02-01', resultado_gestion:'Promesa incumplida', telefono:'+56987654321', email:'mcontreras@mail.cl', tipo_deuda:'Hipotecario', cuotas_impagas:'6', monto_cuota:'533333', fecha_vencimiento:'2025-12-25' },
+  { rut:'11222333-4', nombre:'Juan Carlos Ramírez', deuda_total:'890000', dias_mora:'30', ultima_gestion:'2026-04-28', resultado_gestion:'Contactado - pide plazo', telefono:'+56911223344', email:'jramirez@mail.cl', tipo_deuda:'Tarjeta crédito', cuotas_impagas:'2', monto_cuota:'445000', fecha_vencimiento:'2026-03-25' },
+  { rut:'55443322-1', nombre:'Claudia Fernanda Silva', deuda_total:'4500000', dias_mora:'200', ultima_gestion:'2026-01-15', resultado_gestion:'Sin contacto', telefono:'+56955443322', email:'csilva@mail.cl', tipo_deuda:'Crédito empresarial', cuotas_impagas:'10', monto_cuota:'450000', fecha_vencimiento:'2025-09-30' },
+  { rut:'33221100-5', nombre:'Carlos Andrés Pérez', deuda_total:'670000', dias_mora:'15', ultima_gestion:'2026-05-10', resultado_gestion:'Acordó pago parcial', telefono:'+56933221100', email:'caperez@mail.cl', tipo_deuda:'Línea crédito', cuotas_impagas:'1', monto_cuota:'670000', fecha_vencimiento:'2026-04-30' },
+];
+
+let cbIsGuestMode = false;
+
+function cbEnterGuestMode() {
+  cbIsGuestMode = true;
+  document.getElementById('cb-biz-name').textContent = 'Cartera de Cobranzas';
+  document.getElementById('cb-demo-banner').classList.add('visible');
+  cbAllRows = CB_DEMO_DATA;
+  cbComputeKPIs(CB_DEMO_DATA);
+  cbApplyFilters();
+  showCbDashboard();
+}
+
+document.getElementById('launcher-guest-btn')?.addEventListener('click', cbEnterGuestMode);
+
+document.getElementById('cb-demo-login-btn')?.addEventListener('click', () => {
+  hideCbDashboard();
+  document.getElementById('nodes-canvas').style.display = '';
+  document.getElementById('launcher-screen').style.display = '';
+  if (typeof authOpenBtn !== 'undefined') authOpenBtn.click();
+});
+
+// COBRANZAS CHAT
+// ============================================
+
+function cbOpenChat(initialQuery) {
+  document.getElementById('cb-dashboard').classList.remove('visible');
+  document.getElementById('cb-chat-view').classList.add('visible');
+  if (initialQuery) {
+    setTimeout(() => cbSendMessage(initialQuery), 100);
+  }
+  const suggestions = document.getElementById('cb-chat-suggestions');
+  const history = document.getElementById('cb-chat-history');
+  if (suggestions) suggestions.style.display = history.children.length ? 'none' : 'flex';
+}
+
+document.getElementById('cb-chat-back')?.addEventListener('click', () => {
+  document.getElementById('cb-chat-view').classList.remove('visible');
+  document.getElementById('cb-dashboard').classList.add('visible');
+});
+
+document.getElementById('cb-chat-send')?.addEventListener('click', () => {
+  const input = document.getElementById('cb-chat-input');
+  if (input.value.trim()) cbSendMessage(input.value.trim());
+});
+
+document.getElementById('cb-chat-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('cb-chat-send').click(); }
+});
+
+document.querySelectorAll('#cb-chat-suggestions .suggested-chip').forEach(chip => {
+  chip.addEventListener('click', () => cbSendMessage(chip.dataset.q));
+});
+
+document.getElementById('cb-evidence-close')?.addEventListener('click', () => {
+  document.getElementById('cb-evidence-panel').classList.remove('open');
+});
+
+async function cbSendMessage(question, historyEl, convIdRef) {
+  const targetHistory = historyEl || document.getElementById('cb-chat-history');
+  const suggestions = document.getElementById('cb-chat-suggestions');
+  if (suggestions) suggestions.style.display = 'none';
+
+  // User bubble
+  const userEl = document.createElement('div');
+  userEl.className = 'cb-msg user';
+  userEl.innerHTML = `<div class="cb-msg-body"><div class="cb-msg-text">${question}</div></div>`;
+  targetHistory.appendChild(userEl);
+  targetHistory.scrollTop = targetHistory.scrollHeight;
+
+  // Loading bubble
+  const loadingEl = document.createElement('div');
+  loadingEl.className = 'cb-loading-row';
+  loadingEl.innerHTML = `
+    <div class="cb-msg-avatar">S</div>
+    <div class="cb-loading-bubble">
+      <div>Consultando tu cartera...</div>
+      <div class="cb-loading-bar-wrap"><div class="cb-loading-bar"></div></div>
+    </div>`;
+  targetHistory.appendChild(loadingEl);
+  targetHistory.scrollTop = targetHistory.scrollHeight;
+
+  // Slow message after 60s
+  const slowTimer = setTimeout(() => {
+    const bubble = loadingEl.querySelector('.cb-loading-bubble div:first-child');
+    if (bubble) bubble.textContent = 'Tomando más tiempo de lo usual, ya casi...';
+  }, 60000);
+
+  const bizId = authState && authState.activeBusinessId;
+  let evidenceData = null;
+
+  try {
+    const payload = {
+      flow: {
+        name: 'cb-chat',
+        steps: [{ framework: 'sabio', action: 'query', params: {
+          question: question,
+          business_id: bizId
+        }}]
+      },
+      input: question,
+      business_id: bizId
+    };
+
+    const resp = await fetch('/api/v1/flows/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('remora_token') || ''}` },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    const sabio = data?.artifacts?.sabio || {};
+    const answer = sabio.answer || sabio.text || sabio.summary || 'Sin respuesta';
+    const sql = sabio.trace?.sql || '';
+
+    evidenceData = { sql, rows: sabio.evidence };
+
+    clearTimeout(slowTimer);
+    loadingEl.remove();
+
+    // Assistant bubble
+    const assistEl = document.createElement('div');
+    assistEl.className = 'cb-msg assistant';
+    const hasEvidence = !!sql;
+    assistEl.innerHTML = `
+      <div class="cb-msg-avatar">S</div>
+      <div class="cb-msg-body">
+        <div class="cb-msg-text">${answer.replace(/\n/g, '<br>')}</div>
+        ${hasEvidence ? '<button class="cb-evidence-btn">Ver evidencia →</button>' : ''}
+      </div>`;
+    targetHistory.appendChild(assistEl);
+    targetHistory.scrollTop = targetHistory.scrollHeight;
+
+    if (hasEvidence) {
+      assistEl.querySelector('.cb-evidence-btn')?.addEventListener('click', () => {
+        cbShowEvidence(evidenceData);
+      });
+    }
+
+    // Save to localStorage
+    const convKey = `cb_conv_${bizId}`;
+    const conv = JSON.parse(localStorage.getItem(convKey) || '[]');
+    conv.push({ role: 'user', content: question, ts: Date.now() });
+    conv.push({ role: 'assistant', content: answer, sql, ts: Date.now() });
+    localStorage.setItem(convKey, JSON.stringify(conv.slice(-40)));
+
+  } catch(e) {
+    clearTimeout(slowTimer);
+    loadingEl.remove();
+    const errEl = document.createElement('div');
+    errEl.className = 'cb-msg assistant';
+    errEl.innerHTML = `<div class="cb-msg-avatar">S</div><div class="cb-msg-body"><div class="cb-msg-text" style="color:#ef4444">Error al consultar: ${e.message}</div></div>`;
+    targetHistory.appendChild(errEl);
+  }
+}
+
+function cbShowEvidence(data) {
+  const panel = document.getElementById('cb-evidence-panel');
+  const body = document.getElementById('cb-evidence-body');
+  if (!panel || !body) return;
+  panel.classList.add('open');
+  body.innerHTML = `
+    <div class="cb-evidence-sql-label">SQL ejecutado</div>
+    <pre class="cb-evidence-pre">${data.sql || '(no disponible)'}</pre>
+    <div class="cb-evidence-rows-label">${data.rows ? 'Datos utilizados' : ''}</div>`;
+}
+
+// ============================================
+// MODAL DEUDOR
+// ============================================
+
+function cbOpenDebtor(row) {
+  cbDebtorRow = row;
+  const nombre = cbGetField(row, 'nombre', 'Nombre', 'name');
+  const rut = cbGetField(row, 'rut', 'RUT');
+  const tipo = cbGetField(row, 'tipo_deuda', 'Tipo deuda');
+  const deuda = cbGetField(row, 'deuda_total', 'Deuda total');
+  const dias = cbGetField(row, 'dias_mora', 'Días mora');
+  const cuotas = cbGetField(row, 'cuotas_impagas', 'Cuotas impagas');
+  const cuotaMonto = cbGetField(row, 'monto_cuota', 'Monto cuota');
+  const vcto = cbGetField(row, 'fecha_vencimiento', 'Fecha vencimiento');
+  const tel = cbGetField(row, 'telefono', 'Teléfono');
+  const email = cbGetField(row, 'email', 'Email');
+  const ult = cbGetField(row, 'ultima_gestion', 'Última gestión');
+  const result = cbGetField(row, 'resultado_gestion', 'Resultado gestión');
+  const risk = cbRiskLevel(dias);
+
+  document.getElementById('cb-debtor-avatar').textContent = cbInitials(nombre);
+  document.getElementById('cb-debtor-name').textContent = nombre;
+  document.getElementById('cb-debtor-sub').textContent = `${rut} · ${tipo}`;
+
+  document.getElementById('cb-debtor-facts').innerHTML = `
+    <div class="cb-fact-group">
+      <label class="cb-fact-label">Deuda total</label>
+      <span class="cb-fact-value large">${cbFmtMoney(deuda)}</span>
+    </div>
+    <div class="cb-fact-group">
+      <label class="cb-fact-label">Mora</label>
+      <span class="cb-fact-value">${cbMoraBadge(dias)}</span>
+    </div>
+    <div class="cb-fact-group">
+      <label class="cb-fact-label">Cuotas impagas</label>
+      <span class="cb-fact-value">${cuotas} cuotas de ${cbFmtMoney(cuotaMonto)}</span>
+    </div>
+    <div class="cb-fact-group">
+      <label class="cb-fact-label">Vencimiento</label>
+      <span class="cb-fact-value">${vcto}</span>
+    </div>
+    <div class="cb-fact-group">
+      <label class="cb-fact-label">Contacto</label>
+      <span class="cb-fact-value">${tel}</span>
+      <span class="cb-fact-value" style="font-size:12px;color:var(--text-muted)">${email}</span>
+    </div>
+    <div class="cb-fact-group">
+      <label class="cb-fact-label">Última gestión</label>
+      <span class="cb-fact-value">${ult}</span>
+      <span class="cb-fact-value" style="font-size:12px;color:var(--text-muted)">${result}</span>
+    </div>
+    <div class="cb-risk-badge ${risk.cls}">${risk.label}</div>`;
+
+  // Contextual chips
+  const chips = document.getElementById('cb-debtor-chips');
+  chips.innerHTML = [
+    `¿Cuál es el historial completo de gestiones de ${nombre}?`,
+    `¿Tiene ${nombre} otras deudas registradas en la cartera?`,
+    `¿Cuál es el mejor canal para contactar a ${nombre} según los datos?`,
+  ].map(q => `<button class="suggested-chip" data-q="${q}">${q.substring(0, 45)}...</button>`).join('');
+  chips.querySelectorAll('.suggested-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const history = document.getElementById('cb-debtor-chat-history');
+      cbSendMessage(chip.dataset.q, history);
+    });
+  });
+
+  // Clear debtor chat and send context query
+  const debtorHistory = document.getElementById('cb-debtor-chat-history');
+  debtorHistory.innerHTML = '';
+  document.getElementById('cb-debtor-overlay').classList.add('visible');
+
+  // Auto-load debtor summary
+  const autoQ = `Dame el perfil completo de ${nombre} (${rut}): su deuda, mora, cuotas, contacto y última gestión. Resume su situación en 2 oraciones.`;
+  cbSendMessage(autoQ, debtorHistory);
+}
+
+document.getElementById('cb-debtor-close')?.addEventListener('click', () => {
+  document.getElementById('cb-debtor-overlay').classList.remove('visible');
+});
+document.getElementById('cb-debtor-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('visible');
+});
+
+document.getElementById('cb-debtor-send')?.addEventListener('click', () => {
+  const input = document.getElementById('cb-debtor-input');
+  if (!input.value.trim()) return;
+  const history = document.getElementById('cb-debtor-chat-history');
+  cbSendMessage(input.value.trim(), history);
+  input.value = '';
+});
+document.getElementById('cb-debtor-input')?.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('cb-debtor-send').click(); }
+});
+
+// ============================================
+// OVERRIDE showBusinessWorkspace to show dashboard
+// ============================================
+const _origShowBusinessWorkspace = typeof showBusinessWorkspace === 'function' ? showBusinessWorkspace : null;
+function showBusinessWorkspace() {
+  const isProductMode = document.documentElement.dataset.mode === 'product';
+  if (isProductMode && authState && authState.activeBusinessId) {
+    const biz = authState.memberships?.find(m => m.business_id === authState.activeBusinessId);
+    if (biz) {
+      document.getElementById('cb-biz-name').textContent = biz.business_name || 'Cartera de Cobranzas';
+    }
+    showCbDashboard();
+    return;
+  }
+  if (_origShowBusinessWorkspace) _origShowBusinessWorkspace();
+  else {
+    if (typeof resetWorkspace === 'function') resetWorkspace();
+    if (typeof hideLauncher === 'function') hideLauncher();
+    if (typeof businessFlowPanel !== 'undefined') businessFlowPanel.classList.add('visible');
+  }
+}
 </script>
+
+<div id="artifact-inspector" class="artifact-inspector">
+  <button class="artifact-inspector-close" onclick="closeArtifactInspector()">&times;</button>
+  <div class="artifact-inspector-header"></div>
+  <div class="artifact-inspector-body"></div>
+</div>
+
+<div id="flow-timeline-bar" class="flow-timeline-bar hidden">
+  <div class="flow-timeline-steps"></div>
+</div>
+
 </body>
 </html>

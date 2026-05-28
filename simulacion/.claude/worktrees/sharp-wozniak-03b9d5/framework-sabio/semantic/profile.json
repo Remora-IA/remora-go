@@ -1,0 +1,2349 @@
+{
+  "source": "framework-indexa/data/panalbit.db",
+  "table_count": 34,
+  "tables": {
+    "advances": {
+      "row_count": 1,
+      "columns": [
+        {
+          "name": "amount",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "residue",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "amount": "100.0",
+          "client_code": "000239",
+          "client_id": "243",
+          "date": "2023-06-07",
+          "id": "3522",
+          "project_code": "000239-0001",
+          "project_id": "422",
+          "residue": "100.0"
+        }
+      ]
+    },
+    "agreements": {
+      "row_count": 614,
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "client_id": "1",
+          "code": null,
+          "id": "1",
+          "name": ""
+        },
+        {
+          "client_id": "2",
+          "code": null,
+          "id": "2",
+          "name": ""
+        },
+        {
+          "client_id": "3",
+          "code": null,
+          "id": "3",
+          "name": ""
+        }
+      ]
+    },
+    "areas": {
+      "row_count": 9,
+      "columns": [
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "touched_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "created_at": "2020-08-12 15:03:31",
+          "id": "1",
+          "name": "Corporativo",
+          "touched_at": null,
+          "updated_at": null
+        },
+        {
+          "created_at": "2020-08-12 15:03:31",
+          "id": "2",
+          "name": "Contratación Estatal",
+          "touched_at": null,
+          "updated_at": null
+        },
+        {
+          "created_at": "2020-08-12 15:03:31",
+          "id": "3",
+          "name": "Financiero",
+          "touched_at": null,
+          "updated_at": null
+        }
+      ]
+    },
+    "bank_accounts": {
+      "row_count": 3,
+      "columns": [
+        {
+          "name": "address",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "bank_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "currency_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "fax",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "number",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "phone_1",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "phone_2",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "address": "562 Smitham Lake",
+          "bank_id": "1",
+          "currency_id": "1",
+          "fax": null,
+          "id": "1",
+          "name": "Molestias Dicta Et Magnam.",
+          "number": "5553223851120210",
+          "phone_1": "+6387485525557",
+          "phone_2": "+6176934950390"
+        },
+        {
+          "address": "80619 Rocio Drive",
+          "bank_id": "1",
+          "currency_id": "2",
+          "fax": null,
+          "id": "2",
+          "name": "Qui Et Fuga Beatae Quis.",
+          "number": "5114868132149669",
+          "phone_1": "+6477523782930",
+          "phone_2": "+7998779793304"
+        },
+        {
+          "address": "445 Vern Branch Apt. 676",
+          "bank_id": "2",
+          "currency_id": "1",
+          "fax": null,
+          "id": "3",
+          "name": "Esse Saepe Velit Maxime.",
+          "number": "4485734209721273",
+          "phone_1": "+7780168748778",
+          "phone_2": "+9638380790032"
+        }
+      ]
+    },
+    "banks": {
+      "row_count": 2,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "Continental"
+        },
+        {
+          "id": "2",
+          "name": "Banco de la Nación"
+        }
+      ]
+    },
+    "billing_document_statuses": {
+      "row_count": 5,
+      "columns": [
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "code": "F",
+          "id": "1",
+          "name": "Facturado"
+        },
+        {
+          "code": "C",
+          "id": "2",
+          "name": "Cobrado"
+        },
+        {
+          "code": "O",
+          "id": "3",
+          "name": "Obsequio"
+        }
+      ]
+    },
+    "billing_document_types": {
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "code": "FA",
+          "id": "1",
+          "name": "Factura"
+        },
+        {
+          "code": "NC",
+          "id": "2",
+          "name": "Nota de crédito"
+        },
+        {
+          "code": "ND",
+          "id": "3",
+          "name": "Nota de débito"
+        }
+      ]
+    },
+    "billing_documents": {
+      "row_count": 1579,
+      "columns": [
+        {
+          "name": "charge_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "number",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "series_number",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "charge_id": "2",
+          "client_code": "000050",
+          "client_id": "50",
+          "created_at": "2021-06-21 14:11:29",
+          "date": "2021-06-21",
+          "id": "1",
+          "number": "-1",
+          "series_number": "001",
+          "updated_at": "2025-03-27 18:56:48"
+        },
+        {
+          "charge_id": "29",
+          "client_code": "000060",
+          "client_id": "60",
+          "created_at": "2021-08-20 16:31:05",
+          "date": "2021-08-23",
+          "id": "2",
+          "number": "217",
+          "series_number": "001",
+          "updated_at": "2025-03-27 18:56:48"
+        },
+        {
+          "charge_id": "43",
+          "client_code": "000063",
+          "client_id": "63",
+          "created_at": "2021-11-25 14:41:54",
+          "date": "2021-08-25",
+          "id": "3",
+          "number": "230",
+          "series_number": "001",
+          "updated_at": "2025-03-27 18:56:48"
+        }
+      ]
+    },
+    "charges": {
+      "row_count": 1518,
+      "columns": [
+        {
+          "name": "agreement_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date_from",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date_to",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "state",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "agreement_id": "58",
+          "client_code": "000050",
+          "client_id": "50",
+          "created_at": "2021-06-22 14:06:31",
+          "date_from": "0000-00-00",
+          "date_to": "2021-04-23",
+          "description": "Periodo: Hasta: 31-01-2015",
+          "id": "2",
+          "state": "PAGADO",
+          "updated_at": "2021-06-22 14:16:05"
+        },
+        {
+          "agreement_id": "63",
+          "client_code": "000054",
+          "client_id": "54",
+          "created_at": "2021-06-23 14:13:55",
+          "date_from": "0000-00-00",
+          "date_to": "2021-06-23",
+          "description": "Periodo: Hasta: 01-04-2015",
+          "id": "3",
+          "state": "PAGADO",
+          "updated_at": "2022-01-27 12:42:14"
+        },
+        {
+          "agreement_id": "64",
+          "client_code": "000055",
+          "client_id": "55",
+          "created_at": "2021-07-12 16:51:09",
+          "date_from": "0000-00-00",
+          "date_to": "2021-07-12",
+          "description": "Periodo: Hasta: 20-04-2015",
+          "id": "18",
+          "state": "PAGADO",
+          "updated_at": "2022-01-17 16:56:09"
+        }
+      ]
+    },
+    "client_groups": {
+      "row_count": 7,
+      "columns": [
+        {
+          "name": "client_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "country_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "client_code": null,
+          "client_id": null,
+          "country_id": null,
+          "id": "1",
+          "name": "STARSCAMP"
+        },
+        {
+          "client_code": null,
+          "client_id": null,
+          "country_id": null,
+          "id": "2",
+          "name": "AVI"
+        },
+        {
+          "client_code": null,
+          "client_id": null,
+          "country_id": null,
+          "id": "3",
+          "name": "COMPATEL"
+        }
+      ]
+    },
+    "clients": {
+      "row_count": 269,
+      "columns": [
+        {
+          "name": "active",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "agreement_start_date",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "group_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "active": "0",
+          "agreement_start_date": "2014-07-23",
+          "code": "000001",
+          "created_at": "2014-07-23 16:54:11",
+          "group_id": null,
+          "id": "1",
+          "name": "Gislason Ltd",
+          "updated_at": "2019-01-04 18:54:32"
+        },
+        {
+          "active": "0",
+          "agreement_start_date": "2014-07-23",
+          "code": "000002",
+          "created_at": "2014-07-23 16:54:11",
+          "group_id": null,
+          "id": "2",
+          "name": "O'Kon-Jenkins",
+          "updated_at": "2019-01-04 18:54:32"
+        },
+        {
+          "active": "0",
+          "agreement_start_date": "2014-07-23",
+          "code": "000003",
+          "created_at": "2014-07-23 16:54:12",
+          "group_id": "1",
+          "id": "3",
+          "name": "Balistreri, Batz and Douglas",
+          "updated_at": "2019-01-04 18:54:32"
+        }
+      ]
+    },
+    "codes": {
+      "row_count": 127,
+      "columns": [
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "group",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "code": "L110",
+          "description": "Fact Investigation/Development",
+          "group": "UTBMS_TASK",
+          "id": "1"
+        },
+        {
+          "code": "L120",
+          "description": "Analysis/Strategy",
+          "group": "UTBMS_TASK",
+          "id": "2"
+        },
+        {
+          "code": "L130",
+          "description": "Experts/Consultants",
+          "group": "UTBMS_TASK",
+          "id": "3"
+        }
+      ]
+    },
+    "countries": {
+      "row_count": 241,
+      "columns": [
+        {
+          "name": "alpha_2_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "alpha_3_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name_es",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "numeric_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "alpha_2_code": "AF",
+          "alpha_3_code": "AFG",
+          "id": "1",
+          "name_es": "Afganistán",
+          "numeric_code": "4"
+        },
+        {
+          "alpha_2_code": "AX",
+          "alpha_3_code": "ALA",
+          "id": "2",
+          "name_es": "Islas Gland",
+          "numeric_code": "248"
+        },
+        {
+          "alpha_2_code": "AL",
+          "alpha_3_code": "ALB",
+          "id": "3",
+          "name_es": "Albania",
+          "numeric_code": "8"
+        }
+      ]
+    },
+    "currencies": {
+      "row_count": 3,
+      "columns": [
+        {
+          "name": "billing_document_symbol",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "decimal_char",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "exchange_rate",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "is_base_currency",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "plural",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "precision",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "symbol",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "thousand_char",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "billing_document_symbol": "PEN",
+          "code": "PEN",
+          "decimal_char": ".",
+          "exchange_rate": "1",
+          "id": "1",
+          "is_base_currency": null,
+          "name": "Sol",
+          "plural": "Soles",
+          "precision": "2",
+          "symbol": "S/.",
+          "thousand_char": ","
+        },
+        {
+          "billing_document_symbol": "USD",
+          "code": "USD",
+          "decimal_char": ".",
+          "exchange_rate": "3.33",
+          "id": "2",
+          "is_base_currency": "1",
+          "name": "Dólar",
+          "plural": "Dólares",
+          "precision": "2",
+          "symbol": "USD",
+          "thousand_char": ","
+        },
+        {
+          "billing_document_symbol": "EUR",
+          "code": "EUR",
+          "decimal_char": ",",
+          "exchange_rate": "3.79",
+          "id": "3",
+          "is_base_currency": null,
+          "name": "Euro",
+          "plural": "Euros",
+          "precision": "2",
+          "symbol": "E",
+          "thousand_char": "."
+        }
+      ]
+    },
+    "expenses": {
+      "row_count": 8,
+      "columns": [
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "observations",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "reviewed",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "client_id": "74",
+          "created_at": "2015-06-02 19:24:56",
+          "description": "Ut quis accusamus et nisi perferendis est beatae adipisci. Sit suscipit consequatur commodi distinctio quia culpa in.",
+          "id": "98",
+          "observations": null,
+          "project_id": "90",
+          "reviewed": "0",
+          "updated_at": "2019-01-04 18:59:27"
+        },
+        {
+          "client_id": "74",
+          "created_at": "2015-06-05 19:44:32",
+          "description": "Ut ut laudantium nihil est non et. Saepe numquam quo aut quam voluptatem. Dolorem laudantium qui earum sit pariatur.",
+          "id": "99",
+          "observations": null,
+          "project_id": "90",
+          "reviewed": "0",
+          "updated_at": "2019-01-04 18:59:27"
+        },
+        {
+          "client_id": "184",
+          "created_at": "2023-05-23 16:56:02",
+          "description": "GTO-000027 - Gasto de prueba. Almuerzo",
+          "id": "100",
+          "observations": null,
+          "project_id": "517",
+          "reviewed": "0",
+          "updated_at": null
+        }
+      ]
+    },
+    "expenses_categories": {
+      "row_count": 21,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "Archivo Judicial"
+        },
+        {
+          "id": "2",
+          "name": "Bencina"
+        },
+        {
+          "id": "3",
+          "name": "CBR"
+        }
+      ]
+    },
+    "languages": {
+      "row_count": 2,
+      "columns": [
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name_es",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "code": "es",
+          "id": "1",
+          "name_es": "Español"
+        },
+        {
+          "code": "en",
+          "id": "2",
+          "name_es": "Inglés"
+        }
+      ]
+    },
+    "law_firms": {
+      "row_count": 2,
+      "columns": [
+        {
+          "name": "has_metadata",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "has_metadata": "0",
+          "id": "1",
+          "name": "Zieme-Ledner"
+        },
+        {
+          "has_metadata": "0",
+          "id": "2",
+          "name": "Zemlak-Bartoletti"
+        }
+      ]
+    },
+    "milestones": {
+      "row_count": 308,
+      "columns": [
+        {
+          "name": "agreement_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "amount",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "charge_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "agreement_id": "87",
+          "amount": "500",
+          "charge_id": "42",
+          "date": "2015-05-17",
+          "description": "Liquidación N° 2",
+          "id": "26"
+        },
+        {
+          "agreement_id": "109",
+          "amount": "500",
+          "charge_id": "73",
+          "date": "2015-05-13",
+          "description": "Liquidación N° 1",
+          "id": "178"
+        },
+        {
+          "agreement_id": "109",
+          "amount": "500",
+          "charge_id": "56",
+          "date": "2015-06-13",
+          "description": "Liquidación N° 2",
+          "id": "179"
+        }
+      ]
+    },
+    "national_id_document_types": {
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "dte_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "dte_code": "6",
+          "id": "1",
+          "name": "RUC"
+        },
+        {
+          "dte_code": "4",
+          "id": "2",
+          "name": "Carnet de Extranjería"
+        },
+        {
+          "dte_code": "0",
+          "id": "3",
+          "name": "Otro - Documento Exterior"
+        }
+      ]
+    },
+    "payment_concepts": {
+      "row_count": 18,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "Cobranza al 100%"
+        },
+        {
+          "id": "2",
+          "name": "Cobranza de detracción 12%"
+        },
+        {
+          "id": "3",
+          "name": "Comisión y gastos bancarios"
+        }
+      ]
+    },
+    "payment_conditions": {
+      "row_count": 16,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "CONTADO"
+        },
+        {
+          "id": "3",
+          "name": "CC 15 días"
+        },
+        {
+          "id": "4",
+          "name": "CC 30 días"
+        }
+      ]
+    },
+    "payment_types": {
+      "row_count": 10,
+      "columns": [
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "group",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "code": "A",
+          "group": "T",
+          "name": "Amortización"
+        },
+        {
+          "code": "C",
+          "group": "T",
+          "name": "Cheque"
+        },
+        {
+          "code": "CP",
+          "group": "P",
+          "name": "Cheque"
+        }
+      ]
+    },
+    "payments": {
+      "row_count": 1451,
+      "columns": [
+        {
+          "name": "amount",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "currency_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "residue",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "amount": "1597.13",
+          "client_id": "50",
+          "created_at": "2020-01-03 14:14:48",
+          "currency_id": "2",
+          "date": "2020-01-03",
+          "id": "1",
+          "residue": "0",
+          "updated_at": "2020-01-03 14:14:48"
+        },
+        {
+          "amount": "2000",
+          "client_id": "50",
+          "created_at": "2020-01-03 14:15:14",
+          "currency_id": "2",
+          "date": "2020-01-03",
+          "id": "2",
+          "residue": "0",
+          "updated_at": "2020-01-03 14:15:14"
+        },
+        {
+          "amount": "2000",
+          "client_id": "50",
+          "created_at": "2020-01-03 14:16:01",
+          "currency_id": "2",
+          "date": "2020-01-03",
+          "id": "3",
+          "residue": "0",
+          "updated_at": "2020-01-03 14:16:01"
+        }
+      ]
+    },
+    "project_areas": {
+      "row_count": 11,
+      "columns": [
+        {
+          "name": "breakdown",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "breakdown": "0",
+          "id": "1",
+          "name": "Otra"
+        },
+        {
+          "breakdown": "0",
+          "id": "2",
+          "name": "Asesoria General"
+        },
+        {
+          "breakdown": "0",
+          "id": "3",
+          "name": "Corporativo"
+        }
+      ]
+    },
+    "project_types": {
+      "row_count": 6,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "Contrato"
+        },
+        {
+          "id": "2",
+          "name": "Asesoría"
+        },
+        {
+          "id": "3",
+          "name": "Juicio"
+        }
+      ]
+    },
+    "projects": {
+      "row_count": 521,
+      "columns": [
+        {
+          "name": "active",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "agreement_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "client_name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "collectable",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "currency_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "has_custom_agreement",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "inactive_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "language_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "language_name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_area_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_sub_area_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_type_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "responsible_user_ids",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "active": "0",
+          "agreement_id": "8",
+          "client_code": "000008",
+          "client_id": "8",
+          "client_name": "Gislason-Bednar",
+          "code": "000008-0001",
+          "collectable": "1",
+          "created_at": "2014-07-23 16:54:56",
+          "currency_code": "USD",
+          "has_custom_agreement": "0",
+          "id": "1",
+          "inactive_at": "0000-00-00 00:00:00",
+          "language_code": "es",
+          "language_name": "Español",
+          "name": "Análisis Normativo",
+          "project_area_id": "2",
+          "project_sub_area_id": null,
+          "project_type_id": null,
+          "responsible_user_ids": "[]",
+          "updated_at": "2019-01-04 18:54:53"
+        },
+        {
+          "active": "0",
+          "agreement_id": "9",
+          "client_code": "000009",
+          "client_id": "9",
+          "client_name": "Runolfsson-Rutherford",
+          "code": "000009-0001",
+          "collectable": "1",
+          "created_at": "2014-07-23 16:54:57",
+          "currency_code": "USD",
+          "has_custom_agreement": "0",
+          "id": "2",
+          "inactive_at": "0000-00-00 00:00:00",
+          "language_code": "en",
+          "language_name": "Inglés",
+          "name": "Asesoría Laboral.",
+          "project_area_id": "2",
+          "project_sub_area_id": null,
+          "project_type_id": null,
+          "responsible_user_ids": "[]",
+          "updated_at": "2019-01-04 18:54:53"
+        },
+        {
+          "active": "0",
+          "agreement_id": "10",
+          "client_code": "000010",
+          "client_id": "10",
+          "client_name": "Ebert, Dicki and Morissette",
+          "code": "000010-0001",
+          "collectable": "1",
+          "created_at": "2014-07-23 16:54:57",
+          "currency_code": "USD",
+          "has_custom_agreement": "0",
+          "id": "3",
+          "inactive_at": "0000-00-00 00:00:00",
+          "language_code": "es",
+          "language_name": "Español",
+          "name": "Gestión de marcas.",
+          "project_area_id": "2",
+          "project_sub_area_id": null,
+          "project_type_id": null,
+          "responsible_user_ids": "[]",
+          "updated_at": "2019-01-04 18:54:53"
+        }
+      ]
+    },
+    "providers": {
+      "row_count": 1,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "identification",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "identification": "",
+          "name": ""
+        }
+      ]
+    },
+    "rates": {
+      "row_count": 59,
+      "columns": [
+        {
+          "name": "flat_amount",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "is_default",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "saved",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "flat_amount": null,
+          "id": "1",
+          "is_default": "0",
+          "name": "Tarifa Promedio 120",
+          "saved": "1"
+        },
+        {
+          "flat_amount": "120",
+          "id": "2",
+          "is_default": "0",
+          "name": "Tarifa Flat por USD120.00",
+          "saved": "1"
+        },
+        {
+          "flat_amount": "120",
+          "id": "4",
+          "is_default": "0",
+          "name": "Tarifa Flat por USD120.00",
+          "saved": "1"
+        }
+      ]
+    },
+    "related_document_types": {
+      "row_count": 3,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "Factura Asociada"
+        },
+        {
+          "id": "2",
+          "name": "Boleta Asociada"
+        },
+        {
+          "id": "3",
+          "name": "Recibo por honorarios"
+        }
+      ]
+    },
+    "time_entries": {
+      "row_count": 30050,
+      "columns": [
+        {
+          "name": "billable_duration",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "date",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "duration",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "project_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "user_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "billable_duration": "01:35:00",
+          "created_at": "2019-04-29 18:17:52",
+          "date": "2019-04-29",
+          "duration": "01:35:00",
+          "id": "1",
+          "notes": "Elaboración de los documentos legales.",
+          "project_code": "000029-0001",
+          "updated_at": "2021-08-09 20:21:59",
+          "user_id": "2"
+        },
+        {
+          "billable_duration": "02:00:00",
+          "created_at": "2019-04-29 18:19:16",
+          "date": "2019-04-25",
+          "duration": "02:00:00",
+          "id": "2",
+          "notes": "Nuevo contrato laboral según norma 15-21.",
+          "project_code": "000029-0001",
+          "updated_at": "2021-08-09 20:21:59",
+          "user_id": "2"
+        },
+        {
+          "billable_duration": "02:00:00",
+          "created_at": "2019-04-29 18:21:37",
+          "date": "2019-04-26",
+          "duration": "02:00:00",
+          "id": "3",
+          "notes": "Elaboración de contrato, redacción de las cláusulas.",
+          "project_code": "000029-0001",
+          "updated_at": "2021-08-09 20:21:59",
+          "user_id": "2"
+        }
+      ]
+    },
+    "user_areas": {
+      "row_count": 12,
+      "columns": [
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "related_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "id": "1",
+          "name": "Otra",
+          "related_id": null
+        },
+        {
+          "id": "2",
+          "name": "Corporativo",
+          "related_id": null
+        },
+        {
+          "id": "3",
+          "name": "Litigio",
+          "related_id": null
+        }
+      ]
+    },
+    "user_categories": {
+      "row_count": 10,
+      "columns": [
+        {
+          "name": "category_code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "english_name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "order",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "category_code": "PT",
+          "english_name": null,
+          "id": "1",
+          "name": "Socio",
+          "order": "1"
+        },
+        {
+          "category_code": "OT",
+          "english_name": null,
+          "id": "2",
+          "name": "Socio Senior",
+          "order": "0"
+        },
+        {
+          "category_code": "OT",
+          "english_name": null,
+          "id": "3",
+          "name": "Consultor",
+          "order": "0"
+        }
+      ]
+    },
+    "users": {
+      "row_count": 70,
+      "columns": [
+        {
+          "name": "active",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "code",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "cost_centre",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "email",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "firstname",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "lastname1",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "lastname2",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "name",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "permissions",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "phone",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "roles",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "settings",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "user_area_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "user_category_id",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "username",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        },
+        {
+          "name": "visible",
+          "type": "TEXT",
+          "notnull": false,
+          "pk": false
+        }
+      ],
+      "sample_rows": [
+        {
+          "active": "1",
+          "code": "99511620",
+          "cost_centre": "lemontech",
+          "email": "as@lemontech.com",
+          "firstname": "Admin",
+          "id": "1",
+          "lastname1": "Lemontech",
+          "lastname2": "LEM",
+          "name": "Admin Lemontech LEM",
+          "permissions": "{\"activities\":[\"read\",\"create\",\"update\",\"destroy\"],\"advanced_reporting\":[\"read\",\"create\",\"update\",\"destroy\"],\"advances\":[\"read\",\"create\",\"update\",\"destroy\"],\"agreements\":[\"read\",\"create\",\"update\",\"destroy\"],\"applicants\":[\"read\",\"create\",\"update\",\"destroy\"],\"applications\":[\"read\",\"create\",\"update\",\"destroy\"],\"areas\":[\"read\",\"create\",\"update\"],\"bank_accounts\":[\"read\",\"create\",\"update\",\"destroy\"],\"banks\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing\":[\"create\"],\"billing_document_statuses\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing_document_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing_documents\":[\"read\",\"create\",\"update\",\"destroy\",\"delete\"],\"charges\":[\"read\",\"create\",\"update\",\"destroy\"],\"client_groups\":[\"read\",\"create\",\"update\"],\"clients\":[\"read\",\"create\",\"update\",\"destroy\"],\"codes\":[\"read\"],\"contacts\":[\"read\",\"create\",\"update\",\"destroy\"],\"countries\":[\"read\",\"create\",\"update\",\"destroy\"],\"currencies\":[\"read\",\"create\",\"update\",\"destroy\"],\"currencies_record\":[\"read\",\"create\",\"update\",\"destroy\"],\"datastudio\":[\"read\",\"create\",\"update\",\"destroy\"],\"errand_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"errands\":[\"read\",\"create\",\"update\",\"destroy\"],\"expenses\":[\"read\",\"create\",\"update\",\"destroy\"],\"expenses_categories\":[\"read\",\"create\",\"update\",\"destroy\"],\"generators\":[\"create\",\"update\",\"destroy\"],\"holdings\":[\"read\"],\"languages\":[\"read\",\"create\",\"update\",\"destroy\"],\"law_firms\":[\"read\",\"create\",\"update\",\"destroy\"],\"legal_entities\":[\"read\",\"create\",\"update\",\"destroy\"],\"logs\":[\"read\"],\"milestones\":[\"read\",\"create\",\"update\",\"destroy\"],\"national_id_document_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_concepts\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_conditions\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_sub_areas\":[\"read\"],\"payment_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"payments\":[\"read\",\"create\",\"update\",\"destroy\",\"delete\"],\"project_area_details\":[\"read\"],\"project_areas\":[\"read\",\"create\",\"update\",\"destroy\"],\"project_sub_areas\":[\"read\",\"create\",\"update\",\"destroy\"],\"project_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"projects\":[\"read\",\"create\",\"update\",\"destroy\"],\"providers\":[\"read\",\"create\",\"update\",\"destroy\"],\"rates\":[\"read\",\"create\",\"update\",\"destroy\"],\"related_document_types\":[\"read\",\"create\",\"update\"],\"reports\":[\"read\"],\"retributions\":[\"read\"],\"reviews\":[\"read\"],\"roles\":[\"read\"],\"services\":[\"read\"],\"settings\":[\"read\",\"create\",\"update\",\"destroy\"],\"tasks\":[\"read\",\"create\",\"update\",\"destroy\"],\"time_entries\":[\"read\",\"create\",\"update\",\"destroy\",\"review\"],\"time_reviews\":[\"read\",\"create\",\"update\",\"destroy\"],\"translations\":[\"read\"],\"user_areas\":[\"read\",\"create\",\"update\"],\"user_auth_tokens\":[\"read\",\"create\",\"update\",\"destroy\"],\"user_categories\":[\"read\",\"create\",\"update\"],\"users\":[\"read\",\"update\",\"create\",\"destroy\",\"read_others\",\"update_others\"],\"webhooks\":[\"read\",\"create\",\"update\",\"destroy\"]}",
+          "phone": null,
+          "roles": "[{\"code\":\"DAT\",\"name\":\"Admin. Datos\"},{\"code\":\"ADM\",\"name\":\"Administrador\"},{\"code\":\"COB\",\"name\":\"Cobranza\"},{\"code\":\"OFI\",\"name\":\"Oficina\"},{\"code\":\"REP\",\"name\":\"Reportes\"},{\"code\":\"REV\",\"name\":\"Revisor\"},{\"code\":\"SADM\",\"name\":\"Super Admin\"},{\"code\":\"TAR\",\"name\":\"Tarifa\"},{\"code\":\"ALL\",\"name\":\"Usuario base\"}]",
+          "settings": "{\"daily_alert\":1,\"days_track_expenses\":30,\"days_track_works\":2000,\"max_weekly_hours\":0,\"min_daily_hours\":0,\"min_weekly_hours\":0,\"receive_alerts\":0,\"weekly_alert\":0}",
+          "user_area_id": "1",
+          "user_category_id": "1",
+          "username": "lemontech",
+          "visible": "0"
+        },
+        {
+          "active": "0",
+          "code": "39488757",
+          "cost_centre": "",
+          "email": "mia.hahn@example.com",
+          "firstname": "Carley",
+          "id": "2",
+          "lastname1": "Ortiz",
+          "lastname2": "Urrutia",
+          "name": "Carley Ortiz Urrutia",
+          "permissions": "{\"activities\":[\"read\",\"create\",\"update\",\"destroy\"],\"advanced_reporting\":[\"read\",\"create\",\"update\",\"destroy\"],\"advances\":[\"read\",\"create\",\"update\",\"destroy\"],\"agreements\":[\"read\",\"create\",\"update\",\"destroy\"],\"applicants\":[\"read\",\"create\",\"update\",\"destroy\"],\"applications\":[\"read\",\"create\",\"update\",\"destroy\"],\"areas\":[\"read\",\"create\",\"update\"],\"bank_accounts\":[\"read\",\"create\",\"update\",\"destroy\"],\"banks\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing\":[\"create\"],\"billing_document_statuses\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing_document_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing_documents\":[\"read\",\"create\",\"update\",\"destroy\",\"delete\"],\"charges\":[\"read\",\"create\",\"update\",\"destroy\"],\"client_groups\":[\"read\",\"create\",\"update\"],\"clients\":[\"read\",\"create\",\"update\",\"destroy\"],\"codes\":[\"read\"],\"contacts\":[\"read\",\"create\",\"update\",\"destroy\"],\"countries\":[\"read\",\"create\",\"update\",\"destroy\"],\"currencies\":[\"read\",\"create\",\"update\",\"destroy\"],\"currencies_record\":[\"read\",\"create\",\"update\",\"destroy\"],\"datastudio\":[\"read\",\"create\",\"update\",\"destroy\"],\"errand_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"errands\":[\"read\",\"create\",\"update\",\"destroy\"],\"expenses\":[\"read\",\"create\",\"update\",\"destroy\"],\"expenses_categories\":[\"read\",\"create\",\"update\",\"destroy\"],\"generators\":[\"create\",\"update\",\"destroy\"],\"holdings\":[\"read\"],\"languages\":[\"read\",\"create\",\"update\",\"destroy\"],\"law_firms\":[\"read\",\"create\",\"update\",\"destroy\"],\"legal_entities\":[\"read\",\"create\",\"update\",\"destroy\"],\"logs\":[\"read\"],\"milestones\":[\"read\",\"create\",\"update\",\"destroy\"],\"national_id_document_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_concepts\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_conditions\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_sub_areas\":[\"read\"],\"payment_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"payments\":[\"read\",\"create\",\"update\",\"destroy\",\"delete\"],\"project_area_details\":[\"read\"],\"project_areas\":[\"read\",\"create\",\"update\",\"destroy\"],\"project_sub_areas\":[\"read\",\"create\",\"update\",\"destroy\"],\"project_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"projects\":[\"read\",\"create\",\"update\",\"destroy\"],\"providers\":[\"read\",\"create\",\"update\",\"destroy\"],\"rates\":[\"read\",\"create\",\"update\",\"destroy\"],\"related_document_types\":[\"read\",\"create\",\"update\"],\"reports\":[\"read\"],\"retributions\":[\"read\"],\"reviews\":[\"read\"],\"roles\":[\"read\"],\"services\":[\"read\"],\"settings\":[\"read\",\"create\",\"update\",\"destroy\"],\"tasks\":[\"read\",\"create\",\"update\",\"destroy\"],\"time_entries\":[\"read\",\"create\",\"update\",\"destroy\",\"review\"],\"time_reviews\":[\"read\",\"create\",\"update\",\"destroy\"],\"translations\":[\"read\"],\"user_areas\":[\"read\",\"create\",\"update\"],\"user_auth_tokens\":[\"read\",\"create\",\"update\",\"destroy\"],\"user_categories\":[\"read\",\"create\",\"update\"],\"users\":[\"read\",\"update\",\"create\",\"destroy\",\"read_others\",\"update_others\"],\"webhooks\":[\"read\",\"create\",\"update\",\"destroy\"]}",
+          "phone": "+7168338683274",
+          "roles": "[{\"code\":\"DAT\",\"name\":\"Admin. Datos\"},{\"code\":\"ADM\",\"name\":\"Administrador\"},{\"code\":\"COB\",\"name\":\"Cobranza\"},{\"code\":\"EDI\",\"name\":\"Editar Biblioteca\"},{\"code\":\"OFI\",\"name\":\"Oficina\"},{\"code\":\"SOC\",\"name\":\"Perfil Comercial\"},{\"code\":\"PRO\",\"name\":\"Profesional\"},{\"code\":\"REP\",\"name\":\"Reportes\"},{\"code\":\"LEE\",\"name\":\"Revisar Biblioteca\"},{\"code\":\"REV\",\"name\":\"Revisor\"},{\"code\":\"TAR\",\"name\":\"Tarifa\"},{\"code\":\"ALL\",\"name\":\"Usuario base\"}]",
+          "settings": "{\"daily_alert\":1,\"days_track_expenses\":30,\"days_track_works\":30,\"max_weekly_hours\":0,\"min_daily_hours\":0,\"min_weekly_hours\":0,\"receive_alerts\":0,\"weekly_alert\":0}",
+          "user_area_id": "1",
+          "user_category_id": "2",
+          "username": "Carley Ortiz",
+          "visible": "1"
+        },
+        {
+          "active": "1",
+          "code": "19069514",
+          "cost_centre": "",
+          "email": "sconnelly@example.com",
+          "firstname": "Russel",
+          "id": "3",
+          "lastname1": "Bednar",
+          "lastname2": "Panez",
+          "name": "Russel Bednar Panez",
+          "permissions": "{\"activities\":[\"read\",\"create\",\"update\",\"destroy\"],\"advanced_reporting\":[\"read\",\"create\",\"update\",\"destroy\"],\"advances\":[\"read\",\"create\",\"update\",\"destroy\"],\"agreements\":[\"read\",\"create\",\"update\",\"destroy\"],\"applicants\":[\"read\",\"create\",\"update\",\"destroy\"],\"applications\":[\"read\",\"create\",\"update\",\"destroy\"],\"areas\":[\"read\",\"create\",\"update\"],\"bank_accounts\":[\"read\",\"create\",\"update\",\"destroy\"],\"banks\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing\":[\"create\"],\"billing_document_statuses\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing_document_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"billing_documents\":[\"read\",\"create\",\"update\",\"destroy\",\"delete\"],\"charges\":[\"read\",\"create\",\"update\",\"destroy\"],\"client_groups\":[\"read\",\"create\",\"update\"],\"clients\":[\"read\",\"create\",\"update\",\"destroy\"],\"codes\":[\"read\"],\"contacts\":[\"read\",\"create\",\"update\",\"destroy\"],\"countries\":[\"read\",\"create\",\"update\",\"destroy\"],\"currencies\":[\"read\",\"create\",\"update\",\"destroy\"],\"currencies_record\":[\"read\",\"create\",\"update\",\"destroy\"],\"datastudio\":[\"read\",\"create\",\"update\",\"destroy\"],\"errand_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"errands\":[\"read\",\"create\",\"update\",\"destroy\"],\"expenses\":[\"read\",\"create\",\"update\",\"destroy\"],\"expenses_categories\":[\"read\",\"create\",\"update\",\"destroy\"],\"generators\":[\"create\",\"update\",\"destroy\"],\"holdings\":[\"read\"],\"languages\":[\"read\",\"create\",\"update\",\"destroy\"],\"law_firms\":[\"read\",\"create\",\"update\",\"destroy\"],\"legal_entities\":[\"read\",\"create\",\"update\",\"destroy\"],\"logs\":[\"read\"],\"milestones\":[\"read\",\"create\",\"update\",\"destroy\"],\"national_id_document_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_concepts\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_conditions\":[\"read\",\"create\",\"update\",\"destroy\"],\"payment_sub_areas\":[\"read\"],\"payment_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"payments\":[\"read\",\"create\",\"update\",\"destroy\",\"delete\"],\"project_area_details\":[\"read\"],\"project_areas\":[\"read\",\"create\",\"update\",\"destroy\"],\"project_sub_areas\":[\"read\",\"create\",\"update\",\"destroy\"],\"project_types\":[\"read\",\"create\",\"update\",\"destroy\"],\"projects\":[\"read\",\"create\",\"update\",\"destroy\"],\"providers\":[\"read\",\"create\",\"update\",\"destroy\"],\"rates\":[\"read\",\"create\",\"update\",\"destroy\"],\"related_document_types\":[\"read\",\"create\",\"update\"],\"reports\":[\"read\"],\"retributions\":[\"read\"],\"reviews\":[\"read\"],\"roles\":[\"read\"],\"services\":[\"read\"],\"settings\":[\"read\",\"create\",\"update\",\"destroy\"],\"tasks\":[\"read\",\"create\",\"update\",\"destroy\"],\"time_entries\":[\"read\",\"create\",\"update\",\"destroy\",\"review\"],\"time_reviews\":[\"read\",\"create\",\"update\",\"destroy\"],\"translations\":[\"read\"],\"user_areas\":[\"read\",\"create\",\"update\"],\"user_auth_tokens\":[\"read\",\"create\",\"update\",\"destroy\"],\"user_categories\":[\"read\",\"create\",\"update\"],\"users\":[\"read\",\"update\",\"create\",\"destroy\",\"read_others\",\"update_others\"],\"webhooks\":[\"read\",\"create\",\"update\",\"destroy\"]}",
+          "phone": "+4257232208106",
+          "roles": "[{\"code\":\"DAT\",\"name\":\"Admin. Datos\"},{\"code\":\"ADM\",\"name\":\"Administrador\"},{\"code\":\"COB\",\"name\":\"Cobranza\"},{\"code\":\"EDI\",\"name\":\"Editar Biblioteca\"},{\"code\":\"OFI\",\"name\":\"Oficina\"},{\"code\":\"SOC\",\"name\":\"Perfil Comercial\"},{\"code\":\"PRO\",\"name\":\"Profesional\"},{\"code\":\"REP\",\"name\":\"Reportes\"},{\"code\":\"LEE\",\"name\":\"Revisar Biblioteca\"},{\"code\":\"REV\",\"name\":\"Revisor\"},{\"code\":\"TAR\",\"name\":\"Tarifa\"},{\"code\":\"ALL\",\"name\":\"Usuario base\"}]",
+          "settings": "{\"daily_alert\":1,\"days_track_expenses\":30,\"days_track_works\":30,\"max_weekly_hours\":0,\"min_daily_hours\":0,\"min_weekly_hours\":0,\"receive_alerts\":0,\"weekly_alert\":0}",
+          "user_area_id": "1",
+          "user_category_id": "2",
+          "username": "Russel Bednar",
+          "visible": "1"
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "from": "advances.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "column name + entity table exists"
+    },
+    {
+      "from": "advances.project_id",
+      "to": "projects.id",
+      "confidence": "high",
+      "basis": "column name + entity table exists"
+    },
+    {
+      "from": "agreements.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "bank_accounts.bank_id",
+      "to": "banks.id",
+      "confidence": "high",
+      "basis": "column name + entity table exists"
+    },
+    {
+      "from": "bank_accounts.currency_id",
+      "to": "currencies.id",
+      "confidence": "high",
+      "basis": "column name + entity table exists"
+    },
+    {
+      "from": "billing_documents.charge_id",
+      "to": "charges.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "billing_documents.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "clients.group_id",
+      "to": "client_groups.id",
+      "confidence": "medium",
+      "basis": "column name; client_groups also has client_id"
+    },
+    {
+      "from": "client_groups.client_id",
+      "to": "clients.id",
+      "confidence": "medium",
+      "basis": "column name"
+    },
+    {
+      "from": "client_groups.country_id",
+      "to": "countries.id",
+      "confidence": "high",
+      "basis": "column name + entity table exists"
+    },
+    {
+      "from": "charges.agreement_id",
+      "to": "agreements.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "charges.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "expenses.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "expenses.project_id",
+      "to": "projects.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "milestones.agreement_id",
+      "to": "agreements.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "milestones.charge_id",
+      "to": "charges.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "payments.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "payments.currency_id",
+      "to": "currencies.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "projects.agreement_id",
+      "to": "agreements.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "projects.client_id",
+      "to": "clients.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "projects.currency_code",
+      "to": "currencies.code",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "projects.language_code",
+      "to": "languages.code",
+      "confidence": "medium",
+      "basis": "column name + language code table"
+    },
+    {
+      "from": "projects.project_area_id",
+      "to": "project_areas.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "projects.project_type_id",
+      "to": "project_types.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "time_entries.project_code",
+      "to": "projects.code",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "time_entries.user_id",
+      "to": "users.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "user_areas.related_id",
+      "to": "areas.id",
+      "confidence": "low",
+      "basis": "ambiguous related_id"
+    },
+    {
+      "from": "users.user_area_id",
+      "to": "user_areas.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    },
+    {
+      "from": "users.user_category_id",
+      "to": "user_categories.id",
+      "confidence": "high",
+      "basis": "known API semantics"
+    }
+  ],
+  "isolated_or_lookup_tables": [
+    "billing_document_statuses",
+    "billing_document_types",
+    "codes",
+    "expenses_categories",
+    "law_firms",
+    "national_id_document_types",
+    "payment_concepts",
+    "payment_conditions",
+    "payment_types",
+    "providers",
+    "rates",
+    "related_document_types"
+  ]
+}

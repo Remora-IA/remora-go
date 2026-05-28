@@ -1,0 +1,13 @@
+{
+  "name": "cobranza-chile",
+  "version": "1.0.0",
+  "description": "Perfil para gestión de cobranza en estudios jurídicos chilenos. Cubre flujo extrajudicial, DICOM y judicial según Ley 21.394.",
+  "frameworks": ["sabio", "foco", "mecanico", "gmail", "paladin", "bravo", "alfa"],
+  "business": {
+    "domain": "cobranza_extrajudicial",
+    "country": "CL",
+    "currency": "CLP",
+    "legal_framework": "Ley 21.394",
+    "roles": ["cobrador", "supervisor", "abogado"]
+  }
+}

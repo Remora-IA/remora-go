@@ -1,0 +1,2702 @@
+{
+  "project": "remora-cli",
+  "generatedAt": "2026-05-17T15:48:37.563222Z",
+  "methods": [
+    {
+      "name": "fwColor",
+      "file": "devcli/client.go",
+      "line": 47,
+      "type": "helper"
+    },
+    {
+      "name": "newClient",
+      "file": "devcli/client.go",
+      "line": 60,
+      "type": "helper"
+    },
+    {
+      "name": "get",
+      "file": "devcli/client.go",
+      "line": 71,
+      "type": "helper"
+    },
+    {
+      "name": "post",
+      "file": "devcli/client.go",
+      "line": 93,
+      "type": "helper"
+    },
+    {
+      "name": "GetFrameworks",
+      "file": "devcli/client.go",
+      "line": 251,
+      "type": "helper"
+    },
+    {
+      "name": "GetFramework",
+      "file": "devcli/client.go",
+      "line": 286,
+      "type": "helper"
+    },
+    {
+      "name": "ListFlows",
+      "file": "devcli/client.go",
+      "line": 322,
+      "type": "helper"
+    },
+    {
+      "name": "GetFlow",
+      "file": "devcli/client.go",
+      "line": 343,
+      "type": "helper"
+    },
+    {
+      "name": "RunFlow",
+      "file": "devcli/client.go",
+      "line": 356,
+      "type": "helper"
+    },
+    {
+      "name": "SimulateFlow",
+      "file": "devcli/client.go",
+      "line": 369,
+      "type": "helper"
+    },
+    {
+      "name": "GetFlowRun",
+      "file": "devcli/client.go",
+      "line": 381,
+      "type": "helper"
+    },
+    {
+      "name": "GetRules",
+      "file": "devcli/client.go",
+      "line": 394,
+      "type": "helper"
+    },
+    {
+      "name": "getString",
+      "file": "devcli/client.go",
+      "line": 403,
+      "type": "helper"
+    },
+    {
+      "name": "getBool",
+      "file": "devcli/client.go",
+      "line": 410,
+      "type": "helper"
+    },
+    {
+      "name": "toStrings",
+      "file": "devcli/client.go",
+      "line": 417,
+      "type": "helper"
+    },
+    {
+      "name": "parseFlowManifest",
+      "file": "devcli/client.go",
+      "line": 427,
+      "type": "helper"
+    },
+    {
+      "name": "parseFlowRunResult",
+      "file": "devcli/client.go",
+      "line": 489,
+      "type": "helper"
+    },
+    {
+      "name": "GetProviders",
+      "file": "devcli/client.go",
+      "line": 588,
+      "type": "helper"
+    },
+    {
+      "name": "HealthCheck",
+      "file": "devcli/client.go",
+      "line": 608,
+      "type": "helper"
+    },
+    {
+      "name": "main.client.go",
+      "file": "devcli/client.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "main",
+      "file": "devcli/main.go",
+      "line": 15,
+      "type": "entry"
+    },
+    {
+      "name": "printJSON",
+      "file": "devcli/main.go",
+      "line": 424,
+      "type": "helper"
+    },
+    {
+      "name": "printFlowManifest",
+      "file": "devcli/main.go",
+      "line": 428,
+      "type": "helper"
+    },
+    {
+      "name": "printFlowRunResult",
+      "file": "devcli/main.go",
+      "line": 468,
+      "type": "helper"
+    },
+    {
+      "name": "joinStrings",
+      "file": "devcli/main.go",
+      "line": 601,
+      "type": "helper"
+    },
+    {
+      "name": "formatDuration",
+      "file": "devcli/main.go",
+      "line": 612,
+      "type": "helper"
+    },
+    {
+      "name": "formatTimestamp",
+      "file": "devcli/main.go",
+      "line": 625,
+      "type": "helper"
+    },
+    {
+      "name": "main.main.go",
+      "file": "devcli/main.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "TestEnsureBackendReadySkipsAutoBootstrapForRemoteAPI",
+      "file": "remora/backend_bootstrap_test.go",
+      "line": 11,
+      "type": "helper"
+    },
+    {
+      "name": "TestEnsureBackendReadyChecksChannelAndAPIBeforeSkippingBootstrap",
+      "file": "remora/backend_bootstrap_test.go",
+      "line": 41,
+      "type": "helper"
+    },
+    {
+      "name": "TestEnsureBackendReadyBootstrapsInlineWithoutTerminalApp",
+      "file": "remora/backend_bootstrap_test.go",
+      "line": 77,
+      "type": "helper"
+    },
+    {
+      "name": "assertCommandHasNoForbiddenBootstrapTokens",
+      "file": "remora/backend_bootstrap_test.go",
+      "line": 140,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/remora/main.backend_bootstrap_test.go",
+      "file": "remora/backend_bootstrap_test.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "handleFlowWorkbench",
+      "file": "remora/flow_workbench.go",
+      "line": 237,
+      "type": "handler"
+    },
+    {
+      "name": "printDebugUsage",
+      "file": "remora/flow_workbench.go",
+      "line": 259,
+      "type": "helper"
+    },
+    {
+      "name": "handleDebugCommand",
+      "file": "remora/flow_workbench.go",
+      "line": 274,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugFrameworks",
+      "file": "remora/flow_workbench.go",
+      "line": 310,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugManifest",
+      "file": "remora/flow_workbench.go",
+      "line": 373,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugCommands",
+      "file": "remora/flow_workbench.go",
+      "line": 401,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugCapabilities",
+      "file": "remora/flow_workbench.go",
+      "line": 444,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugTrace",
+      "file": "remora/flow_workbench.go",
+      "line": 505,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugValidate",
+      "file": "remora/flow_workbench.go",
+      "line": 539,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugSimulate",
+      "file": "remora/flow_workbench.go",
+      "line": 572,
+      "type": "handler"
+    },
+    {
+      "name": "handleDebugDependencies",
+      "file": "remora/flow_workbench.go",
+      "line": 625,
+      "type": "handler"
+    },
+    {
+      "name": "formatFrameworkManifest",
+      "file": "remora/flow_workbench.go",
+      "line": 663,
+      "type": "helper"
+    },
+    {
+      "name": "printRunTrace",
+      "file": "remora/flow_workbench.go",
+      "line": 684,
+      "type": "helper"
+    },
+    {
+      "name": "printFlowValidation",
+      "file": "remora/flow_workbench.go",
+      "line": 755,
+      "type": "helper"
+    },
+    {
+      "name": "printSimulateResult",
+      "file": "remora/flow_workbench.go",
+      "line": 781,
+      "type": "helper"
+    },
+    {
+      "name": "printFlowDependencies",
+      "file": "remora/flow_workbench.go",
+      "line": 826,
+      "type": "helper"
+    },
+    {
+      "name": "delegateToCanonicalFlowWorkbench",
+      "file": "remora/flow_workbench.go",
+      "line": 880,
+      "type": "helper"
+    },
+    {
+      "name": "canonicalFlowWorkbenchCommand",
+      "file": "remora/flow_workbench.go",
+      "line": 895,
+      "type": "helper"
+    },
+    {
+      "name": "printFlowWorkbenchUsage",
+      "file": "remora/flow_workbench.go",
+      "line": 907,
+      "type": "helper"
+    },
+    {
+      "name": "flowAutonomySummary",
+      "file": "remora/flow_workbench.go",
+      "line": 924,
+      "type": "helper"
+    },
+    {
+      "name": "buildIntentFirstDescription",
+      "file": "remora/flow_workbench.go",
+      "line": 935,
+      "type": "helper"
+    },
+    {
+      "name": "buildFlowCreateSuggestPayload",
+      "file": "remora/flow_workbench.go",
+      "line": 949,
+      "type": "helper"
+    },
+    {
+      "name": "flowAutonomyConstraints",
+      "file": "remora/flow_workbench.go",
+      "line": 972,
+      "type": "helper"
+    },
+    {
+      "name": "inferFlowCreateRoles",
+      "file": "remora/flow_workbench.go",
+      "line": 977,
+      "type": "helper"
+    },
+    {
+      "name": "applyFlowCreateIntentModel",
+      "file": "remora/flow_workbench.go",
+      "line": 1006,
+      "type": "helper"
+    },
+    {
+      "name": "buildFlowCreateLifecycle",
+      "file": "remora/flow_workbench.go",
+      "line": 1032,
+      "type": "helper"
+    },
+    {
+      "name": "emptyCLILifecycle",
+      "file": "remora/flow_workbench.go",
+      "line": 1045,
+      "type": "helper"
+    },
+    {
+      "name": "cliLifecycleBindingLabel",
+      "file": "remora/flow_workbench.go",
+      "line": 1049,
+      "type": "helper"
+    },
+    {
+      "name": "fetchBusinessArtifacts",
+      "file": "remora/flow_workbench.go",
+      "line": 1064,
+      "type": "helper"
+    },
+    {
+      "name": "promptFlowCreateAnswers",
+      "file": "remora/flow_workbench.go",
+      "line": 1076,
+      "type": "helper"
+    },
+    {
+      "name": "promptFlowField",
+      "file": "remora/flow_workbench.go",
+      "line": 1100,
+      "type": "helper"
+    },
+    {
+      "name": "handleFlowCreate",
+      "file": "remora/flow_workbench.go",
+      "line": 1114,
+      "type": "handler"
+    },
+    {
+      "name": "printFlowCreatePreview",
+      "file": "remora/flow_workbench.go",
+      "line": 1218,
+      "type": "helper"
+    },
+    {
+      "name": "handleFlowDraft",
+      "file": "remora/flow_workbench.go",
+      "line": 1235,
+      "type": "handler"
+    },
+    {
+      "name": "handleFlowInspect",
+      "file": "remora/flow_workbench.go",
+      "line": 1312,
+      "type": "handler"
+    },
+    {
+      "name": "handleFlowSimulate",
+      "file": "remora/flow_workbench.go",
+      "line": 1330,
+      "type": "handler"
+    },
+    {
+      "name": "mustFetchFlowRecord",
+      "file": "remora/flow_workbench.go",
+      "line": 1387,
+      "type": "helper"
+    },
+    {
+      "name": "decodeAPIData",
+      "file": "remora/flow_workbench.go",
+      "line": 1402,
+      "type": "helper"
+    },
+    {
+      "name": "formatFlowWorkbench",
+      "file": "remora/flow_workbench.go",
+      "line": 1414,
+      "type": "helper"
+    },
+    {
+      "name": "parseCSVList",
+      "file": "remora/flow_workbench.go",
+      "line": 1523,
+      "type": "helper"
+    },
+    {
+      "name": "sortedList",
+      "file": "remora/flow_workbench.go",
+      "line": 1538,
+      "type": "helper"
+    },
+    {
+      "name": "compactStrings",
+      "file": "remora/flow_workbench.go",
+      "line": 1544,
+      "type": "helper"
+    },
+    {
+      "name": "firstNonEmpty",
+      "file": "remora/flow_workbench.go",
+      "line": 1555,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/remora/main.flow_workbench.go",
+      "file": "remora/flow_workbench.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "TestHandleFlowWorkbenchDelegatesToCanonicalFlujoCLI",
+      "file": "remora/flow_workbench_delegate_test.go",
+      "line": 10,
+      "type": "helper"
+    },
+    {
+      "name": "TestPrintFlowWorkbenchUsageMentionsCanonicalCommandSurface",
+      "file": "remora/flow_workbench_delegate_test.go",
+      "line": 27,
+      "type": "helper"
+    },
+    {
+      "name": "mustReadRemoraFunctionBody",
+      "file": "remora/flow_workbench_delegate_test.go",
+      "line": 43,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/remora/main.flow_workbench_delegate_test.go",
+      "file": "remora/flow_workbench_delegate_test.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "TestFormatFlowWorkbenchShowsAuthoredDerivedAndAmendments",
+      "file": "remora/flow_workbench_test.go",
+      "line": 8,
+      "type": "helper"
+    },
+    {
+      "name": "TestParseCSVListDropsEmptyValues",
+      "file": "remora/flow_workbench_test.go",
+      "line": 58,
+      "type": "helper"
+    },
+    {
+      "name": "TestBuildFlowCreateSuggestPayloadSubordinatesCapabilityHintToIntent",
+      "file": "remora/flow_workbench_test.go",
+      "line": 65,
+      "type": "helper"
+    },
+    {
+      "name": "TestApplyFlowCreateIntentModelKeepsGoalIntentFirst",
+      "file": "remora/flow_workbench_test.go",
+      "line": 97,
+      "type": "helper"
+    },
+    {
+      "name": "containsString",
+      "file": "remora/flow_workbench_test.go",
+      "line": 123,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/remora/main.flow_workbench_test.go",
+      "file": "remora/flow_workbench_test.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "printFrameworkName",
+      "file": "remora/main.go",
+      "line": 298,
+      "type": "helper"
+    },
+    {
+      "name": "printStatus",
+      "file": "remora/main.go",
+      "line": 303,
+      "type": "helper"
+    },
+    {
+      "name": "formatTime",
+      "file": "remora/main.go",
+      "line": 330,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/remora/main.main.go",
+      "file": "remora/main.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "New",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FlowIntent",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "backendBootstrapDeps",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FlowRunResult",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Parse",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewWriter",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Sprintf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "BoolFlag",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "len",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ToLower",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "App",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Unmarshal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fatalf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Strings",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FrameworkInfo",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "flowRunRequest",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ensureBackendReadyWithDeps",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Index",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "IntFlag",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Printf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FlowNode",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Format",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Contains",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewReader",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "WriteByte",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Println",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "float64",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Helper",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "MarshalIndent",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Get",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewRequest",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Parsed",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "int",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Do",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fatal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Run",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ReadString",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "First",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Getenv",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewDecoder",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "String",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Join",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "StringSlice",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliFlowManifest",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Set",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliFlowLifecycle",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewRequestWithContext",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Print",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewFlagSet",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "string",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FlowEdge",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "TrimSuffix",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Split",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Len",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ReadFile",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "int64",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "WithTimeout",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "printJSONWithEncoder",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Int",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ReadAll",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fprintln",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "StringSliceFlag",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FlowManifest",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Exit",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Client",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Marshal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "TrimSpace",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "StringFlag",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliFlowExecutablePlan",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "flowWorkbenchExecCommand",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "flowCreateAnswers",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliFlowInstallPreview",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Bool",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fprintf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "LookPath",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Decode",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "make",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Artifact",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliFlowDerivation",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "FlowRunStep",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Command",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliInstalledSnapshot",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Flush",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Args",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Background",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "cliFlowLifecycleBinding",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Errorf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "findRepoRoot",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "append",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    }
+  ],
+  "entryPoints": [
+    {
+      "name": "handleDebugCapabilities",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Printf",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "get",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "printJSON",
+        "len",
+        "Parsed",
+        "Join",
+        "append"
+      ]
+    },
+    {
+      "name": "handleDebugCommand",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "len",
+        "printDebugUsage",
+        "handleDebugFrameworks",
+        "handleDebugManifest",
+        "handleDebugCommands",
+        "handleDebugCapabilities",
+        "handleDebugTrace",
+        "handleDebugValidate",
+        "handleDebugSimulate",
+        "handleDebugDependencies",
+        "Fprintf",
+        "Exit"
+      ]
+    },
+    {
+      "name": "handleDebugCommands",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Printf",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "get",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "printJSON",
+        "len",
+        "Parsed"
+      ]
+    },
+    {
+      "name": "handleDebugDependencies",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "printFlowDependencies",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "get",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "decodeAPIData",
+        "printJSON",
+        "len",
+        "Parsed"
+      ]
+    },
+    {
+      "name": "handleDebugFrameworks",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Printf",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "get",
+        "make",
+        "len",
+        "Fprintf",
+        "Exit",
+        "Fprintln",
+        "printJSON",
+        "printFrameworkName",
+        "Println",
+        "FrameworkInfo",
+        "append"
+      ]
+    },
+    {
+      "name": "handleDebugManifest",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Printf",
+        "Print",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "get",
+        "formatFrameworkManifest",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "printJSON",
+        "len",
+        "Parsed"
+      ]
+    },
+    {
+      "name": "handleDebugSimulate",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "printSimulateResult",
+        "NewFlagSet",
+        "Bool",
+        "String",
+        "Parse",
+        "newClient",
+        "get",
+        "post",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "decodeAPIData",
+        "printJSON",
+        "len",
+        "Parsed"
+      ]
+    },
+    {
+      "name": "handleDebugTrace",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "printRunTrace",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "get",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "decodeAPIData",
+        "printJSON",
+        "len",
+        "Parsed"
+      ]
+    },
+    {
+      "name": "handleDebugValidate",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "printFlowValidation",
+        "NewFlagSet",
+        "Bool",
+        "Parse",
+        "newClient",
+        "post",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "decodeAPIData",
+        "printJSON",
+        "len",
+        "Parsed"
+      ]
+    },
+    {
+      "name": "handleFlowCreate",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "applyFlowCreateIntentModel",
+        "printFlowCreatePreview",
+        "Printf",
+        "Print",
+        "NewFlagSet",
+        "String",
+        "Int",
+        "Bool",
+        "Parse",
+        "flowCreateAnswers",
+        "newClient",
+        "post",
+        "formatFlowWorkbench",
+        "TrimSpace",
+        "Fprintln",
+        "Exit",
+        "buildFlowCreateSuggestPayload",
+        "Fprintf",
+        "decodeAPIData",
+        "Println",
+        "printJSON",
+        "fetchBusinessArtifacts",
+        "promptFlowCreateAnswers"
+      ]
+    },
+    {
+      "name": "handleFlowDraft",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Printf",
+        "Println",
+        "Print",
+        "NewFlagSet",
+        "String",
+        "Int",
+        "Bool",
+        "Parse",
+        "newClient",
+        "post",
+        "formatFlowWorkbench",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "decodeAPIData",
+        "printJSON",
+        "TrimSpace"
+      ]
+    },
+    {
+      "name": "handleFlowInspect",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Print",
+        "NewFlagSet",
+        "String",
+        "Bool",
+        "Parse",
+        "mustFetchFlowRecord",
+        "formatFlowWorkbench",
+        "TrimSpace",
+        "Fprintln",
+        "Exit",
+        "printJSON"
+      ]
+    },
+    {
+      "name": "handleFlowSimulate",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "Print",
+        "Println",
+        "Printf",
+        "NewFlagSet",
+        "String",
+        "Bool",
+        "Parse",
+        "mustFetchFlowRecord",
+        "newClient",
+        "post",
+        "formatFlowWorkbench",
+        "len",
+        "TrimSpace",
+        "Fprintln",
+        "Exit",
+        "Fprintf",
+        "decodeAPIData",
+        "printJSON",
+        "Join"
+      ]
+    },
+    {
+      "name": "handleFlowWorkbench",
+      "file": "remora/flow_workbench.go",
+      "callees": [
+        "len",
+        "handleDebugCommand",
+        "delegateToCanonicalFlowWorkbench",
+        "Fprintln",
+        "Exit",
+        "printDebugUsage"
+      ]
+    },
+    {
+      "name": "main",
+      "file": "devcli/main.go",
+      "callees": [
+        "App",
+        "Run",
+        "Fprintf",
+        "Exit"
+      ]
+    }
+  ],
+  "callGraph": {
+    "newClient": [
+      "Getenv",
+      "Client",
+      "TrimSuffix"
+    ],
+    "get": [
+      "NewRequest",
+      "Do",
+      "Set",
+      "Decode",
+      "NewDecoder"
+    ],
+    "post": [
+      "Set",
+      "Marshal",
+      "NewRequest",
+      "Do",
+      "NewReader",
+      "Decode",
+      "string",
+      "NewDecoder"
+    ],
+    "GetFrameworks": [
+      "get",
+      "Errorf",
+      "make",
+      "len",
+      "FrameworkInfo",
+      "append",
+      "getString",
+      "toStrings"
+    ],
+    "GetFramework": [
+      "get",
+      "Errorf",
+      "getBool",
+      "getString",
+      "FrameworkInfo",
+      "toStrings"
+    ],
+    "ListFlows": [
+      "get",
+      "append",
+      "FlowManifest",
+      "getString"
+    ],
+    "GetFlow": [
+      "get",
+      "Errorf",
+      "parseFlowManifest"
+    ],
+    "RunFlow": [
+      "post",
+      "Errorf",
+      "parseFlowRunResult"
+    ],
+    "SimulateFlow": [
+      "flowRunRequest",
+      "RunFlow",
+      "len"
+    ],
+    "GetFlowRun": [
+      "get",
+      "Errorf",
+      "parseFlowRunResult"
+    ],
+    "GetRules": [
+      "get"
+    ],
+    "toStrings": [
+      "make",
+      "len",
+      "append"
+    ],
+    "parseFlowManifest": [
+      "FlowManifest",
+      "getString",
+      "FlowIntent",
+      "toStrings",
+      "FlowNode",
+      "append",
+      "FlowEdge"
+    ],
+    "parseFlowRunResult": [
+      "FlowRunResult",
+      "getString",
+      "getBool",
+      "int",
+      "toStrings",
+      "make",
+      "FlowRunStep",
+      "append",
+      "Artifact",
+      "int64"
+    ],
+    "GetProviders": [
+      "GetFrameworks",
+      "make",
+      "append"
+    ],
+    "HealthCheck": [
+      "WithTimeout",
+      "NewRequestWithContext",
+      "Do",
+      "Background",
+      "Errorf"
+    ],
+    "main": [
+      "App",
+      "Run",
+      "Fprintf",
+      "Exit"
+    ],
+    "printJSON": [
+      "printJSONWithEncoder"
+    ],
+    "printFlowManifest": [
+      "Fprintf",
+      "Flush",
+      "len",
+      "NewWriter",
+      "joinStrings",
+      "fwColor"
+    ],
+    "printFlowRunResult": [
+      "Fprintf",
+      "fwColor",
+      "len",
+      "Sprintf",
+      "joinStrings"
+    ],
+    "joinStrings": [
+      "len"
+    ],
+    "formatDuration": [
+      "Sprintf",
+      "float64"
+    ],
+    "formatTimestamp": [
+      "Parse",
+      "Format"
+    ],
+    "TestEnsureBackendReadySkipsAutoBootstrapForRemoteAPI": [
+      "ensureBackendReadyWithDeps",
+      "backendBootstrapDeps",
+      "Fatal"
+    ],
+    "TestEnsureBackendReadyChecksChannelAndAPIBeforeSkippingBootstrap": [
+      "ensureBackendReadyWithDeps",
+      "backendBootstrapDeps",
+      "Fatal",
+      "containsString",
+      "Fatalf"
+    ],
+    "TestEnsureBackendReadyBootstrapsInlineWithoutTerminalApp": [
+      "assertCommandHasNoForbiddenBootstrapTokens",
+      "mustReadRemoraFunctionBody",
+      "ensureBackendReadyWithDeps",
+      "backendBootstrapDeps",
+      "Fatal",
+      "len",
+      "Fatalf",
+      "Contains",
+      "Join"
+    ],
+    "assertCommandHasNoForbiddenBootstrapTokens": [
+      "Helper",
+      "Contains",
+      "Join",
+      "Fatalf"
+    ],
+    "handleFlowWorkbench": [
+      "len",
+      "handleDebugCommand",
+      "delegateToCanonicalFlowWorkbench",
+      "Fprintln",
+      "Exit",
+      "printDebugUsage"
+    ],
+    "printDebugUsage": [
+      "Print"
+    ],
+    "handleDebugCommand": [
+      "len",
+      "printDebugUsage",
+      "handleDebugFrameworks",
+      "handleDebugManifest",
+      "handleDebugCommands",
+      "handleDebugCapabilities",
+      "handleDebugTrace",
+      "handleDebugValidate",
+      "handleDebugSimulate",
+      "handleDebugDependencies",
+      "Fprintf",
+      "Exit"
+    ],
+    "handleDebugFrameworks": [
+      "Printf",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "get",
+      "make",
+      "len",
+      "Fprintf",
+      "Exit",
+      "Fprintln",
+      "printJSON",
+      "printFrameworkName",
+      "Println",
+      "FrameworkInfo",
+      "append"
+    ],
+    "handleDebugManifest": [
+      "Printf",
+      "Print",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "get",
+      "formatFrameworkManifest",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "printJSON",
+      "len",
+      "Parsed"
+    ],
+    "handleDebugCommands": [
+      "Printf",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "get",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "printJSON",
+      "len",
+      "Parsed"
+    ],
+    "handleDebugCapabilities": [
+      "Printf",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "get",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "printJSON",
+      "len",
+      "Parsed",
+      "Join",
+      "append"
+    ],
+    "handleDebugTrace": [
+      "printRunTrace",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "get",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "decodeAPIData",
+      "printJSON",
+      "len",
+      "Parsed"
+    ],
+    "handleDebugValidate": [
+      "printFlowValidation",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "post",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "decodeAPIData",
+      "printJSON",
+      "len",
+      "Parsed"
+    ],
+    "handleDebugSimulate": [
+      "printSimulateResult",
+      "NewFlagSet",
+      "Bool",
+      "String",
+      "Parse",
+      "newClient",
+      "get",
+      "post",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "decodeAPIData",
+      "printJSON",
+      "len",
+      "Parsed"
+    ],
+    "handleDebugDependencies": [
+      "printFlowDependencies",
+      "NewFlagSet",
+      "Bool",
+      "Parse",
+      "newClient",
+      "get",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "decodeAPIData",
+      "printJSON",
+      "len",
+      "Parsed"
+    ],
+    "formatFrameworkManifest": [
+      "String",
+      "Fprintf"
+    ],
+    "printRunTrace": [
+      "Printf",
+      "Println",
+      "len",
+      "Join",
+      "printFrameworkName",
+      "printStatus",
+      "formatTime",
+      "fwColor",
+      "formatDuration",
+      "Split"
+    ],
+    "printFlowValidation": [
+      "Printf",
+      "len",
+      "Println"
+    ],
+    "printSimulateResult": [
+      "Printf",
+      "len",
+      "Join",
+      "Println"
+    ],
+    "printFlowDependencies": [
+      "Printf",
+      "make",
+      "Println",
+      "len",
+      "append",
+      "fwColor",
+      "Join"
+    ],
+    "delegateToCanonicalFlowWorkbench": [
+      "canonicalFlowWorkbenchCommand",
+      "Run",
+      "len",
+      "printFlowWorkbenchUsage"
+    ],
+    "canonicalFlowWorkbenchCommand": [
+      "Errorf",
+      "findRepoRoot",
+      "LookPath",
+      "flowWorkbenchExecCommand",
+      "Join",
+      "append"
+    ],
+    "printFlowWorkbenchUsage": [
+      "Print"
+    ],
+    "flowAutonomySummary": [
+      "TrimSpace"
+    ],
+    "buildIntentFirstDescription": [
+      "flowAutonomySummary",
+      "Join",
+      "TrimSpace",
+      "compactStrings",
+      "append"
+    ],
+    "buildFlowCreateSuggestPayload": [
+      "buildFlowCreateLifecycle",
+      "emptyCLILifecycle"
+    ],
+    "flowAutonomyConstraints": [
+      "flowAutonomySummary",
+      "append"
+    ],
+    "inferFlowCreateRoles": [
+      "ToLower",
+      "Join",
+      "Contains",
+      "len"
+    ],
+    "applyFlowCreateIntentModel": [
+      "flowAutonomySummary",
+      "firstNonEmpty",
+      "append",
+      "TrimSpace",
+      "inferFlowCreateRoles",
+      "buildIntentFirstDescription",
+      "buildFlowCreateLifecycle",
+      "emptyCLILifecycle"
+    ],
+    "buildFlowCreateLifecycle": [
+      "cliFlowLifecycle",
+      "cliFlowLifecycleBinding",
+      "TrimSpace"
+    ],
+    "emptyCLILifecycle": [
+      "cliLifecycleBindingLabel"
+    ],
+    "cliLifecycleBindingLabel": [
+      "TrimSpace"
+    ],
+    "fetchBusinessArtifacts": [
+      "get",
+      "decodeAPIData"
+    ],
+    "promptFlowCreateAnswers": [
+      "NewReader",
+      "promptFlowField",
+      "ToLower",
+      "TrimSpace",
+      "Printf",
+      "len",
+      "Join"
+    ],
+    "promptFlowField": [
+      "ReadString",
+      "TrimSpace",
+      "Printf"
+    ],
+    "handleFlowCreate": [
+      "applyFlowCreateIntentModel",
+      "printFlowCreatePreview",
+      "Printf",
+      "Print",
+      "NewFlagSet",
+      "String",
+      "Int",
+      "Bool",
+      "Parse",
+      "flowCreateAnswers",
+      "newClient",
+      "post",
+      "formatFlowWorkbench",
+      "TrimSpace",
+      "Fprintln",
+      "Exit",
+      "buildFlowCreateSuggestPayload",
+      "Fprintf",
+      "decodeAPIData",
+      "Println",
+      "printJSON",
+      "fetchBusinessArtifacts",
+      "promptFlowCreateAnswers"
+    ],
+    "printFlowCreatePreview": [
+      "Printf",
+      "flowAutonomySummary",
+      "TrimSpace",
+      "len",
+      "Join"
+    ],
+    "handleFlowDraft": [
+      "Printf",
+      "Println",
+      "Print",
+      "NewFlagSet",
+      "String",
+      "Int",
+      "Bool",
+      "Parse",
+      "newClient",
+      "post",
+      "formatFlowWorkbench",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "decodeAPIData",
+      "printJSON",
+      "TrimSpace"
+    ],
+    "handleFlowInspect": [
+      "Print",
+      "NewFlagSet",
+      "String",
+      "Bool",
+      "Parse",
+      "mustFetchFlowRecord",
+      "formatFlowWorkbench",
+      "TrimSpace",
+      "Fprintln",
+      "Exit",
+      "printJSON"
+    ],
+    "handleFlowSimulate": [
+      "Print",
+      "Println",
+      "Printf",
+      "NewFlagSet",
+      "String",
+      "Bool",
+      "Parse",
+      "mustFetchFlowRecord",
+      "newClient",
+      "post",
+      "formatFlowWorkbench",
+      "len",
+      "TrimSpace",
+      "Fprintln",
+      "Exit",
+      "Fprintf",
+      "decodeAPIData",
+      "printJSON",
+      "Join"
+    ],
+    "mustFetchFlowRecord": [
+      "newClient",
+      "get",
+      "Fprintf",
+      "Exit",
+      "decodeAPIData"
+    ],
+    "decodeAPIData": [
+      "Marshal",
+      "Unmarshal",
+      "Errorf"
+    ],
+    "formatFlowWorkbench": [
+      "Fprintf",
+      "String",
+      "TrimSpace",
+      "len",
+      "emptyCLILifecycle",
+      "firstNonEmpty",
+      "WriteByte",
+      "Join",
+      "sortedList",
+      "cliLifecycleBindingLabel"
+    ],
+    "parseCSVList": [
+      "Split",
+      "make",
+      "TrimSpace",
+      "len",
+      "append"
+    ],
+    "sortedList": [
+      "Strings",
+      "append"
+    ],
+    "compactStrings": [
+      "make",
+      "len",
+      "TrimSpace",
+      "append"
+    ],
+    "firstNonEmpty": [
+      "TrimSpace"
+    ],
+    "TestHandleFlowWorkbenchDelegatesToCanonicalFlujoCLI": [
+      "mustReadRemoraFunctionBody",
+      "Join",
+      "Contains",
+      "Fatalf"
+    ],
+    "TestPrintFlowWorkbenchUsageMentionsCanonicalCommandSurface": [
+      "mustReadRemoraFunctionBody",
+      "Join",
+      "Contains",
+      "Fatalf"
+    ],
+    "mustReadRemoraFunctionBody": [
+      "Helper",
+      "Fatalf",
+      "Join",
+      "ReadFile",
+      "string",
+      "Index",
+      "Fatal",
+      "len"
+    ],
+    "TestFormatFlowWorkbenchShowsAuthoredDerivedAndAmendments": [
+      "formatFlowWorkbench",
+      "cliFlowManifest",
+      "cliInstalledSnapshot",
+      "cliFlowLifecycle",
+      "Contains",
+      "Fatalf",
+      "cliFlowLifecycleBinding",
+      "cliFlowDerivation",
+      "cliFlowInstallPreview",
+      "cliFlowExecutablePlan"
+    ],
+    "TestParseCSVListDropsEmptyValues": [
+      "parseCSVList",
+      "Fatalf",
+      "len"
+    ],
+    "TestBuildFlowCreateSuggestPayloadSubordinatesCapabilityHintToIntent": [
+      "buildFlowCreateSuggestPayload",
+      "flowCreateAnswers",
+      "Fatalf",
+      "containsString",
+      "len"
+    ],
+    "TestApplyFlowCreateIntentModelKeepsGoalIntentFirst": [
+      "applyFlowCreateIntentModel",
+      "flowCreateAnswers",
+      "Contains",
+      "cliFlowManifest",
+      "Fatalf",
+      "containsString",
+      "Join"
+    ],
+    "printFrameworkName": [
+      "Printf",
+      "fwColor"
+    ],
+    "printStatus": [
+      "Printf"
+    ],
+    "formatTime": [
+      "Parse",
+      "Format"
+    ]
+  },
+  "sinks": [
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "devcli/client.go",
+      "line": 61,
+      "caller": "newClient"
+    },
+    {
+      "type": "http",
+      "name": "NewRequest",
+      "file": "devcli/client.go",
+      "line": 73,
+      "caller": "get"
+    },
+    {
+      "type": "http",
+      "name": "Do",
+      "file": "devcli/client.go",
+      "line": 80,
+      "caller": "get"
+    },
+    {
+      "type": "http",
+      "name": "NewRequest",
+      "file": "devcli/client.go",
+      "line": 99,
+      "caller": "post"
+    },
+    {
+      "type": "http",
+      "name": "Do",
+      "file": "devcli/client.go",
+      "line": 107,
+      "caller": "post"
+    },
+    {
+      "type": "http",
+      "name": "Do",
+      "file": "devcli/client.go",
+      "line": 613,
+      "caller": "HealthCheck"
+    }
+  ],
+  "gaps": [],
+  "layout": {
+    "Bool": {
+      "x": 339.7,
+      "y": 259.5
+    },
+    "fetchBusinessArtifacts": {
+      "x": 382.9,
+      "y": 370.7
+    },
+    "printDebugUsage": {
+      "x": 291.7,
+      "y": 125.3
+    },
+    "Helper": {
+      "x": 187.9,
+      "y": 485.7
+    },
+    "Background": {
+      "x": 490.1,
+      "y": 522.7
+    },
+    "Print": {
+      "x": 224.9,
+      "y": 222.8
+    },
+    "Parse": {
+      "x": 363.7,
+      "y": 177.0
+    },
+    "flowRunRequest": {
+      "x": 351.7,
+      "y": 535.4
+    },
+    "promptFlowCreateAnswers": {
+      "x": 202.6,
+      "y": 306.9
+    },
+    "NewRequest": {
+      "x": 460.2,
+      "y": 388.9
+    },
+    "SimulateFlow": {
+      "x": 343.8,
+      "y": 472.6
+    },
+    "Strings": {
+      "x": 272.1,
+      "y": 532.0
+    },
+    "TestParseCSVListDropsEmptyValues": {
+      "x": 211.7,
+      "y": 434.2
+    },
+    "App": {
+      "x": 219.7,
+      "y": 39.7
+    },
+    "printFlowRunResult": {
+      "x": 238.7,
+      "y": 158.5
+    },
+    "Flush": {
+      "x": 298.0,
+      "y": 72.6
+    },
+    "TrimSuffix": {
+      "x": 473.2,
+      "y": 211.7
+    },
+    "TestFormatFlowWorkbenchShowsAuthoredDerivedAndAmendments": {
+      "x": 70.1,
+      "y": 401.7
+    },
+    "handleDebugManifest": {
+      "x": 354.4,
+      "y": 223.4
+    },
+    "formatTimestamp": {
+      "x": 365.0,
+      "y": 112.4
+    },
+    "NewRequestWithContext": {
+      "x": 455.3,
+      "y": 537.5
+    },
+    "handleDebugCommand": {
+      "x": 337.9,
+      "y": 197.6
+    },
+    "Println": {
+      "x": 283.8,
+      "y": 283.9
+    },
+    "ReadString": {
+      "x": 81.1,
+      "y": 212.5
+    },
+    "Sprintf": {
+      "x": 229.6,
+      "y": 73.8
+    },
+    "handleDebugFrameworks": {
+      "x": 392.2,
+      "y": 295.1
+    },
+    "Client": {
+      "x": 452.5,
+      "y": 185.9
+    },
+    "len": {
+      "x": 275.3,
+      "y": 354.2
+    },
+    "formatTime": {
+      "x": 330.9,
+      "y": 114.7
+    },
+    "post": {
+      "x": 312.1,
+      "y": 382.6
+    },
+    "decodeAPIData": {
+      "x": 402.3,
+      "y": 320.9
+    },
+    "cliFlowManifest": {
+      "x": 68.2,
+      "y": 427.8
+    },
+    "Join": {
+      "x": 218.7,
+      "y": 395.5
+    },
+    "applyFlowCreateIntentModel": {
+      "x": 192.9,
+      "y": 382.9
+    },
+    "Fatal": {
+      "x": 160.0,
+      "y": 491.8
+    },
+    "TestHandleFlowWorkbenchDelegatesToCanonicalFlujoCLI": {
+      "x": 182.4,
+      "y": 432.1
+    },
+    "printJSON": {
+      "x": 384.4,
+      "y": 202.7
+    },
+    "flowCreateAnswers": {
+      "x": 167.0,
+      "y": 376.3
+    },
+    "printRunTrace": {
+      "x": 250.7,
+      "y": 197.8
+    },
+    "TestApplyFlowCreateIntentModelKeepsGoalIntentFirst": {
+      "x": 115.0,
+      "y": 385.0
+    },
+    "int64": {
+      "x": 486.7,
+      "y": 489.0
+    },
+    "Marshal": {
+      "x": 362.1,
+      "y": 406.2
+    },
+    "buildIntentFirstDescription": {
+      "x": 263.3,
+      "y": 431.6
+    },
+    "ensureBackendReadyWithDeps": {
+      "x": 111.8,
+      "y": 494.9
+    },
+    "handleDebugTrace": {
+      "x": 407.2,
+      "y": 228.5
+    },
+    "handleDebugValidate": {
+      "x": 365.9,
+      "y": 273.3
+    },
+    "cliFlowExecutablePlan": {
+      "x": 31.3,
+      "y": 403.7
+    },
+    "buildFlowCreateLifecycle": {
+      "x": 86.0,
+      "y": 336.8
+    },
+    "flowAutonomyConstraints": {
+      "x": 314.4,
+      "y": 463.8
+    },
+    "Do": {
+      "x": 434.1,
+      "y": 458.6
+    },
+    "TestEnsureBackendReadyChecksChannelAndAPIBeforeSkippingBootstrap": {
+      "x": 100.2,
+      "y": 468.1
+    },
+    "handleFlowWorkbench": {
+      "x": 276.5,
+      "y": 190.2
+    },
+    "handleDebugSimulate": {
+      "x": 365.7,
+      "y": 299.2
+    },
+    "NewFlagSet": {
+      "x": 339.9,
+      "y": 285.3
+    },
+    "flowAutonomySummary": {
+      "x": 237.5,
+      "y": 436.0
+    },
+    "NewWriter": {
+      "x": 252.6,
+      "y": 48.0
+    },
+    "Errorf": {
+      "x": 395.7,
+      "y": 411.5
+    },
+    "toStrings": {
+      "x": 434.5,
+      "y": 366.2
+    },
+    "cliLifecycleBindingLabel": {
+      "x": 109.4,
+      "y": 284.2
+    },
+    "promptFlowField": {
+      "x": 160.9,
+      "y": 279.9
+    },
+    "fwColor": {
+      "x": 301.3,
+      "y": 164.4
+    },
+    "Index": {
+      "x": 189.0,
+      "y": 511.5
+    },
+    "ListFlows": {
+      "x": 486.7,
+      "y": 324.7
+    },
+    "FlowIntent": {
+      "x": 569.8,
+      "y": 389.5
+    },
+    "GetFlow": {
+      "x": 505.5,
+      "y": 355.5
+    },
+    "TestBuildFlowCreateSuggestPayloadSubordinatesCapabilityHintToIntent": {
+      "x": 144.0,
+      "y": 402.1
+    },
+    "handleFlowDraft": {
+      "x": 314.0,
+      "y": 287.9
+    },
+    "mustReadRemoraFunctionBody": {
+      "x": 217.3,
+      "y": 468.1
+    },
+    "ReadFile": {
+      "x": 214.8,
+      "y": 514.9
+    },
+    "printJSONWithEncoder": {
+      "x": 379.0,
+      "y": 151.1
+    },
+    "Unmarshal": {
+      "x": 485.7,
+      "y": 267.8
+    },
+    "cliInstalledSnapshot": {
+      "x": 18.5,
+      "y": 456.1
+    },
+    "parseCSVList": {
+      "x": 286.4,
+      "y": 405.8
+    },
+    "GetFrameworks": {
+      "x": 408.7,
+      "y": 346.7
+    },
+    "Int": {
+      "x": 264.7,
+      "y": 380.0
+    },
+    "printFlowValidation": {
+      "x": 228.7,
+      "y": 248.6
+    },
+    "float64": {
+      "x": 286.1,
+      "y": 2.9
+    },
+    "TestPrintFlowWorkbenchUsageMentionsCanonicalCommandSurface": {
+      "x": 152.6,
+      "y": 428.2
+    },
+    "GetFlowRun": {
+      "x": 483.2,
+      "y": 416.0
+    },
+    "cliFlowLifecycle": {
+      "x": 60.2,
+      "y": 370.7
+    },
+    "handleDebugCommands": {
+      "x": 381.1,
+      "y": 247.1
+    },
+    "cliFlowInstallPreview": {
+      "x": 2.9,
+      "y": 381.9
+    },
+    "newClient": {
+      "x": 437.8,
+      "y": 211.7
+    },
+    "formatDuration": {
+      "x": 282.2,
+      "y": 99.5
+    },
+    "main": {
+      "x": 250.1,
+      "y": 99.6
+    },
+    "buildFlowCreateSuggestPayload": {
+      "x": 143.3,
+      "y": 343.6
+    },
+    "sortedList": {
+      "x": 260.0,
+      "y": 481.7
+    },
+    "NewDecoder": {
+      "x": 455.4,
+      "y": 424.1
+    },
+    "get": {
+      "x": 428.1,
+      "y": 301.2
+    },
+    "Getenv": {
+      "x": 406.4,
+      "y": 158.5
+    },
+    "printFlowManifest": {
+      "x": 263.3,
+      "y": 125.4
+    },
+    "GetRules": {
+      "x": 512.3,
+      "y": 293.6
+    },
+    "append": {
+      "x": 331.4,
+      "y": 356.8
+    },
+    "compactStrings": {
+      "x": 311.6,
+      "y": 431.6
+    },
+    "containsString": {
+      "x": 94.1,
+      "y": 437.4
+    },
+    "cliFlowDerivation": {
+      "x": 42.1,
+      "y": 429.7
+    },
+    "printFlowDependencies": {
+      "x": 305.6,
+      "y": 339.4
+    },
+    "firstNonEmpty": {
+      "x": 143.7,
+      "y": 312.8
+    },
+    "backendBootstrapDeps": {
+      "x": 137.6,
+      "y": 517.6
+    },
+    "handleDebugDependencies": {
+      "x": 408.3,
+      "y": 269.3
+    },
+    "String": {
+      "x": 213.5,
+      "y": 274.4
+    },
+    "FlowEdge": {
+      "x": 566.9,
+      "y": 360.4
+    },
+    "Run": {
+      "x": 190.2,
+      "y": 115.2
+    },
+    "formatFrameworkManifest": {
+      "x": 275.5,
+      "y": 151.1
+    },
+    "handleDebugCapabilities": {
+      "x": 339.8,
+      "y": 312.1
+    },
+    "FlowRunStep": {
+      "x": 516.7,
+      "y": 454.1
+    },
+    "TestEnsureBackendReadySkipsAutoBootstrapForRemoteAPI": {
+      "x": 108.8,
+      "y": 535.4
+    },
+    "getString": {
+      "x": 511.8,
+      "y": 394.0
+    },
+    "Artifact": {
+      "x": 547.9,
+      "y": 463.7
+    },
+    "Contains": {
+      "x": 103.7,
+      "y": 411.0
+    },
+    "FlowManifest": {
+      "x": 539.2,
+      "y": 342.5
+    },
+    "cliFlowLifecycleBinding": {
+      "x": 60.2,
+      "y": 343.3
+    },
+    "findRepoRoot": {
+      "x": 135.2,
+      "y": 275.9
+    },
+    "parseFlowRunResult": {
+      "x": 490.9,
+      "y": 442.0
+    },
+    "LookPath": {
+      "x": 173.4,
+      "y": 231.9
+    },
+    "ToLower": {
+      "x": 88.1,
+      "y": 310.0
+    },
+    "int": {
+      "x": 513.1,
+      "y": 479.9
+    },
+    "assertCommandHasNoForbiddenBootstrapTokens": {
+      "x": 162.1,
+      "y": 465.9
+    },
+    "Exit": {
+      "x": 312.1,
+      "y": 208.0
+    },
+    "WithTimeout": {
+      "x": 481.0,
+      "y": 548.5
+    },
+    "emptyCLILifecycle": {
+      "x": 116.8,
+      "y": 326.8
+    },
+    "delegateToCanonicalFlowWorkbench": {
+      "x": 176.7,
+      "y": 202.6
+    },
+    "printFlowCreatePreview": {
+      "x": 224.6,
+      "y": 368.9
+    },
+    "string": {
+      "x": 286.5,
+      "y": 504.2
+    },
+    "HealthCheck": {
+      "x": 449.7,
+      "y": 496.6
+    },
+    "Fprintln": {
+      "x": 319.8,
+      "y": 233.7
+    },
+    "mustFetchFlowRecord": {
+      "x": 434.1,
+      "y": 263.3
+    },
+    "Split": {
+      "x": 186.7,
+      "y": 281.1
+    },
+    "printFlowWorkbenchUsage": {
+      "x": 181.9,
+      "y": 145.2
+    },
+    "GetProviders": {
+      "x": 429.4,
+      "y": 400.1
+    },
+    "flowWorkbenchExecCommand": {
+      "x": 144.8,
+      "y": 250.1
+    },
+    "TestEnsureBackendReadyBootstrapsInlineWithoutTerminalApp": {
+      "x": 187.9,
+      "y": 460.0
+    },
+    "WriteByte": {
+      "x": 82.6,
+      "y": 279.6
+    },
+    "Fatalf": {
+      "x": 126.4,
+      "y": 451.6
+    },
+    "Set": {
+      "x": 421.5,
+      "y": 432.8
+    },
+    "parseFlowManifest": {
+      "x": 537.5,
+      "y": 369.4
+    },
+    "canonicalFlowWorkbenchCommand": {
+      "x": 228.3,
+      "y": 315.8
+    },
+    "FlowRunResult": {
+      "x": 563.3,
+      "y": 437.9
+    },
+    "handleFlowSimulate": {
+      "x": 301.4,
+      "y": 313.6
+    },
+    "RunFlow": {
+      "x": 401.4,
+      "y": 469.1
+    },
+    "Decode": {
+      "x": 394.5,
+      "y": 442.2
+    },
+    "Fprintf": {
+      "x": 286.3,
+      "y": 216.0
+    },
+    "Format": {
+      "x": 371.6,
+      "y": 72.3
+    },
+    "inferFlowCreateRoles": {
+      "x": 141.1,
+      "y": 369.6
+    },
+    "TrimSpace": {
+      "x": 198.2,
+      "y": 346.2
+    },
+    "printStatus": {
+      "x": 202.1,
+      "y": 171.3
+    },
+    "make": {
+      "x": 357.1,
+      "y": 375.8
+    },
+    "joinStrings": {
+      "x": 202.9,
+      "y": 197.0
+    },
+    "FrameworkInfo": {
+      "x": 459.6,
+      "y": 300.2
+    },
+    "formatFlowWorkbench": {
+      "x": 171.4,
+      "y": 322.9
+    },
+    "handleFlowCreate": {
+      "x": 275.7,
+      "y": 316.3
+    },
+    "handleFlowInspect": {
+      "x": 274.0,
+      "y": 258.1
+    },
+    "printFrameworkName": {
+      "x": 344.3,
+      "y": 151.2
+    },
+    "printSimulateResult": {
+      "x": 249.5,
+      "y": 341.6
+    },
+    "getBool": {
+      "x": 537.5,
+      "y": 418.4
+    },
+    "GetFramework": {
+      "x": 486.0,
+      "y": 381.5
+    },
+    "NewReader": {
+      "x": 285.8,
+      "y": 457.3
+    },
+    "Printf": {
+      "x": 245.6,
+      "y": 274.4
+    },
+    "FlowNode": {
+      "x": 565.0,
+      "y": 329.6
+    },
+    "Parsed": {
+      "x": 454.1,
+      "y": 237.5
+    }
+  }
+}

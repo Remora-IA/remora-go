@@ -1,0 +1,2965 @@
+{
+  "project": "channel",
+  "generatedAt": "2026-05-17T15:48:40.873897Z",
+  "methods": [
+    {
+      "name": "New",
+      "file": "adapter/adapter.go",
+      "line": 36,
+      "type": "helper"
+    },
+    {
+      "name": "ExecuteCommand",
+      "file": "adapter/adapter.go",
+      "line": 48,
+      "type": "helper"
+    },
+    {
+      "name": "ReadFile",
+      "file": "adapter/adapter.go",
+      "line": 60,
+      "type": "helper"
+    },
+    {
+      "name": "WriteFile",
+      "file": "adapter/adapter.go",
+      "line": 65,
+      "type": "helper"
+    },
+    {
+      "name": "ListDir",
+      "file": "adapter/adapter.go",
+      "line": 73,
+      "type": "helper"
+    },
+    {
+      "name": "Grep",
+      "file": "adapter/adapter.go",
+      "line": 77,
+      "type": "helper"
+    },
+    {
+      "name": "Find",
+      "file": "adapter/adapter.go",
+      "line": 85,
+      "type": "helper"
+    },
+    {
+      "name": "EditFile",
+      "file": "adapter/adapter.go",
+      "line": 93,
+      "type": "helper"
+    },
+    {
+      "name": "HTTPGet",
+      "file": "adapter/adapter.go",
+      "line": 103,
+      "type": "helper"
+    },
+    {
+      "name": "call",
+      "file": "adapter/adapter.go",
+      "line": 108,
+      "type": "helper"
+    },
+    {
+      "name": "channel/adapter.adapter.go",
+      "file": "adapter/adapter.go",
+      "line": 4,
+      "type": "helper"
+    },
+    {
+      "name": "main",
+      "file": "alfa-runner/main.go",
+      "line": 29,
+      "type": "entry"
+    },
+    {
+      "name": "step",
+      "file": "alfa-runner/main.go",
+      "line": 80,
+      "type": "helper"
+    },
+    {
+      "name": "mustOk",
+      "file": "alfa-runner/main.go",
+      "line": 84,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/alfa-runner/main.main.go",
+      "file": "alfa-runner/main.go",
+      "line": 6,
+      "type": "helper"
+    },
+    {
+      "name": "envOr",
+      "file": "channel/main.go",
+      "line": 69,
+      "type": "helper"
+    },
+    {
+      "name": "loadDotEnv",
+      "file": "channel/main.go",
+      "line": 76,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/channel/main.main.go",
+      "file": "channel/main.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "runEcho",
+      "file": "echo-runner/main.go",
+      "line": 101,
+      "type": "helper"
+    },
+    {
+      "name": "runEchoSimple",
+      "file": "echo-runner/main.go",
+      "line": 112,
+      "type": "helper"
+    },
+    {
+      "name": "extractID",
+      "file": "echo-runner/main.go",
+      "line": 122,
+      "type": "helper"
+    },
+    {
+      "name": "firstLine",
+      "file": "echo-runner/main.go",
+      "line": 137,
+      "type": "helper"
+    },
+    {
+      "name": "parseTree",
+      "file": "echo-runner/main.go",
+      "line": 144,
+      "type": "helper"
+    },
+    {
+      "name": "firstByType",
+      "file": "echo-runner/main.go",
+      "line": 152,
+      "type": "helper"
+    },
+    {
+      "name": "mustExec",
+      "file": "echo-runner/main.go",
+      "line": 161,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/echo-runner/main.main.go",
+      "file": "echo-runner/main.go",
+      "line": 4,
+      "type": "helper"
+    },
+    {
+      "name": "usage",
+      "file": "orchestrator/main.go",
+      "line": 69,
+      "type": "helper"
+    },
+    {
+      "name": "discover",
+      "file": "orchestrator/main.go",
+      "line": 92,
+      "type": "helper"
+    },
+    {
+      "name": "cmdList",
+      "file": "orchestrator/main.go",
+      "line": 116,
+      "type": "helper"
+    },
+    {
+      "name": "cmdChains",
+      "file": "orchestrator/main.go",
+      "line": 141,
+      "type": "helper"
+    },
+    {
+      "name": "cmdRun",
+      "file": "orchestrator/main.go",
+      "line": 162,
+      "type": "helper"
+    },
+    {
+      "name": "cmdChain",
+      "file": "orchestrator/main.go",
+      "line": 208,
+      "type": "helper"
+    },
+    {
+      "name": "absPathsFromPorts",
+      "file": "orchestrator/main.go",
+      "line": 222,
+      "type": "helper"
+    },
+    {
+      "name": "resolveInputs",
+      "file": "orchestrator/main.go",
+      "line": 233,
+      "type": "helper"
+    },
+    {
+      "name": "commandNames",
+      "file": "orchestrator/main.go",
+      "line": 259,
+      "type": "helper"
+    },
+    {
+      "name": "parseKV",
+      "file": "orchestrator/main.go",
+      "line": 267,
+      "type": "helper"
+    },
+    {
+      "name": "indent",
+      "file": "orchestrator/main.go",
+      "line": 277,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/orchestrator/main.main.go",
+      "file": "orchestrator/main.go",
+      "line": 7,
+      "type": "helper"
+    },
+    {
+      "name": "cmdHas",
+      "file": "vault/main.go",
+      "line": 77,
+      "type": "helper"
+    },
+    {
+      "name": "cmdGet",
+      "file": "vault/main.go",
+      "line": 91,
+      "type": "helper"
+    },
+    {
+      "name": "cmdSet",
+      "file": "vault/main.go",
+      "line": 109,
+      "type": "helper"
+    },
+    {
+      "name": "cmdDelete",
+      "file": "vault/main.go",
+      "line": 164,
+      "type": "helper"
+    },
+    {
+      "name": "cmdGenKey",
+      "file": "vault/main.go",
+      "line": 177,
+      "type": "helper"
+    },
+    {
+      "name": "requireConvKey",
+      "file": "vault/main.go",
+      "line": 186,
+      "type": "helper"
+    },
+    {
+      "name": "cmd/vault/main.main.go",
+      "file": "vault/main.go",
+      "line": 22,
+      "type": "helper"
+    },
+    {
+      "name": "LoadSMTP",
+      "file": "credentials/smtp.go",
+      "line": 35,
+      "type": "helper"
+    },
+    {
+      "name": "SaveSMTP",
+      "file": "credentials/smtp.go",
+      "line": 86,
+      "type": "helper"
+    },
+    {
+      "name": "DeleteSMTP",
+      "file": "credentials/smtp.go",
+      "line": 97,
+      "type": "helper"
+    },
+    {
+      "name": "ApplyDefaults",
+      "file": "credentials/smtp.go",
+      "line": 104,
+      "type": "helper"
+    },
+    {
+      "name": "channel/credentials.smtp.go",
+      "file": "credentials/smtp.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "ExecuteCommandWithEnv",
+      "file": "internal/exec.go",
+      "line": 22,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.exec.go",
+      "file": "internal/exec.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "NewHandler",
+      "file": "internal/handler.go",
+      "line": 29,
+      "type": "helper"
+    },
+    {
+      "name": "Handle",
+      "file": "internal/handler.go",
+      "line": 50,
+      "type": "handler"
+    },
+    {
+      "name": "writeError",
+      "file": "internal/handler.go",
+      "line": 123,
+      "type": "helper"
+    },
+    {
+      "name": "executeCommand",
+      "file": "internal/handler.go",
+      "line": 133,
+      "type": "helper"
+    },
+    {
+      "name": "readFile",
+      "file": "internal/handler.go",
+      "line": 192,
+      "type": "helper"
+    },
+    {
+      "name": "writeFile",
+      "file": "internal/handler.go",
+      "line": 209,
+      "type": "helper"
+    },
+    {
+      "name": "listDir",
+      "file": "internal/handler.go",
+      "line": 229,
+      "type": "helper"
+    },
+    {
+      "name": "grep",
+      "file": "internal/handler.go",
+      "line": 250,
+      "type": "helper"
+    },
+    {
+      "name": "find",
+      "file": "internal/handler.go",
+      "line": 293,
+      "type": "helper"
+    },
+    {
+      "name": "editFile",
+      "file": "internal/handler.go",
+      "line": 340,
+      "type": "helper"
+    },
+    {
+      "name": "httpGet",
+      "file": "internal/handler.go",
+      "line": 377,
+      "type": "helper"
+    },
+    {
+      "name": "resolveWithinBase",
+      "file": "internal/handler.go",
+      "line": 411,
+      "type": "helper"
+    },
+    {
+      "name": "intParam",
+      "file": "internal/handler.go",
+      "line": 442,
+      "type": "helper"
+    },
+    {
+      "name": "itoa",
+      "file": "internal/handler.go",
+      "line": 460,
+      "type": "helper"
+    },
+    {
+      "name": "walkReadableFiles",
+      "file": "internal/handler.go",
+      "line": 464,
+      "type": "helper"
+    },
+    {
+      "name": "shouldSkipDir",
+      "file": "internal/handler.go",
+      "line": 506,
+      "type": "helper"
+    },
+    {
+      "name": "Error",
+      "file": "internal/handler.go",
+      "line": 517,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.handler.go",
+      "file": "internal/handler.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "ValidateJSONRPC",
+      "file": "internal/jsonrpc.go",
+      "line": 14,
+      "type": "helper"
+    },
+    {
+      "name": "IsMethodAllowed",
+      "file": "internal/jsonrpc.go",
+      "line": 45,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.jsonrpc.go",
+      "file": "internal/jsonrpc.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "LogRequest",
+      "file": "internal/logging.go",
+      "line": 9,
+      "type": "helper"
+    },
+    {
+      "name": "LogSecurityReject",
+      "file": "internal/logging.go",
+      "line": 25,
+      "type": "helper"
+    },
+    {
+      "name": "LogJSONRPCError",
+      "file": "internal/logging.go",
+      "line": 35,
+      "type": "helper"
+    },
+    {
+      "name": "ObfuscateAPIKey",
+      "file": "internal/logging.go",
+      "line": 40,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.logging.go",
+      "file": "internal/logging.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "NewSuccessResponse",
+      "file": "internal/response.go",
+      "line": 17,
+      "type": "helper"
+    },
+    {
+      "name": "NewErrorResponse",
+      "file": "internal/response.go",
+      "line": 30,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.response.go",
+      "file": "internal/response.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "ValidateSecurity",
+      "file": "internal/security.go",
+      "line": 21,
+      "type": "helper"
+    },
+    {
+      "name": "ValidatePath",
+      "file": "internal/security.go",
+      "line": 47,
+      "type": "helper"
+    },
+    {
+      "name": "isPathSafe",
+      "file": "internal/security.go",
+      "line": 56,
+      "type": "helper"
+    },
+    {
+      "name": "ValidateBaseDir",
+      "file": "internal/security.go",
+      "line": 125,
+      "type": "helper"
+    },
+    {
+      "name": "sanitizeForError",
+      "file": "internal/security.go",
+      "line": 140,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.security.go",
+      "file": "internal/security.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "NewSessionLogger",
+      "file": "internal/session.go",
+      "line": 19,
+      "type": "helper"
+    },
+    {
+      "name": "Append",
+      "file": "internal/session.go",
+      "line": 37,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.session.go",
+      "file": "internal/session.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "IsCommandAllowed",
+      "file": "internal/whitelist.go",
+      "line": 97,
+      "type": "helper"
+    },
+    {
+      "name": "IsDestructiveCommand",
+      "file": "internal/whitelist.go",
+      "line": 102,
+      "type": "helper"
+    },
+    {
+      "name": "channel/internal.whitelist.go",
+      "file": "internal/whitelist.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "TestResolveArgsDoesNotReparseInsertedJSON",
+      "file": "manifest/manifest_test.go",
+      "line": 5,
+      "type": "helper"
+    },
+    {
+      "name": "channel/manifest.manifest_test.go",
+      "file": "manifest/manifest_test.go",
+      "line": 1,
+      "type": "helper"
+    },
+    {
+      "name": "NewLoader",
+      "file": "profile/profile.go",
+      "line": 46,
+      "type": "helper"
+    },
+    {
+      "name": "Load",
+      "file": "profile/profile.go",
+      "line": 55,
+      "type": "helper"
+    },
+    {
+      "name": "LoadNamed",
+      "file": "profile/profile.go",
+      "line": 64,
+      "type": "helper"
+    },
+    {
+      "name": "OverlayFor",
+      "file": "profile/profile.go",
+      "line": 125,
+      "type": "helper"
+    },
+    {
+      "name": "SystemPromptWithOverlay",
+      "file": "profile/profile.go",
+      "line": 131,
+      "type": "helper"
+    },
+    {
+      "name": "Active",
+      "file": "profile/profile.go",
+      "line": 146,
+      "type": "helper"
+    },
+    {
+      "name": "channel/profile.profile.go",
+      "file": "profile/profile.go",
+      "line": 19,
+      "type": "helper"
+    },
+    {
+      "name": "DefaultBaseDir",
+      "file": "vault/vault.go",
+      "line": 51,
+      "type": "helper"
+    },
+    {
+      "name": "discoverRepoVaultDir",
+      "file": "vault/vault.go",
+      "line": 64,
+      "type": "helper"
+    },
+    {
+      "name": "Path",
+      "file": "vault/vault.go",
+      "line": 89,
+      "type": "helper"
+    },
+    {
+      "name": "sanitize",
+      "file": "vault/vault.go",
+      "line": 99,
+      "type": "helper"
+    },
+    {
+      "name": "masterKey",
+      "file": "vault/vault.go",
+      "line": 121,
+      "type": "helper"
+    },
+    {
+      "name": "Set",
+      "file": "vault/vault.go",
+      "line": 145,
+      "type": "helper"
+    },
+    {
+      "name": "Get",
+      "file": "vault/vault.go",
+      "line": 176,
+      "type": "helper"
+    },
+    {
+      "name": "Has",
+      "file": "vault/vault.go",
+      "line": 210,
+      "type": "helper"
+    },
+    {
+      "name": "List",
+      "file": "vault/vault.go",
+      "line": 219,
+      "type": "helper"
+    },
+    {
+      "name": "Delete",
+      "file": "vault/vault.go",
+      "line": 249,
+      "type": "helper"
+    },
+    {
+      "name": "GenerateKey",
+      "file": "vault/vault.go",
+      "line": 259,
+      "type": "helper"
+    },
+    {
+      "name": "channel/vault.vault.go",
+      "file": "vault/vault.go",
+      "line": 19,
+      "type": "helper"
+    },
+    {
+      "name": "SessionLogger",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "SplitN",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Now",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Write",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "CapabilityScope",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Seal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Header",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Remove",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fatal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Abs",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "WriteHeader",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "len",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Profile",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Do",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Unmarshal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "DecodeString",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fatalf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Strings",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewCipher",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ReadFull",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "string",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Setenv",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Parse",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "IsDir",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "TrimPrefix",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Encode",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Index",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Printf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Context",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Contains",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fields",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewReader",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "UTC",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Milliseconds",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Println",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "HandleFunc",
+      "file": "<empty>",
+      "line": 0,
+      "type": "handler"
+    },
+    {
+      "name": "ReadDir",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "IsNotExist",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewServeMux",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Name",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "WalkDir",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Clean",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Err",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Loader",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Command",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Getenv",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Getwd",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "String",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ParseDuration",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ResolveArgs",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Client",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Rel",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Join",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Environ",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Run",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Dir",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewGCM",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewRequestWithContext",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Entry",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Print",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewFlagSet",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "IndexByte",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "HasPrefix",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "SMTPStatus",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "EncodeToString",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Lock",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NewEncoder",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "TrimSuffix",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Split",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "CommandContext",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Size",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "CanChain",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "IsAbs",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "WithTimeout",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ReadAll",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Info",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fprintln",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Trim",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "SMTPBundle",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Exit",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ListenAndServe",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Marshal",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "TrimSpace",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "visit",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ExitCode",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Format",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "ContainsRune",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Open",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "int",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Args",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "MkdirAll",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Bool",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "EvalSymlinks",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Fprintf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "make",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "MatchString",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "OpenFile",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Replace",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Since",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Base",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "NonceSize",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Compile",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Background",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "pathError",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Itoa",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "HasSuffix",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Response",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Errorf",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Handler",
+      "file": "<empty>",
+      "line": 0,
+      "type": "handler"
+    },
+    {
+      "name": "append",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    },
+    {
+      "name": "Stat",
+      "file": "<empty>",
+      "line": 0,
+      "type": "helper"
+    }
+  ],
+  "entryPoints": [
+    {
+      "name": "Handle",
+      "file": "internal/handler.go",
+      "callees": [
+        "Set",
+        "LogRequest",
+        "Append",
+        "WriteHeader",
+        "Encode",
+        "Now",
+        "Header",
+        "ReadAll",
+        "Get",
+        "ObfuscateAPIKey",
+        "Entry",
+        "NewEncoder",
+        "writeError",
+        "Unmarshal",
+        "LogJSONRPCError",
+        "ValidateJSONRPC",
+        "LogSecurityReject",
+        "executeCommand",
+        "readFile",
+        "writeFile",
+        "listDir",
+        "grep",
+        "find",
+        "editFile",
+        "httpGet",
+        "NewErrorResponse",
+        "Error",
+        "Since"
+      ]
+    },
+    {
+      "name": "HandleFunc",
+      "file": "<empty>",
+      "callees": []
+    },
+    {
+      "name": "Handler",
+      "file": "<empty>",
+      "callees": []
+    },
+    {
+      "name": "main",
+      "file": "alfa-runner/main.go",
+      "callees": [
+        "Parse",
+        "step",
+        "mustOk",
+        "Printf",
+        "Println",
+        "String",
+        "New",
+        "WithTimeout",
+        "ReadFile",
+        "len",
+        "ExecuteCommand",
+        "Background"
+      ]
+    }
+  ],
+  "callGraph": {
+    "New": [
+      "Client"
+    ],
+    "ExecuteCommand": [
+      "call"
+    ],
+    "ReadFile": [
+      "call"
+    ],
+    "WriteFile": [
+      "call"
+    ],
+    "ListDir": [
+      "call"
+    ],
+    "Grep": [
+      "call"
+    ],
+    "Find": [
+      "call"
+    ],
+    "EditFile": [
+      "call"
+    ],
+    "HTTPGet": [
+      "call"
+    ],
+    "call": [
+      "Set",
+      "Marshal",
+      "NewRequestWithContext",
+      "Do",
+      "ReadAll",
+      "NewReader",
+      "Unmarshal",
+      "New",
+      "Errorf",
+      "string"
+    ],
+    "main": [
+      "Parse",
+      "step",
+      "mustOk",
+      "Printf",
+      "Println",
+      "String",
+      "New",
+      "WithTimeout",
+      "ReadFile",
+      "len",
+      "ExecuteCommand",
+      "Background"
+    ],
+    "step": [
+      "Printf"
+    ],
+    "mustOk": [
+      "Fatalf",
+      "Fprintf",
+      "Exit"
+    ],
+    "envOr": [
+      "Getenv"
+    ],
+    "loadDotEnv": [
+      "Printf",
+      "ReadFile",
+      "Split",
+      "string",
+      "TrimSpace",
+      "SplitN",
+      "Trim",
+      "HasPrefix",
+      "len",
+      "Getenv",
+      "Setenv"
+    ],
+    "runEcho": [
+      "Printf",
+      "append",
+      "mustExec",
+      "extractID",
+      "TrimSpace",
+      "ExecuteCommand",
+      "Fatalf",
+      "firstLine"
+    ],
+    "runEchoSimple": [
+      "Printf",
+      "append",
+      "mustExec",
+      "TrimSpace",
+      "ExecuteCommand",
+      "Fatalf",
+      "firstLine"
+    ],
+    "extractID": [
+      "Split",
+      "TrimSpace",
+      "TrimPrefix",
+      "Fields",
+      "HasPrefix",
+      "len"
+    ],
+    "firstLine": [
+      "IndexByte"
+    ],
+    "parseTree": [
+      "Unmarshal",
+      "Fatalf"
+    ],
+    "mustExec": [
+      "Fatalf",
+      "Fprintf",
+      "Exit"
+    ],
+    "usage": [
+      "Println"
+    ],
+    "discover": [
+      "make",
+      "ReadDir",
+      "Join",
+      "Load",
+      "IsDir",
+      "Name",
+      "Stat",
+      "Fprintf"
+    ],
+    "cmdList": [
+      "Printf",
+      "len",
+      "Println",
+      "Join",
+      "commandNames"
+    ],
+    "cmdChains": [
+      "Println",
+      "CanChain",
+      "Printf"
+    ],
+    "cmdRun": [
+      "Printf",
+      "resolveInputs",
+      "absPathsFromPorts",
+      "ResolveArgs",
+      "append",
+      "Join",
+      "WithTimeout",
+      "ExecuteCommand",
+      "Fatalf",
+      "Background",
+      "Exit",
+      "indent"
+    ],
+    "cmdChain": [
+      "Println",
+      "Printf",
+      "cmdRun",
+      "SplitN",
+      "len",
+      "Fatalf"
+    ],
+    "absPathsFromPorts": [
+      "make"
+    ],
+    "resolveInputs": [
+      "make",
+      "Fatalf"
+    ],
+    "commandNames": [
+      "make",
+      "len",
+      "append"
+    ],
+    "parseKV": [
+      "make",
+      "Index"
+    ],
+    "indent": [
+      "Split",
+      "Join"
+    ],
+    "cmdHas": [
+      "requireConvKey",
+      "Println",
+      "Exit",
+      "NewFlagSet",
+      "String",
+      "Parse",
+      "Has"
+    ],
+    "cmdGet": [
+      "requireConvKey",
+      "NewFlagSet",
+      "String",
+      "Parse",
+      "Get",
+      "Write",
+      "Fprintf",
+      "Exit"
+    ],
+    "cmdSet": [
+      "requireConvKey",
+      "Println",
+      "NewFlagSet",
+      "String",
+      "Bool",
+      "Parse",
+      "Fprintln",
+      "Exit",
+      "Set",
+      "Fprintf",
+      "ReadAll"
+    ],
+    "cmdDelete": [
+      "requireConvKey",
+      "Println",
+      "NewFlagSet",
+      "String",
+      "Parse",
+      "Delete",
+      "Fprintf",
+      "Exit"
+    ],
+    "cmdGenKey": [
+      "Printf",
+      "GenerateKey",
+      "Fprintf",
+      "Exit"
+    ],
+    "requireConvKey": [
+      "Fprintln",
+      "Exit",
+      "TrimSpace"
+    ],
+    "LoadSMTP": [
+      "ApplyDefaults",
+      "SMTPStatus",
+      "Get",
+      "CapabilityScope",
+      "TrimSpace",
+      "Unmarshal",
+      "len",
+      "DefaultBaseDir",
+      "Error",
+      "SMTPBundle",
+      "append",
+      "Join"
+    ],
+    "SaveSMTP": [
+      "Marshal",
+      "Set",
+      "TrimSpace",
+      "DefaultBaseDir"
+    ],
+    "DeleteSMTP": [
+      "Delete",
+      "TrimSpace",
+      "DefaultBaseDir"
+    ],
+    "ApplyDefaults": [
+      "TrimSpace"
+    ],
+    "ExecuteCommandWithEnv": [
+      "WithTimeout",
+      "CommandContext",
+      "Run",
+      "String",
+      "Background",
+      "len",
+      "Environ",
+      "make",
+      "append",
+      "Err",
+      "ExitCode"
+    ],
+    "NewHandler": [
+      "make",
+      "Abs",
+      "len",
+      "Getenv",
+      "Handler",
+      "NewSessionLogger",
+      "ParseDuration"
+    ],
+    "Handle": [
+      "Set",
+      "LogRequest",
+      "Append",
+      "WriteHeader",
+      "Encode",
+      "Now",
+      "Header",
+      "ReadAll",
+      "Get",
+      "ObfuscateAPIKey",
+      "Entry",
+      "NewEncoder",
+      "writeError",
+      "Unmarshal",
+      "LogJSONRPCError",
+      "ValidateJSONRPC",
+      "LogSecurityReject",
+      "executeCommand",
+      "readFile",
+      "writeFile",
+      "listDir",
+      "grep",
+      "find",
+      "editFile",
+      "httpGet",
+      "NewErrorResponse",
+      "Error",
+      "Since"
+    ],
+    "writeError": [
+      "WriteHeader",
+      "Encode",
+      "NewErrorResponse",
+      "NewEncoder",
+      "Since"
+    ],
+    "executeCommand": [
+      "ExecuteCommandWithEnv",
+      "NewSuccessResponse",
+      "ValidateSecurity",
+      "LogSecurityReject",
+      "Since",
+      "NewErrorResponse",
+      "make",
+      "len",
+      "Error",
+      "resolveWithinBase"
+    ],
+    "readFile": [
+      "resolveWithinBase",
+      "ReadFile",
+      "NewSuccessResponse",
+      "LogSecurityReject",
+      "string",
+      "Since",
+      "NewErrorResponse",
+      "Error"
+    ],
+    "writeFile": [
+      "resolveWithinBase",
+      "NewSuccessResponse",
+      "LogSecurityReject",
+      "WriteFile",
+      "Since",
+      "NewErrorResponse",
+      "Error"
+    ],
+    "listDir": [
+      "resolveWithinBase",
+      "ReadDir",
+      "make",
+      "NewSuccessResponse",
+      "LogSecurityReject",
+      "len",
+      "Join",
+      "Since",
+      "NewErrorResponse",
+      "Error",
+      "append",
+      "Name"
+    ],
+    "grep": [
+      "intParam",
+      "resolveWithinBase",
+      "Compile",
+      "walkReadableFiles",
+      "NewSuccessResponse",
+      "LogSecurityReject",
+      "Join",
+      "Since",
+      "NewErrorResponse",
+      "Error"
+    ],
+    "find": [
+      "Strings",
+      "intParam",
+      "resolveWithinBase",
+      "WalkDir",
+      "NewSuccessResponse",
+      "LogSecurityReject",
+      "Join",
+      "Since",
+      "Error",
+      "NewErrorResponse"
+    ],
+    "editFile": [
+      "resolveWithinBase",
+      "ReadFile",
+      "string",
+      "Replace",
+      "NewSuccessResponse",
+      "LogSecurityReject",
+      "Contains",
+      "WriteFile",
+      "Since",
+      "NewErrorResponse",
+      "Error"
+    ],
+    "httpGet": [
+      "WithTimeout",
+      "NewRequestWithContext",
+      "Do",
+      "ReadAll",
+      "NewSuccessResponse",
+      "Context",
+      "Client",
+      "string",
+      "Since",
+      "NewErrorResponse",
+      "HasPrefix",
+      "Err",
+      "Error"
+    ],
+    "resolveWithinBase": [
+      "Contains",
+      "Abs",
+      "Clean",
+      "Rel",
+      "IsAbs",
+      "EvalSymlinks",
+      "pathError",
+      "Join",
+      "HasPrefix",
+      "Dir",
+      "Base"
+    ],
+    "intParam": [
+      "int"
+    ],
+    "itoa": [
+      "Itoa"
+    ],
+    "walkReadableFiles": [
+      "Stat",
+      "WalkDir",
+      "IsDir",
+      "visit",
+      "ReadFile"
+    ],
+    "Error": [
+      "string"
+    ],
+    "LogRequest": [
+      "Printf"
+    ],
+    "LogSecurityReject": [
+      "Printf"
+    ],
+    "LogJSONRPCError": [
+      "Printf"
+    ],
+    "ObfuscateAPIKey": [
+      "len"
+    ],
+    "NewSuccessResponse": [
+      "Response",
+      "Milliseconds"
+    ],
+    "NewErrorResponse": [
+      "Response",
+      "Milliseconds"
+    ],
+    "ValidateSecurity": [
+      "IsDestructiveCommand",
+      "IsCommandAllowed",
+      "isPathSafe",
+      "sanitizeForError"
+    ],
+    "ValidatePath": [
+      "isPathSafe",
+      "sanitizeForError"
+    ],
+    "isPathSafe": [
+      "Contains",
+      "Abs",
+      "EvalSymlinks",
+      "Rel",
+      "HasPrefix",
+      "IsAbs"
+    ],
+    "ValidateBaseDir": [
+      "Stat",
+      "IsDir",
+      "IsNotExist",
+      "Error"
+    ],
+    "sanitizeForError": [
+      "len"
+    ],
+    "NewSessionLogger": [
+      "Join",
+      "MkdirAll",
+      "SessionLogger"
+    ],
+    "Append": [
+      "Lock",
+      "Write",
+      "Format",
+      "Join",
+      "Marshal",
+      "OpenFile",
+      "len",
+      "UTC",
+      "Now"
+    ],
+    "TestResolveArgsDoesNotReparseInsertedJSON": [
+      "Command",
+      "ResolveArgs",
+      "Fatalf"
+    ],
+    "NewLoader": [
+      "Loader"
+    ],
+    "Load": [
+      "Getenv",
+      "LoadNamed"
+    ],
+    "LoadNamed": [
+      "Join",
+      "IsNotExist",
+      "Stat",
+      "Profile",
+      "ReadFile",
+      "ReadDir",
+      "Unmarshal",
+      "string",
+      "TrimSuffix",
+      "IsDir",
+      "Name",
+      "HasSuffix"
+    ],
+    "SystemPromptWithOverlay": [
+      "Join",
+      "OverlayFor",
+      "append"
+    ],
+    "DefaultBaseDir": [
+      "Join",
+      "TrimSpace",
+      "discoverRepoVaultDir",
+      "Getenv",
+      "Clean"
+    ],
+    "discoverRepoVaultDir": [
+      "Getwd",
+      "Dir",
+      "Clean",
+      "Join",
+      "Stat",
+      "Base",
+      "IsDir"
+    ],
+    "Path": [
+      "Join",
+      "sanitize",
+      "DefaultBaseDir"
+    ],
+    "sanitize": [
+      "make",
+      "string",
+      "len",
+      "append"
+    ],
+    "masterKey": [
+      "TrimSpace",
+      "Errorf",
+      "Getenv",
+      "len",
+      "DecodeString"
+    ],
+    "Set": [
+      "masterKey",
+      "NewCipher",
+      "NewGCM",
+      "make",
+      "Seal",
+      "Path",
+      "NonceSize",
+      "ReadFull",
+      "MkdirAll",
+      "WriteFile",
+      "Errorf",
+      "Dir"
+    ],
+    "Get": [
+      "Path",
+      "ReadFile",
+      "masterKey",
+      "NewCipher",
+      "NewGCM",
+      "Open",
+      "len",
+      "NonceSize",
+      "IsNotExist",
+      "Errorf"
+    ],
+    "Has": [
+      "Path",
+      "Stat"
+    ],
+    "List": [
+      "Join",
+      "ReadDir",
+      "make",
+      "sanitize",
+      "len",
+      "DefaultBaseDir",
+      "IsNotExist",
+      "Errorf",
+      "IsDir",
+      "Name",
+      "append",
+      "HasSuffix",
+      "TrimSuffix"
+    ],
+    "Delete": [
+      "Path",
+      "Remove",
+      "IsNotExist",
+      "Errorf"
+    ],
+    "GenerateKey": [
+      "make",
+      "EncodeToString",
+      "ReadFull"
+    ]
+  },
+  "sinks": [
+    {
+      "type": "http",
+      "name": "Do",
+      "file": "adapter/adapter.go",
+      "line": 137,
+      "caller": "call"
+    },
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "channel/main.go",
+      "line": 70,
+      "caller": "envOr"
+    },
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "channel/main.go",
+      "line": 99,
+      "caller": "loadDotEnv"
+    },
+    {
+      "type": "env",
+      "name": "Setenv",
+      "file": "channel/main.go",
+      "line": 100,
+      "caller": "loadDotEnv"
+    },
+    {
+      "type": "http",
+      "name": "Get",
+      "file": "vault/main.go",
+      "line": 97,
+      "caller": "cmdGet"
+    },
+    {
+      "type": "http",
+      "name": "Get",
+      "file": "credentials/smtp.go",
+      "line": 50,
+      "caller": "LoadSMTP"
+    },
+    {
+      "type": "exec",
+      "name": "CommandContext",
+      "file": "internal/exec.go",
+      "line": 26,
+      "caller": "ExecuteCommandWithEnv"
+    },
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "internal/handler.go",
+      "line": 36,
+      "caller": "NewHandler"
+    },
+    {
+      "type": "http",
+      "name": "Get",
+      "file": "internal/handler.go",
+      "line": 74,
+      "caller": "Handle"
+    },
+    {
+      "type": "file",
+      "name": "WriteFile",
+      "file": "internal/handler.go",
+      "line": 223,
+      "caller": "writeFile"
+    },
+    {
+      "type": "file",
+      "name": "WriteFile",
+      "file": "internal/handler.go",
+      "line": 371,
+      "caller": "editFile"
+    },
+    {
+      "type": "http",
+      "name": "Do",
+      "file": "internal/handler.go",
+      "line": 393,
+      "caller": "httpGet"
+    },
+    {
+      "type": "file",
+      "name": "OpenFile",
+      "file": "internal/session.go",
+      "line": 64,
+      "caller": "Append"
+    },
+    {
+      "type": "exec",
+      "name": "Command",
+      "file": "manifest/manifest_test.go",
+      "line": 6,
+      "caller": "TestResolveArgsDoesNotReparseInsertedJSON"
+    },
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "profile/profile.go",
+      "line": 56,
+      "caller": "Load"
+    },
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "vault/vault.go",
+      "line": 52,
+      "caller": "DefaultBaseDir"
+    },
+    {
+      "type": "env",
+      "name": "Getenv",
+      "file": "vault/vault.go",
+      "line": 122,
+      "caller": "masterKey"
+    },
+    {
+      "type": "file",
+      "name": "WriteFile",
+      "file": "vault/vault.go",
+      "line": 168,
+      "caller": "Set"
+    },
+    {
+      "type": "file",
+      "name": "Remove",
+      "file": "vault/vault.go",
+      "line": 251,
+      "caller": "Delete"
+    }
+  ],
+  "gaps": [],
+  "layout": {
+    "Split": {
+      "x": 355.4,
+      "y": 300.8
+    },
+    "ReadDir": {
+      "x": 231.0,
+      "y": 178.4
+    },
+    "Contains": {
+      "x": 108.3,
+      "y": 280.2
+    },
+    "int": {
+      "x": 2.9,
+      "y": 252.9
+    },
+    "Handler": {
+      "x": 167.2,
+      "y": 69.3
+    },
+    "Error": {
+      "x": 214.5,
+      "y": 282.0
+    },
+    "NewLoader": {
+      "x": 483.9,
+      "y": 2.9
+    },
+    "cmdDelete": {
+      "x": 482.8,
+      "y": 176.0
+    },
+    "Abs": {
+      "x": 152.6,
+      "y": 178.0
+    },
+    "DecodeString": {
+      "x": 280.5,
+      "y": 35.7
+    },
+    "Bool": {
+      "x": 585.8,
+      "y": 286.3
+    },
+    "ValidateBaseDir": {
+      "x": 190.2,
+      "y": 178.9
+    },
+    "Stat": {
+      "x": 227.1,
+      "y": 127.4
+    },
+    "Replace": {
+      "x": 100.8,
+      "y": 354.3
+    },
+    "append": {
+      "x": 382.7,
+      "y": 249.3
+    },
+    "IsCommandAllowed": {
+      "x": 67.5,
+      "y": 430.8
+    },
+    "ReadFull": {
+      "x": 415.8,
+      "y": 179.7
+    },
+    "GenerateKey": {
+      "x": 513.9,
+      "y": 149.1
+    },
+    "HasPrefix": {
+      "x": 227.4,
+      "y": 307.8
+    },
+    "call": {
+      "x": 305.4,
+      "y": 426.1
+    },
+    "SaveSMTP": {
+      "x": 352.3,
+      "y": 217.1
+    },
+    "writeFile": {
+      "x": 181.1,
+      "y": 339.9
+    },
+    "Trim": {
+      "x": 446.4,
+      "y": 125.1
+    },
+    "Base": {
+      "x": 124.0,
+      "y": 157.2
+    },
+    "Load": {
+      "x": 289.5,
+      "y": 62.0
+    },
+    "Loader": {
+      "x": 576.0,
+      "y": 2.9
+    },
+    "Fields": {
+      "x": 410.7,
+      "y": 432.4
+    },
+    "discoverRepoVaultDir": {
+      "x": 152.4,
+      "y": 119.6
+    },
+    "make": {
+      "x": 381.2,
+      "y": 222.0
+    },
+    "Getwd": {
+      "x": 111.1,
+      "y": 85.7
+    },
+    "Has": {
+      "x": 392.0,
+      "y": 153.9
+    },
+    "Handle": {
+      "x": 229.7,
+      "y": 374.2
+    },
+    "ExecuteCommand": {
+      "x": 433.3,
+      "y": 382.9
+    },
+    "EditFile": {
+      "x": 309.1,
+      "y": 477.6
+    },
+    "LogRequest": {
+      "x": 307.0,
+      "y": 393.6
+    },
+    "HTTPGet": {
+      "x": 383.5,
+      "y": 470.9
+    },
+    "resolveWithinBase": {
+      "x": 131.0,
+      "y": 254.4
+    },
+    "Grep": {
+      "x": 336.5,
+      "y": 503.4
+    },
+    "Join": {
+      "x": 261.9,
+      "y": 226.8
+    },
+    "LogJSONRPCError": {
+      "x": 332.4,
+      "y": 419.4
+    },
+    "ParseDuration": {
+      "x": 137.8,
+      "y": 93.9
+    },
+    "NewSuccessResponse": {
+      "x": 152.4,
+      "y": 364.9
+    },
+    "editFile": {
+      "x": 159.8,
+      "y": 314.1
+    },
+    "Background": {
+      "x": 466.0,
+      "y": 382.7
+    },
+    "CommandContext": {
+      "x": 491.2,
+      "y": 418.6
+    },
+    "envOr": {
+      "x": 280.2,
+      "y": 2.9
+    },
+    "cmdGenKey": {
+      "x": 485.8,
+      "y": 213.6
+    },
+    "Delete": {
+      "x": 366.2,
+      "y": 147.4
+    },
+    "NewFlagSet": {
+      "x": 560.9,
+      "y": 167.7
+    },
+    "runEcho": {
+      "x": 461.7,
+      "y": 331.1
+    },
+    "LogSecurityReject": {
+      "x": 253.2,
+      "y": 332.6
+    },
+    "Client": {
+      "x": 328.1,
+      "y": 451.9
+    },
+    "SessionLogger": {
+      "x": 169.4,
+      "y": 20.9
+    },
+    "mustOk": {
+      "x": 534.1,
+      "y": 313.3
+    },
+    "Clean": {
+      "x": 149.8,
+      "y": 151.1
+    },
+    "ListDir": {
+      "x": 350.4,
+      "y": 477.6
+    },
+    "Parse": {
+      "x": 491.3,
+      "y": 247.8
+    },
+    "NewReader": {
+      "x": 275.0,
+      "y": 486.1
+    },
+    "cmdRun": {
+      "x": 408.1,
+      "y": 302.0
+    },
+    "requireConvKey": {
+      "x": 535.1,
+      "y": 175.5
+    },
+    "Fprintln": {
+      "x": 586.7,
+      "y": 184.5
+    },
+    "IsDir": {
+      "x": 201.3,
+      "y": 125.1
+    },
+    "CapabilityScope": {
+      "x": 341.7,
+      "y": 53.7
+    },
+    "walkReadableFiles": {
+      "x": 153.8,
+      "y": 203.9
+    },
+    "cmdSet": {
+      "x": 460.1,
+      "y": 236.1
+    },
+    "SystemPromptWithOverlay": {
+      "x": 347.5,
+      "y": 121.7
+    },
+    "grep": {
+      "x": 160.1,
+      "y": 278.3
+    },
+    "step": {
+      "x": 491.8,
+      "y": 392.8
+    },
+    "Header": {
+      "x": 202.5,
+      "y": 476.9
+    },
+    "indent": {
+      "x": 375.5,
+      "y": 275.1
+    },
+    "Strings": {
+      "x": 69.2,
+      "y": 321.1
+    },
+    "Rel": {
+      "x": 62.1,
+      "y": 278.3
+    },
+    "Write": {
+      "x": 474.3,
+      "y": 124.9
+    },
+    "Append": {
+      "x": 377.9,
+      "y": 191.4
+    },
+    "ValidatePath": {
+      "x": 75.0,
+      "y": 357.3
+    },
+    "listDir": {
+      "x": 245.9,
+      "y": 277.2
+    },
+    "SMTPStatus": {
+      "x": 380.7,
+      "y": 70.1
+    },
+    "ValidateJSONRPC": {
+      "x": 175.9,
+      "y": 468.7
+    },
+    "Set": {
+      "x": 289.2,
+      "y": 245.9
+    },
+    "Since": {
+      "x": 203.9,
+      "y": 365.8
+    },
+    "Open": {
+      "x": 212.0,
+      "y": 99.4
+    },
+    "Unmarshal": {
+      "x": 305.2,
+      "y": 327.7
+    },
+    "parseKV": {
+      "x": 490.4,
+      "y": 98.6
+    },
+    "Fatalf": {
+      "x": 523.2,
+      "y": 339.2
+    },
+    "Response": {
+      "x": 126.6,
+      "y": 385.7
+    },
+    "sanitize": {
+      "x": 315.0,
+      "y": 232.8
+    },
+    "runEchoSimple": {
+      "x": 487.9,
+      "y": 311.4
+    },
+    "SplitN": {
+      "x": 434.3,
+      "y": 249.5
+    },
+    "ObfuscateAPIKey": {
+      "x": 281.2,
+      "y": 370.3
+    },
+    "HasSuffix": {
+      "x": 255.9,
+      "y": 67.9
+    },
+    "Index": {
+      "x": 536.0,
+      "y": 47.7
+    },
+    "OpenFile": {
+      "x": 367.7,
+      "y": 44.3
+    },
+    "New": {
+      "x": 384.9,
+      "y": 416.7
+    },
+    "NewSessionLogger": {
+      "x": 185.9,
+      "y": 95.6
+    },
+    "Println": {
+      "x": 513.6,
+      "y": 285.5
+    },
+    "Run": {
+      "x": 409.3,
+      "y": 472.6
+    },
+    "Compile": {
+      "x": 100.4,
+      "y": 225.5
+    },
+    "Encode": {
+      "x": 202.1,
+      "y": 437.3
+    },
+    "isPathSafe": {
+      "x": 101.9,
+      "y": 309.3
+    },
+    "itoa": {
+      "x": 594.9,
+      "y": 483.9
+    },
+    "List": {
+      "x": 282.6,
+      "y": 182.8
+    },
+    "Remove": {
+      "x": 314.2,
+      "y": 34.9
+    },
+    "pathError": {
+      "x": 74.6,
+      "y": 205.9
+    },
+    "Err": {
+      "x": 358.1,
+      "y": 420.4
+    },
+    "UTC": {
+      "x": 406.5,
+      "y": 64.7
+    },
+    "Getenv": {
+      "x": 298.4,
+      "y": 98.7
+    },
+    "Printf": {
+      "x": 385.5,
+      "y": 328.4
+    },
+    "EncodeToString": {
+      "x": 572.5,
+      "y": 105.3
+    },
+    "usage": {
+      "x": 611.6,
+      "y": 287.8
+    },
+    "NewGCM": {
+      "x": 213.2,
+      "y": 230.5
+    },
+    "extractID": {
+      "x": 349.1,
+      "y": 352.4
+    },
+    "discover": {
+      "x": 313.6,
+      "y": 139.0
+    },
+    "ResolveArgs": {
+      "x": 556.9,
+      "y": 339.2
+    },
+    "intParam": {
+      "x": 91.5,
+      "y": 252.3
+    },
+    "Seal": {
+      "x": 186.0,
+      "y": 252.6
+    },
+    "SMTPBundle": {
+      "x": 315.3,
+      "y": 71.6
+    },
+    "Marshal": {
+      "x": 331.0,
+      "y": 326.6
+    },
+    "Get": {
+      "x": 287.7,
+      "y": 213.7
+    },
+    "Environ": {
+      "x": 462.2,
+      "y": 443.6
+    },
+    "TrimPrefix": {
+      "x": 437.4,
+      "y": 408.7
+    },
+    "Milliseconds": {
+      "x": 122.7,
+      "y": 411.5
+    },
+    "main": {
+      "x": 413.2,
+      "y": 328.0
+    },
+    "find": {
+      "x": 134.0,
+      "y": 294.8
+    },
+    "IsNotExist": {
+      "x": 278.7,
+      "y": 124.5
+    },
+    "Profile": {
+      "x": 198.3,
+      "y": 64.9
+    },
+    "WriteFile": {
+      "x": 255.4,
+      "y": 393.6
+    },
+    "TrimSuffix": {
+      "x": 229.7,
+      "y": 71.3
+    },
+    "Now": {
+      "x": 303.4,
+      "y": 278.7
+    },
+    "Fprintf": {
+      "x": 459.7,
+      "y": 202.4
+    },
+    "ExitCode": {
+      "x": 435.1,
+      "y": 461.3
+    },
+    "commandNames": {
+      "x": 408.5,
+      "y": 240.4
+    },
+    "Entry": {
+      "x": 228.3,
+      "y": 463.0
+    },
+    "Path": {
+      "x": 324.3,
+      "y": 196.0
+    },
+    "NonceSize": {
+      "x": 211.8,
+      "y": 256.2
+    },
+    "loadDotEnv": {
+      "x": 355.4,
+      "y": 247.3
+    },
+    "cmdHas": {
+      "x": 509.4,
+      "y": 187.8
+    },
+    "resolveInputs": {
+      "x": 464.6,
+      "y": 264.3
+    },
+    "Lock": {
+      "x": 432.3,
+      "y": 60.2
+    },
+    "cmdChains": {
+      "x": 517.7,
+      "y": 379.4
+    },
+    "Do": {
+      "x": 254.1,
+      "y": 452.0
+    },
+    "executeCommand": {
+      "x": 222.7,
+      "y": 340.0
+    },
+    "firstLine": {
+      "x": 553.4,
+      "y": 365.3
+    },
+    "CanChain": {
+      "x": 589.2,
+      "y": 413.7
+    },
+    "IndexByte": {
+      "x": 624.2,
+      "y": 383.2
+    },
+    "readFile": {
+      "x": 199.6,
+      "y": 309.8
+    },
+    "Itoa": {
+      "x": 687.0,
+      "y": 483.9
+    },
+    "mustExec": {
+      "x": 559.9,
+      "y": 288.0
+    },
+    "ReadAll": {
+      "x": 323.3,
+      "y": 367.8
+    },
+    "MkdirAll": {
+      "x": 175.6,
+      "y": 145.6
+    },
+    "OverlayFor": {
+      "x": 384.5,
+      "y": 18.6
+    },
+    "Errorf": {
+      "x": 329.2,
+      "y": 258.6
+    },
+    "LoadSMTP": {
+      "x": 340.4,
+      "y": 170.3
+    },
+    "String": {
+      "x": 462.1,
+      "y": 290.4
+    },
+    "DefaultBaseDir": {
+      "x": 278.7,
+      "y": 150.5
+    },
+    "NewEncoder": {
+      "x": 150.6,
+      "y": 411.4
+    },
+    "Name": {
+      "x": 256.8,
+      "y": 199.8
+    },
+    "WalkDir": {
+      "x": 126.2,
+      "y": 204.6
+    },
+    "Context": {
+      "x": 215.2,
+      "y": 502.7
+    },
+    "IsDestructiveCommand": {
+      "x": 47.6,
+      "y": 401.5
+    },
+    "httpGet": {
+      "x": 276.8,
+      "y": 419.3
+    },
+    "Command": {
+      "x": 675.7,
+      "y": 365.4
+    },
+    "Setenv": {
+      "x": 456.4,
+      "y": 150.9
+    },
+    "WithTimeout": {
+      "x": 381.8,
+      "y": 390.5
+    },
+    "NewRequestWithContext": {
+      "x": 280.1,
+      "y": 451.9
+    },
+    "LoadNamed": {
+      "x": 252.9,
+      "y": 151.1
+    },
+    "ExecuteCommandWithEnv": {
+      "x": 407.6,
+      "y": 381.0
+    },
+    "absPathsFromPorts": {
+      "x": 434.0,
+      "y": 214.7
+    },
+    "Find": {
+      "x": 363.2,
+      "y": 503.4
+    },
+    "cmdList": {
+      "x": 405.1,
+      "y": 275.7
+    },
+    "EvalSymlinks": {
+      "x": 65.7,
+      "y": 249.8
+    },
+    "Dir": {
+      "x": 179.7,
+      "y": 226.7
+    },
+    "string": {
+      "x": 279.0,
+      "y": 308.0
+    },
+    "parseTree": {
+      "x": 446.4,
+      "y": 356.9
+    },
+    "WriteHeader": {
+      "x": 176.3,
+      "y": 435.1
+    },
+    "IsAbs": {
+      "x": 39.9,
+      "y": 244.8
+    },
+    "NewCipher": {
+      "x": 205.9,
+      "y": 204.7
+    },
+    "Format": {
+      "x": 449.1,
+      "y": 90.6
+    },
+    "TrimSpace": {
+      "x": 407.2,
+      "y": 208.4
+    },
+    "ReadFile": {
+      "x": 277.6,
+      "y": 281.3
+    },
+    "Exit": {
+      "x": 517.8,
+      "y": 224.0
+    },
+    "NewHandler": {
+      "x": 201.3,
+      "y": 153.1
+    },
+    "cmdGet": {
+      "x": 446.6,
+      "y": 176.7
+    },
+    "masterKey": {
+      "x": 308.4,
+      "y": 164.7
+    },
+    "NewErrorResponse": {
+      "x": 178.1,
+      "y": 383.2
+    },
+    "len": {
+      "x": 329.2,
+      "y": 284.5
+    },
+    "sanitizeForError": {
+      "x": 126.6,
+      "y": 352.3
+    },
+    "visit": {
+      "x": 99.9,
+      "y": 130.9
+    },
+    "writeError": {
+      "x": 198.6,
+      "y": 409.1
+    },
+    "ValidateSecurity": {
+      "x": 100.8,
+      "y": 381.7
+    },
+    "TestResolveArgsDoesNotReparseInsertedJSON": {
+      "x": 606.5,
+      "y": 351.9
+    },
+    "ApplyDefaults": {
+      "x": 420.6,
+      "y": 110.6
+    },
+    "DeleteSMTP": {
+      "x": 359.2,
+      "y": 95.9
+    },
+    "cmdChain": {
+      "x": 433.9,
+      "y": 301.5
+    }
+  }
+}

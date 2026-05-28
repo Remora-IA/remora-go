@@ -1,0 +1,71 @@
+{
+  "type": "action_proposal",
+  "description": "Borrador de acción generado por Mecánico para aprobación del cobrador",
+  "render_hint": "modal_card",
+  "sections": [
+    {
+      "id": "preview",
+      "title": "Borrador de {action_type}",
+      "fields": [
+        {"key": "to", "label": "Para", "type": "email"},
+        {"key": "subject", "label": "Asunto", "type": "string"},
+        {"key": "body", "label": "Mensaje", "type": "textarea", "rows": 10}
+      ]
+    },
+    {
+      "id": "legal_info",
+      "title": "Información Legal",
+      "show_if": "legal_reference",
+      "fields": [
+        {"key": "legal_reference", "label": "Base Legal", "type": "text"},
+        {"key": "requires_certified_mail", "label": "Requiere Correo Certificado", "type": "boolean"}
+      ]
+    },
+    {
+      "id": "actions",
+      "title": "Acciones",
+      "layout": "buttons_row",
+      "buttons": [
+        {
+          "label": "✉️ Abrir en Gmail",
+          "action": "open_url",
+          "url_template": "{gmail_open_url}",
+          "style": "primary",
+          "opens_new_tab": true
+        },
+        {
+          "label": "📋 Copiar Texto",
+          "action": "copy_to_clipboard",
+          "target": "body",
+          "style": "secondary"
+        },
+        {
+          "label": "🖨️ Imprimir",
+          "action": "print",
+          "show_if": "action == 'carta_certificada'",
+          "style": "secondary"
+        },
+        {
+          "label": "✏️ Editar",
+          "action": "edit_draft",
+          "style": "outline"
+        },
+        {
+          "label": "❌ Cancelar",
+          "action": "cancel",
+          "style": "ghost"
+        }
+      ]
+    }
+  ],
+  "post_action": {
+    "on_gmail_open": {
+      "note": "El cobrador debe enviar manualmente desde Gmail",
+      "log_via": "paladin",
+      "event": "email_draft_opened"
+    },
+    "on_cancel": {
+      "prompt_next": "¿Querés que genere otro tipo de mensaje?"
+    }
+  }
+}

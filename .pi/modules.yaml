@@ -1,0 +1,12 @@
+# Clasificación de módulos para pi-cpg-builder
+# Los módulos core son el sistema central — se parsea UN CPG por módulo.
+# Los plugins implementan la interfaz del framework — se parsea uno como sample.
+
+core:
+  - remora-cli
+  - remora-flujo
+  - channel
+
+plugins_sample: framework-alfa
+
+skip: []

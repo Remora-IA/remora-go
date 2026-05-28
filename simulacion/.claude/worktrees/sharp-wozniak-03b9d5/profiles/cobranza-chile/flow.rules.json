@@ -1,0 +1,112 @@
+{
+  "description": "Reglas de orquestación para el perfil Cobranza-Chile. Define quién habla cuándo en el flujo de cobranza.",
+  "version": 1,
+  "rules": [
+    {
+      "id": "foco_primero_pregunta_inicial",
+      "deprecated": true,
+      "description": "Si es la primera pregunta del día y el usuario pregunta 'qué hago hoy', 'prioridades', o 'a quién llamo', Foco habla primero",
+      "when": {
+        "user_answer_count_max": 1,
+        "user_intent_any": [
+          "qué hago hoy",
+          "prioridades",
+          "a quién llamo",
+          "a quien llamo",
+          "con quién empiezo",
+          "con quien empiezo",
+          "cuáles son las prioridades",
+          "cuales son las prioridades",
+          "top deudores"
+        ]
+      },
+      "then": {
+        "prepend_speaker": "foco"
+      }
+    },
+    {
+      "id": "sabio_contexto_deudor",
+      "deprecated": true,
+      "description": "Si el usuario menciona un deudor específico (nombre o código), Sabio debe responder con el 360°",
+      "when": {
+        "frameworks_active_any": ["foco", "sabio"]
+      },
+      "then": {
+        "prepend_speaker": "sabio"
+      }
+    },
+    {
+      "id": "mecanico_genera_accion",
+      "deprecated": true,
+      "description": "Si el usuario pide enviar mail, generar carta, o cualquier acción sobre un deudor, Mecánico propone el borrador",
+      "when": {
+        "frameworks_active_any": ["sabio", "mecanico"],
+        "user_intent_any": [
+          "mandar mail",
+          "mandar email",
+          "enviar correo",
+          "generar carta",
+          "carta de requerimiento",
+          "recordatorio",
+          "requerimiento formal",
+          "escribir a",
+          "enviar a"
+        ]
+      },
+      "then": {
+        "prepend_speaker": "mecanico"
+      }
+    },
+    {
+      "id": "bravo_verifica_flujo_legal",
+      "deprecated": true,
+      "description": "Si detectamos mora >= 60 días, Bravo se prepende automáticamente para verificar cumplimiento legal antes de DICOM",
+      "when": {
+        "frameworks_active_any": ["sabio", "bravo"],
+        "user_answer_count_min": 2
+      },
+      "then": {
+        "prepend_speaker": "bravo",
+        "note": "Verificar si ya existe carta de requerimiento previa según Art. 37"
+      }
+    },
+    {
+      "id": "gmail_ejecuta",
+      "deprecated": true,
+      "description": "Si Mecánico generó una propuesta y el usuario confirma, Gmail abre el borrador",
+      "when": {
+        "frameworks_active_any": ["mecanico", "gmail"],
+        "user_intent_any": [
+          "confirmar",
+          "ok",
+          "dale",
+          "enviar",
+          "mandar",
+          "sí",
+          "si"
+        ]
+      },
+      "then": {
+        "prepend_speaker": "gmail"
+      }
+    }
+  ],
+  "entity_detection": {
+    "deudor": {
+      "patterns": [
+        "deudor",
+        "cliente",
+        "empresa",
+        "señor",
+        "señora",
+        "sr.",
+        "sra.",
+        "banco",
+        "constructora",
+        "spa",
+        "limitada"
+      ],
+      "tables": ["clients", "debtors", "companies"]
+    }
+  }
+}

@@ -1877,7 +1877,7 @@ func entity360ErrorArtifact(rt runtimeContext, question string, err error) map[s
 }
 
 func runAnalyticalQueryArtifact(dbPath string, rt runtimeContext, question, analysisIntent, semanticCapability, entityType, entityRef string, metrics []string, peerStrategy string) map[string]any {
-	switch canonicalAnalyticalIntent(question, analysisIntent, semanticCapability, metrics, peerStrategy) {
+	switch canonicalAnalyticalIntent(question, analysisIntent, semanticCapability, entityRef, metrics, peerStrategy) {
 	case "portfolio_comparison":
 		return runPortfolioComparisonArtifact(dbPath, rt, question, entityType, entityRef, metrics, peerStrategy)
 	case "score_sensitivity":
@@ -1891,7 +1891,7 @@ func runAnalyticalQueryArtifact(dbPath string, rt runtimeContext, question, anal
 	}
 }
 
-func canonicalAnalyticalIntent(question, analysisIntent, semanticCapability string, metrics []string, peerStrategy string) string {
+func canonicalAnalyticalIntent(question, analysisIntent, semanticCapability, entityRef string, metrics []string, peerStrategy string) string {
 	switch strings.TrimSpace(strings.ToLower(semanticCapability)) {
 	case "evidence.portfolio_comparison":
 		return "portfolio_comparison"
@@ -1907,11 +1907,21 @@ func canonicalAnalyticalIntent(question, analysisIntent, semanticCapability stri
 	case "portfolio_comparison", "payment_behavior_summary", "score_sensitivity", "counterfactual_scenario":
 		return intent
 	}
-	if strings.Contains(intent, "compar") || strings.Contains(intent, "cartera") || strings.Contains(intent, "similar") || strings.TrimSpace(peerStrategy) != "" {
+	hasEntity := strings.TrimSpace(entityRef) != ""
+	if strings.Contains(intent, "compar") || strings.Contains(intent, "similar") || strings.TrimSpace(peerStrategy) != "" {
+		return "portfolio_comparison"
+	}
+	// "cartera" sin entity_ref = pregunta general de cartera → dejar que el flujo SQL
+	// general la resuelva (genera SQL agregado sobre la tabla real del negocio).
+	// Solo rutear a portfolio_comparison si hay una entidad específica para comparar.
+	if strings.Contains(intent, "cartera") && hasEntity {
 		return "portfolio_comparison"
 	}
 	questionLower := strings.ToLower(strings.TrimSpace(question))
-	if strings.Contains(questionLower, "compar") || strings.Contains(questionLower, "cartera") || strings.Contains(questionLower, "similar") {
+	if strings.Contains(questionLower, "compar") || strings.Contains(questionLower, "similar") {
+		return "portfolio_comparison"
+	}
+	if strings.Contains(questionLower, "cartera") && hasEntity {
 		return "portfolio_comparison"
 	}
 	if strings.Contains(intent, "payment_behavior") || strings.Contains(intent, "comportamiento de pago") {

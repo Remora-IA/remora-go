@@ -452,6 +452,9 @@ cycleStart:
 			if s.notifyFocoCycleCompleted(ctx, runID, req.Flow.BusinessID, req.Flow.ID, available, result.Artifacts) {
 				step.ArtifactTypes = append(step.ArtifactTypes, "focus.cycle_status.v1", "task.done")
 			}
+			if req.Flow.BusinessID != "" && !req.DryRun {
+				s.emitCycleNotification(req.Flow.BusinessID, req.Flow.ID, runID, result.Artifacts)
+			}
 			cyclesDone++
 			cycleCompletedThisPass = true
 			if req.MaxCycles > 0 && cyclesDone >= maxCycles {

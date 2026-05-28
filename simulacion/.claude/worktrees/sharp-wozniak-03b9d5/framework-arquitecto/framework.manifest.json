@@ -1,0 +1,86 @@
+{
+  "name": "arquitecto",
+  "version": "1.0.0",
+  "description": "Framework para comprender e indexar codebases Go. Mantiene modelo mental del repo y responde queries estructurales.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "frameworkarquitecto", "./cmd/frameworkarquitecto"]
+  },
+  "binary": {
+    "command": "./frameworkarquitecto",
+    "args_prefix": []
+  },
+  "cwd": "framework-arquitecto",
+  "outputs": [
+    {
+      "name": "repo_model",
+      "format": "arquitecto.model.v1",
+      "path": "framework-arquitecto/temp/repo_model.json",
+      "description": "Modelo indexado del repo: paquetes, interfaces, entrypoints, dependencias"
+    }
+  ],
+  "inputs": [],
+  "commands": {
+    "init": {
+      "description": "Inicializa una sesion de analisis",
+      "args": ["init", "--session-id", "{params.session_id}", "--repo-path", "{params.repo_path}"],
+      "params": ["session_id", "repo_path"]
+    },
+    "index-repo": {
+      "description": "Indexa el repo completo o delta",
+      "args": ["index-repo", "--scope", "{params.scope}"],
+      "params": ["scope"],
+      "defaults": { "scope": "delta" }
+    },
+    "query-structure": {
+      "description": "Consulta el modelo indexado",
+      "args": ["query-structure", "--query", "{params.query}", "--format", "{params.format}"],
+      "params": ["query", "format"],
+      "defaults": { "format": "json" }
+    },
+    "trace-flow": {
+      "description": "Traza flujo de ejecucion desde un entrypoint",
+      "args": ["trace-flow", "--entrypoint", "{params.entrypoint}", "--depth", "{params.depth}"],
+      "params": ["entrypoint", "depth"],
+      "defaults": { "depth": "5" }
+    },
+    "status": { "args": ["status"] },
+    "readiness": { "args": ["readiness"] },
+    "next-question": { "args": ["next-question"] },
+    "ingest-answer": {
+      "args": ["ingest-answer", "--question-id", "{params.question_id}", "--answer", "{params.answer}"],
+      "params": ["question_id", "answer"],
+      "defaults": { "question_id": "" }
+    }
+  },
+  "asks_human": {
+    "via": "questions_to_ask_field",
+    "description": "Cada nodo PENDING del arbol de analisis tiene preguntas para el humano"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": ["short_answer", "resource_upload"],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "capabilities_semantic": {
+    "tags": ["code-analysis", "repo-indexing", "architecture"],
+    "intent_examples": [
+      "quiero entender como funciona este repo",
+      "que hace este paquete",
+      "como se relacionan estas funciones",
+      "cual es el flujo de ejecucion desde main",
+      "donde se usa esta interfaz",
+      "necesito refactorizar esta parte"
+    ],
+    "produces": ["repo_model:arquitecto.model.v1", "trace_report"],
+    "requires": []
+  }
+}

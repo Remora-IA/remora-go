@@ -1,0 +1,11 @@
+rut,nombre,deuda_total,dias_mora,ultima_gestion,resultado_gestion,telefono,email,tipo_deuda,cuotas_impagas,monto_cuota,fecha_vencimiento
+12345678-9,Pedro González Muñoz,1450000,45,2026-04-15,No contesta,+56912345678,pgonzalez@mail.cl,Crédito consumo,3,483333,2026-03-10
+98765432-1,María Isabel Contreras,3200000,120,2026-02-01,Promesa incumplida,+56987654321,mcontreras@mail.cl,Hipotecario,6,533333,2025-12-25
+11222333-4,Juan Carlos Ramírez,890000,30,2026-04-28,Contactado - pide plazo,+56911223344,jramirez@mail.cl,Tarjeta crédito,2,445000,2026-03-25
+15678901-2,Andrea Sofía López,2100000,90,2026-03-10,Sin contacto,+56915678901,alopez@mail.cl,Crédito consumo,4,525000,2026-01-15
+19876543-0,Roberto Alejandro Díaz,675000,15,2026-05-10,Pago parcial,+56919876543,rdiaz@mail.cl,Línea crédito,1,675000,2026-05-01
+13456789-5,Claudia Fernanda Silva,4500000,180,2025-12-20,Dirección incorrecta,+56913456789,,Hipotecario,12,375000,2025-11-01
+17890123-6,Francisco Javier Torres,1200000,60,2026-04-01,Promesa de pago 15/05,+56917890123,ftorres@mail.cl,Crédito consumo,3,400000,2026-02-20
+14567890-3,Carolina Andrea Morales,950000,25,2026-05-01,Contactado - revisando,+56914567890,cmorales@mail.cl,Tarjeta crédito,2,475000,2026-04-01
+16789012-8,Sergio Patricio Vargas,5800000,210,2025-11-15,Judicializado,+56916789012,svargas@mail.cl,Hipotecario,14,414285,2025-10-01
+18901234-7,Patricia Alejandra Ruiz,320000,10,2026-05-15,Primera gestión pendiente,,pruiz@mail.cl,Línea crédito,1,320000,2026-05-10

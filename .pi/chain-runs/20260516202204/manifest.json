@@ -1,0 +1,39 @@
+{
+  "run_id": "20260516202204",
+  "timestamp": "2026-05-17T00:24:42Z",
+  "code_hash": "c19d061c8ecf5ff5",
+  "components": [
+    "remora-cli",
+    "remora-flujo",
+    "channel",
+    "framework-alfa"
+  ],
+  "steps": {
+    "pi-detective": {
+      "status": "completed",
+      "step": "01",
+      "components_analyzed": 4,
+      "sinks_exec": 156,
+      "sinks_sql": 156,
+      "methods_detected": "~500+",
+      "interfaces_detected": 5
+    },
+    "pi-indexer": {
+      "status": "completed",
+      "step": "03",
+      "timestamp": "2026-05-17T00:28:07Z",
+      "index_path": ".pi/semantic-index.yaml",
+      "components": [
+        "remora-cli",
+        "remora-flujo",
+        "channel"
+      ],
+      "total_features": 7,
+      "total_functions": 89,
+      "total_interfaces": 5,
+      "total_axioms": 7,
+      "total_gaps": 5,
+      "total_sinks": 7
+    }
+  }
+}

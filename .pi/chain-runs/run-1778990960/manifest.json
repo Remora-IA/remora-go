@@ -1,0 +1,37 @@
+{
+  "runId": "run-1778990960",
+  "project": "remora-go-lite",
+  "codeHash": "5f3d64e50f60c935",
+  "components": [
+    "remora-cli",
+    "remora-flujo",
+    "channel"
+  ],
+  "steps": {
+    "pi-cpg-builder": {
+      "status": "completed",
+      "step": "00",
+      "timestamp": "2026-05-17T04:02:44Z"
+    },
+    "pi-detective": {
+      "status": "completed",
+      "step": "01",
+      "timestamp": "2026-05-17T04:25:56Z",
+      "components": [
+        "remora-cli",
+        "remora-flujo",
+        "channel"
+      ]
+    },
+    "pi-pre-narrador": {
+      "status": "completed",
+      "step": "02",
+      "timestamp": "2026-05-17T04:08:00Z"
+    },
+    "pi-indexer": {
+      "status": "completed",
+      "step": "03",
+      "timestamp": "2026-05-17T04:12:00Z"
+    }
+  }
+}

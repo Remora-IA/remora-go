@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lau.ai — Monitor Judicial</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242836;
+    --border: #2e3348;
+    --text: #e4e6f0;
+    --text2: #8b8fa8;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --red: #ff6b6b;
+    --orange: #ffa94d;
+    --green: #51cf66;
+    --blue: #339af0;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left { display:flex; align-items:center; gap:12px; }
+  .header-logo {
+    width:36px; height:36px; border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:16px; color:#fff;
+  }
+  .header h1 { font-size:18px; font-weight:600; }
+  .header h1 span { color: var(--text2); font-weight:400; font-size:14px; margin-left:8px; }
+
+  .status-bar {
+    display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text2);
+  }
+  .status-dot {
+    width:8px; height:8px; border-radius:50%;
+    animation: pulse 2s infinite;
+  }
+  .status-dot.polling { background: var(--green); }
+  .status-dot.idle { background: var(--text2); animation:none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    height: calc(100vh - 65px);
+  }
+
+  .main-panel { padding: 24px; overflow-y:auto; }
+  .side-panel {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    overflow-y: auto;
+  }
+
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .stat-card .label { font-size:12px; color:var(--text2); margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+  .stat-card .value { font-size:28px; font-weight:700; }
+  .stat-card .value.red { color: var(--red); }
+  .stat-card .value.orange { color: var(--orange); }
+  .stat-card .value.green { color: var(--green); }
+  .stat-card .value.blue { color: var(--blue); }
+
+  .section-title {
+    font-size:14px; font-weight:600; color:var(--text2);
+    text-transform:uppercase; letter-spacing:.5px;
+    margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .section-title .count {
+    background:var(--accent); color:#fff; font-size:11px;
+    padding:2px 8px; border-radius:10px;
+  }
+
+  .notif-list { display:flex; flex-direction:column; gap:8px; }
+  .notif-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+  }
+  .notif-card:hover { border-color: var(--accent); transform:translateY(-1px); }
+  .notif-card.selected { border-color: var(--accent); background: var(--surface2); }
+  .notif-card.new { animation: slideIn .3s ease-out; }
+  @keyframes slideIn { from{opacity:0;transform:translateY(-10px)} to{opacity:1;transform:translateY(0)} }
+
+  .notif-card .badge {
+    display:inline-block; font-size:10px; font-weight:600;
+    padding:3px 8px; border-radius:6px; text-transform:uppercase; letter-spacing:.5px;
+    margin-bottom:8px;
+  }
+  .badge.alta { background:rgba(255,107,107,.15); color:var(--red); }
+  .badge.baja { background:rgba(139,143,168,.15); color:var(--text2); }
+  .badge.descartado { background:rgba(139,143,168,.1); color:var(--text2); }
+  .badge.hearing { background:rgba(255,169,77,.15); color:var(--orange); }
+  .badge.acked { background:rgba(81,207,102,.15); color:var(--green); }
+
+  .notif-card .title { font-size:14px; font-weight:600; margin-bottom:4px; }
+  .notif-card .summary { font-size:12px; color:var(--text2); line-height:1.4; }
+  .notif-card .time { font-size:11px; color:var(--text2); margin-top:8px; }
+  .notif-card .action-hint {
+    position:absolute; top:16px; right:16px;
+    font-size:11px; color:var(--red); font-weight:600;
+  }
+
+  .detail-empty {
+    display:flex; align-items:center; justify-content:center;
+    height:100%; color:var(--text2); font-size:14px;
+  }
+
+  .detail-header { margin-bottom:20px; }
+  .detail-header .badge { margin-bottom:8px; }
+  .detail-header h2 { font-size:16px; font-weight:600; margin-bottom:4px; }
+  .detail-header .tribunal { font-size:13px; color:var(--text2); }
+
+  .detail-section {
+    background: var(--surface2);
+    border-radius:10px;
+    padding:14px;
+    margin-bottom:12px;
+  }
+  .detail-section .label {
+    font-size:11px; color:var(--text2); text-transform:uppercase;
+    letter-spacing:.5px; margin-bottom:6px;
+  }
+  .detail-section .content { font-size:13px; line-height:1.5; }
+  .detail-section .content.mono { font-family:'SF Mono',Monaco,monospace; font-size:12px; }
+
+  .detail-actions { display:flex; flex-direction:column; gap:8px; margin-top:16px; }
+  .action-btn {
+    padding:10px 16px; border-radius:10px; border:1px solid var(--border);
+    background:var(--surface2); color:var(--text); font-size:13px; font-weight:500;
+    cursor:pointer; transition:all .15s; text-align:left;
+    display:flex; align-items:center; gap:8px;
+  }
+  .action-btn:hover { border-color:var(--accent); background:var(--accent); color:#fff; }
+  .action-btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .action-btn.primary:hover { background:var(--accent2); }
+  .action-btn .icon { font-size:16px; }
+  .action-btn.acked { background:rgba(81,207,102,.1); border-color:var(--green); color:var(--green); cursor:default; }
+
+  .event-log {
+    margin-top:24px; padding-top:16px;
+    border-top:1px solid var(--border);
+  }
+  .log-entry {
+    font-size:12px; color:var(--text2);
+    padding:4px 0; border-bottom:1px solid rgba(255,255,255,.03);
+    display:flex; gap:8px;
+  }
+  .log-entry .time { color:var(--accent2); font-family:'SF Mono',Monaco,monospace; font-size:11px; white-space:nowrap; }
+  .log-entry.action { color:var(--green); }
+  .log-entry.error { color:var(--red); }
+  .log-entry.new-notif { color:var(--orange); }
+
+  .conn-config {
+    background: var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+    margin-bottom:24px;
+  }
+  .conn-config label { font-size:12px; color:var(--text2); display:block; margin-bottom:4px; }
+  .conn-config input, .conn-config select {
+    width:100%; padding:8px 10px; border-radius:8px;
+    border:1px solid var(--border); background:var(--surface2);
+    color:var(--text); font-size:13px; margin-bottom:8px;
+  }
+  .conn-config .row { display:flex; gap:8px; }
+  .conn-config .row > * { flex:1; }
+  .btn-connect {
+    width:100%; padding:10px; border:none; border-radius:8px;
+    background:var(--accent); color:#fff; font-weight:600;
+    cursor:pointer; font-size:13px;
+  }
+  .btn-connect:hover { background:var(--accent2); }
+  .btn-connect.connected { background:var(--green); }
+
+  .scraper-sim {
+    background: var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+    margin-bottom:16px;
+  }
+  .scraper-sim h3 { font-size:13px; font-weight:600; margin-bottom:8px; }
+  .scraper-sim .desc { font-size:12px; color:var(--text2); margin-bottom:12px; }
+  .btn-scrape {
+    width:100%; padding:10px; border:1px solid var(--orange); border-radius:8px;
+    background:rgba(255,169,77,.1); color:var(--orange); font-weight:600;
+    cursor:pointer; font-size:13px;
+  }
+  .btn-scrape:hover { background:rgba(255,169,77,.2); }
+  .btn-scrape:disabled { opacity:.5; cursor:wait; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">L</div>
+    <h1>Lau.ai <span>Monitor Judicial</span></h1>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot idle" id="statusDot"></div>
+    <span id="statusText">Desconectado</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="main-panel">
+    <div class="stats-row">
+      <div class="stat-card"><div class="label">Pendientes</div><div class="value red" id="statPending">—</div></div>
+      <div class="stat-card"><div class="label">Requieren acción</div><div class="value orange" id="statAction">—</div></div>
+      <div class="stat-card"><div class="label">Confirmadas hoy</div><div class="value green" id="statAcked">—</div></div>
+      <div class="stat-card"><div class="label">Total hoy</div><div class="value blue" id="statTotal">—</div></div>
+    </div>
+
+    <div class="section-title">Notificaciones pendientes <span class="count" id="pendingCount">0</span></div>
+    <div class="notif-list" id="notifList">
+      <div class="detail-empty">Conecta al servidor para empezar a recibir notificaciones</div>
+    </div>
+  </div>
+
+  <div class="side-panel">
+    <div class="conn-config">
+      <div class="section-title" style="margin-bottom:12px">Conexión a Remora</div>
+      <label>Servidor</label>
+      <input type="text" id="cfgHost" value="http://localhost:8084">
+      <div class="row">
+        <div><label>Email</label><input type="text" id="cfgEmail" value="lau@lau-ai.cl"></div>
+        <div><label>Password</label><input type="password" id="cfgPass" value="LauAi2026!"></div>
+      </div>
+      <label>Business ID</label>
+      <input type="text" id="cfgBizId" placeholder="Se detecta automáticamente">
+      <div class="row">
+        <div><label>Polling (seg)</label><input type="number" id="cfgPoll" value="3" min="1" max="60"></div>
+        <div><label>Filtro</label>
+          <select id="cfgFilter">
+            <option value="all">Todas</option>
+            <option value="alta">Solo alta relevancia</option>
+            <option value="accionable">Solo accionables</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-connect" id="btnConnect" onclick="toggleConnection()">Conectar</button>
+    </div>
+
+    <div class="scraper-sim">
+      <h3>Simulador de Scraper PJUD</h3>
+      <div class="desc">Inyecta notificaciones realistas como si el scraper acabara de detectar cambios en causas judiciales.</div>
+      <button class="btn-scrape" id="btnScrape" onclick="runScraperSim()" disabled>Ejecutar scraping simulado</button>
+    </div>
+
+    <div id="detailPanel">
+      <div class="detail-empty">Selecciona una notificación para ver el detalle</div>
+    </div>
+
+    <div class="event-log">
+      <div class="section-title">Log de eventos</div>
+      <div id="eventLog"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let state = {
+  connected: false,
+  token: null,
+  businessId: null,
+  pollInterval: null,
+  notifications: [],
+  ackedCount: 0,
+  selectedId: null,
+  knownIds: new Set(),
+  scraperRound: 0,
+};
+
+function log(msg, cls='') {
+  const el = document.getElementById('eventLog');
+  const now = new Date().toLocaleTimeString('es-CL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  el.innerHTML = `<div class="log-entry ${cls}"><span class="time">${now}</span><span>${msg}</span></div>` + el.innerHTML;
+  if (el.children.length > 50) el.lastChild.remove();
+}
+
+async function apiCall(method, path, body) {
+  const host = document.getElementById('cfgHost').value;
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (state.token) opts.headers['Authorization'] = 'Bearer ' + state.token;
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(host + path, opts);
+  return r.json();
+}
+
+async function toggleConnection() {
+  if (state.connected) { disconnect(); return; }
+  const btn = document.getElementById('btnConnect');
+  btn.textContent = 'Conectando...';
+  try {
+    const email = document.getElementById('cfgEmail').value;
+    const pass = document.getElementById('cfgPass').value;
+    let res = await apiCall('POST', '/api/v1/auth/login', {email, password:pass});
+    if (!res.success) {
+      res = await apiCall('POST', '/api/v1/auth/register', {email, password:pass, name:'Lau Admin'});
+    }
+    state.token = res.data?.token;
+    if (!state.token) throw new Error('No token');
+    log('Login exitoso', 'action');
+
+    const biz = await apiCall('GET', '/api/v1/businesses');
+    if (biz.data?.length) {
+      state.businessId = biz.data[0].business_id;
+      document.getElementById('cfgBizId').value = state.businessId;
+      log(`Negocio: ${biz.data[0].business_name} (${state.businessId})`);
+    } else {
+      const newBiz = await apiCall('POST', '/api/v1/businesses', {
+        name:'Lau.ai Monitoreo Judicial', domain:'judicial.lau-ai.cl', country:'CL'
+      });
+      state.businessId = newBiz.data?.business?.id;
+      document.getElementById('cfgBizId').value = state.businessId;
+      log(`Negocio creado: ${state.businessId}`, 'action');
+    }
+
+    state.connected = true;
+    btn.textContent = 'Desconectar';
+    btn.classList.add('connected');
+    document.getElementById('statusDot').className = 'status-dot polling';
+    document.getElementById('statusText').textContent = 'Polling activo';
+    document.getElementById('btnScrape').disabled = false;
+
+    const pollSec = parseInt(document.getElementById('cfgPoll').value) || 3;
+    poll();
+    state.pollInterval = setInterval(poll, pollSec * 1000);
+    log(`Polling cada ${pollSec}s iniciado`, 'action');
+  } catch(e) {
+    log('Error: ' + e.message, 'error');
+    btn.textContent = 'Conectar';
+  }
+}
+
+function disconnect() {
+  state.connected = false;
+  clearInterval(state.pollInterval);
+  document.getElementById('btnConnect').textContent = 'Conectar';
+  document.getElementById('btnConnect').classList.remove('connected');
+  document.getElementById('statusDot').className = 'status-dot idle';
+  document.getElementById('statusText').textContent = 'Desconectado';
+  document.getElementById('btnScrape').disabled = true;
+  log('Desconectado');
+}
+
+async function poll() {
+  if (!state.connected) return;
+  try {
+    const [pending, acked] = await Promise.all([
+      apiCall('GET', `/api/v1/businesses/${state.businessId}/notifications?status=pending`),
+      apiCall('GET', `/api/v1/businesses/${state.businessId}/notifications?status=acknowledged`),
+    ]);
+    const pList = pending.data?.notifications || [];
+    const aList = acked.data?.notifications || [];
+
+    pList.forEach(n => {
+      if (!state.knownIds.has(n.id)) {
+        state.knownIds.add(n.id);
+        n._new = true;
+        const rel = n.payload?.relevancia || '?';
+        log(`Nueva: [${rel.toUpperCase()}] ${n.title}`, 'new-notif');
+      }
+    });
+
+    const filter = document.getElementById('cfgFilter').value;
+    let filtered = pList;
+    if (filter === 'alta') filtered = pList.filter(n => n.payload?.relevancia === 'alta');
+    if (filter === 'accionable') filtered = pList.filter(n => n.payload?.requiere_accion);
+
+    state.notifications = filtered;
+    state.ackedCount = aList.length;
+
+    updateStats(pList, aList);
+    renderNotifications();
+
+    document.getElementById('statusText').textContent =
+      `Polling activo — ${new Date().toLocaleTimeString('es-CL')}`;
+  } catch(e) {
+    document.getElementById('statusText').textContent = 'Error de conexión';
+    log('Poll error: ' + e.message, 'error');
+  }
+}
+
+function updateStats(pending, acked) {
+  const actionable = pending.filter(n => n.payload?.requiere_accion).length;
+  document.getElementById('statPending').textContent = pending.length;
+  document.getElementById('statAction').textContent = actionable;
+  document.getElementById('statAcked').textContent = acked.length;
+  document.getElementById('statTotal').textContent = pending.length + acked.length;
+  document.getElementById('pendingCount').textContent = state.notifications.length;
+}
+
+function renderNotifications() {
+  const el = document.getElementById('notifList');
+  if (!state.notifications.length) {
+    el.innerHTML = '<div class="detail-empty">Sin notificaciones pendientes</div>';
+    return;
+  }
+  el.innerHTML = state.notifications.map(n => {
+    const rel = n.payload?.relevancia || 'info';
+    const badgeCls = n.type === 'pjud.hearing' ? 'hearing' : rel;
+    const badgeText = n.type === 'pjud.hearing' ? 'Audiencia' :
+      rel === 'alta' ? 'Alta relevancia' :
+      rel === 'baja' ? 'Baja' : rel;
+    const actionHint = n.payload?.requiere_accion ? 'Requiere acción' : '';
+    const cls = n._new ? 'new' : '';
+    const sel = n.id === state.selectedId ? 'selected' : '';
+    return `<div class="notif-card ${cls} ${sel}" onclick="selectNotif('${n.id}')">
+      <span class="badge ${badgeCls}">${badgeText}</span>
+      ${actionHint ? `<span class="action-hint">${actionHint}</span>` : ''}
+      <div class="title">${n.title}</div>
+      <div class="summary">${n.summary || ''}</div>
+      <div class="time">${n.type} · ${timeAgo(n.created_at)}</div>
+    </div>`;
+  }).join('');
+  state.notifications.forEach(n => n._new = false);
+}
+
+function selectNotif(id) {
+  state.selectedId = id;
+  const n = state.notifications.find(x => x.id === id);
+  if (!n) return;
+  renderNotifications();
+  renderDetail(n);
+}
+
+function renderDetail(n) {
+  const panel = document.getElementById('detailPanel');
+  const p = n.payload || {};
+  const rel = p.relevancia || 'info';
+  const badgeCls = n.type === 'pjud.hearing' ? 'hearing' : rel;
+
+  let sections = '';
+  if (p.caratulado) sections += sec('Carátula', p.caratulado);
+  if (p.causa_rol) sections += sec('ROL', p.causa_rol, true);
+  if (p.tribunal) sections += sec('Tribunal', p.tribunal);
+  if (p.tipo_resolucion) sections += sec('Tipo resolución', p.tipo_resolucion.replace(/_/g,' '));
+  if (p.fecha_resolucion) sections += sec('Fecha resolución', p.fecha_resolucion);
+  if (p.texto_resumen) sections += sec('Resumen', p.texto_resumen);
+  if (p.plazo_dias_habiles > 0) {
+    sections += sec('Plazo', `${p.plazo_dias_habiles} días hábiles — vence ${p.fecha_vencimiento_plazo || '(calcular)'}`);
+  }
+  if (p.audiencia) {
+    const a = p.audiencia;
+    sections += sec('Audiencia', `${a.fecha} a las ${a.hora} · ${a.plataforma || 'Presencial'}${a.link ? ' · ' + a.link : ''}`);
+  }
+  if (p.accion_sugerida) sections += sec('Acción sugerida', p.accion_sugerida);
+
+  let actions = '';
+  if (p.requiere_accion) {
+    if (p.tipo_resolucion === 'sentencia_definitiva') {
+      actions = `
+        <button class="action-btn primary" onclick="takeAction('${n.id}','draft_appeal')"><span class="icon">📝</span> Generar borrador de apelación</button>
+        <button class="action-btn" onclick="takeAction('${n.id}','calc_deadline')"><span class="icon">📅</span> Calcular plazo exacto</button>
+        <button class="action-btn" onclick="ackNotif('${n.id}')"><span class="icon">✓</span> Confirmar recepción</button>
+      `;
+    } else if (n.type === 'pjud.hearing') {
+      actions = `
+        <button class="action-btn primary" onclick="takeAction('${n.id}','schedule_hearing')"><span class="icon">📅</span> Agendar en calendario</button>
+        <button class="action-btn" onclick="takeAction('${n.id}','prep_hearing')"><span class="icon">📋</span> Preparar minuta para audiencia</button>
+        <button class="action-btn" onclick="ackNotif('${n.id}')"><span class="icon">✓</span> Confirmar recepción</button>
+      `;
+    } else {
+      actions = `
+        <button class="action-btn primary" onclick="ackNotif('${n.id}')"><span class="icon">✓</span> Confirmar recepción</button>
+      `;
+    }
+  } else {
+    actions = `
+      <button class="action-btn" onclick="ackNotif('${n.id}')"><span class="icon">✓</span> Marcar como vista</button>
+    `;
+  }
+
+  panel.innerHTML = `
+    <div class="detail-header">
+      <span class="badge ${badgeCls}">${rel}</span>
+      <h2>${n.title}</h2>
+      <div class="tribunal">${p.tribunal || n.type}</div>
+    </div>
+    ${sections}
+    <div class="detail-actions">${actions}</div>
+  `;
+}
+
+function sec(label, content, mono) {
+  return `<div class="detail-section"><div class="label">${label}</div><div class="content${mono?' mono':''}">${content}</div></div>`;
+}
+
+async function ackNotif(id) {
+  try {
+    const res = await apiCall('POST', `/api/v1/businesses/${state.businessId}/notifications/${id}/ack`);
+    if (res.success) {
+      log(`ACK: ${id.slice(0,20)}... → confirmada`, 'action');
+      if (state.selectedId === id) {
+        document.getElementById('detailPanel').innerHTML =
+          '<div class="detail-empty" style="color:var(--green)">Notificación confirmada ✓</div>';
+        state.selectedId = null;
+      }
+      poll();
+    }
+  } catch(e) {
+    log('Error ACK: ' + e.message, 'error');
+  }
+}
+
+async function takeAction(notifId, actionType) {
+  const n = state.notifications.find(x => x.id === notifId);
+  if (!n) return;
+  const p = n.payload || {};
+  log(`Acción: ${actionType} sobre ${p.causa_rol || notifId}`, 'action');
+
+  const btn = event.target.closest('.action-btn');
+  const origText = btn.innerHTML;
+  btn.innerHTML = '<span class="icon">⏳</span> Procesando...';
+  btn.disabled = true;
+
+  let resultTitle = '';
+  let resultPayload = {};
+
+  if (actionType === 'draft_appeal') {
+    await sleep(2000);
+    resultTitle = `Borrador de apelación generado — ${p.caratulado || p.causa_rol}`;
+    resultPayload = {
+      causa_rol: p.causa_rol,
+      tipo: 'borrador_recurso_apelacion',
+      generado_por: 'lau.ai',
+      contenido_resumen: `RECURSO DE APELACIÓN\n\nEN LO PRINCIPAL: Recurso de apelación contra sentencia definitiva.\n\nS.J.L. en lo Civil (1°) de Santiago\n\n${p.caratulado || 'Partes'}\nRol: ${p.causa_rol}\n\nEl demandante, por esta parte, viene en deducir recurso de apelación en contra de la sentencia definitiva de fecha ${p.fecha_resolucion}, en cuanto rechaza parcialmente la demanda respecto del lucro cesante...\n\n[Borrador generado automáticamente — requiere revisión de abogado]`,
+      fecha_limite: p.fecha_vencimiento_plazo,
+      relevancia: 'alta',
+      requiere_accion: true,
+      accion_sugerida: 'Revisar borrador y presentar recurso antes del vencimiento del plazo'
+    };
+  } else if (actionType === 'calc_deadline') {
+    await sleep(1000);
+    const venc = p.fecha_vencimiento_plazo || calcDeadline(p.fecha_resolucion, p.plazo_dias_habiles, p.sabados_habiles);
+    resultTitle = `Plazo calculado — ${p.causa_rol}: vence ${venc}`;
+    resultPayload = {
+      causa_rol: p.causa_rol,
+      tipo: 'calculo_plazo',
+      fecha_resolucion: p.fecha_resolucion,
+      dias_habiles: p.plazo_dias_habiles,
+      sabados_cuentan: p.sabados_habiles,
+      fecha_vencimiento: venc,
+      dias_restantes: daysBetween(new Date(), new Date(venc)),
+      relevancia: 'alta',
+      requiere_accion: false
+    };
+  } else if (actionType === 'schedule_hearing') {
+    await sleep(1500);
+    const a = p.audiencia || {};
+    resultTitle = `Audiencia agendada — ${a.fecha} ${a.hora} · ${p.causa_rol}`;
+    resultPayload = {
+      causa_rol: p.causa_rol,
+      tipo: 'audiencia_agendada',
+      fecha: a.fecha,
+      hora: a.hora,
+      plataforma: a.plataforma,
+      link: a.link,
+      calendario: 'Google Calendar',
+      relevancia: 'alta',
+      requiere_accion: false
+    };
+  } else if (actionType === 'prep_hearing') {
+    await sleep(2500);
+    resultTitle = `Minuta preparada — audiencia ${p.causa_rol}`;
+    resultPayload = {
+      causa_rol: p.causa_rol,
+      tipo: 'minuta_audiencia',
+      generado_por: 'lau.ai',
+      contenido_resumen: `MINUTA PREPARATORIA\n\nCausa: ${p.causa_rol} — ${p.caratulado}\nTribunal: ${p.tribunal}\nFecha audiencia: ${p.audiencia?.fecha} a las ${p.audiencia?.hora}\n\nPUNTOS A TRATAR:\n1. Verificar acreditación de partes\n2. Contestación de la demanda (revisar plazo Art. 453 CT)\n3. Ofrecimiento de prueba\n4. Eventual conciliación\n\nDOCUMENTOS A TENER LISTOS:\n- Contrato de trabajo\n- Liquidaciones de sueldo\n- Carta de despido\n\n[Minuta generada automáticamente — complementar con antecedentes del caso]`,
+      relevancia: 'alta',
+      requiere_accion: true,
+      accion_sugerida: 'Revisar minuta y complementar con antecedentes específicos del caso'
+    };
+  }
+
+  if (resultTitle) {
+    await apiCall('POST', `/api/v1/businesses/${state.businessId}/notifications`, {
+      flow_id: n.flow_id,
+      run_id: n.run_id,
+      type: 'lau.action_result',
+      title: resultTitle,
+      summary: `Resultado de ${actionType.replace(/_/g,' ')} para ${p.causa_rol}`,
+      payload: resultPayload
+    });
+    log(`Resultado guardado como nueva notificación`, 'action');
+  }
+
+  await ackNotif(notifId);
+  btn.innerHTML = '<span class="icon">✓</span> Hecho';
+  btn.className = 'action-btn acked';
+}
+
+const SCRAPER_DATA = [
+  [
+    {
+      type: 'pjud.update', title: 'Sentencia definitiva — Rodríguez c/ Banco Nacional',
+      summary: '1° Juzgado Civil de Santiago · Causa C-4521-2025 · Se acoge parcialmente la demanda. Plazo: 10 días hábiles para recurrir.',
+      payload: { causa_rol:'C-4521-2025', tribunal:'1° Juzgado Civil de Santiago', tipo_resolucion:'sentencia_definitiva', caratulado:'Rodríguez Muñoz, Carlos / Banco Nacional S.A.', fecha_resolucion:'2026-05-19', texto_resumen:'Se acoge parcialmente la demanda en cuanto a indemnizar al demandante por concepto de daño emergente. Se rechaza la demanda en lo relativo al lucro cesante. Costas a la parte demandada.', plazo_dias_habiles:10, sabatos_habiles:true, fecha_vencimiento_plazo:'2026-06-02', relevancia:'alta', requiere_accion:true, accion_sugerida:'Evaluar recurso de apelación dentro de los 10 días hábiles (sábados cuentan por ser tribunal civil)' }
+    },
+    {
+      type: 'pjud.update', title: 'Téngase presente — López c/ Inmobiliaria Sur',
+      summary: '2° Juzgado Civil de Valparaíso · Causa C-1187-2024 · Escrito de mero trámite. Sin plazo asociado.',
+      payload: { causa_rol:'C-1187-2024', tribunal:'2° Juzgado Civil de Valparaíso', tipo_resolucion:'decreto', caratulado:'López Hernández, María / Inmobiliaria Sur Ltda.', fecha_resolucion:'2026-05-18', texto_resumen:'Téngase presente el escrito de la parte demandante en que solicita se tenga a la vista los documentos acompañados.', plazo_dias_habiles:0, relevancia:'baja', requiere_accion:false, accion_sugerida:'Ninguna acción requerida. Trámite administrativo.' }
+    },
+    {
+      type: 'pjud.hearing', title: 'Audiencia preparatoria — González c/ Eléctrica del Norte',
+      summary: 'Juzgado de Letras del Trabajo de Antofagasta · Causa O-892-2026 · Audiencia por videoconferencia el 28/05/2026 a las 10:00.',
+      payload: { causa_rol:'O-892-2026', tribunal:'Juzgado de Letras del Trabajo de Antofagasta', tipo_resolucion:'auto_de_prueba', caratulado:'González Tapia, Pedro / Empresa Eléctrica del Norte S.A.', fecha_resolucion:'2026-05-16', texto_resumen:'Cítase a las partes a audiencia preparatoria para el día 28 de mayo de 2026 a las 10:00 horas, la cual se realizará por videoconferencia a través de la plataforma Zoom.', audiencia:{ fecha:'2026-05-28', hora:'10:00', modalidad:'videoconferencia', plataforma:'Zoom', link:'https://zoom.us/j/94821573625', password:'tribunal2026' }, relevancia:'alta', requiere_accion:true, accion_sugerida:'Agendar audiencia preparatoria el 28/05/2026 a las 10:00 por Zoom' }
+    },
+    {
+      type: 'pjud.duplicate', title: 'Duplicado descartado — Rodríguez c/ Banco Nacional',
+      summary: 'C-4521-2025 · Resolución duplicada del sistema PJUD. Ya procesada.',
+      payload: { causa_rol:'C-4521-2025', tribunal:'1° Juzgado Civil de Santiago', duplicado_de:'notif_original_sentencia', motivo_descarte:'Mismo texto de resolución ya procesado. Error de duplicación del sistema del Poder Judicial.', relevancia:'descartado', requiere_accion:false }
+    }
+  ],
+  [
+    {
+      type: 'pjud.update', title: 'Auto de prueba — Muñoz c/ Isapre Cruz Blanca',
+      summary: '3° Juzgado Civil de Concepción · Causa C-2890-2025 · Se recibe la causa a prueba. Término probatorio: 20 días.',
+      payload: { causa_rol:'C-2890-2025', tribunal:'3° Juzgado Civil de Concepción', tipo_resolucion:'auto_de_prueba', caratulado:'Muñoz Sepúlveda, Ana / Isapre Cruz Blanca S.A.', fecha_resolucion:'2026-05-19', texto_resumen:'Recíbase la causa a prueba fijándose como hechos sustanciales, pertinentes y controvertidos los siguientes: 1) Efectividad de la enfermedad preexistente alegada; 2) Procedencia de la cobertura CAEC; 3) Monto de los perjuicios.', plazo_dias_habiles:20, sabatos_habiles:true, fecha_vencimiento_plazo:'2026-06-16', relevancia:'alta', requiere_accion:true, accion_sugerida:'Preparar lista de testigos y documentos dentro del término probatorio de 20 días' }
+    },
+    {
+      type: 'pjud.update', title: 'Notificación por cédula practicada — Soto c/ AFP Habitat',
+      summary: 'Juzgado de Letras del Trabajo de Iquique · Causa O-341-2026 · Demanda notificada al demandado.',
+      payload: { causa_rol:'O-341-2026', tribunal:'Juzgado de Letras del Trabajo de Iquique', tipo_resolucion:'notificacion', caratulado:'Soto Araya, Francisco / AFP Habitat S.A.', fecha_resolucion:'2026-05-17', texto_resumen:'Certifícase que con esta fecha se practicó la notificación por cédula al demandado AFP Habitat S.A. en su domicilio registrado Av. Providencia 1909, piso 12, Santiago.', relevancia:'baja', requiere_accion:false, accion_sugerida:'Informativo — esperar contestación del demandado dentro de plazo legal.' }
+    },
+    {
+      type: 'pjud.hearing', title: 'Audiencia de juicio — Contreras c/ Cencosud',
+      summary: '2° Juzgado de Letras del Trabajo de Santiago · Causa O-1455-2025 · Audiencia de juicio el 02/06/2026 a las 09:00.',
+      payload: { causa_rol:'O-1455-2025', tribunal:'2° Juzgado de Letras del Trabajo de Santiago', tipo_resolucion:'citacion_juicio', caratulado:'Contreras Vega, Lorena / Cencosud Retail S.A.', fecha_resolucion:'2026-05-15', texto_resumen:'Cítase a las partes a audiencia de juicio oral para el día 02 de junio de 2026 a las 09:00 horas, en la sala 4 de este tribunal. Se apercibe a las partes que la inasistencia podrá ser sancionada conforme al artículo 454 del Código del Trabajo.', audiencia:{ fecha:'2026-06-02', hora:'09:00', modalidad:'presencial', plataforma:null, sala:'Sala 4', direccion:'Av. Pedro Montt 1606, Santiago' }, relevancia:'alta', requiere_accion:true, accion_sugerida:'Audiencia PRESENCIAL en Sala 4 — preparar declaración de testigos y prueba documental' }
+    }
+  ],
+  [
+    {
+      type: 'pjud.update', title: 'Recurso de apelación concedido — Rodríguez c/ Banco Nacional',
+      summary: '1° Juzgado Civil de Santiago · Causa C-4521-2025 · Se concede recurso de apelación en ambos efectos.',
+      payload: { causa_rol:'C-4521-2025', tribunal:'1° Juzgado Civil de Santiago', tipo_resolucion:'concesion_recurso', caratulado:'Rodríguez Muñoz, Carlos / Banco Nacional S.A.', fecha_resolucion:'2026-05-19', texto_resumen:'Concédese el recurso de apelación deducido por la parte demandante en ambos efectos. Elévense los autos al tribunal superior. Notifíquese.', relevancia:'alta', requiere_accion:true, accion_sugerida:'Recurso concedido — preparar alegatos para la Corte de Apelaciones de Santiago. Verificar fecha de ingreso a tabla.' }
+    },
+    {
+      type: 'pjud.update', title: 'Desistimiento parcial — Torres c/ Municipalidad de Maipú',
+      summary: 'Juzgado Civil de Maipú · Causa C-567-2024 · Se acepta desistimiento parcial de la demanda.',
+      payload: { causa_rol:'C-567-2024', tribunal:'Juzgado Civil de Maipú', tipo_resolucion:'desistimiento', caratulado:'Torres Rojas, Javiera / Ilustre Municipalidad de Maipú', fecha_resolucion:'2026-05-19', texto_resumen:'Ha lugar al desistimiento parcial de la demanda respecto de la pretensión indemnizatoria por lucro cesante. Continúese el juicio respecto de las demás pretensiones.', relevancia:'baja', requiere_accion:false, accion_sugerida:'Informativo — juicio continúa por las demás pretensiones.' }
+    }
+  ]
+];
+
+async function runScraperSim() {
+  const btn = document.getElementById('btnScrape');
+  if (state.scraperRound >= SCRAPER_DATA.length) {
+    log('Todas las rondas de scraping simuladas completadas', 'action');
+    btn.textContent = 'Sin más datos (reiniciar página)';
+    btn.disabled = true;
+    return;
+  }
+
+  btn.disabled = true;
+  const round = SCRAPER_DATA[state.scraperRound];
+  btn.textContent = `Scrapeando... (${round.length} resoluciones)`;
+  log(`Scraper PJUD: ronda ${state.scraperRound + 1} — ${round.length} resoluciones detectadas`, 'new-notif');
+
+  for (let i = 0; i < round.length; i++) {
+    const n = round[i];
+    await sleep(800 + Math.random() * 700);
+    await apiCall('POST', `/api/v1/businesses/${state.businessId}/notifications`, {
+      flow_id: 'flow_pjud_monitor',
+      run_id: `run_${Date.now()}`,
+      type: n.type,
+      title: n.title,
+      summary: n.summary,
+      payload: n.payload
+    });
+    log(`Scraper → ${n.payload.causa_rol}: ${n.payload.tipo_resolucion}`, 'new-notif');
+  }
+
+  state.scraperRound++;
+  btn.disabled = false;
+  btn.textContent = state.scraperRound < SCRAPER_DATA.length
+    ? `Ejecutar scraping (ronda ${state.scraperRound + 1}/${SCRAPER_DATA.length})`
+    : 'Todas las rondas completadas';
+  log(`Ronda ${state.scraperRound} completa — ${round.length} notificaciones inyectadas`, 'action');
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const s = Math.floor((Date.now() - d) / 1000);
+  if (s < 60) return 'hace ' + s + 's';
+  if (s < 3600) return 'hace ' + Math.floor(s/60) + 'm';
+  return d.toLocaleTimeString('es-CL', {hour:'2-digit',minute:'2-digit'});
+}
+
+function calcDeadline(from, days, satCount) {
+  if (!from || !days) return '(datos insuficientes)';
+  let d = new Date(from);
+  let remaining = days;
+  while (remaining > 0) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow === 0) continue;
+    if (dow === 6 && !satCount) continue;
+    remaining--;
+  }
+  return d.toISOString().split('T')[0];
+}
+
+function daysBetween(a, b) {
+  return Math.ceil((b - a) / (1000*60*60*24));
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+</script>
+</body>
+</html>

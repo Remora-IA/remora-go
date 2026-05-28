@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "business_id": "biz_RbV7u_6zPvLwnfXX",
+  "name": "Lau.ai Monitoreo Judicial",
+  "domain": "cobranza / gestión de cartera morosa",
+  "why": "Ayudar a gestores de cobranza a analizar su cartera de deudores, priorizar por criticidad (días de mora + monto), y preparar acciones de contacto personalizadas.",
+  "default_audience": "collector",
+  "default_mode": "collection_assistant",
+  "data_source": {
+    "kind": "sqlite"
+  },
+  "primary_entities": {
+    "client": {
+      "table": "cartera_cobranzas_cartera_cobranzas",
+      "label": "Deudor",
+      "scope_key": "rut",
+      "scope_column": "rut",
+      "display_column": "nombre"
+    }
+  },
+  "scope_policies": {
+    "scope_entity": "client",
+    "tables": {
+      "cartera_cobranzas_cartera_cobranzas": {
+        "scope_column": "rut"
+      }
+    }
+  },
+  "collection_scoring": {
+    "entity_table": "cartera_cobranzas_cartera_cobranzas",
+    "entity_id_column": "rut",
+    "entity_name_column": "nombre",
+    "item_table": "cartera_cobranzas_cartera_cobranzas",
+    "item_entity_column": "rut",
+    "item_join_column": "rut",
+    "amount_column": "deuda_total",
+    "status_column": "resultado_gestion",
+    "date_column": "fecha_vencimiento",
+    "open_statuses": ["No contesta", "Promesa incumplida", "Sin contacto", "Contactado - pide plazo", "Contactado - revisando", "Dirección incorrecta", "Primera gestión pendiente"],
+    "recent_contact_days": 30
+  },
+  "audiences": {
+    "collector": {
+      "label": "Gestor de cobranza",
+      "description": "Usuario que necesita priorizar deudores, entender su situación y preparar acciones de contacto.",
+      "allowed_modes": ["collection_prioritization", "client_360", "portfolio_overview"],
+      "can_see_sql": false,
+      "answer_style": "ejecutivo, orientado a acción, con datos concretos de cada deudor"
+    },
+    "admin": {
+      "label": "Administrador de cobranza",
+      "description": "Supervisa la gestión de cartera, revisa KPIs y toma decisiones estratégicas.",
+      "allowed_modes": ["portfolio_overview", "collection_prioritization", "client_360", "data_quality"],
+      "can_see_sql": true,
+      "answer_style": "analítico, con métricas y comparaciones"
+    }
+  }
+}

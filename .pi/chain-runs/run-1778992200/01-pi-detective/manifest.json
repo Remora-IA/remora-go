@@ -1,0 +1,14 @@
+{
+  "run_id": "run-1778992200",
+  "steps": {
+    "pi-detective": {
+      "status": "completed",
+      "step": "01",
+      "timestamp": "2026-05-17T00:00:00Z",
+      "components": ["remora-cli", "remora-flujo", "channel"],
+      "output": ".pi/chain-runs/run-1778992200/01-pi-detective/output.md",
+      "gaps_count": 0,
+      "sinks_count": 13
+    }
+  }
+}

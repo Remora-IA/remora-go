@@ -1,0 +1,76 @@
+{
+  "project": "remora-go-lite",
+  "generated": "2026-05-16T00:00:00Z",
+  "methods": {
+    "remora-cli/cmd/remora/main.go": [
+      "main", "newClient", "fwColor",
+      "GetFrameworks", "GetFramework", "ListFlows", "GetFlow", "RunFlow", "SimulateFlow", "GetFlowRun",
+      "GetProviders", "GetRules",
+      "printJSON", "printFlowManifest", "printFlowRunResult"
+    ],
+    "remora-cli/cmd/remora/flow_workbench.go": [
+      "handleFlowWorkbench",
+      "handleDebugCommand",
+      "handleDebugFrameworks",
+      "handleDebugManifest",
+      "handleDebugCommands",
+      "handleDebugCapabilities",
+      "handleDebugTrace",
+      "handleDebugValidate",
+      "handleDebugSimulate",
+      "handleDebugDependencies",
+      "handleFlowCreate",
+      "handleFlowDraft",
+      "handleFlowInspect",
+      "handleFlowSimulate",
+      "delegateToCanonicalFlowWorkbench"
+    ],
+    "remora-flujo/cmd/api_rest/*.go": [
+      "handleListFlows", "handleCreateFlow", "handleGetFlow", "handleUpdateFlow", "handleDeleteFlow",
+      "handleGetCompiledFlow", "handleGetFlowRun",
+      "handleListFlowTemplates",
+      "handleDataTables", "handleDataTableRows", "handleBusinessDataTables", "handleBusinessDataTableRows",
+      "handleTasksList", "handleTasksNext", "handleTasksCreate", "handleTaskEvent",
+      "handleSMTPCheck", "handleHostingConnect", "handleSMTPImport", "handleSMTPDelete",
+      "handleBusinessArtifacts"
+    ]
+  },
+  "entry_points": [
+    "main",
+    "handleFlowWorkbench"
+  ],
+  "command_dispatch": {
+    "remora debug": [
+      "handleDebugCommand",
+      "handleDebugFrameworks",
+      "handleDebugManifest", 
+      "handleDebugCommands",
+      "handleDebugCapabilities",
+      "handleDebugTrace",
+      "handleDebugValidate",
+      "handleDebugSimulate",
+      "handleDebugDependencies"
+    ],
+    "remora flow": [
+      "handleFlowCreate",
+      "handleFlowDraft",
+      "handleFlowInspect",
+      "handleFlowSimulate"
+    ]
+  },
+  "sinks": [
+    {"type": "exec", "location": "remora-cli/cmd/remora/flow_workbench.go", "pattern": "exec.Command"},
+    {"type": "http", "location": "remora-cli/cmd/remora/main.go", "pattern": "http.NewRequest"},
+    {"type": "env", "location": "remora-cli/cmd/remora/main.go", "pattern": "os.Getenv"}
+  ],
+  "gaps": [
+    {"symbol": "handleFlowRun", "status": "NO_EXISTE", "query": "func handleFlowRun"},
+    {"symbol": "handleFlowDebug", "status": "NO_EXISTE", "query": "func handleFlowDebug"},
+    {"symbol": "remora flow debug", "status": "DELEGADO", "detail": "Delega a flujo externo via exec.Command"}
+  ],
+  "delegation_pattern": {
+    "pattern": "delegateToCanonicalFlowWorkbench",
+    "target": "exec.Command(\"flujo\", \"flow\", ...)",
+    "file": "remora-cli/cmd/remora/flow_workbench.go:880-910"
+  }
+}

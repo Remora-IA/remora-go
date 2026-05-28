@@ -218,3 +218,45 @@ func (s *server) notifyFocoCycleCompleted(ctx context.Context, runID, businessID
 
 func (s *server) recordTaskLedgerCycleCompleted(artifacts map[string]flowRunArtifact) {
 }
+
+func (s *server) emitCycleNotification(businessID, flowID, runID string, artifacts map[string]flowRunArtifact) {
+	cycle, ok := artifacts["cycle.result.v1"]
+	if !ok {
+		return
+	}
+	payload, _ := cycle.Payload.(map[string]interface{})
+	if payload == nil {
+		return
+	}
+
+	title := "Ciclo completado"
+	if summary, ok := payload["result_summary"].(string); ok && summary != "" {
+		title = summary
+	}
+	if entityName, ok := payload["entity_name"].(string); ok && entityName != "" {
+		title = entityName + ": " + title
+	}
+
+	s.CreateNotification(businessID, createNotificationReq{
+		FlowID:  flowID,
+		RunID:   runID,
+		Type:    "cycle.completed",
+		Title:   title,
+		Summary: cycleNotificationSummary(payload),
+		Payload: payload,
+	})
+}
+
+func cycleNotificationSummary(payload map[string]interface{}) string {
+	parts := []string{}
+	if kind, ok := payload["cycle_kind"].(string); ok && kind != "" {
+		parts = append(parts, kind)
+	}
+	if status, ok := payload["status"].(string); ok && status != "" {
+		parts = append(parts, status)
+	}
+	if cap, ok := payload["completed_by_capability"].(string); ok && cap != "" {
+		parts = append(parts, cap)
+	}
+	return strings.Join(parts, " — ")
+}

@@ -1,0 +1,56 @@
+{
+  "name": "deployer",
+  "version": "0.1.0",
+  "description": "Deploya remora-go a Cloud Run dev. Nunca toca produccion. No hace commits.",
+  "build": {
+    "command": "go",
+    "args": ["build", "-o", "deployer", "./cmd/deployer"]
+  },
+  "binary": {
+    "command": "go",
+    "args_prefix": ["run", "./cmd/deployer"]
+  },
+  "cwd": "framework-deployer",
+  "inputs": [],
+  "outputs": [],
+  "commands": {
+    "plan": {
+      "description": "Muestra el plan de deploy dev sin ejecutar",
+      "args": []
+    },
+    "apply": {
+      "description": "Deploya a flujo-api-dev",
+      "args": ["--apply"]
+    }
+  },
+  "asks_human": {},
+  "user_input": {
+    "supported": false
+  },
+  "execution_mode": "async_trigger",
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": ["text", "conversation"]
+  },
+  "capabilities_semantic": {
+    "tags": ["deploy", "cloud-run", "dev"],
+    "intent_examples": ["deploy dev", "desplegar a dev", "actualizar flujo-api-dev"],
+    "produces": ["deploy:dev"],
+    "requires": ["repo:remora-go"]
+  },
+  "guards": {
+    "forbidden_targets": ["prod", "flujo-api"],
+    "side_effects": ["gcloud builds submit", "gcloud run deploy"],
+    "no_git_writes": true
+  },
+  "env_vars": {
+    "optional": [
+      "PROJECT_ID",
+      "REGION",
+      "DEV_SERVICE",
+      "REMORA_ROOT"
+    ]
+  }
+}

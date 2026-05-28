@@ -1,0 +1,21 @@
+{
+  "chain_run_id": "c28cea68",
+  "created_at": "2026-05-16T00:00:00Z",
+  "steps": {
+    "pi-narrador": {
+      "status": "completed",
+      "step": "01",
+      "timestamp": "2026-05-16T00:00:00Z"
+    },
+    "pi-analizador": {
+      "status": "completed",
+      "step": "02",
+      "timestamp": "2026-05-16T00:00:00Z"
+    },
+    "pi-cartografo": {
+      "status": "completed",
+      "step": "03",
+      "timestamp": "2026-05-16T00:00:00Z"
+    }
+  }
+}

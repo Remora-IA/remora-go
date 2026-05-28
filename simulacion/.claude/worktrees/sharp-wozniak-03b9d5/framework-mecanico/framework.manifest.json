@@ -1,0 +1,473 @@
+{
+  "name": "mecanico",
+  "version": "0.1.0",
+  "description": "Agente reparador. Toma findings y brechas de datos producidos por Auditor, propone planes de remediación, aplica fixes solo con confirmación y puede preparar borradores operativos para resolver acciones aprobadas. No envía comunicaciones.",
+  "build": {
+    "command": "go",
+    "args": [
+      "build",
+      "-buildvcs=false",
+      "-o",
+      "frameworkmecanico",
+      "./cmd/frameworkmecanico"
+    ]
+  },
+  "binary": {
+    "command": "./frameworkmecanico",
+    "args_prefix": []
+  },
+  "cwd": "framework-mecanico",
+  "execution_mode": "sync_chain",
+  "requires_infra": [],
+  "inputs": [
+    {
+      "name": "findings",
+      "format": "auditor.findings.v1",
+      "path": "../framework-auditor/data/findings.json",
+      "required": true,
+      "description": "Salida del último scan del auditor, incluyendo data.gaps.v1 cuando corresponde"
+    },
+    {
+      "name": "dataset",
+      "format": "external.api.dump.v1",
+      "path": "../framework-auditor/data/dataset.working.json",
+      "required": true,
+      "description": "Dataset mutable que el mecánico modifica al aplicar fixes"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "proposals",
+      "format": "mecanico.proposals.v1",
+      "path": "data/proposals.json",
+      "description": "Propuestas de fix pendientes de aprobación"
+    },
+    {
+      "name": "applied_log",
+      "format": "mecanico.applied.v1",
+      "path": "data/applied.jsonl",
+      "description": "Audit-trail de fixes aplicados"
+    }
+  ],
+  "commands": {
+    "propose": {
+      "description": "Genera propuesta de fix para un finding (no ejecuta). Prefiere findings/dataset por ruta; mantiene JSON inline como fallback.",
+      "args": [
+        "propose",
+        "--finding-id",
+        "{params.finding_id}",
+        "--findings-path",
+        "{params.findings_path}",
+        "--findings-json",
+        "{params.findings_json}",
+        "--dataset-path",
+        "{params.dataset_path}",
+        "--dataset-json",
+        "{params.dataset_json}"
+      ],
+      "params": [
+        "finding_id",
+        "findings_path",
+        "findings_json",
+        "dataset_path",
+        "dataset_json"
+      ],
+      "defaults": {
+        "findings_path": "",
+        "findings_json": "",
+        "dataset_path": "",
+        "dataset_json": ""
+      }
+    },
+    "propose-all-auto": {
+      "description": "Genera propuestas para todos los findings auto-corregibles. Puede recibir findings/dataset como JSON inline o por ruta de archivo.",
+      "args": [
+        "propose-all-auto",
+        "--findings-json",
+        "{params.findings_json}",
+        "--findings-path",
+        "{params.findings_path}",
+        "--dataset-json",
+        "{params.dataset_json}",
+        "--dataset-path",
+        "{params.dataset_path}"
+      ],
+      "params": [
+        "findings_json",
+        "findings_path",
+        "dataset_json",
+        "dataset_path"
+      ],
+      "defaults": {
+        "findings_json": "",
+        "findings_path": "",
+        "dataset_json": "",
+        "dataset_path": ""
+      }
+    },
+    "list-proposals": {
+      "description": "Lista propuestas pendientes",
+      "args": [
+        "list-proposals"
+      ],
+      "params": []
+    },
+    "apply": {
+      "description": "Aplica un fix propuesto al dataset.working.json. Prefiere dataset por ruta; mantiene JSON inline como fallback.",
+      "args": [
+        "apply",
+        "--proposal-id",
+        "{params.proposal_id}",
+        "--dataset-path",
+        "{params.dataset_path}",
+        "--dataset-json",
+        "{params.dataset_json}"
+      ],
+      "params": [
+        "proposal_id",
+        "dataset_path",
+        "dataset_json"
+      ],
+      "defaults": {
+        "dataset_path": "",
+        "dataset_json": ""
+      }
+    },
+    "apply-all": {
+      "description": "Aplica TODAS las propuestas pendientes (usar con precaución). Puede recibir dataset como JSON inline o por ruta de archivo.",
+      "args": [
+        "apply-all",
+        "--dataset-json",
+        "{params.dataset_json}",
+        "--dataset-path",
+        "{params.dataset_path}"
+      ],
+      "params": [
+        "dataset_json",
+        "dataset_path"
+      ],
+      "defaults": {
+        "dataset_json": "",
+        "dataset_path": ""
+      }
+    },
+    "reset": {
+      "description": "Limpia propuestas y log de aplicados",
+      "args": [
+        "reset"
+      ],
+      "params": []
+    },
+    "next-question": {
+      "description": "Próxima pregunta/mensaje al user",
+      "args": [
+        "next-question"
+      ],
+      "params": []
+    },
+    "ingest-answer": {
+      "description": "Recibe respuesta del user y avanza el flujo",
+      "args": [
+        "ingest-answer",
+        "--question-id",
+        "{params.question_id}",
+        "--answer",
+        "{params.answer}"
+      ],
+      "params": [
+        "question_id",
+        "answer"
+      ]
+    },
+    "draft-email": {
+      "description": "Genera un borrador de email de cobranza como artifact message.draft.v1; no envía. Si action_id=skip_case, omite el draft.",
+      "args": [
+        "draft-email",
+        "--deudor",
+        "{params.deudor}",
+        "--tono",
+        "{params.tono}",
+        "--saldo",
+        "{params.saldo}",
+        "--dias-mora",
+        "{params.dias_mora}",
+        "--to",
+        "{params.to}",
+        "--action-id",
+        "{params.action_id}"
+      ],
+      "params": [
+        "deudor",
+        "tono",
+        "saldo",
+        "dias_mora",
+        "to",
+        "action_id"
+      ],
+      "defaults": {
+        "tono": "formal",
+        "saldo": "0",
+        "dias_mora": "0",
+        "to": "",
+        "action_id": ""
+      }
+    },
+    "resolve-gaps": {
+      "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano. Filtra por scope_tables si se proveen.",
+      "args": [
+        "resolve-gaps",
+        "--data-gaps-path",
+        "{params.data_gaps_path}",
+        "--data-gaps-json",
+        "{params.data_gaps_json}",
+        "--findings-path",
+        "{params.findings_path}",
+        "--findings-json",
+        "{params.findings_json}",
+        "--entity-ref-path",
+        "{params.entity_ref_path}",
+        "--entity-ref-json",
+        "{params.entity_ref_json}",
+        "--scope-tables-path",
+        "{params.scope_tables_path}",
+        "--scope-tables-json",
+        "{params.scope_tables_json}"
+      ],
+      "params": [
+        "data_gaps_path",
+        "data_gaps_json",
+        "findings_path",
+        "findings_json",
+        "entity_ref_path",
+        "entity_ref_json",
+        "scope_tables_path",
+        "scope_tables_json"
+      ],
+      "defaults": {
+        "data_gaps_path": "",
+        "data_gaps_json": "",
+        "findings_path": "",
+        "findings_json": "",
+        "entity_ref_path": "",
+        "entity_ref_json": "",
+        "scope_tables_path": "",
+        "scope_tables_json": ""
+      }
+    }
+  },
+  "asks_human": {
+    "via": "user",
+    "path": "next-question",
+    "description": "Mecánico pregunta al user antes de aplicar cualquier fix"
+  },
+  "user_input": {
+    "supported": true,
+    "ask_via": "",
+    "modes": [
+      "short_answer"
+    ],
+    "next_question_cmd": "next-question",
+    "ingest_answer_cmd": "ingest-answer"
+  },
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": [
+      "text",
+      "conversation"
+    ]
+  },
+  "capabilities_semantic": {
+    "tags": [
+      "fix",
+      "remediation",
+      "erp",
+      "data-quality",
+      "draft",
+      "message-draft",
+      "collection-email"
+    ],
+    "intent_examples": [
+      "arreglá los errores",
+      "corregí los datos faltantes",
+      "aplicá los fixes auto-corregibles",
+      "prepará un borrador de cobranza",
+      "redactá email de cobranza",
+      "generá mensaje para el deudor"
+    ],
+    "produces": [
+      "fixes_applied:dataset",
+      "message.draft.v1",
+      "message.draft"
+    ],
+    "requires": [
+      "findings:erp_audit"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "action.fix.propose",
+      "description": "Genera una propuesta de remediación para un finding sin aplicarla.",
+      "command": "propose",
+      "inputs": [
+        "auditor.findings.v1",
+        "finding.id",
+        "data.gaps.v1"
+      ],
+      "outputs": [
+        "mecanico.proposal.v1"
+      ],
+      "requires": [
+        "auditor.findings.v1"
+      ],
+      "produces": [
+        "mecanico.proposal.v1",
+        "action.fix_proposed"
+      ],
+      "execution": "deterministic_or_llm_assisted_fix_proposal",
+      "policies": [
+        "no_external_side_effect",
+        "resolution_hybrid",
+        "approval_required_before_apply"
+      ]
+    },
+    {
+      "id": "action.fix.propose_all_auto",
+      "description": "Genera propuestas para todos los findings auto-corregibles del Auditor sin aplicarlas.",
+      "command": "propose-all-auto",
+      "inputs": [
+        "auditor.findings.v1",
+        "data.gaps.v1"
+      ],
+      "outputs": [
+        "mecanico.proposals.v1"
+      ],
+      "requires": [
+        "auditor.findings.v1"
+      ],
+      "produces": [
+        "mecanico.proposals.v1",
+        "mecanico.proposal.v1",
+        "action.fix_proposed"
+      ],
+      "execution": "deterministic_or_llm_assisted_bulk_fix_proposal",
+      "policies": [
+        "no_external_side_effect",
+        "approval_required_before_apply"
+      ]
+    },
+    {
+      "id": "action.fix.apply",
+      "description": "Aplica una propuesta aprobada sobre el dataset de trabajo y registra audit trail.",
+      "command": "apply",
+      "inputs": [
+        "mecanico.proposal.v1",
+        "external.api.dump.v1"
+      ],
+      "outputs": [
+        "mecanico.applied.v1"
+      ],
+      "requires": [
+        "mecanico.proposal.v1"
+      ],
+      "produces": [
+        "mecanico.applied.v1",
+        "action.fix_applied"
+      ],
+      "execution": "approved_dataset_mutation",
+      "policies": [
+        "state_mutation",
+        "approval_required",
+        "long_running",
+        "long_running",
+        "audit_log_required"
+      ]
+    },
+    {
+      "id": "action.fix.apply_all",
+      "description": "Aplica todas las propuestas aprobadas sobre el dataset mediado por Sabio y devuelve el dataset actualizado.",
+      "command": "apply-all",
+      "inputs": [
+        "mecanico.proposals.v1",
+        "external.api.dump.v1",
+        "dataset.raw.v1"
+      ],
+      "outputs": [
+        "mecanico.applied.v1",
+        "dataset.raw.v1",
+        "external.api.dump.v1"
+      ],
+      "requires": [
+        "external.api.dump.v1"
+      ],
+      "produces": [
+        "mecanico.applied.v1",
+        "action.fix_applied",
+        "dataset.raw.v1",
+        "external.api.dump.v1"
+      ],
+      "execution": "approved_bulk_dataset_mutation",
+      "policies": [
+        "state_mutation",
+        "approval_required",
+        "audit_log_required"
+      ]
+    },
+    {
+      "id": "message.draft.collection_email",
+      "description": "Prepara un borrador de email de cobranza para la entidad priorizada usando datos y destinatario disponibles; no envía.",
+      "command": "draft-email",
+      "inputs": [
+        "entity.ref.v1",
+        "collection.priority_item.v1",
+        "contact.destination.v1",
+        "business.context.v1"
+      ],
+      "outputs": [
+        "message.draft.v1"
+      ],
+      "requires": [
+        "entity.ref.v1",
+        "contact.destination.v1"
+      ],
+      "produces": [
+        "message.draft.v1",
+        "message.draft"
+      ],
+      "execution": "deterministic_collection_email_draft",
+      "policies": [
+        "no_external_side_effect",
+        "approval_required_before_send",
+        "trace_required"
+      ]
+    },
+    {
+      "id": "action.fix.resolve_gaps_conversational",
+      "description": "Toma data.gaps.v1 y genera preguntas conversacionales para resolver gaps que requieren input humano (contacto, credenciales, etc). No aplica fixes automáticos; solo pregunta.",
+      "command": "resolve-gaps",
+      "inputs": [
+        "data.gaps.v1",
+        "auditor.findings.v1",
+        "entity.ref.v1"
+      ],
+      "outputs": [
+        "mecanico.resolution_plan.v1",
+        "framework.question.v1"
+      ],
+      "requires": [
+        "data.gaps.v1"
+      ],
+      "produces": [
+        "mecanico.resolution_plan.v1",
+        "framework.question.v1"
+      ],
+      "execution": "conversational_gap_resolution",
+      "policies": [
+        "no_external_side_effect",
+        "human_input_required",
+        "trace_required"
+      ]
+    }
+  ]
+}

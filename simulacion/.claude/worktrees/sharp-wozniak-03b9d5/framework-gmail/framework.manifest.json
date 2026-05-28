@@ -1,0 +1,223 @@
+{
+  "name": "gmail",
+  "version": "0.1.0",
+  "description": "Gestor de emails. Prepara borradores canónicos message.draft.v1 y gestiona operaciones de correo; el envío real sigue pasando por aprobación/credenciales.",
+  "build": {
+    "command": "go",
+    "args": [
+      "build",
+      "-buildvcs=false",
+      "-o",
+      "frameworkgmail",
+      "./cmd/framework-gmail"
+    ]
+  },
+  "binary": {
+    "command": "./frameworkgmail",
+    "args_prefix": []
+  },
+  "cwd": "framework-gmail",
+  "execution_mode": "async_trigger",
+  "requires_infra": [],
+  "model": {
+    "provider": "groq",
+    "name": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "env_key": "GROQ_API_KEY",
+    "capabilities": [
+      "text",
+      "conversation"
+    ]
+  },
+  "commands": {
+    "send-email": {
+      "description": "Envía un email vía Gmail API",
+      "args": [
+        "send-email"
+      ],
+      "params": []
+    },
+    "get-unread-emails": {
+      "description": "Lista emails no leídos",
+      "args": [
+        "get-unread-emails"
+      ],
+      "params": []
+    },
+    "search-emails": {
+      "description": "Busca emails por query",
+      "args": [
+        "search-emails"
+      ],
+      "params": []
+    },
+    "list-labels": {
+      "description": "Lista labels de Gmail",
+      "args": [
+        "list-labels"
+      ],
+      "params": []
+    },
+    "list-drafts": {
+      "description": "Lista borradores",
+      "args": [
+        "list-drafts"
+      ],
+      "params": []
+    },
+    "create-draft": {
+      "description": "Genera un borrador canónico message.draft.v1 sin enviarlo",
+      "args": [
+        "create-draft",
+        "--recipient_id",
+        "{params.to}",
+        "--subject",
+        "{params.subject}",
+        "--message",
+        "{params.message}"
+      ],
+      "params": [
+        "to",
+        "subject",
+        "message"
+      ],
+      "defaults": {
+        "to": "",
+        "subject": "",
+        "message": ""
+      }
+    }
+  },
+  "user_input": {
+    "supported": false
+  },
+  "capabilities_semantic": {
+    "tags": [
+      "gmail",
+      "email",
+      "oauth2",
+      "google"
+    ],
+    "intent_examples": [
+      "leer mis emails",
+      "enviar un correo",
+      "buscar emails de un cliente"
+    ],
+    "produces": [
+      "email.send",
+      "email.list",
+      "email.search",
+      "message.draft.v1",
+      "email.draft"
+    ],
+    "requires": [
+      "credentials.gmail_oauth2"
+    ]
+  },
+  "capabilities": [
+    {
+      "id": "message.draft.collection_email",
+      "description": "Prepara un borrador de email de cobranza a partir del contexto ya analizado, sin enviarlo.",
+      "command": "create-draft",
+      "inputs": [
+        "business.context.v1",
+        "entity_360.v1",
+        "collection.priority_item.v1"
+      ],
+      "outputs": [
+        "message.draft.v1"
+      ],
+      "requires": [
+        "business.context.v1",
+        "entity_360.v1"
+      ],
+      "produces": [
+        "message.draft.v1",
+        "message.draft"
+      ],
+      "execution": "template_draft_generation_no_send",
+      "policies": [
+        "approval_required_before_send",
+        "no_external_side_effect"
+      ]
+    },
+    {
+      "id": "email.send.gmail",
+      "description": "Envía un email usando Gmail API y credenciales OAuth2.",
+      "command": "send-email",
+      "inputs": [
+        "message.draft.v1",
+        "credentials.gmail_oauth2",
+        "business.context.v1"
+      ],
+      "outputs": [
+        "message.sent.v1",
+        "email.sent.v1"
+      ],
+      "requires": [
+        "message.draft.v1",
+        "credentials.gmail_oauth2"
+      ],
+      "produces": [
+        "message.sent.v1",
+        "email.sent.v1",
+        "email.send"
+      ],
+      "execution": "gmail_api_send",
+      "policies": [
+        "external_side_effect",
+        "approval_required",
+        "trace_required",
+        "audit_log_required"
+      ]
+    },
+    {
+      "id": "email.list.gmail_unread",
+      "description": "Lista correos no leídos usando Gmail API.",
+      "command": "get-unread-emails",
+      "inputs": [
+        "credentials.gmail_oauth2",
+        "business.context.v1"
+      ],
+      "outputs": [
+        "email.list.v1"
+      ],
+      "requires": [
+        "credentials.gmail_oauth2"
+      ],
+      "produces": [
+        "email.list.v1",
+        "email.list"
+      ],
+      "execution": "gmail_api_read",
+      "policies": [
+        "read_external_data",
+        "scope_required"
+      ]
+    },
+    {
+      "id": "email.search.gmail",
+      "description": "Busca correos por query usando Gmail API.",
+      "command": "search-emails",
+      "inputs": [
+        "credentials.gmail_oauth2",
+        "email.search_query.v1",
+        "business.context.v1"
+      ],
+      "outputs": [
+        "email.search_results.v1"
+      ],
+      "requires": [
+        "credentials.gmail_oauth2"
+      ],
+      "produces": [
+        "email.search_results.v1",
+        "email.search"
+      ],
+      "execution": "gmail_api_search",
+      "policies": [
+        "read_external_data",
+        "scope_required"
+      ]
+    }
+  ]
+}
